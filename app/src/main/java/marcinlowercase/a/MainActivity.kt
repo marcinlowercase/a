@@ -13,6 +13,8 @@ import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
+import android.content.pm.ShortcutInfo
+import android.content.pm.ShortcutManager
 import android.graphics.Bitmap
 import android.media.MediaScannerConnection
 import android.net.Uri
@@ -183,12 +185,16 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.content.edit
+import androidx.core.content.getSystemService
+import androidx.core.graphics.drawable.toBitmap
 import androidx.core.net.toUri
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import coil.compose.rememberAsyncImagePainter
+import coil.imageLoader
 import coil.request.ImageRequest
+import coil.transform.CircleCropTransformation
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -270,6 +276,61 @@ const val JS_HOVER_SIMULATOR = """
 
 //region Global Functions
 
+fun addToHomeScreen(
+    context: Context,
+    coroutineScope: CoroutineScope,
+    tab: Tab?
+) {
+    if (tab == null) return
+
+    // 1. Check for API level support
+
+
+    val shortcutManager = context.getSystemService<ShortcutManager>()
+    if (shortcutManager == null || !shortcutManager.isRequestPinShortcutSupported) {
+        Toast.makeText(context, "Launcher does not support pinning", Toast.LENGTH_SHORT).show()
+        return
+    }
+
+    val url = tab.currentUrl ?: return
+    val history = tab.historyState
+    val title = history?.items?.getOrNull(history.currentIndex)?.title ?: "New Shortcut"
+    val faviconUrl = history?.items?.getOrNull(history.currentIndex)?.faviconUrl
+        ?: getFaviconUrlFromGoogleServer(url)
+
+    // 2. Fetch the icon using Coil
+    coroutineScope.launch {
+        val imageRequest = ImageRequest.Builder(context)
+            .data(faviconUrl)
+            .transformations(CircleCropTransformation())
+            .build()
+
+        val iconBitmap = context.imageLoader.execute(imageRequest).drawable?.toBitmap()
+
+        if (iconBitmap == null) {
+            Toast.makeText(context, "Could not load icon", Toast.LENGTH_SHORT).show()
+            return@launch
+        }
+
+        // 3. Create the Intent
+        val shortcutIntent = Intent(Intent.ACTION_VIEW, url.toUri()).apply {
+            setClass(context, MainActivity::class.java)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+
+        // 4. Build the ShortcutInfo
+        val shortcut = ShortcutInfo.Builder(context, url)
+            .setShortLabel(title)
+            .setLongLabel(title)
+            .setIcon(android.graphics.drawable.Icon.createWithBitmap(iconBitmap))
+            .setIntent(shortcutIntent)
+            .build()
+
+        // 5. Request pinning
+        shortcutManager.requestPinShortcut(shortcut, null)
+//        Toast.makeText(context, "Adding shortcut to home screen...", Toast.LENGTH_SHORT).show()
+    }
+}
 
 fun webViewLoad(view: CustomWebView?, url: String, browserSettings: BrowserSettings) {
     val headerinlowercase = mutableMapOf<String, String>()
@@ -3376,6 +3437,13 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
 
 
             BottomPanel(
+                onAddToHomeScreen = {
+                    addToHomeScreen(
+                        context = context,
+                        coroutineScope = coroutineScope,
+                        tab = currentInspectingTab
+                    )
+                },
                 setIsDownloadPanelVisible = { isDownloadPanelVisible = it },
                 descriptionContent = descriptionContent,
                 recentlyClosedTabs = recentlyClosedTabs,
@@ -3855,6 +3923,7 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
 
 @Composable
 fun BottomPanel(
+    onAddToHomeScreen: () -> Unit,
     descriptionContent: MutableState<String>,
     recentlyClosedTabs: SnapshotStateList<Tab>,
     reopenClosedTab: () -> Unit,
@@ -4043,6 +4112,7 @@ fun BottomPanel(
 
             )
             TabDataPanel(
+                onAddToHomeScreen = onAddToHomeScreen,
                 isTabDataPanelVisible = isTabDataPanelVisible,
                 inspectingTab = inspectingTab,
                 onDismiss = onTabDataPanelDismiss,
@@ -4111,7 +4181,7 @@ fun BottomPanel(
                     )
                 )
             ) {
-                Box{
+                Box {
 
                     OutlinedTextField(
                         modifier = Modifier
@@ -4824,9 +4894,7 @@ fun OptionsPanel(
                                     browserSettings.paddingDp
                                 ).dp
                             )
-                        )
-
-                    ,
+                        ),
 
                     horizontalArrangement = Arrangement.spacedBy(browserSettings.paddingDp.dp)
                 ) {
@@ -6225,6 +6293,7 @@ fun TabDataPanel(
     onPermissionToggle: (domain: String?, permission: String, isGranted: Boolean) -> Unit,
     onClearSiteData: () -> Unit,
     onCloseTab: () -> Unit,
+    onAddToHomeScreen: () -> Unit,
     onHistoryItemClicked: (tab: Tab, index: Int) -> Unit
 ) {
 
@@ -6551,150 +6620,23 @@ fun TabDataPanel(
                             tint = Color.Black
                         )
                     }
+
+                    IconButton(
+                        onClick = onAddToHomeScreen,
+                        modifier = buttonModifierForLayer(
+                            3,
+                            browserSettings.deviceCornerRadius,
+                            browserSettings.paddingDp,
+                            browserSettings.singleLineHeight
+                        ).weight(1f)
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_install_desktop),
+                            contentDescription = "Add to Home Screen",
+                            tint = Color.Black
+                        )
+                    }
                 }
-//                // --- PART 1: History List ---
-//
-//                val itemHeight = cornerRadiusForLayer(
-//                    3,
-//                    browserSettings.deviceCornerRadius,
-//                    browserSettings.paddingDp
-//                ).dp * 2 + browserSettings.paddingDp.dp
-//
-//                val lazyListState = rememberLazyListState()
-//                val history = tab.historyState
-//
-//
-//                LazyColumn(
-//                    state = lazyListState,
-//                    modifier = Modifier
-//                        .heightIn(max = itemHeight * 2.5f)
-//                        .animateContentSize(animationSpec = tween(durationMillis = browserSettings.animationSpeed))
-//                        .padding(
-//                            top = browserSettings.paddingDp.dp
-//                        )
-//                        .padding(
-//                            horizontal = browserSettings.paddingDp.dp
-//                        )
-//                        .clip(
-//                            RoundedCornerShape(
-//                                cornerRadiusForLayer(
-//                                    3,
-//                                    browserSettings.deviceCornerRadius,
-//                                    browserSettings.paddingDp
-//                                ).dp
-//                            )
-//                        )
-//                ) {
-//                    val history = tab.historyState
-//                    if (history != null) {
-//                        items(history.items.size) { index ->
-//                            val item = history.items[index]
-//
-//                            // --- REPLACE the old Box/Text with the new HistoryRow ---
-//                            HistoryRow(
-//                                item = item,
-//                                isLast = index == history.items.size - 1,
-//                                isCurrent = index == history.currentIndex,
-//                                browserSettings = browserSettings,
-//                                onClick = {
-//                                    onHistoryItemClicked(tab, index)
-//                                }
-//                            )
-//                        }
-//                    }
-//                }
-//                LaunchedEffect(history?.currentIndex) {
-//                    if (history != null && history.currentIndex in 0 until history.items.size) {
-//                        // Animate scroll will smoothly bring the item into view.
-//                        // It's efficient and won't scroll if the item is already visible.
-//                        lazyListState.animateScrollToItem(index = history.currentIndex)
-//                    }
-//                }
-//
-//                // --- PART 2: Permissions and Actions ---
-//                val domain =
-//                    SiteSettingsManager(LocalContext.current).getDomain(tab.currentUrl)
-//                val settings = if (domain != null) siteSettings[domain] else null
-//
-//                if (settings != null) {
-//                    Text(
-//                        "Permissions for $domain",
-//                        color = Color.White,
-//                        style = MaterialTheme.typography.titleMedium,
-//                        modifier = Modifier.padding(16.dp)
-//                    )
-//                    // Permissions List
-//                    if (settings.permissionDecisions.isEmpty()) {
-//                        Text(
-//                            "No permissions requested yet.",
-//                            color = Color.Gray,
-//                            modifier = Modifier.padding(horizontal = 16.dp)
-//                        )
-//                    } else {
-//                        settings.permissionDecisions.forEach { (permission, isGranted) ->
-//                            Row(
-//                                modifier = Modifier
-//                                    .fillMaxWidth()
-//                                    .padding(horizontal = 16.dp),
-//                                verticalAlignment = Alignment.CenterVertically
-//                            ) {
-//                                Text(
-//                                    permission.substringAfterLast('.'),
-//                                    color = Color.White,
-//                                    modifier = Modifier.weight(1f)
-//                                )
-//                                Switch(
-//                                    checked = isGranted,
-//                                    onCheckedChange = { newGrantState ->
-//                                        onPermissionToggle(domain, permission, newGrantState)
-//                                    }
-//                                )
-//                            }
-//                        }
-//                    }
-//                    Spacer(Modifier.height(16.dp))
-//                }
-//
-//                // Action Buttons
-//                Row(
-//                    modifier = Modifier
-//                        .fillMaxWidth()
-//                        .padding(browserSettings.paddingDp.dp),
-//                    horizontalArrangement = Arrangement.spacedBy(browserSettings.paddingDp.dp)
-//                ) {
-//                    // Show Clear Data button only if the tab is active
-//                    if (tab.state != TabState.FROZEN) {
-//                        IconButton(
-//                            onClick = onClearSiteData,
-//                            modifier = buttonModifierForLayer(
-//                                3,
-//                                browserSettings.deviceCornerRadius,
-//                                browserSettings.paddingDp
-//                            ).weight(1f)
-//                        ) {
-//                            Icon(
-//                                painter = painterResource(id = R.drawable.ic_database_off),
-//                                tint = Color.Black,
-//                                contentDescription = "Clear Site Data"
-//                            )
-//                        }
-//                    }
-//                    IconButton(
-//                        onClick = onCloseTab,
-//                        modifier = buttonModifierForLayer(
-//                            3,
-//                            browserSettings.deviceCornerRadius,
-//                            browserSettings.paddingDp
-//                        ).weight(1f)
-//
-//                    ) {
-//                        Icon(
-//                            painter = painterResource(id = R.drawable.ic_tab_close),
-//                            tint = Color.Black,
-//                            contentDescription = "Close Tab"
-//                        )
-//                    }
-//                }
             }
         }
     }
@@ -6832,8 +6774,9 @@ fun ConfirmationPanel(
             Text(
                 text = state.message,
                 color = Color.Yellow,
-                modifier = Modifier.padding(browserSettings.paddingDp.dp)
-                 .fillMaxWidth(),
+                modifier = Modifier
+                    .padding(browserSettings.paddingDp.dp)
+                    .fillMaxWidth(),
                 textAlign = TextAlign.Center
             )
 
