@@ -2714,6 +2714,13 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
                     activity?.requestedOrientation = originalOrientation
 
                     customViewCallback?.onCustomViewHidden()
+                    val insetsController = activity?.let {
+                        WindowCompat.getInsetsController(
+                            it.window,
+                            it.window.decorView
+                        )
+                    }
+                    insetsController?.hide(WindowInsetsCompat.Type.systemBars())
                     customViewCallback = null
                 },
                 onPageStartedFun = { view, url, favicon ->
