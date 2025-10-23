@@ -5691,11 +5691,12 @@ fun DownloadPanel(
 
 
             } else {
-                val itemHeight = cornerRadiusForLayer(
+                val itemHeight = heightForLayer(
                     3,
                     browserSettings.deviceCornerRadius,
-                    browserSettings.paddingDp
-                ).dp * 2 + browserSettings.paddingDp.dp
+                    browserSettings.paddingDp,
+                    browserSettings.singleLineHeight
+                ).dp + browserSettings.paddingDp.dp
                 LazyColumn(
                     modifier = Modifier
 //                        .weight(1f)
