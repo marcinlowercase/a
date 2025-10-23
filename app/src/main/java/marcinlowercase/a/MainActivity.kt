@@ -136,6 +136,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -446,6 +447,7 @@ private enum class SettingPanelView {
     CURSOR_TRACKING_SPEED,
     DEFAULT_URL,
     INFO,
+    CLOSED_TAB_HISTORY_SIZE,
 
 }
 
@@ -595,7 +597,9 @@ data class BrowserSettings(
     val cursorContainerSize: Float,
     val cursorPointerSize: Float,
     val cursorTrackingSpeed: Float,
-)
+    val closedTabHistorySize: Float,
+
+    )
 
 enum class GestureNavAction {
     NONE, // The overlay is hidden
@@ -1609,6 +1613,7 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
                 ),
                 cursorPointerSize = sharedPrefs.getFloat("cursor_pointer_size", 5f),
                 cursorTrackingSpeed = sharedPrefs.getFloat("cursor_tracking_speed", 1.75f),
+                closedTabHistorySize = sharedPrefs.getFloat("closed_tab_history_size", 2f)
             )
         )
     }
@@ -1622,6 +1627,8 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
             addAll(tabManager.loadTabs(browserSettings.defaultUrl))
         }
     }
+
+    val recentlyClosedTabs = remember { mutableStateListOf<Tab>() }
     val activeTabIndex = remember {
         mutableIntStateOf(tabs.indexOfFirst { it.state == TabState.ACTIVE }.coerceAtLeast(0))
     }
@@ -1657,7 +1664,6 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
     }
 
 
-
     var isLoading by remember { mutableStateOf(false) }
     var isFocusOnTextField by remember { mutableStateOf(false) }
 
@@ -1674,6 +1680,8 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
     var isPromptPanelVisible by rememberSaveable { mutableStateOf(false) }
     var isTabsPanelVisible by remember { mutableStateOf(false) }
     var tabsPanelLock by remember { mutableStateOf(false) }
+
+    val descriptionContent = remember { mutableStateOf("") }
 
 
     var isNavPanelVisible by remember { mutableStateOf(false) }
@@ -1692,7 +1700,6 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
     var isSettingsPanelVisible by remember { mutableStateOf(false) }
     val offsetY = remember { Animatable(0f) }
     var overlayHeightPx by remember { mutableFloatStateOf(0f) }
-
 
 
     val animatedCornerRadius by animateDpAsState(
@@ -1852,7 +1859,29 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
 
 
     //region Functions
+    val reopenClosedTab = {
+        // Check if there are any tabs to reopen.
+        if (recentlyClosedTabs.isNotEmpty()) {
+            // Get the last closed tab and remove it from the stack.
+            val tabToReopen = recentlyClosedTabs.removeAt(recentlyClosedTabs.lastIndex)
 
+            // Deactivate the current tab.
+            if (activeTabIndex.intValue in tabs.indices) {
+                tabs[activeTabIndex.intValue].state = TabState.BACKGROUND
+            }
+
+            // Add the reopened tab back to the list, usually at the end or a specific index.
+            // Let's add it at the end for simplicity.
+            tabs.add(tabToReopen)
+
+            // Make the reopened tab the new active tab.
+            activeTabIndex.intValue = tabs.lastIndex
+            tabToReopen.state = TabState.ACTIVE
+
+            // Trigger a save.
+            saveTrigger++
+        }
+    }
 
     fun confirmationPopup(message: String, onConfirm: () -> Unit, onCancel: () -> Unit = {}) {
         confirmationState = ConfirmationDialogState(
@@ -1942,7 +1971,7 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
 
 
             confirmationPopup(
-                message = "refresh?",
+                message = "refresh ?",
                 onConfirm = {
                     activeWebView?.reload()
                     isUrlBarVisible = false
@@ -1960,7 +1989,7 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
         val tabToClose = currentInspectingTab
         if (tabToClose != null && tabs.indexOf(tabToClose) > -1) {
             confirmationPopup(
-                message = "close tab?",
+                message = "close tab ?",
                 onConfirm = {
                     val indexToClose = tabs.indexOf(tabToClose)
                     Log.i("CloseTab", "$indexToClose")
@@ -1969,6 +1998,13 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
                         val tabToRemoveIndex = indexToClose
 
                         val tabToRemove = tabToClose
+                        recentlyClosedTabs.add(tabToClose)
+                        val limit = browserSettings.closedTabHistorySize.roundToInt()
+                        while (recentlyClosedTabs.size > limit) {
+                            // Remove the oldest tab from the bottom of the list.
+                            recentlyClosedTabs.removeAt(0)
+                        }
+
                         webViewManager.destroyWebView(tabToRemove)
                         tabs.removeAt(tabToRemoveIndex)
 
@@ -2021,7 +2057,7 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
 
     val handleClearInspectedTabData = {
         confirmationPopup(
-            message = "clear tab data?",
+            message = "clear tab data ?",
             onConfirm = {
                 val inspectingTab = currentInspectingTab
                 if (inspectingTab != null) {
@@ -2229,6 +2265,14 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
                 if (tabs.size > 1) {
                     val tabToRemoveIndex = activeTabIndex.intValue
                     val tabToRemove = tabs[tabToRemoveIndex]
+                    recentlyClosedTabs.add(tabToRemove)
+
+                    val limit = browserSettings.closedTabHistorySize.roundToInt()
+                    while (recentlyClosedTabs.size > limit) {
+                        // Remove the oldest tab from the bottom of the list.
+                        recentlyClosedTabs.removeAt(0)
+                    }
+
                     webViewManager.destroyWebView(tabToRemove)
                     tabs.removeAt(tabToRemoveIndex)
 
@@ -2328,7 +2372,7 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
     val handleClearAll = {
         downloads.clear() // Clears our UI list
         downloadTracker.saveDownloads(downloads) // Saves the empty list
-        Toast.makeText(context, "Download list cleared.", Toast.LENGTH_SHORT).show()
+//        Toast.makeText(context, "download list cleared.", Toast.LENGTH_SHORT).show()
     }
 
     val handleOpenFile = { item: DownloadItem ->
@@ -2949,6 +2993,8 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
                 },
                 onDownloadRequested = { url, userAgent, contentDisposition, mimeType, contentLength ->
 
+                    if (!isUrlBarVisible) isUrlBarVisible = true
+                    if (!isDownloadPanelVisible) isDownloadPanelVisible = true
                     if (url.startsWith("blob:")) {
                         val filename = getBestGuessFilename(url, contentDisposition, mimeType)
 
@@ -3027,10 +3073,11 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
         if (!isUrlBarVisible) {
             isOptionsPanelVisible = false
             isTabDataPanelVisible = false
-            isTabsPanelVisible = false
+            if (!tabsPanelLock) isTabsPanelVisible = false
             isSettingsPanelVisible = false
+            if (downloads.isEmpty()) isDownloadPanelVisible = false
         } else {
-            if (tabsPanelLock) isTabsPanelVisible = true
+//            if (tabsPanelLock) isTabsPanelVisible = true
             if (isCursorMode) isCursorMode = false
         }
     }
@@ -3183,6 +3230,7 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
             putFloat("cursor_container_size", browserSettings.cursorContainerSize)
             putFloat("cursor_pointer_size", browserSettings.cursorPointerSize)
             putFloat("cursor_tracking_speed", browserSettings.cursorTrackingSpeed)
+            putFloat("closed_tab_history_size", browserSettings.closedTabHistorySize)
 
 
         }
@@ -3328,6 +3376,10 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
 
 
             BottomPanel(
+                setIsDownloadPanelVisible = { isDownloadPanelVisible = it },
+                descriptionContent = descriptionContent,
+                recentlyClosedTabs = recentlyClosedTabs,
+                reopenClosedTab = reopenClosedTab,
                 confirmationPopup = ::confirmationPopup,
                 resetBrowserSettings = resetBrowserSettings,
                 backgroundColor = backgroundColor,
@@ -3340,9 +3392,7 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
                     isCursorMode = it
 
                 },
-                setIsOptionsPanelVisible = { isOptionsPanelVisible = it },
                 setIsTabsPanelVisible = { isTabsPanelVisible = it },
-                setIsDownloadPanelVisible = { isDownloadPanelVisible = it },
                 setIsTabDataPanelVisible = { isTabDataPanelVisible = it },
                 savedPanelState = savedPanelState,
                 setSavedPanelState = { savedPanelState = it },
@@ -3448,7 +3498,7 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
 //                        url = url,
                 focusManager = focusManager,
                 keyboardController = keyboardController,
-                toggleOptionsPanel = { isOptionsPanelVisible = it },
+                setIsOptionsPanelVisible = { isOptionsPanelVisible = it },
                 changeTextFieldValue = { textFieldValue = it },
                 onNewUrl = { newUrl ->
                     webViewLoad(activeWebView, newUrl, browserSettings)
@@ -3556,7 +3606,14 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
                         modifier = Modifier
                             .align(squareAlignment)
 
-                            .animateContentSize(tween(animationSpeedForLayer(1, browserSettings.animationSpeed)))
+                            .animateContentSize(
+                                tween(
+                                    animationSpeedForLayer(
+                                        1,
+                                        browserSettings.animationSpeed
+                                    )
+                                )
+                            )
                             .height(squareBoxSmallHeight)
                             .width(screenSizeDp.width.dp * 0.45f)
                             .graphicsLayer {
@@ -3798,6 +3855,9 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
 
 @Composable
 fun BottomPanel(
+    descriptionContent: MutableState<String>,
+    recentlyClosedTabs: SnapshotStateList<Tab>,
+    reopenClosedTab: () -> Unit,
     confirmationPopup: (message: String, onConfirm: () -> Unit, onCancel: () -> Unit) -> Unit,
     resetBrowserSettings: () -> Int,
     backgroundColor: MutableState<Color>,
@@ -3808,7 +3868,6 @@ fun BottomPanel(
     isCursorPadVisible: Boolean,
     isCursorMode: Boolean,
     setIsCursorMode: (Boolean) -> Unit,
-    setIsOptionsPanelVisible: (Boolean) -> Unit,
     setIsTabsPanelVisible: (Boolean) -> Unit,
     setIsDownloadPanelVisible: (Boolean) -> Unit,
     setIsTabDataPanelVisible: (Boolean) -> Unit,
@@ -3871,7 +3930,7 @@ fun BottomPanel(
 //    url: String,
     focusManager: FocusManager,
     keyboardController: SoftwareKeyboardController?,
-    toggleOptionsPanel: (Boolean) -> Unit = {},
+    setIsOptionsPanelVisible: (Boolean) -> Unit = {},
     toggleIsTabsPanelVisible: () -> Unit = {},
     changeTextFieldValue: (TextFieldValue) -> Unit = {},
     onNewUrl: (String) -> Unit = {},
@@ -3933,6 +3992,15 @@ fun BottomPanel(
 
         ) {
 
+            DescriptionPanel(
+                isVisible = descriptionContent.value.isNotEmpty(),
+                description = descriptionContent.value,
+                browserSettings = browserSettings,
+                onDismiss = {
+                    descriptionContent.value = ""
+                }
+
+            )
             NavigationPanel(
                 isNavPanelVisible = isNavPanelVisible,
                 browserSettings = browserSettings,
@@ -3941,6 +4009,8 @@ fun BottomPanel(
                 canGoForward = canGoForward // And this one too
             )
             DownloadPanel(
+                confirmationPopup = confirmationPopup,
+                setIsDownloadPanelVisible = setIsDownloadPanelVisible,
                 isDownloadPanelVisible = isDownloadPanelVisible,
                 downloads = downloads,
                 browserSettings = browserSettings,
@@ -3961,6 +4031,8 @@ fun BottomPanel(
 
                 )
             SettingsPanel(
+                descriptionContent = descriptionContent,
+                hapticFeedback = hapticFeedback,
                 isSettingsPanelVisible = isSettingsPanelVisible,
                 browserSettings = browserSettings,
                 updateBrowserSettings = updateBrowserSettings,
@@ -4039,23 +4111,7 @@ fun BottomPanel(
                     )
                 )
             ) {
-                Box(
-                    modifier = Modifier
-                        .pointerInput(Unit) {
-                            detectVerticalDragGestures(
-                                onVerticalDrag = { change, dragAmount ->
-                                    // dragAmount is the change in the Y-axis.
-                                    // A negative value means the finger has moved UP.
-                                    if (dragAmount < 0) {
-                                        toggleOptionsPanel(true)
-                                    }
-                                    // A positive value means the finger has moved DOWN.
-                                    else if (dragAmount > 0) {
-                                        toggleOptionsPanel(false)
-                                    }
-                                })
-                        }
-                ) {
+                Box{
 
                     OutlinedTextField(
                         modifier = Modifier
@@ -4316,14 +4372,69 @@ fun BottomPanel(
                                         }
                                     } else {
                                         if (drag != null) {
-                                            // IT'S A VERTICAL SWIPE to open OptionsPanel
-                                            var vAccumulator = 0f
+//                                            // IT'S A VERTICAL SWIPE to open OptionsPanel
+//                                            var vAccumulator = 0f
+//                                            drag(drag.id) { change ->
+//                                                vAccumulator += change.position.y - change.previousPosition.y
+//                                            }
+//                                            // Check the final drag direction
+//                                            if (vAccumulator < 0) setIsOptionsPanelVisible(true) // Swipe Up
+//                                            else setIsOptionsPanelVisible(false) // Swipe Down
+
+
+                                            var horizontalDragAccumulator = 0f
+                                            var verticalDragAccumulator = 0f
+//                                            var previousAction = GestureNavAction.REFRESH
+                                            val horizontalDragThreshold =
+                                                with(density) { 40.dp.toPx() }
+
+                                            val verticalCancelThreshold =
+                                                with(density) { -40.dp.toPx() }
+
+
                                             drag(drag.id) { change ->
-                                                vAccumulator += change.position.y - change.previousPosition.y
+                                                change.consume()
+                                                horizontalDragAccumulator += change.position.x - change.previousPosition.x
+                                                verticalDragAccumulator += change.position.y - change.previousPosition.y
+
+                                                when {
+                                                    horizontalDragAccumulator < -horizontalDragThreshold -> { // left
+                                                        Log.e("BotHDrag", "left")
+
+                                                    }
+
+                                                    horizontalDragAccumulator > horizontalDragThreshold -> { // right
+                                                        Log.e("BotHDrag", "right")
+
+                                                    }
+
+                                                    verticalDragAccumulator < verticalCancelThreshold -> { // up
+                                                        Log.e("BotVDrag", "up")
+                                                        setIsOptionsPanelVisible(true)
+                                                    }
+
+                                                    verticalDragAccumulator > verticalCancelThreshold -> { // down
+                                                        Log.e("BotVDrag", "down")
+
+                                                        setIsOptionsPanelVisible(false)
+                                                    }
+
+
+                                                    else -> {// nothing
+                                                    }
+                                                }
+
+
+//                                                if (newAction != previousAction) {
+//                                                    hapticFeedback.performHapticFeedback(
+//                                                        HapticFeedbackType.TextHandleMove
+//                                                    )
+//                                                    previousAction = newAction
+//                                                }
+//                                                //                                                    activeNavAction = newAction
+//                                                setActiveNavAction(newAction)
                                             }
-                                            // Check the final drag direction
-                                            if (vAccumulator < 0) toggleOptionsPanel(true) // Swipe Up
-                                            else toggleOptionsPanel(false) // Swipe Down
+
 
                                         } else {
                                             // Gesture is fully over
@@ -4358,9 +4469,12 @@ fun BottomPanel(
 
             // SETTING OPTIONS
             OptionsPanel(
+                descriptionContent = descriptionContent,
+                hapticFeedback = hapticFeedback,
+                reopenClosedTab = reopenClosedTab,
                 isSettingsPanelVisible = isSettingsPanelVisible,
                 isOptionsPanelVisible = isOptionsPanelVisible,
-                toggleOptionsPanel = toggleOptionsPanel,
+                setIsOptionsPanelVisible = setIsOptionsPanelVisible,
                 updateBrowserSettings = updateBrowserSettings,
                 browserSettings = browserSettings,
                 toggleIsTabsPanelVisible = toggleIsTabsPanelVisible,
@@ -4372,6 +4486,7 @@ fun BottomPanel(
                 isCursorMode = isCursorMode,
                 setIsCursorMode = setIsCursorMode,
                 setIsSettingsPanelVisible = setIsSettingsPanelVisible,
+                closedTabsCount = recentlyClosedTabs.size,
             )
         }
 
@@ -4513,12 +4628,15 @@ fun PermissionPanel(
 
 @Composable
 fun OptionsPanel(
+    descriptionContent: MutableState<String>,
+    hapticFeedback: HapticFeedback,
+    reopenClosedTab: () -> Unit,
     setIsSettingsPanelVisible: (Boolean) -> Unit,
     isSettingsPanelVisible: Boolean,
     setIsDownloadPanelVisible: (Boolean) -> Unit,
 
     isOptionsPanelVisible: Boolean = false,
-    toggleOptionsPanel: (Boolean) -> Unit = {},
+    setIsOptionsPanelVisible: (Boolean) -> Unit = {},
     toggleIsTabsPanelVisible: () -> Unit,
     updateBrowserSettings: (BrowserSettings) -> Int,
     browserSettings: BrowserSettings,
@@ -4528,6 +4646,7 @@ fun OptionsPanel(
     isCursorPadVisible: Boolean,
     isCursorMode: Boolean,
     setIsCursorMode: (Boolean) -> Unit,
+    closedTabsCount: Int,
 ) {
 
 
@@ -4543,13 +4662,13 @@ fun OptionsPanel(
             listOf(
                 OptionItem(
                     R.drawable.ic_mouse_cursor, // You'll need a download icon
-                    "Show Cursor Pad",
+                    "cursor pad",
                     isCursorPadVisible,
                 ) {
                     Log.e("isCursorMode", "isCursorMode: $isCursorMode")
 
                     setIsCursorMode(!isCursorMode)
-                    toggleOptionsPanel(false)
+                    setIsOptionsPanelVisible(false)
                 },
 //                OptionItem(
 //                    if (browserSettings.isDesktopMode) R.drawable.ic_mobile else R.drawable.ic_desktop,
@@ -4560,45 +4679,54 @@ fun OptionsPanel(
 //                },
                 OptionItem(
                     R.drawable.ic_tabs, // You'll need an icon for this
-                    "Show Tabs Panel", // Display the number of open tabs
+                    "tabs panel", // Display the number of open tabs
                     tabsPanelLock
                 ) {
                     toggleIsTabsPanelVisible()
-                    toggleOptionsPanel(false)
+                    setIsOptionsPanelVisible(false)
 
                 },
                 OptionItem(
                     if (browserSettings.isSharpMode) R.drawable.ic_rounded_corner else R.drawable.ic_sharp_corner,
-                    "Toggle Sharp Corners",
+                    "sharp mode",
                     browserSettings.isSharpMode,
                 ) {
                     updateBrowserSettings(browserSettings.copy(isSharpMode = !browserSettings.isSharpMode))
-                    toggleOptionsPanel(false)
+                    setIsOptionsPanelVisible(false)
 
                 },
 
+                OptionItem(
+                    R.drawable.ic_reopen_window, // You'll need an icon for this
+                    "reopen closed tab",
+                    enabled = closedTabsCount > 0, // Only enable if there are tabs to reopen
+                ) {
+                    reopenClosedTab()
+                    setIsOptionsPanelVisible(false) // Close the panel after action
+                },
 
 
                 OptionItem(
                     R.drawable.ic_download, // You'll need a download icon
-                    "Show Downloads",
+                    "download panel",
                     isDownloadPanelVisible
                 ) {
                     setIsDownloadPanelVisible(!isDownloadPanelVisible)
+                    setIsOptionsPanelVisible(false)
                 },
 
                 OptionItem(
                     R.drawable.ic_settings, // You'll need a settings icon
-                    "Settings",
+                    "settings",
                     isSettingsPanelVisible,
                 ) {
                     // When clicked, show the settings panel and hide this one.
                     setIsSettingsPanelVisible(!isSettingsPanelVisible)
-                    toggleOptionsPanel(false)
+                    setIsOptionsPanelVisible(false)
                 },
 
 
-                OptionItem(R.drawable.ic_bug, "logBrowserSettings", false) {
+                OptionItem(R.drawable.ic_bug, "debug", false) {
                     Log.e("BROWSER SETTINGS", browserSettings.toString())
                     Log.e("Tabs List", tabs.toString())
                 },
@@ -4666,11 +4794,11 @@ fun OptionsPanel(
                             // dragAmount is the change in the Y-axis.
                             // A negative value means the finger has moved UP.
                             if (dragAmount < 0) {
-                                toggleOptionsPanel(true)
+                                setIsOptionsPanelVisible(true)
                             }
                             // A positive value means the finger has moved DOWN.
                             else if (dragAmount > 0) {
-                                toggleOptionsPanel(false)
+                                setIsOptionsPanelVisible(false)
                             }
                         })
                 }
@@ -4696,7 +4824,9 @@ fun OptionsPanel(
                                     browserSettings.paddingDp
                                 ).dp
                             )
-                        ),
+                        )
+
+                    ,
 
                     horizontalArrangement = Arrangement.spacedBy(browserSettings.paddingDp.dp)
                 ) {
@@ -4705,8 +4835,7 @@ fun OptionsPanel(
 
                     // Create an IconButton for each option on the page
                     pageOptions.forEach { option ->
-                        IconButton(
-                            onClick = option.onClick,
+                        Box(
                             // Use weight to make the buttons share space equally
                             modifier = Modifier
                                 .weight(1f)
@@ -4727,10 +4856,55 @@ fun OptionsPanel(
                                             browserSettings.paddingDp
                                         ).dp
                                     )
-                                ),
+                                )
+                                .pointerInput(Unit) {
+                                    // 1. CAPTURE the CoroutineScope provided by pointerInput
+                                    val coroutineScope = CoroutineScope(coroutineContext)
+                                    awaitEachGesture {
+                                        val down = awaitFirstDown(requireUnconsumed = false)
+
+                                        // 2. USE the captured scope to launch the long press job
+                                        val longPressJob = coroutineScope.launch {
+                                            delay(viewConfiguration.longPressTimeoutMillis)
+
+                                            // LONG PRESS CONFIRMED
+                                            hapticFeedback.performHapticFeedback(
+                                                HapticFeedbackType.LongPress
+                                            )
+                                            descriptionContent.value =
+                                                option.contentDescription
 
 
-                            ) {
+                                        }
+                                        val drag =
+                                            awaitTouchSlopOrCancellation(down.id) { change, _ ->
+                                                if (longPressJob.isActive) {
+                                                    longPressJob.cancel()
+                                                }
+                                                change.consume()
+                                            }
+
+
+
+                                        if (!(longPressJob.isCompleted && !longPressJob.isCancelled)) {
+                                            if (drag == null) {
+                                                if (longPressJob.isActive) {
+                                                    longPressJob.cancel()
+                                                    // This was a tap
+                                                    option.onClick()
+
+                                                }
+                                            }
+                                        }
+
+
+                                        descriptionContent.value = ""
+                                    }
+                                },
+                            contentAlignment = Alignment.Center
+
+
+                        ) {
                             Icon(
                                 painter = painterResource(id = option.iconRes),
                                 contentDescription = option.contentDescription,
@@ -5502,6 +5676,7 @@ fun TabItem(
                 Box(
                     modifier = Modifier
                         .size(24.dp),
+
 //                        .clip(RoundedCornerShape(browserSettings.paddingDp.dp / 2)),
 //                        .background(Color.White.copy(alpha = 0.2f)),
 //                        .background(if (isActive) Color.White else Color.White.copy(alpha = 0.7f)),
@@ -5597,6 +5772,8 @@ fun NewTabButton(
 
 @Composable
 fun DownloadPanel(
+    confirmationPopup: (message: String, onConfirm: () -> Unit, onCancel: () -> Unit) -> Unit,
+    setIsDownloadPanelVisible: (Boolean) -> Unit,
     isDownloadPanelVisible: Boolean,
     downloads: List<DownloadItem>,
     browserSettings: BrowserSettings,
@@ -5753,6 +5930,25 @@ fun DownloadPanel(
                     )
 //                                .padding(bottom = browserSettings.paddingDp.dp),
             ) {
+
+                IconButton(
+                    onClick = {
+                        setIsDownloadPanelVisible(false)
+                    },
+                    modifier = buttonModifierForLayer(
+                        3,
+                        browserSettings.deviceCornerRadius,
+                        browserSettings.paddingDp,
+                        browserSettings.singleLineHeight
+                    ).weight(1f)
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_arrow_back),
+                        contentDescription = "Back",
+                        tint = Color.Black
+                    )
+                }
+                Spacer(modifier = Modifier.width(browserSettings.paddingDp.dp))
                 //  Show Download Folder Button
                 IconButton(
                     onClick = onOpenFolderClicked,
@@ -5773,7 +5969,16 @@ fun DownloadPanel(
                 }
                 if (downloads.isNotEmpty()) Spacer(modifier = Modifier.width(browserSettings.paddingDp.dp))
                 if (downloads.isNotEmpty()) IconButton(
-                    onClick = onClearAllClicked,
+                    onClick = {
+                        confirmationPopup(
+                            "clear download list ?",
+                            {
+                                onClearAllClicked()
+
+                            },
+                            {}
+                        )
+                    },
                     modifier = buttonModifierForLayer(
                         3,
                         browserSettings.deviceCornerRadius,
@@ -6098,7 +6303,14 @@ fun TabDataPanel(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .animateContentSize(tween(animationSpeedForLayer(1, browserSettings.animationSpeed))) // Smoothly animates size changes
+                        .animateContentSize(
+                            tween(
+                                animationSpeedForLayer(
+                                    1,
+                                    browserSettings.animationSpeed
+                                )
+                            )
+                        ) // Smoothly animates size changes
                 ) {
 
                     val maxLazyColumnHeight = (heightForLayer(
@@ -6619,8 +6831,10 @@ fun ConfirmationPanel(
 
             Text(
                 text = state.message,
-                color = Color.White,
-                modifier = Modifier.padding(16.dp)
+                color = Color.Yellow,
+                modifier = Modifier.padding(browserSettings.paddingDp.dp)
+                 .fillMaxWidth(),
+                textAlign = TextAlign.Center
             )
 
             Row(
@@ -7141,6 +7355,8 @@ fun CursorPad(
 
 @Composable
 fun SettingsPanel(
+    descriptionContent: MutableState<String>,
+    hapticFeedback: HapticFeedback,
     backgroundColor: MutableState<Color>,
     isSettingsPanelVisible: Boolean,
     setIsSettingsPanelVisible: (Boolean) -> Unit,
@@ -7178,29 +7394,32 @@ fun SettingsPanel(
         listOf(
             OptionItem(
                 R.drawable.ic_adjust_corner_radius,
-                "Adjust corner radius",
+                "corner radius",
                 false
             ) {
                 currentView = SettingPanelView.CORNER_RADIUS
             },
-            OptionItem(R.drawable.ic_link, "Default URL") {
+            OptionItem(R.drawable.ic_link, "default url") {
                 currentView = SettingPanelView.DEFAULT_URL
             },
-            OptionItem(R.drawable.ic_animation, "Animation Speed") {
+            OptionItem(R.drawable.ic_animation, "animation speed") {
                 currentView = SettingPanelView.ANIMATION_SPEED
 
             },
-            OptionItem(R.drawable.ic_padding, "Padding") {
+            OptionItem(R.drawable.ic_padding, "padding") {
                 currentView = SettingPanelView.PADDING
             },
-            OptionItem(R.drawable.ic_cursor_size, "Cursor Size") {
+            OptionItem(R.drawable.ic_cursor_size, "cursor size") {
                 currentView = SettingPanelView.CURSOR_CONTAINER_SIZE
             },
-            OptionItem(R.drawable.ic_cursor_speed, "Cursor Speed") {
+            OptionItem(R.drawable.ic_cursor_speed, "cursor speed") {
                 currentView = SettingPanelView.CURSOR_TRACKING_SPEED
             },
+            OptionItem(R.drawable.ic_manage_history, "history size") {
+                currentView = SettingPanelView.CLOSED_TAB_HISTORY_SIZE
+            },
 
-            OptionItem(R.drawable.ic_reset_settings, "Reset Settings", false) {
+            OptionItem(R.drawable.ic_reset_settings, "reset settings", false) {
 
                 confirmationPopup(
                     "reset all settings?",
@@ -7211,7 +7430,8 @@ fun SettingsPanel(
                     {}
                 )
             },
-            OptionItem(R.drawable.ic_info, "About", false) {
+
+            OptionItem(R.drawable.ic_info, "info", false) {
                 currentView = SettingPanelView.INFO
             },
         )
@@ -7241,7 +7461,14 @@ fun SettingsPanel(
                         ).dp
                     )
                 )
-                .animateContentSize(tween(animationSpeedForLayer(1, browserSettings.animationSpeed)))
+                .animateContentSize(
+                    tween(
+                        animationSpeedForLayer(
+                            1,
+                            browserSettings.animationSpeed
+                        )
+                    )
+                )
                 .border(
                     1.dp,
                     Color.White,
@@ -7256,6 +7483,7 @@ fun SettingsPanel(
         ) {
 
             when (currentView) {
+
                 SettingPanelView.MAIN -> {
                     HorizontalPager(
                         state = pagerState,
@@ -7273,15 +7501,25 @@ fun SettingsPanel(
                                             browserSettings.paddingDp
                                         ).dp
                                     )
-                                ),
+                                )
+//                                .padding(horizontal = browserSettings.paddingDp.dp /2)
+                            ,
                             horizontalArrangement = Arrangement.spacedBy(browserSettings.paddingDp.dp)
                         ) {
                             val pageOptions = optionPages[pageIndex]
                             pageOptions.forEach { option ->
-                                IconButton(
-                                    onClick = option.onClick,
+                                Box(
                                     modifier = Modifier
                                         .weight(1f)
+                                        .clip(
+                                            RoundedCornerShape(
+                                                cornerRadiusForLayer(
+                                                    2,
+                                                    browserSettings.deviceCornerRadius,
+                                                    browserSettings.paddingDp,
+                                                ).dp
+                                            )
+                                        )
                                         .height(
                                             heightForLayer(
                                                 2,
@@ -7300,6 +7538,51 @@ fun SettingsPanel(
                                                 ).dp
                                             )
                                         )
+                                        .pointerInput(Unit) {
+                                            // 1. CAPTURE the CoroutineScope provided by pointerInput
+                                            val coroutineScope = CoroutineScope(coroutineContext)
+                                            awaitEachGesture {
+                                                val down = awaitFirstDown(requireUnconsumed = false)
+
+                                                // 2. USE the captured scope to launch the long press job
+                                                val longPressJob = coroutineScope.launch {
+                                                    delay(viewConfiguration.longPressTimeoutMillis)
+
+                                                    // LONG PRESS CONFIRMED
+                                                    hapticFeedback.performHapticFeedback(
+                                                        HapticFeedbackType.LongPress
+                                                    )
+                                                    descriptionContent.value =
+                                                        option.contentDescription
+
+
+                                                }
+                                                val drag =
+                                                    awaitTouchSlopOrCancellation(down.id) { change, _ ->
+                                                        if (longPressJob.isActive) {
+                                                            longPressJob.cancel()
+                                                        }
+                                                        change.consume()
+                                                    }
+
+
+
+                                                if (!(longPressJob.isCompleted && !longPressJob.isCancelled)) {
+                                                    if (drag == null) {
+                                                        if (longPressJob.isActive) {
+                                                            longPressJob.cancel()
+                                                            // This was a tap
+                                                            option.onClick()
+
+                                                        }
+                                                    }
+                                                }
+
+
+                                                descriptionContent.value = ""
+                                            }
+                                        },
+                                    contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         painter = painterResource(id = option.iconRes),
@@ -7308,9 +7591,9 @@ fun SettingsPanel(
                                     )
                                 }
                             }
-                            repeat(4 - pageOptions.size) {
-                                Spacer(modifier = Modifier.weight(1f))
-                            }
+//                            repeat(4 - pageOptions.size) {
+//                                Spacer(modifier = Modifier.weight(1f))
+//                            }
                         }
                     }
                 }
@@ -7458,6 +7741,25 @@ fun SettingsPanel(
 
                         Text("make by marcinlowercase")
                     }
+                }
+
+                SettingPanelView.CLOSED_TAB_HISTORY_SIZE -> {
+                    SliderSetting(
+                        browserSettings = browserSettings,
+                        updateBrowserSettingsForSpecificValue = { newValue ->
+                            updateBrowserSettings(
+                                browserSettings.copy(closedTabHistorySize = newValue)
+                            )
+                        },
+                        onBackClick = { currentView = SettingPanelView.MAIN },
+                        valueRange = 0f..30f, // A sensible range for this setting
+                        steps = 29, // (30 / 1) - 1
+                        currentSettingOriginalValue = browserSettings.closedTabHistorySize,
+                        textFieldValueFun = { src -> src },
+                        afterDecimal = false, // We are dealing with whole numbers
+                        iconID = R.drawable.ic_history,
+                        digitCount = 2 // Allow up to 99
+                    )
                 }
             }
 
@@ -7874,4 +8176,56 @@ fun TextSetting(
 }
 
 
+@Composable
+fun DescriptionPanel(
+    isVisible: Boolean,
+    description: String,
+    browserSettings: BrowserSettings,
+    onDismiss: () -> Unit
+) {
+    AnimatedVisibility(
+        visible = isVisible,
+        enter = expandVertically(
+            tween(
+                animationSpeedForLayer(
+                    2,
+                    browserSettings.animationSpeed
+                )
+            )
+        ) + fadeIn(
+            tween(
+                animationSpeedForLayer(2, browserSettings.animationSpeed)
+            )
+        ),
+        exit = shrinkVertically(
+            tween(
+                animationSpeedForLayer(
+                    2,
+                    browserSettings.animationSpeed
+                )
+            )
+        ) + fadeOut(
+            tween(
+                animationSpeedForLayer(2, browserSettings.animationSpeed)
+            )
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .clickable(onClick = onDismiss)
+                .fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = description,
+                color = Color.White,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .padding(horizontal = browserSettings.paddingDp.dp)
+                    .padding(top = browserSettings.paddingDp.dp)
+                    .fillMaxWidth()
+            )
+        }
+    }
+}
 //endregion
