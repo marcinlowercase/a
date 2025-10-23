@@ -1042,6 +1042,8 @@ class WebViewManager(private val context: Context) {
         onPageStartedFun: (WebView, String?, Bitmap?) -> Unit,
         onPageFinishedFun: (WebView, String?) -> Unit,
         onDoUpdateVisitedHistoryFun: (WebView, String?, Boolean) -> Unit,
+        onFindResultReceived: (activeIndex: Int, numberOfMatches: Int, isDoneCounting: Boolean) -> Unit,
+
         onTitleReceived: (webView: WebView, url: String, title: String) -> Unit,
     ) {
 
@@ -1572,6 +1574,11 @@ class WebViewManager(private val context: Context) {
         webView.setDownloadListener { url, userAgent, contentDisposition, mimeType, contentLength ->
             onDownloadRequested(url, userAgent, contentDisposition, mimeType, contentLength)
         }
+
+        webView.setFindListener { activeIndex, numberOfMatches, isDoneCounting ->
+            onFindResultReceived(activeIndex, numberOfMatches, isDoneCounting)
+        }
+
     }
 }
 
@@ -1914,10 +1921,11 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
 
     val urlBarFocusRequester = remember { FocusRequester() } // <-- CREATE IT HERE
 
+    val isFindInPageVisible = remember { mutableStateOf(false) }
+    val findInPageText = remember { mutableStateOf("") }
+    val findInPageResult = remember { mutableStateOf(0 to 0) }
 
     //endregion
-    // FUNCTIONS
-
 
     //region Functions
     val reopenClosedTab = {
@@ -3125,7 +3133,12 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
                     }
 
                 },
-            )
+                onFindResultReceived = { activeIndex, numberOfMatches, _ ->
+                    // The listener gives 1-based index, we can use it directly for display
+                    findInPageResult.value = (activeIndex + 1) to numberOfMatches
+                },
+
+                )
             webView.onWebViewTouch = {
                 if (isUrlBarVisible) isUrlBarVisible = false
             }
@@ -3444,6 +3457,9 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
 
 
             BottomPanel(
+
+                findInPageResult = findInPageResult,
+                findInPageText = findInPageText,
                 onAddToHomeScreen = {
                     addToHomeScreen(
                         context = context,
@@ -3581,6 +3597,7 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
                 },
                 setIsFocusOnTextField = { isFocusOnTextField = it },
                 handleHistoryNavigation = handleHistoryNavigation,
+                isFindInPageVisible = isFindInPageVisible,
 
 
                 )
@@ -3930,6 +3947,10 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
 
 @Composable
 fun BottomPanel(
+    isFindInPageVisible: MutableState<Boolean>,
+    findInPageText: MutableState<String>,
+    findInPageResult: MutableState<Pair<Int, Int>>,
+
     onAddToHomeScreen: () -> Unit,
     descriptionContent: MutableState<String>,
     recentlyClosedTabs: SnapshotStateList<Tab>,
@@ -4094,6 +4115,23 @@ fun BottomPanel(
                 onDeleteClicked = onDeleteClicked,
                 onOpenFolderClicked = onOpenFolderClicked,
                 onClearAllClicked = onClearAllClicked
+            )
+            FindInPageBar(
+                isVisible = isFindInPageVisible.value,
+                searchText = findInPageText.value,
+                searchResult = findInPageResult.value,
+                onSearchTextChanged = { newText ->
+                    findInPageText.value = newText
+                    activeWebView?.findAllAsync(newText)
+                },
+                onFindNext = { activeWebView?.findNext(true) },
+                onFindPrevious = { activeWebView?.findNext(false) },
+                onClose = {
+                    isFindInPageVisible.value = false
+                    findInPageText.value = ""
+                    activeWebView?.clearMatches()
+                },
+                browserSettings = browserSettings,
             )
             PromptPanel(
                 isUrlBarVisible = isUrlBarVisible,
@@ -4546,6 +4584,7 @@ fun BottomPanel(
 
             // SETTING OPTIONS
             OptionsPanel(
+                isFindInPageVisible = isFindInPageVisible,
                 descriptionContent = descriptionContent,
                 hapticFeedback = hapticFeedback,
                 reopenClosedTab = reopenClosedTab,
@@ -4705,6 +4744,7 @@ fun PermissionPanel(
 
 @Composable
 fun OptionsPanel(
+    isFindInPageVisible: MutableState<Boolean>,
     descriptionContent: MutableState<String>,
     hapticFeedback: HapticFeedback,
     reopenClosedTab: () -> Unit,
@@ -4781,7 +4821,13 @@ fun OptionsPanel(
                     reopenClosedTab()
                     setIsOptionsPanelVisible(false) // Close the panel after action
                 },
-
+                OptionItem(
+                    R.drawable.ic_find_in_page, // You'll need an icon
+                    "find in page"
+                ) {
+                    isFindInPageVisible.value = !isFindInPageVisible.value
+                    setIsOptionsPanelVisible(false)
+                },
 
                 OptionItem(
                     R.drawable.ic_download, // You'll need a download icon
@@ -8175,6 +8221,173 @@ fun DescriptionPanel(
                     .padding(top = browserSettings.paddingDp.dp)
                     .fillMaxWidth()
             )
+        }
+    }
+}
+
+@Composable
+fun FindInPageBar(
+    isVisible: Boolean,
+    searchText: String,
+    searchResult: Pair<Int, Int>,
+    onSearchTextChanged: (String) -> Unit,
+    onFindNext: () -> Unit,
+    onFindPrevious: () -> Unit,
+    onClose: () -> Unit,
+    browserSettings: BrowserSettings,
+) {
+    val keyboardController = LocalSoftwareKeyboardController.current
+    AnimatedVisibility(
+        visible = isVisible,
+        enter = expandVertically(
+            tween(
+                animationSpeedForLayer(
+                    1,
+                    browserSettings.animationSpeed
+                )
+            )
+        ) + fadeIn(
+            tween(
+                animationSpeedForLayer(1, browserSettings.animationSpeed)
+            )
+        ),
+        exit = shrinkVertically(
+            tween(
+                animationSpeedForLayer(
+                    1,
+                    browserSettings.animationSpeed
+                )
+            )
+        ) + fadeOut(
+            tween(
+                animationSpeedForLayer(1, browserSettings.animationSpeed)
+            )
+        )
+    ) {
+
+        Column(
+            modifier = Modifier
+                .clip(
+                    RoundedCornerShape(
+                        cornerRadiusForLayer(
+                            1,
+                            browserSettings.deviceCornerRadius,
+                            browserSettings.paddingDp
+                        ).dp
+                    )
+                )
+                .padding(horizontal = browserSettings.paddingDp.dp)
+                .padding(top = browserSettings.paddingDp.dp)
+
+        ) {
+            OutlinedTextField(
+                value = searchText,
+                onValueChange = onSearchTextChanged,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(
+                        RoundedCornerShape(
+                            cornerRadiusForLayer(
+                                2,
+                                browserSettings.deviceCornerRadius,
+                                browserSettings.paddingDp
+                            ).dp
+                        )
+                    )
+                    .height(
+                        heightForLayer(
+                            2,
+                            browserSettings.deviceCornerRadius,
+                            browserSettings.paddingDp,
+                            browserSettings.singleLineHeight
+                        ).dp
+                    ),
+                shape = RoundedCornerShape(
+                    cornerRadiusForLayer(
+                        2,
+                        browserSettings.deviceCornerRadius,
+                        browserSettings.paddingDp
+                    ).dp
+                ),
+                placeholder = { Text("find in page") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = {    keyboardController?.hide() })
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = browserSettings.paddingDp.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(browserSettings.paddingDp.dp)
+            ) {
+
+                IconButton(
+                    onClick = onClose,
+                    modifier = buttonModifierForLayer(
+                        2,
+                        browserSettings.deviceCornerRadius,
+                        browserSettings.paddingDp,
+                        browserSettings.singleLineHeight,
+                        false,
+                        )
+                        .weight(1f)
+                ) {
+                    Icon(
+                        painterResource(id = R.drawable.ic_arrow_back),
+                        contentDescription = "Close",
+                        tint = Color.White
+
+                    )
+                }
+                IconButton(
+                    onClick = onFindPrevious,
+                    enabled = searchResult.second > 0,
+                    modifier = buttonModifierForLayer(
+                        2,
+                        browserSettings.deviceCornerRadius,
+                        browserSettings.paddingDp,
+                        browserSettings.singleLineHeight,
+                        searchResult.second > 0
+                        )  .weight(1f)
+                ) {
+                    Icon(
+                        painterResource(id = R.drawable.ic_arrow_upward),
+                        contentDescription = "Previous",
+                        tint = if ( searchResult.second > 0)Color.Black else Color.White
+
+                    )
+                }
+                Box(
+                    modifier = Modifier.weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "${searchResult.first}/${searchResult.second}",
+                        color = Color.White,
+
+                    )
+                }
+                IconButton(
+                    onClick = onFindNext, enabled = searchResult.second > 0,
+                    modifier = buttonModifierForLayer(
+                        2,
+                        browserSettings.deviceCornerRadius,
+                        browserSettings.paddingDp,
+                        browserSettings.singleLineHeight,
+                        searchResult.second > 0
+
+                        )
+                        .weight(1f)
+                ) {
+                    Icon(
+                        painterResource(id = R.drawable.ic_arrow_downward),
+                        contentDescription = "Next",
+                        tint = if ( searchResult.second > 0)Color.Black else Color.White
+                    )
+                }
+
+            }
         }
     }
 }
