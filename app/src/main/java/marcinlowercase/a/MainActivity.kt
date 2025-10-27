@@ -222,7 +222,7 @@ var databaseCurrentIndexHolder = -1
 var realtimePreviousIndexHolder = 0
 var pixel_9_corner_radius = 54.85f
 
-const val default_url = "https://oo3.deno.dev/i"
+const val default_url = "https://marcinlowercase.oo1.studio"
 //const val default_url = "http://192.168.1.195:11111/i"
 
 
@@ -2503,6 +2503,12 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
 
 
     //region LaunchedEffect
+    LaunchedEffect(isFindInPageVisible.value) {
+        if (!isFindInPageVisible.value){
+            findInPageText.value = ""
+            findInPageResult.value = 0 to 0
+        }
+    }
 
     LaunchedEffect(isSettingsPanelVisible) {
         if (!isSettingsPanelVisible) {
