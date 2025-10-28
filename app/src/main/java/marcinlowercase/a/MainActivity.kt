@@ -36,6 +36,7 @@ import android.webkit.PermissionRequest
 import android.webkit.URLUtil
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebStorage
 import android.webkit.WebView
@@ -206,7 +207,9 @@ import kotlinx.serialization.json.Json
 import marcinlowercase.a.ui.theme.Themeinlowercase
 import java.io.File
 import java.io.FileOutputStream
+import java.net.HttpURLConnection
 import java.net.URISyntaxException
+import java.net.URL
 import java.net.URLDecoder
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
@@ -222,7 +225,7 @@ var databaseCurrentIndexHolder = -1
 var realtimePreviousIndexHolder = 0
 var pixel_9_corner_radius = 54.85f
 
-const val default_url = "https://marcinlowercase.oo1.studio"
+const val default_url = "https://oo1.studio"
 //const val default_url = "http://192.168.1.195:11111/i"
 
 
@@ -1025,6 +1028,7 @@ class WebViewManager(private val context: Context) {
     // We can also move the client setup here.
     // Note: These now take lambdas to communicate back to the Composable.
     fun setWebViewClients(
+        browserSettings: BrowserSettings,
         webView: CustomWebView,
         tab: Tab,
         siteSettingsManager: SiteSettingsManager,
@@ -1476,6 +1480,7 @@ class WebViewManager(private val context: Context) {
                 }
             }
 
+
             override fun shouldOverrideUrlLoading(
                 view: WebView?,
                 request: WebResourceRequest?
@@ -1483,27 +1488,12 @@ class WebViewManager(private val context: Context) {
                 val url = request?.url ?: return false
                 val urlString = url.toString()
 
-//                if (url.scheme == "http" || url.scheme == "https") {
-//                    if (browserSettings.isDesktopMode) {
-//                        val extraHeaders = mutableMapOf<String, String>()
-//                        extraHeaders["simulated_cursor"] = "true"
-//
-//                        // Manually load the URL with the extra header
-//                        view?.loadUrl(urlString, extraHeaders)
-//
-//                        // Return true to tell the WebView we've handled the loading.
-//                        return true
-//                    } else {
-//                        // Not in desktop mode, so no header needed. Let the WebView handle it normally.
-//                        return false
-//                    }
-//                }
-
 
                 if (url.scheme == "http" || url.scheme == "https") {
-                    activeWebView?.loadUrl(url.toString())
+                    webViewLoad(activeWebView, url.toString(), browserSettings)
                     return true
                 }
+
 
 
                 if (url.scheme == "intent") {
@@ -1570,6 +1560,8 @@ class WebViewManager(private val context: Context) {
 
 
             }
+
+
         }
         webView.setDownloadListener { url, userAgent, contentDisposition, mimeType, contentLength ->
             onDownloadRequested(url, userAgent, contentDisposition, mimeType, contentLength)
@@ -2676,6 +2668,7 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
 
             // Set up all the clients for the *current* active WebView.
             webViewManager.setWebViewClients(
+                browserSettings = browserSettings,
                 webView = webView,
                 tab = tab, // Pass the active tab
                 siteSettingsManager = siteSettingsManager,
