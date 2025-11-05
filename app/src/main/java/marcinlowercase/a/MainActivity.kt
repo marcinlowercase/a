@@ -35,8 +35,8 @@ import android.webkit.JavascriptInterface
 import android.webkit.PermissionRequest
 import android.webkit.URLUtil
 import android.webkit.WebChromeClient
+import android.webkit.WebHistoryItem
 import android.webkit.WebResourceRequest
-import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebStorage
 import android.webkit.WebView
@@ -207,9 +207,7 @@ import kotlinx.serialization.json.Json
 import marcinlowercase.a.ui.theme.Themeinlowercase
 import java.io.File
 import java.io.FileOutputStream
-import java.net.HttpURLConnection
 import java.net.URISyntaxException
-import java.net.URL
 import java.net.URLDecoder
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
@@ -282,7 +280,8 @@ const val JS_HOVER_SIMULATOR = """
 fun addToHomeScreen(
     context: Context,
     coroutineScope: CoroutineScope,
-    tab: Tab?
+    tab: Tab?,
+    activeWebView: CustomWebView?,
 ) {
     if (tab == null) return
 
@@ -295,11 +294,10 @@ fun addToHomeScreen(
         return
     }
 
-    val url = tab.currentUrl ?: return
-    val history = tab.historyState
-    val title = history?.items?.getOrNull(history.currentIndex)?.title ?: "New Shortcut"
-    val faviconUrl = history?.items?.getOrNull(history.currentIndex)?.faviconUrl
-        ?: getFaviconUrlFromGoogleServer(url)
+    val url = activeWebView?.url ?: default_url
+    val title = activeWebView?.title ?: "Shortcut"
+    val faviconUrl = getFaviconUrlFromGoogleServer(url)
+
 
     // 2. Fetch the icon using Coil
     coroutineScope.launch {
@@ -712,12 +710,8 @@ data class SerializableBackForwardList(
 data class Tab(
     val id: Long = System.currentTimeMillis(),
     var state: TabState = TabState.BACKGROUND,
-    var historyState: SerializableBackForwardList? = null
+    var savedState: String? = null
 ) {
-    // A convenient property to get the current URL from our saved state
-    val currentUrl: String?
-        get() = historyState?.items?.getOrNull(historyState!!.currentIndex)?.url
-
     companion object {
         fun createEmpty(): Tab {
             return Tab(id = 0)
@@ -808,11 +802,6 @@ class TabManager(context: Context) {
         return mutableListOf(
             Tab(
                 state = TabState.ACTIVE,
-                // Create a default history state for the first launch
-                historyState = SerializableBackForwardList(
-                    items = listOf(SerializableHistoryItem(url = defaultUrl, title = "oo")),
-                    currentIndex = 0
-                )
             )
         )
     }
@@ -934,7 +923,7 @@ class CustomWebView(context: Context) : WebView(context) {
 class WebViewManager(private val context: Context) {
 
     private val webViewPool = mutableMapOf<Long, CustomWebView>()
-    private var activeWebView: CustomWebView? = null
+    var activeWebView: CustomWebView? = null
     val activity = context as? Activity
 
     //region JS Code
@@ -961,6 +950,7 @@ class WebViewManager(private val context: Context) {
         activeWebView = webView
         return webView
     }
+
 
 //    // Pre-loads a WebView for a background tab if it's not already loaded.
 //    fun preloadWebView(tab: Tab) {
@@ -1033,7 +1023,7 @@ class WebViewManager(private val context: Context) {
         tab: Tab,
         siteSettingsManager: SiteSettingsManager,
         siteSettings: Map<String, SiteSettings>,
-        onFaviconChanged: (Long, String) -> Unit,
+//        onFaviconChanged: (Long, String) -> Unit,
         onJsAlert: (String) -> Unit,
         onJsConfirm: (String, (Boolean) -> Unit) -> Unit,
         onJsPrompt: (String, String, (String?) -> Unit) -> Unit,
@@ -1048,7 +1038,7 @@ class WebViewManager(private val context: Context) {
         onDoUpdateVisitedHistoryFun: (WebView, String?, Boolean) -> Unit,
         onFindResultReceived: (activeIndex: Int, numberOfMatches: Int, isDoneCounting: Boolean) -> Unit,
 
-        onTitleReceived: (webView: WebView, url: String, title: String) -> Unit,
+//        onTitleReceived: (webView: WebView, url: String, title: String) -> Unit,
     ) {
 
         webView.addJavascriptInterface(
@@ -1062,7 +1052,7 @@ class WebViewManager(private val context: Context) {
         webView.addJavascriptInterface(
             FaviconJavascriptInterface { faviconUrl ->
                 // This is called from the JS bridge
-                onFaviconChanged(tab.id, faviconUrl)
+//                onFaviconChanged(tab.id, faviconUrl)
             },
             "WebAppFavicon" // This name must match the JS
         )
@@ -1072,14 +1062,14 @@ class WebViewManager(private val context: Context) {
 
             private var fullscreenView: View? = null
 
-            override fun onReceivedTitle(view: WebView?, title: String?) {
-                super.onReceivedTitle(view, title)
-                // When the title is received, pass it back up along with the URL
-                // so we can find the correct history item to update.
-                if (view?.url != null && !title.isNullOrBlank()) {
-                    onTitleReceived(view, view.url!!, title)
-                }
-            }
+//            override fun onReceivedTitle(view: WebView?, title: String?) {
+//                super.onReceivedTitle(view, title)
+//                // When the title is received, pass it back up along with the URL
+//                // so we can find the correct history item to update.
+//                if (view?.url != null && !title.isNullOrBlank()) {
+//                    onTitleReceived(view, view.url!!, title)
+//                }
+//            }
 
             // Handles window.alert()
             override fun onJsAlert(
@@ -1491,6 +1481,7 @@ class WebViewManager(private val context: Context) {
 
                 if (url.scheme == "http" || url.scheme == "https") {
                     webViewLoad(activeWebView, url.toString(), browserSettings)
+//                    activeWebView?.loadUrl(url.toString())
                     return true
                 }
 
@@ -1583,6 +1574,7 @@ class WebViewManager(private val context: Context) {
 class MainActivity : ComponentActivity() {
 
     private val tabManager by lazy { TabManager(this) }
+    private val webViewManager by lazy { WebViewManager(this) }
     val newUrlFromIntent = MutableStateFlow<String?>(null)
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -1594,7 +1586,11 @@ class MainActivity : ComponentActivity() {
         setContent {
             Themeinlowercase {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    BrowserScreen(newUrlFlow = newUrlFromIntent)
+                    BrowserScreen(
+                        newUrlFlow = newUrlFromIntent,
+                        tabManager = tabManager,
+                        webViewManager = webViewManager
+                    )
                 }
             }
         }
@@ -1631,6 +1627,28 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         Log.d("MainActivity", "onStop called. Freezing all tabs.")
+
+
+        val activeWebView = webViewManager.activeWebView
+        val tabs = tabManager.loadTabs(default_url) // Load current tabs to modify them
+        val activeIndex = tabs.indexOfFirst { it.state == TabState.ACTIVE }
+
+        if (activeWebView != null && activeIndex != -1) {
+            val outState = Bundle()
+            activeWebView.saveState(outState)
+            val stateBytes = outState.getByteArray("WEBVIEW_CHROMIUM_STATE")
+
+            if (stateBytes != null) {
+                // Encode the byte array to a Base64 string for storage
+                val encodedState = Base64.encodeToString(stateBytes, Base64.DEFAULT)
+                tabs[activeIndex].savedState = encodedState
+                Log.d("MainActivity", "Saved WebView state for active tab.")
+                // Now save the modified tabs list back
+                tabManager.saveTabs(tabs, activeIndex)
+            }
+        }
+
+
         // When the app goes to the background, freeze everything.
         tabManager.freezeAllTabs()
     }
@@ -1638,13 +1656,21 @@ class MainActivity : ComponentActivity() {
 
 
 @Composable
-fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier) {
+fun BrowserScreen(
+    newUrlFlow: StateFlow<String?>,
+    tabManager: TabManager,
+    webViewManager: WebViewManager,
+    modifier: Modifier = Modifier
+) {
 
 
     //region Variables
     val context = LocalContext.current
 
-    val webViewManager = remember { WebViewManager(context) }
+//    val webViewManager = remember { WebViewManager(context) }
+    var saveTrigger by remember { mutableIntStateOf(0) }
+
+
 
     val sharedPrefs =
         remember { context.getSharedPreferences("BrowserPrefs", Context.MODE_PRIVATE) }
@@ -1679,19 +1705,24 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
     }
 
     var savedPanelState by remember { mutableStateOf<PanelVisibilityState?>(null) }
-
-
-    val tabManager = remember { TabManager(context) }
+    var initialLoadDone by rememberSaveable { mutableStateOf(false) }
     val tabs = remember {
         mutableStateListOf<Tab>().apply {
             addAll(tabManager.loadTabs(browserSettings.defaultUrl))
         }
     }
-
-    val recentlyClosedTabs = remember { mutableStateListOf<Tab>() }
     val activeTabIndex = remember {
         mutableIntStateOf(tabs.indexOfFirst { it.state == TabState.ACTIVE }.coerceAtLeast(0))
     }
+    var textFieldValue by rememberSaveable(stateSaver = TextFieldValue.Saver) {
+        mutableStateOf(TextFieldValue(webViewManager.getWebView(tabs[activeTabIndex.intValue]).url ?: "emty"))
+    }
+
+//    val tabManager = remember { TabManager(context) }
+
+
+    val recentlyClosedTabs = remember { mutableStateListOf<Tab>() }
+
 
     val activeTab = tabs.getOrNull(activeTabIndex.intValue)
 
@@ -1699,16 +1730,66 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
         webViewManager.getWebView(tab).apply {
             // If the tab was frozen, its WebView was just created and needs to load its URL
             if (tab.state == TabState.FROZEN || this.url == null) {
-                Log.d("BrowserScreen", "Loading URL for previously frozen tab: ${tab.currentUrl}")
-//                this.loadUrl(tab.currentUrl ?: browserSettings.defaultUrl)
-                webViewLoad(this, tab.currentUrl ?: browserSettings.defaultUrl, browserSettings)
+
+
+                if (tab.savedState != null) {
+                    try {
+                        // 1. Decode the Base64 string back to a byte array
+                        val stateBytes = Base64.decode(tab.savedState, Base64.DEFAULT)
+                        val restoreBundle = Bundle()
+                        // 2. Put the bytes back into a new Bundle with the correct key
+                        restoreBundle.putByteArray("WEBVIEW_CHROMIUM_STATE", stateBytes)
+                        // 3. Restore the state into the WebView
+                        this.restoreState(restoreBundle)
+                        Log.d("WebViewState", "Successfully restored WebView state for tab ${tab.id}")
+                        Log.d("WebViewState", "Current Tab URL ${this.url}")
+                        val history = this.copyBackForwardList()
+                        for (i in 0 until history.size) {
+                            val item = history.getItemAtIndex(i)
+                            val isCurrent =
+                                if (i == history.currentIndex) " <-- CURRENT" else ""
+                            Log.d(
+                                "WebViewState",
+                                "[$i] Title: '${item.title}', URL: '${item.url}', Original URL: '${item.originalUrl}'$isCurrent"
+                            )
+                            val favicon = item.favicon
+                            if (favicon != null) {
+                                Log.d(
+                                    "WebViewState",
+                                    "  -> Favicon: Yes, ${favicon.width}x${favicon.height}px"
+                                )
+                            } else {
+                                Log.d("WebViewState", "  -> Favicon: No")
+                            }
+                        }
+                        Log.d("WebViewState", "canGoBack ${this.canGoBack()}")
+
+
+                        initialLoadDone = true
+                        this.url?.let { restoredUrl ->
+                            textFieldValue = TextFieldValue(restoredUrl, TextRange(restoredUrl.length))
+                        }
+
+
+                        // 4. CRITICAL: Clear the state so it's not restored again on config change
+                        tab.savedState = null
+                        saveTrigger++ // Trigger a save to persist the cleared state
+
+                    } catch (e: Exception) {
+                        Log.e("WebViewState", "Failed to restore WebView state", e)
+                        // Fallback to loading the URL if restore fails
+                        webViewLoad(this, browserSettings.defaultUrl, browserSettings)
+                    }
+                } else {
+                    // No saved state, just load the URL normally
+                    Log.d("WebViewState", "Loading URL for frozen tab: ${browserSettings.defaultUrl}")
+                    webViewLoad(this, browserSettings.defaultUrl, browserSettings)
+                }
             }
         }
     }
 
-    var initialLoadDone by rememberSaveable { mutableStateOf(false) }
 
-    var saveTrigger by remember { mutableIntStateOf(0) }
 
 
     val siteSettingsManager = remember { SiteSettingsManager(context) }
@@ -1719,9 +1800,6 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
     }
 
 
-    var textFieldValue by rememberSaveable(stateSaver = TextFieldValue.Saver) {
-        mutableStateOf(TextFieldValue(tabs[activeTabIndex.intValue].currentUrl ?: "", TextRange(0)))
-    }
 
 
     var isLoading by remember { mutableStateOf(false) }
@@ -1811,18 +1889,15 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
 
     val canGoBack by remember {
         derivedStateOf {
-            ((tabs[activeTabIndex.intValue].historyState?.currentIndex
-                ?: 0) > 0) && !isNavigateInProgress
+            activeWebView?.canGoBack() ?: false
         }
     }
     val canGoForward by remember {
         derivedStateOf {
-            val history = tabs[activeTabIndex.intValue].historyState
-            if (history == null) false else (history.currentIndex < history.items.lastIndex) && !isNavigateInProgress
+            activeWebView?.canGoForward() ?: false
         }
     }
 
-    databaseCurrentIndexHolder = tabs[activeTabIndex.intValue].historyState?.currentIndex ?: 0
 
     val savePermissionDecision = { domain: String, permissions: Map<String, Boolean> ->
         val currentSettings = siteSettings.getOrPut(domain) { SiteSettings(domain = domain) }
@@ -1960,42 +2035,37 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
     }
 
 
-    val handleHistoryNavigation = { tabToNavigate: Tab, historyIndex: Int ->
+    val handleHistoryNavigation = { tabToNavigate: Tab, historyIndex: Int, webViewManager: WebViewManager ->
         val tabIndexInMainList = tabs.indexOf(tabToNavigate)
 
         // --- Use a positive case check ---
         if (tabIndexInMainList != -1 && !isNavigateInProgressWithTabDataPanel && !isNavigateInProgress) {
 
             isUrlBarVisible = false
-
             isNavigateInProgressWithTabDataPanel = true
             isNavigateInProgress = true
-            val currentHistory = tabToNavigate.historyState
+            val webViewToNavigate = webViewManager.getWebView(tabToNavigate)
 
-            if (currentHistory != null && historyIndex in currentHistory.items.indices) {
+            val stepsToNavigate = webViewToNavigate.copyBackForwardList().currentIndex - historyIndex
+
+            if (webViewToNavigate.canGoBackOrForward(stepsToNavigate)) {
+
                 // --- All checks passed, proceed with the logic ---
 
                 // 1. Update the history state of the target tab
-                val updatedHistory = currentHistory.copy(currentIndex = historyIndex)
-                val updatedTab = tabToNavigate.copy(historyState = updatedHistory)
-                tabs[tabIndexInMainList] = updatedTab
-                saveTrigger++
+
 
                 // 2. Make the target tab the active tab
                 if (activeTabIndex.intValue != tabIndexInMainList) {
                     tabs[activeTabIndex.intValue].state = TabState.BACKGROUND
                     activeTabIndex.intValue = tabIndexInMainList
-                    updatedTab.state = TabState.ACTIVE
+                    tabToNavigate.state = TabState.ACTIVE
                 }
 
-                // 3. Get the WebView instance and load the URL
-                val webView = webViewManager.getWebView(updatedTab)
-                val urlToLoad = updatedHistory.items[historyIndex].url
-                webViewLoad(webView, urlToLoad, browserSettings)
-//                webView.loadUrl(urlToLoad)
+                webViewToNavigate.goBackOrForward(stepsToNavigate)
 
-                // 4. Update the text field and close the panel
-                textFieldValue = TextFieldValue(urlToLoad, TextRange(urlToLoad.length))
+                val newUrl = webViewToNavigate.url?: ""
+                textFieldValue = TextFieldValue(newUrl, TextRange(newUrl.length))
 
             }
             // If the inner 'if' fails (bad history), nothing happens, which is correct.
@@ -2121,8 +2191,9 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
             message = "clear tab data ?",
             onConfirm = {
                 val inspectingTab = currentInspectingTab
+                val inspectingWebView = webViewManager.getWebView(inspectingTab?: Tab.createEmpty())
                 if (inspectingTab != null) {
-                    val domain = siteSettingsManager.getDomain(inspectingTab.currentUrl)
+                    val domain = siteSettingsManager.getDomain(inspectingWebView.url ?: "")
                     if (domain != null) {
                         // 1. Remove the settings for this domain from the state map
                         siteSettings.remove(domain)
@@ -2239,10 +2310,6 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
 
         val newTab = Tab(
             state = TabState.ACTIVE,
-            historyState = SerializableBackForwardList(
-                items = listOf(SerializableHistoryItem(url = url, title = "New Tab")),
-                currentIndex = 0
-            )
         )
 
         tabs.add(insertAtIndex, newTab)
@@ -2265,30 +2332,8 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
 
     fun navigateWebView() {
         when (activeNavAction) {
-            GestureNavAction.BACK -> if (canGoBack) {
-                tabs[activeTabIndex.intValue].historyState?.let { history ->
-                    val newIndex =
-                        history.currentIndex - 1
-                    Log.i("Web View Navigation", "Back")
-
-                    history.items.getOrNull(newIndex)
-                        ?.let { itemToLoad ->
-                            isNavigateInProgress = true
-//                            activeWebView?.loadUrl(itemToLoad.url)
-                            webViewLoad(activeWebView, itemToLoad.url, browserSettings)
-
-                            val updatedTab =
-                                tabs[activeTabIndex.intValue].copy(
-                                    historyState = history.copy(
-                                        currentIndex = newIndex
-                                    )
-                                )
-                            tabs[activeTabIndex.intValue] =
-                                updatedTab
-                            saveTrigger++
-
-                        }
-                }
+            GestureNavAction.BACK -> if (activeWebView?.canGoBack()?: false) {
+                activeWebView?.goBack()
             }
 
             GestureNavAction.REFRESH -> {
@@ -2297,29 +2342,8 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
                 activeWebView?.reload()
             }
 
-            GestureNavAction.FORWARD -> if (canGoForward) {
-                tabs[activeTabIndex.intValue].historyState?.let { history ->
-                    val newIndex =
-                        history.currentIndex + 1
-                    Log.i("Web View Navigation", "FORWARD")
-                    history.items.getOrNull(newIndex)
-                        ?.let { itemToLoad ->
-                            isNavigateInProgress = true
-//                            activeWebView?.loadUrl(itemToLoad.url)
-                            webViewLoad(activeWebView, itemToLoad.url, browserSettings)
-
-                            val updatedTab =
-                                tabs[activeTabIndex.intValue].copy(
-                                    historyState = history.copy(
-                                        currentIndex = newIndex
-                                    )
-                                )
-                            tabs[activeTabIndex.intValue] =
-                                updatedTab
-                            saveTrigger++
-
-                        }
-                }
+            GestureNavAction.FORWARD -> if (activeWebView?.canGoForward() ?: false) {
+                activeWebView?.goForward()
             }
 
             GestureNavAction.CLOSE_TAB -> {
@@ -2347,8 +2371,8 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
                     activeTabIndex.intValue = nextTabIndex
                     tabs[nextTabIndex].state = TabState.ACTIVE
 
-                    val urlToLoad = tabs[nextTabIndex].currentUrl ?: browserSettings.defaultUrl
-//                    activeWebView?.loadUrl(urlToLoad)
+
+                    val urlToLoad = webViewManager.getWebView(tabs[nextTabIndex]).url ?: browserSettings.defaultUrl
                     webViewLoad(activeWebView, urlToLoad, browserSettings)
 
                     textFieldValue = TextFieldValue(urlToLoad, TextRange(urlToLoad.length))
@@ -2496,7 +2520,7 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
 
     //region LaunchedEffect
     LaunchedEffect(isFindInPageVisible.value) {
-        if (!isFindInPageVisible.value){
+        if (!isFindInPageVisible.value) {
             findInPageText.value = ""
             findInPageResult.value = 0 to 0
         }
@@ -2673,42 +2697,42 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
                 tab = tab, // Pass the active tab
                 siteSettingsManager = siteSettingsManager,
                 siteSettings = siteSettings,
-                onFaviconChanged = { tabId, faviconUrl ->
-                    // Find the index of the tab that fired this event.
-                    val tabIndex = tabs.indexOfFirst { it.id == tabId }
-                    if (tabIndex == -1) return@setWebViewClients
-
-                    val targetTab = tabs[tabIndex]
-                    val currentHistory = targetTab.historyState ?: return@setWebViewClients
-
-                    // Get the index of the current page in that tab's history.
-                    val historyIndex = currentHistory.currentIndex
-                    if (historyIndex !in currentHistory.items.indices) return@setWebViewClients
-
-                    // Get the specific history item that needs updating.
-                    val itemToUpdate = currentHistory.items[historyIndex]
-
-                    // Check if an update is even needed to prevent unnecessary recompositions.
-                    if (faviconUrl.isNotBlank()) {
-                        Log.d(
-                            "Favicon",
-                            "Update new favicon for ${itemToUpdate.url} to $faviconUrl"
-                        )
-
-                        val updatedItem = itemToUpdate.copy(faviconUrl = faviconUrl)
-                        val updatedItems = currentHistory.items.toMutableList().apply {
-                            this[historyIndex] = updatedItem
-                        }
-                        val updatedHistory = currentHistory.copy(items = updatedItems)
-                        tabs[tabIndex] = targetTab.copy(historyState = updatedHistory)
-                        saveTrigger++
-                    } else {
-                        Log.d(
-                            "FaviconUpdate",
-                            "Skipping favicon update for ${itemToUpdate.url}. An icon already exists or the new one is invalid."
-                        )
-                    }
-                },
+//                onFaviconChanged = { tabId, faviconUrl ->
+//                    // Find the index of the tab that fired this event.
+//                    val tabIndex = tabs.indexOfFirst { it.id == tabId }
+//                    if (tabIndex == -1) return@setWebViewClients
+//
+//                    val targetTab = tabs[tabIndex]
+//                    val currentHistory = targetTab.historyState ?: return@setWebViewClients
+//
+//                    // Get the index of the current page in that tab's history.
+//                    val historyIndex = currentHistory.currentIndex
+//                    if (historyIndex !in currentHistory.items.indices) return@setWebViewClients
+//
+//                    // Get the specific history item that needs updating.
+//                    val itemToUpdate = currentHistory.items[historyIndex]
+//
+//                    // Check if an update is even needed to prevent unnecessary recompositions.
+//                    if (faviconUrl.isNotBlank()) {
+//                        Log.d(
+//                            "Favicon",
+//                            "Update new favicon for ${itemToUpdate.url} to $faviconUrl"
+//                        )
+//
+//                        val updatedItem = itemToUpdate.copy(faviconUrl = faviconUrl)
+//                        val updatedItems = currentHistory.items.toMutableList().apply {
+//                            this[historyIndex] = updatedItem
+//                        }
+//                        val updatedHistory = currentHistory.copy(items = updatedItems)
+//                        tabs[tabIndex] = targetTab.copy(historyState = updatedHistory)
+//                        saveTrigger++
+//                    } else {
+//                        Log.d(
+//                            "FaviconUpdate",
+//                            "Skipping favicon update for ${itemToUpdate.url}. An icon already exists or the new one is invalid."
+//                        )
+//                    }
+//                },
                 onJsAlert = { message -> jsDialogState = JsAlert(message) },
                 onJsConfirm = { message, onResult -> jsDialogState = JsConfirm(message, onResult) },
                 onJsPrompt = { message, default, onResult ->
@@ -2758,211 +2782,211 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
 
                 },
                 onDoUpdateVisitedHistoryFun = { view, url, isReload ->
-                    Log.i("doUpdateVisitedHistory", "<<<<<<<<<<<<<<<<")
-                    Log.i("doUpdateVisitedHistory", "<<<<<<<<<<<<<<<<")
-                    Log.i("doUpdateVisitedHistory", "URL updated: $url")
-                    Log.i("doUpdateVisitedHistory", "isReload: $isReload")
+//                    Log.i("doUpdateVisitedHistory", "<<<<<<<<<<<<<<<<")
+//                    Log.i("doUpdateVisitedHistory", "<<<<<<<<<<<<<<<<")
+//                    Log.i("doUpdateVisitedHistory", "URL updated: $url")
+//                    Log.i("doUpdateVisitedHistory", "isReload: $isReload")
                     if (!isFocusOnTextField) view.url?.let {
                         textFieldValue = TextFieldValue(it, TextRange(it.length))
                     }
-
-                    if (url == null) return@setWebViewClients
-
-
-                    tabs[activeTabIndex.intValue].let { tab ->
-
-                        var databaseHistory = tabs[activeTabIndex.intValue].historyState
-
-                        if (databaseHistory == null) {
-                            val items =
-                                List(1) { SerializableHistoryItem(browserSettings.defaultUrl, "") }
-                            databaseHistory = SerializableBackForwardList(
-                                items = items,
-                                currentIndex = 0
-                            )
-                        }
-                        var updatedIndex: Int = databaseHistory.currentIndex
-
-
-                        val realtimeHistory = view.copyBackForwardList()
-
-                        if (realtimeHistory.size <= 1 && databaseHistory.items.size == 1 &&
-                            (realtimeHistory.currentItem?.url == null || realtimeHistory.currentItem?.url == "about:blank")
-                        ) {
-                            Log.d(
-                                "doUpdateVisitedHistory",
-                                "Ignoring initial empty history update."
-                            )
-                            return@let
-                        }
-
-
-                        // LOG
-                        Log.w("doUpdateVisitedHistory", "Realtime History:")
-                        Log.i(
-                            "doUpdateVisitedHistory",
-                            "Current Index ${realtimeHistory.currentIndex}"
-                        )
-                        for (i in 0 until realtimeHistory.size) {
-                            val item = realtimeHistory.getItemAtIndex(i)
-                            val marker =
-                                if (realtimeHistory.currentIndex == i) " << Current" else " "
-                            Log.i(
-                                "doUpdateVisitedHistory",
-                                "$i. URL: ${item.url} << ${item.title} >> $marker"
-                            )
-                        }
-
-                        Log.w("doUpdateVisitedHistory", "Database History:")
-                        Log.i(
-                            "doUpdateVisitedHistory",
-                            "Current Index ${databaseHistory.currentIndex}"
-                        )
-
-                        for (i in 0 until databaseHistory.items.size) {
-                            val item = databaseHistory.items[i]
-                            val marker =
-                                if (databaseHistory.currentIndex == i) " << Current" else " "
-                            Log.i("doUpdateVisitedHistory", "$i. URL: ${item.url} $marker")
-                        }
-                        Log.i("doUpdateVisitedHistory", "")
-
-                        val databaseCurrentItemUrl =
-                            databaseHistory.items[databaseHistory.currentIndex].url
-                        val realtimeCurrentItemUrl =
-                            realtimeHistory.getItemAtIndex(realtimeHistory.currentIndex).url
-
-                        var updatedHistoryItems = databaseHistory.items.toMutableList()
-
-                        if (databaseCurrentItemUrl == realtimeCurrentItemUrl) {
-                            Log.e("doUpdateVisitedHistory", "Same URl - Do Nothing")
-                            isNavigateInProgress = false
-                            return@let
-                        } else {
-                            var realtimePreviousItemUrl = " marcinlowercase "
-
-                            if (realtimeHistory.currentIndex != 0) {
-                                realtimePreviousItemUrl =
-                                    realtimeHistory.getItemAtIndex(realtimeHistory.currentIndex - 1).url
-                            }
-
-                            if (databaseCurrentItemUrl == realtimePreviousItemUrl) {
-                                Log.e("doUpdateVisitedHistory", "Add new url to database")
-                                if (databaseHistory.currentIndex < databaseHistory.items.lastIndex) {
-                                    updatedHistoryItems = databaseHistory.items.subList(
-                                        0,
-                                        databaseHistory.currentIndex + 1
-                                    ).toMutableList()
-                                }
-                                Log.e(
-                                    "doUpdateVisitedHistory",
-                                    "Title ${realtimeHistory.currentItem?.title}"
-                                )
-                                updatedHistoryItems.add(
-                                    SerializableHistoryItem(
-                                        url = realtimeCurrentItemUrl,
-                                        title = realtimeHistory.currentItem?.title ?: "oo"
-                                    )
-                                )
-                                updatedIndex++
-                                databaseCurrentIndexHolder = updatedIndex
-
-                            } else {
-
-                                Log.e(
-                                    "doUpdateVisitedHistory",
-                                    "realTimePreviousItemUrl: $realtimePreviousIndexHolder"
-                                )
-                                Log.e(
-                                    "doUpdateVisitedHistory",
-                                    "databaseCurrentItemUrl: ${realtimeHistory.currentIndex}"
-                                )
-                                if (realtimePreviousIndexHolder > realtimeHistory.currentIndex) {
-                                    Log.e("doUpdateVisitedHistory", "Back by Webview")
-
-                                    updatedIndex--
-                                } else {
-                                    Log.e(
-                                        "doUpdateVisitedHistory",
-                                        "Update existing url in database"
-                                    )
-                                    updatedHistoryItems[updatedIndex] = SerializableHistoryItem(
-                                        url = realtimeCurrentItemUrl,
-                                        title = realtimeHistory.currentItem?.title ?: "oo"
-                                    )
-                                }
-
-
-                            }
-                            val updatedHistoryState = SerializableBackForwardList(
-                                items = updatedHistoryItems,
-                                currentIndex = updatedIndex
-                            )
-                            if (databaseHistory != updatedHistoryState) {
-
-                                tabs[activeTabIndex.intValue] =
-                                    tab.copy(historyState = updatedHistoryState)
-                                saveTrigger++
-
-
-                                val newDatabaseHistory = tabs[activeTabIndex.intValue].historyState
-                                if (newDatabaseHistory == null) {
-                                    return@let
-                                }
-                                Log.w("doUpdateVisitedHistory", "NEW Database History:")
-                                Log.i(
-                                    "doUpdateVisitedHistory",
-                                    "Current Index ${newDatabaseHistory.currentIndex}"
-                                )
-
-                                for (i in 0 until newDatabaseHistory.items.size) {
-                                    val item = newDatabaseHistory.items[i]
-                                    val marker =
-                                        if (newDatabaseHistory.currentIndex == i) " << Current" else " "
-                                    Log.i("doUpdateVisitedHistory", "$i. URL: ${item.url} $marker")
-                                }
-                                Log.i("doUpdateVisitedHistory", "")
-
-                            }
-                        }
-
-
-                        Log.i("doUpdateVisitedHistory", ">>>>>>>>>>>>>>>")
-                        Log.i("doUpdateVisitedHistory", "")
-                        Log.i("doUpdateVisitedHistory", "")
-
-                        realtimePreviousIndexHolder = realtimeHistory.currentIndex
-                    }
+//
+//                    if (url == null) return@setWebViewClients
+//
+//
+//                    tabs[activeTabIndex.intValue].let { tab ->
+//
+//                        var databaseHistory = tabs[activeTabIndex.intValue].historyState
+//
+//                        if (databaseHistory == null) {
+//                            val items =
+//                                List(1) { SerializableHistoryItem(browserSettings.defaultUrl, "") }
+//                            databaseHistory = SerializableBackForwardList(
+//                                items = items,
+//                                currentIndex = 0
+//                            )
+//                        }
+//                        var updatedIndex: Int = databaseHistory.currentIndex
+//
+//
+//                        val realtimeHistory = view.copyBackForwardList()
+//
+//                        if (realtimeHistory.size <= 1 && databaseHistory.items.size == 1 &&
+//                            (realtimeHistory.currentItem?.url == null || realtimeHistory.currentItem?.url == "about:blank")
+//                        ) {
+//                            Log.d(
+//                                "doUpdateVisitedHistory",
+//                                "Ignoring initial empty history update."
+//                            )
+//                            return@let
+//                        }
+//
+//
+//                        // LOG
+//                        Log.w("doUpdateVisitedHistory", "Realtime History:")
+//                        Log.i(
+//                            "doUpdateVisitedHistory",
+//                            "Current Index ${realtimeHistory.currentIndex}"
+//                        )
+//                        for (i in 0 until realtimeHistory.size) {
+//                            val item = realtimeHistory.getItemAtIndex(i)
+//                            val marker =
+//                                if (realtimeHistory.currentIndex == i) " << Current" else " "
+//                            Log.i(
+//                                "doUpdateVisitedHistory",
+//                                "$i. URL: ${item.url} << ${item.title} >> $marker"
+//                            )
+//                        }
+//
+//                        Log.w("doUpdateVisitedHistory", "Database History:")
+//                        Log.i(
+//                            "doUpdateVisitedHistory",
+//                            "Current Index ${databaseHistory.currentIndex}"
+//                        )
+//
+//                        for (i in 0 until databaseHistory.items.size) {
+//                            val item = databaseHistory.items[i]
+//                            val marker =
+//                                if (databaseHistory.currentIndex == i) " << Current" else " "
+//                            Log.i("doUpdateVisitedHistory", "$i. URL: ${item.url} $marker")
+//                        }
+//                        Log.i("doUpdateVisitedHistory", "")
+//
+//                        val databaseCurrentItemUrl =
+//                            databaseHistory.items[databaseHistory.currentIndex].url
+//                        val realtimeCurrentItemUrl =
+//                            realtimeHistory.getItemAtIndex(realtimeHistory.currentIndex).url
+//
+//                        var updatedHistoryItems = databaseHistory.items.toMutableList()
+//
+//                        if (databaseCurrentItemUrl == realtimeCurrentItemUrl) {
+//                            Log.e("doUpdateVisitedHistory", "Same URl - Do Nothing")
+//                            isNavigateInProgress = false
+//                            return@let
+//                        } else {
+//                            var realtimePreviousItemUrl = " marcinlowercase "
+//
+//                            if (realtimeHistory.currentIndex != 0) {
+//                                realtimePreviousItemUrl =
+//                                    realtimeHistory.getItemAtIndex(realtimeHistory.currentIndex - 1).url
+//                            }
+//
+//                            if (databaseCurrentItemUrl == realtimePreviousItemUrl) {
+//                                Log.e("doUpdateVisitedHistory", "Add new url to database")
+//                                if (databaseHistory.currentIndex < databaseHistory.items.lastIndex) {
+//                                    updatedHistoryItems = databaseHistory.items.subList(
+//                                        0,
+//                                        databaseHistory.currentIndex + 1
+//                                    ).toMutableList()
+//                                }
+//                                Log.e(
+//                                    "doUpdateVisitedHistory",
+//                                    "Title ${realtimeHistory.currentItem?.title}"
+//                                )
+//                                updatedHistoryItems.add(
+//                                    SerializableHistoryItem(
+//                                        url = realtimeCurrentItemUrl,
+//                                        title = realtimeHistory.currentItem?.title ?: "oo"
+//                                    )
+//                                )
+//                                updatedIndex++
+//                                databaseCurrentIndexHolder = updatedIndex
+//
+//                            } else {
+//
+//                                Log.e(
+//                                    "doUpdateVisitedHistory",
+//                                    "realTimePreviousItemUrl: $realtimePreviousIndexHolder"
+//                                )
+//                                Log.e(
+//                                    "doUpdateVisitedHistory",
+//                                    "databaseCurrentItemUrl: ${realtimeHistory.currentIndex}"
+//                                )
+//                                if (realtimePreviousIndexHolder > realtimeHistory.currentIndex) {
+//                                    Log.e("doUpdateVisitedHistory", "Back by Webview")
+//
+//                                    updatedIndex--
+//                                } else {
+//                                    Log.e(
+//                                        "doUpdateVisitedHistory",
+//                                        "Update existing url in database"
+//                                    )
+//                                    updatedHistoryItems[updatedIndex] = SerializableHistoryItem(
+//                                        url = realtimeCurrentItemUrl,
+//                                        title = realtimeHistory.currentItem?.title ?: "oo"
+//                                    )
+//                                }
+//
+//
+//                            }
+//                            val updatedHistoryState = SerializableBackForwardList(
+//                                items = updatedHistoryItems,
+//                                currentIndex = updatedIndex
+//                            )
+//                            if (databaseHistory != updatedHistoryState) {
+//
+//                                tabs[activeTabIndex.intValue] =
+//                                    tab.copy(historyState = updatedHistoryState)
+//                                saveTrigger++
+//
+//
+//                                val newDatabaseHistory = tabs[activeTabIndex.intValue].historyState
+//                                if (newDatabaseHistory == null) {
+//                                    return@let
+//                                }
+//                                Log.w("doUpdateVisitedHistory", "NEW Database History:")
+//                                Log.i(
+//                                    "doUpdateVisitedHistory",
+//                                    "Current Index ${newDatabaseHistory.currentIndex}"
+//                                )
+//
+//                                for (i in 0 until newDatabaseHistory.items.size) {
+//                                    val item = newDatabaseHistory.items[i]
+//                                    val marker =
+//                                        if (newDatabaseHistory.currentIndex == i) " << Current" else " "
+//                                    Log.i("doUpdateVisitedHistory", "$i. URL: ${item.url} $marker")
+//                                }
+//                                Log.i("doUpdateVisitedHistory", "")
+//
+//                            }
+//                        }
+//
+//
+//                        Log.i("doUpdateVisitedHistory", ">>>>>>>>>>>>>>>")
+//                        Log.i("doUpdateVisitedHistory", "")
+//                        Log.i("doUpdateVisitedHistory", "")
+//
+//                        realtimePreviousIndexHolder = realtimeHistory.currentIndex
+//                    }
                 },
-                onTitleReceived = { view, url, title ->
-                    val tabIndex = tabs.indexOfFirst { it.id == activeTab.id }
-                    if (tabIndex == -1) return@setWebViewClients
-
-                    val targetTab = tabs[tabIndex]
-                    val currentHistory = targetTab.historyState ?: return@setWebViewClients
-
-                    // Find the specific history item that matches this URL.
-                    val historyIndexToUpdate = currentHistory.items.indexOfFirst { it.url == url }
-                    if (historyIndexToUpdate == -1) return@setWebViewClients
-
-                    val itemToUpdate = currentHistory.items[historyIndexToUpdate]
-
-                    // Only update if the title has actually changed to prevent loops
-                    if (itemToUpdate.title != title) {
-                        Log.d("onReceivedTitle", "Updating title for '$url' to '$title'")
-                        val updatedItem = itemToUpdate.copy(title = title)
-                        val updatedItems = currentHistory.items.toMutableList().apply {
-                            this[historyIndexToUpdate] = updatedItem
-                        }
-                        val updatedHistory = currentHistory.copy(items = updatedItems)
-                        tabs[tabIndex] = targetTab.copy(historyState = updatedHistory)
-                        saveTrigger++
-                    }
-
-                    view.evaluateJavascript(jsFaviconDiscovery, null)
-
-
-                },
+//                onTitleReceived = { view, url, title ->
+//                    val tabIndex = tabs.indexOfFirst { it.id == activeTab.id }
+//                    if (tabIndex == -1) return@setWebViewClients
+//
+//                    val targetTab = tabs[tabIndex]
+//                    val currentHistory = targetTab.historyState ?: return@setWebViewClients
+//
+//                    // Find the specific history item that matches this URL.
+//                    val historyIndexToUpdate = currentHistory.items.indexOfFirst { it.url == url }
+//                    if (historyIndexToUpdate == -1) return@setWebViewClients
+//
+//                    val itemToUpdate = currentHistory.items[historyIndexToUpdate]
+//
+//                    // Only update if the title has actually changed to prevent loops
+//                    if (itemToUpdate.title != title) {
+//                        Log.d("onReceivedTitle", "Updating title for '$url' to '$title'")
+//                        val updatedItem = itemToUpdate.copy(title = title)
+//                        val updatedItems = currentHistory.items.toMutableList().apply {
+//                            this[historyIndexToUpdate] = updatedItem
+//                        }
+//                        val updatedHistory = currentHistory.copy(items = updatedItems)
+//                        tabs[tabIndex] = targetTab.copy(historyState = updatedHistory)
+//                        saveTrigger++
+//                    }
+//
+//                    view.evaluateJavascript(jsFaviconDiscovery, null)
+//
+//
+//                },
 
                 onBlobDownloadRequested = { base64Data, filename, mimeType ->
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -3236,20 +3260,6 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
         }
     }
 
-//    LaunchedEffect(browserSettings.isDesktopMode) {
-//        if (browserSettings.isDesktopMode) {
-//            activeWebView?.settings?.userAgentString = desktopUserAgent
-//            activeWebView?.settings?.useWideViewPort = true
-//            activeWebView?.settings?.loadWithOverviewMode = true
-//            webViewLoad(activeWebView, activeWebView?.url ?: "", browserSettings)
-//        } else {
-//            activeWebView?.settings?.userAgentString = mobileUserAgent
-//            activeWebView?.settings?.useWideViewPort = false
-//            activeWebView?.settings?.loadWithOverviewMode = false
-//            activeWebView?.reload()
-//        }
-//
-//    }
     LaunchedEffect(Unit) {
         val window = (context as? Activity)?.window ?: return@LaunchedEffect
         val insetsController = WindowCompat.getInsetsController(window, window.decorView)
@@ -3287,7 +3297,7 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
     LaunchedEffect(Unit) {
         if (!initialLoadDone) {
 
-            val urlToLoad = tabs[activeTabIndex.intValue].currentUrl ?: browserSettings.defaultUrl
+            val urlToLoad = browserSettings.defaultUrl
 //            activeWebView?.loadUrl(urlToLoad)
             webViewLoad(activeWebView, urlToLoad, browserSettings)
             initialLoadDone = true
@@ -3320,14 +3330,8 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
         focusManager.clearFocus()
     }
 
-
-    LaunchedEffect(canGoBack, canGoForward) {
-        Log.i("Web View Navigation", "canGoBack $canGoBack")
-        Log.i("Web View Navigation", "canGoForward $canGoForward")
-    }
-
     //endregion
-    BackHandler(enabled = !isBottomPanelVisible || canGoBack) {
+    BackHandler(enabled = !isBottomPanelVisible || activeWebView?.canGoBack()?: false) {
         when {
             // Priority 1: Exit fullscreen video if it's active.
             customView != null -> {
@@ -3335,30 +3339,8 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
 
             }
             // Priority 2: Navigate back in the WebView.
-            canGoBack -> {
-                tabs[activeTabIndex.intValue].historyState?.let { history ->
-                    val newIndex =
-                        history.currentIndex - 1
-                    Log.i("Web View Navigation", "NACK")
-                    databaseCurrentIndexHolder = newIndex
-                    history.items.getOrNull(newIndex)
-                        ?.let { itemToLoad ->
-                            isNavigateInProgress = true
-//                            activeWebView?.loadUrl(itemToLoad.url)
-
-                            webViewLoad(activeWebView, itemToLoad.url, browserSettings)
-
-                            val updatedTab =
-                                tabs[activeTabIndex.intValue].copy(
-                                    historyState = history.copy(
-                                        currentIndex = newIndex
-                                    )
-                                )
-                            tabs[activeTabIndex.intValue] =
-                                updatedTab
-                            saveTrigger++
-                        }
-                }
+            activeWebView?.canGoBack()?:false -> {
+                activeWebView?.goBack()
             }
 
             else -> {
@@ -3456,6 +3438,8 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
 
 
             BottomPanel(
+                webViewManager = webViewManager,
+                activeWebView = activeWebView,
 
                 findInPageResult = findInPageResult,
                 findInPageText = findInPageText,
@@ -3463,7 +3447,8 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
                     addToHomeScreen(
                         context = context,
                         coroutineScope = coroutineScope,
-                        tab = currentInspectingTab
+                        tab = currentInspectingTab,
+                        activeWebView = activeWebView,
                     )
                 },
                 setIsDownloadPanelVisible = { isDownloadPanelVisible = it },
@@ -3526,7 +3511,6 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
                 onClearAllClicked = handleClearAll,
                 downloads = downloads,
                 isDownloadPanelVisible = isDownloadPanelVisible,
-                activeWebView = activeWebView,
                 isUrlOverlayBoxVisible = isUrlOverlayBoxVisible,
                 setIsUrlOverlayBoxVisible = { isUrlOverlayBoxVisible = it },
                 onNewTabClicked = { index ->
@@ -3539,12 +3523,32 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
                 isTabsPanelVisible = isTabsPanelVisible,
                 onTabSelected = { newIndex ->
                     if (activeTabIndex.intValue != newIndex) {
+
+                        // save old tab state
+                        val oldTab = tabs.getOrNull(activeTabIndex.intValue)
+                        // We use the webViewManager's pool to find the correct WebView instance
+                        val oldWebView = oldTab?.let { webViewManager.getWebView(it) }
+
+                        if (oldWebView != null) {
+                            val outState = Bundle()
+                            oldWebView.saveState(outState)
+                            val stateBytes = outState.getByteArray("WEBVIEW_CHROMIUM_STATE")
+                            if (stateBytes != null) {
+                                oldTab.savedState =
+                                    Base64.encodeToString(stateBytes, Base64.DEFAULT)
+                                Log.d("TabSwitch", "Saved state for outgoing tab ${oldTab.id}")
+                            }
+                        }
+
+
+
+
                         tabs[activeTabIndex.intValue].state = TabState.BACKGROUND
                         tabs[newIndex].state = TabState.ACTIVE
 
                         activeTabIndex.intValue = newIndex
 
-                        val urlToLoad = tabs[newIndex].currentUrl ?: browserSettings.defaultUrl
+                        val urlToLoad = webViewManager.getWebView(tabs[newIndex]).url ?: browserSettings.defaultUrl
 //                        activeWebView?.loadUrl(urlToLoad)
                         textFieldValue = TextFieldValue(urlToLoad, TextRange(urlToLoad.length))
                         saveTrigger++
@@ -3946,6 +3950,7 @@ fun BrowserScreen(newUrlFlow: StateFlow<String?>, modifier: Modifier = Modifier)
 
 @Composable
 fun BottomPanel(
+    webViewManager: WebViewManager,
     isFindInPageVisible: MutableState<Boolean>,
     findInPageText: MutableState<String>,
     findInPageResult: MutableState<Pair<Int, Int>>,
@@ -3977,7 +3982,7 @@ fun BottomPanel(
     updateInspectingTab: (Tab) -> Unit,
     isTabDataPanelVisible: Boolean,
     inspectingTab: Tab?,
-    handleHistoryNavigation: (tab: Tab, index: Int) -> Unit,
+    handleHistoryNavigation: (tab: Tab, index: Int, webViewManager: WebViewManager) -> Unit,
     handleCloseInspectedTab: () -> Unit,
     handleClearInspectedTabData: () -> Unit,
     handlePermissionToggle: (domain: String?, permission: String, isGranted: Boolean) -> Unit,
@@ -4099,6 +4104,7 @@ fun BottomPanel(
             )
             NavigationPanel(
                 isNavPanelVisible = isNavPanelVisible,
+                activeWebView = activeWebView,
                 browserSettings = browserSettings,
                 activeAction = activeNavAction,
                 canGoBack = canGoBack, // Make sure to pass these down from BrowserScreen
@@ -4165,10 +4171,13 @@ fun BottomPanel(
                 onPermissionToggle = handlePermissionToggle,
                 onClearSiteData = handleClearInspectedTabData,
                 onCloseTab = handleCloseInspectedTab,
-                onHistoryItemClicked = handleHistoryNavigation
+                onHistoryItemClicked = handleHistoryNavigation,
+                webViewManager = webViewManager,
             )
             TabsPanel(
+                webViewManager = webViewManager,
                 inspectingTab = inspectingTab,
+                activeWebView = activeWebView,
 
                 isTabsPanelVisible = isTabsPanelVisible,
                 tabs = tabs,
@@ -4245,7 +4254,7 @@ fun BottomPanel(
                             .focusRequester(urlBarFocusRequester)
                             //                            .padding(horizontal = browserSettings.paddingDp.dp, vertical = browserSettings.paddingDp.dp / 2)
                             .onFocusChanged {
-                                val resetUrl = tabs[activeTabIndex.value].currentUrl ?: ""
+                                val resetUrl = activeWebView?.url ?: ""
                                 setIsFocusOnTextField(it.isFocused)
                                 if (it.isFocused) {
 
@@ -4296,7 +4305,7 @@ fun BottomPanel(
                                 detectHorizontalDragGestures { _, dragAmount ->
                                     if (dragAmount > 0) {
                                         val resetUrl =
-                                            tabs[activeTabIndex.value].currentUrl ?: ""
+                                            activeWebView?.url ?: ""
                                         changeTextFieldValue(
                                             TextFieldValue(
                                                 resetUrl,
@@ -4329,7 +4338,7 @@ fun BottomPanel(
                         keyboardActions = KeyboardActions(
                             onGo = {
                                 val input = textFieldValue.text.trim()
-                                val resetUrl = tabs[activeTabIndex.value].currentUrl ?: ""
+                                val resetUrl = activeWebView?.url ?: ""
 
                                 if (input.isBlank()) {
                                     changeTextFieldValue(
@@ -4415,7 +4424,7 @@ fun BottomPanel(
                                 )
                             )
                             .matchParentSize()
-                            .pointerInput(Unit, canGoBack, canGoForward) {
+                            .pointerInput(Unit, activeWebView?.canGoBack(), activeWebView?.canGoForward()) {
                                 // 1. CAPTURE the CoroutineScope provided by pointerInput
                                 val coroutineScope = CoroutineScope(coroutineContext)
                                 awaitEachGesture {
@@ -4467,8 +4476,8 @@ fun BottomPanel(
                                                         }
                                                     }
 
-                                                    horizontalDragAccumulator < -horizontalDragThreshold -> if (canGoBack) GestureNavAction.BACK else GestureNavAction.NONE
-                                                    horizontalDragAccumulator > horizontalDragThreshold -> if (canGoForward) GestureNavAction.FORWARD else GestureNavAction.NONE
+                                                    horizontalDragAccumulator < -horizontalDragThreshold -> if (activeWebView?.canGoBack() ?: false) GestureNavAction.BACK else GestureNavAction.NONE
+                                                    horizontalDragAccumulator > horizontalDragThreshold -> if (activeWebView?.canGoForward() ?: false) GestureNavAction.FORWARD else GestureNavAction.NONE
                                                     else -> GestureNavAction.NONE
                                                 }
 
@@ -4583,6 +4592,7 @@ fun BottomPanel(
 
             // SETTING OPTIONS
             OptionsPanel(
+                activeWebView = activeWebView,
                 isFindInPageVisible = isFindInPageVisible,
                 descriptionContent = descriptionContent,
                 hapticFeedback = hapticFeedback,
@@ -4743,6 +4753,7 @@ fun PermissionPanel(
 
 @Composable
 fun OptionsPanel(
+    activeWebView: CustomWebView?,
     isFindInPageVisible: MutableState<Boolean>,
     descriptionContent: MutableState<String>,
     hapticFeedback: HapticFeedback,
@@ -4773,7 +4784,8 @@ fun OptionsPanel(
             tabsPanelLock,
             isDownloadPanelVisible,
             isCursorPadVisible,
-            isSettingsPanelVisible
+            isSettingsPanelVisible,
+            activeWebView,
         ) {
             listOf(
                 OptionItem(
@@ -4851,6 +4863,48 @@ fun OptionsPanel(
                 OptionItem(R.drawable.ic_bug, "debug", false) {
                     Log.e("BROWSER SETTINGS", browserSettings.toString())
                     Log.e("Tabs List", tabs.toString())
+                    activeWebView?.let { webView ->
+                        val outState = Bundle()
+                        val history = webView.saveState(outState)
+                        if (history != null) {
+                            Log.d("WebViewSaveState", "State saved. Bundle content: $outState")
+                            for (key in outState.keySet()) {
+                                Log.d(
+                                    "WebViewSaveState",
+                                    "-> Key: $key, Value: ${outState.get(key)}"
+                                )
+                            }
+
+                            // --- DETAILED HISTORY LOGGING ---
+                            Log.d("WebViewSaveState", "--- History Details ---")
+                            Log.d("WebViewSaveState", "History Size: ${history.size}")
+                            Log.d("WebViewSaveState", "Current Index: ${history.currentIndex}")
+
+                            for (i in 0 until history.size) {
+                                val item = history.getItemAtIndex(i)
+                                val isCurrent =
+                                    if (i == history.currentIndex) " <-- CURRENT" else ""
+                                Log.d(
+                                    "WebViewSaveState",
+                                    "[$i] Title: '${item.title}', URL: '${item.url}', Original URL: '${item.originalUrl}'$isCurrent"
+                                )
+                                val favicon = item.favicon
+                                if (favicon != null) {
+                                    Log.d(
+                                        "WebViewSaveState",
+                                        "  -> Favicon: Yes, ${favicon.width}x${favicon.height}px"
+                                    )
+                                } else {
+                                    Log.d("WebViewSaveState", "  -> Favicon: No")
+                                }
+                            }
+                            Log.d("WebViewSaveState", "--- End History Details ---")
+                            // --- END OF NEW LOGGING ---
+
+                        } else {
+                            Log.e("WebViewSaveState", "Failed to save WebView state.")
+                        }
+                    }
                 },
 //                OptionItem(R.drawable.ic_fullscreen, "Button 4", false) { /* ... */ },
 //                OptionItem(R.drawable.ic_fullscreen, "Button 5", false) { /* ... */ },
@@ -5400,6 +5454,7 @@ fun PromptPanel(
 
 @Composable
 fun NavigationPanel(
+    activeWebView: CustomWebView?,
     isNavPanelVisible: Boolean,
     modifier: Modifier = Modifier,
     browserSettings: BrowserSettings,
@@ -5505,7 +5560,7 @@ fun NavigationPanel(
                         activeAction = activeAction,
                         gestureNavAction = GestureNavAction.BACK,
                         actionIcon = painterResource(R.drawable.ic_arrow_back),
-                        visibility = canGoBack,
+                        visibility = activeWebView?.canGoBack() ?: false,
                         browserSettings = browserSettings,
 
                         )
@@ -5526,7 +5581,7 @@ fun NavigationPanel(
                         activeAction = activeAction,
                         gestureNavAction = GestureNavAction.FORWARD,
                         actionIcon = painterResource(R.drawable.ic_arrow_forward),
-                        visibility = canGoForward,
+                        visibility = activeWebView?.canGoForward() ?: false,
                         browserSettings = browserSettings,
 
                         )
@@ -5584,6 +5639,8 @@ fun NavigationItem(
 
 @Composable
 fun TabsPanel(
+    webViewManager: WebViewManager,
+    activeWebView: CustomWebView?,
     inspectingTab: Tab?,
 
     isTabsPanelVisible: Boolean,
@@ -5604,8 +5661,6 @@ fun TabsPanel(
 
     // This effect is still useful to sync the pager if a new tab is created
     LaunchedEffect(activeTabIndex, tabs.size) {
-        Log.d("UpdateTab", "${inspectingTab?.currentUrl}")
-
         if (pagerState.currentPage != activeTabIndex + 1) {
             pagerState.animateScrollToPage(activeTabIndex + 1)
         }
@@ -5689,17 +5744,15 @@ fun TabsPanel(
 
                         val tab = tabs[tabIndex]
 
-                        val currentHistory = tab.historyState
-                        val currentItem =
-                            currentHistory?.items?.getOrNull(currentHistory.currentIndex)
 
-                        val title =
-                            tab.historyState?.items?.getOrNull(tab.historyState!!.currentIndex)?.title
-                                ?: "New Tab"
-                        val faviconUrl = currentItem?.faviconUrl ?: getFaviconUrlFromGoogleServer(
-                            tab.currentUrl ?: ""
+                        val currentWebView = webViewManager.getWebView(tab)
+                        val currentHistory = currentWebView.copyBackForwardList()
+
+                        val title = currentWebView.title ?: ""
+
+                        val faviconUrl = getFaviconUrlFromGoogleServer(
+                            currentWebView.url ?: ""
                         )
-                        Log.w("Favicon", faviconUrl)
                         TabItem(
                             faviconUrl = faviconUrl,
                             title = title,
@@ -6337,6 +6390,7 @@ fun DownloadRow(
 
 @Composable
 fun TabDataPanel(
+    webViewManager: WebViewManager,
     isTabDataPanelVisible: Boolean,
     inspectingTab: Tab?,
     onDismiss: () -> Unit,
@@ -6346,7 +6400,7 @@ fun TabDataPanel(
     onClearSiteData: () -> Unit,
     onCloseTab: () -> Unit,
     onAddToHomeScreen: () -> Unit,
-    onHistoryItemClicked: (tab: Tab, index: Int) -> Unit
+    onHistoryItemClicked: (tab: Tab, index: Int,  webViewManager : WebViewManager) -> Unit
 ) {
 
     // 1. Local state to hold the tab being displayed.
@@ -6442,7 +6496,7 @@ fun TabDataPanel(
                     ).dp + browserSettings.paddingDp.dp) * 2.5f
 
                     val domain =
-                        SiteSettingsManager(LocalContext.current).getDomain(tab.currentUrl)
+                        SiteSettingsManager(LocalContext.current).getDomain(webViewManager.getWebView(tab).url ?: browserSettings.defaultUrl)
                     val settings = if (domain != null) siteSettings[domain] else null
 
                     when (currentView) {
@@ -6545,24 +6599,25 @@ fun TabDataPanel(
                                         )
                                     )
                             ) {
-                                val history = tab.historyState
+                                val history = webViewManager.getWebView(tab).copyBackForwardList()
                                 if (history != null) {
-                                    items(history.items.size) { index ->
-                                        val item = history.items[index]
+                                    items(history.size) { index ->
+                                        val item = history.getItemAtIndex(index)
                                         HistoryRow(
                                             item = item,
-                                            isLast = index == history.items.size - 1,
+                                            isLast = index == history.size - 1,
                                             isCurrent = index == history.currentIndex,
                                             browserSettings = browserSettings,
-                                            onClick = { onHistoryItemClicked(tab, index) }
+                                            onClick = { onHistoryItemClicked(tab, index, webViewManager) }
                                         )
                                     }
                                 }
                             }
-                            LaunchedEffect(tab.historyState?.currentIndex) {
-                                tab.historyState?.let {
-                                    if (it.currentIndex in 0 until it.items.size) {
+                            LaunchedEffect(webViewManager.getWebView(tab).copyBackForwardList().currentIndex) {
+                                webViewManager.getWebView(tab).copyBackForwardList().let {
+                                    if (it.currentIndex in 0 until it.size){
                                         lazyListState.animateScrollToItem(index = it.currentIndex)
+
                                     }
                                 }
                             }
@@ -6570,7 +6625,7 @@ fun TabDataPanel(
 
                         TabDataPanelView.PERMISSIONS -> {
                             val domain =
-                                SiteSettingsManager(LocalContext.current).getDomain(tab.currentUrl)
+                                SiteSettingsManager(LocalContext.current).getDomain(webViewManager.getWebView(tab).url ?: browserSettings.defaultUrl)
                             val settings = if (domain != null) siteSettings[domain] else null
 
                             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
@@ -6697,7 +6752,7 @@ fun TabDataPanel(
 
 @Composable
 fun HistoryRow(
-    item: SerializableHistoryItem,
+    item: WebHistoryItem,
     isLast: Boolean,
     isCurrent: Boolean,
     browserSettings: BrowserSettings,
@@ -6747,7 +6802,7 @@ fun HistoryRow(
         ) {
             val imageRequest = ImageRequest.Builder(LocalContext.current)
                 // Use the item's saved faviconUrl, or fall back to the Google service
-                .data(item.faviconUrl ?: getFaviconUrlFromGoogleServer(item.url))
+                .data(getFaviconUrlFromGoogleServer(item.url))
                 .crossfade(true)
                 .placeholder(R.drawable.ic_language)
                 .error(R.drawable.ic_language)
@@ -8311,7 +8366,7 @@ fun FindInPageBar(
                 placeholder = { Text("find in page") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = {    keyboardController?.hide() })
+                keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() })
             )
             Row(
                 modifier = Modifier
@@ -8329,7 +8384,7 @@ fun FindInPageBar(
                         browserSettings.paddingDp,
                         browserSettings.singleLineHeight,
                         false,
-                        )
+                    )
                         .weight(1f)
                 ) {
                     Icon(
@@ -8348,12 +8403,12 @@ fun FindInPageBar(
                         browserSettings.paddingDp,
                         browserSettings.singleLineHeight,
                         searchResult.second > 0
-                        )  .weight(1f)
+                    ).weight(1f)
                 ) {
                     Icon(
                         painterResource(id = R.drawable.ic_arrow_upward),
                         contentDescription = "Previous",
-                        tint = if ( searchResult.second > 0)Color.Black else Color.White
+                        tint = if (searchResult.second > 0) Color.Black else Color.White
 
                     )
                 }
@@ -8365,7 +8420,7 @@ fun FindInPageBar(
                         "${searchResult.first}/${searchResult.second}",
                         color = Color.White,
 
-                    )
+                        )
                 }
                 IconButton(
                     onClick = onFindNext, enabled = searchResult.second > 0,
@@ -8376,13 +8431,13 @@ fun FindInPageBar(
                         browserSettings.singleLineHeight,
                         searchResult.second > 0
 
-                        )
+                    )
                         .weight(1f)
                 ) {
                     Icon(
                         painterResource(id = R.drawable.ic_arrow_downward),
                         contentDescription = "Next",
-                        tint = if ( searchResult.second > 0)Color.Black else Color.White
+                        tint = if (searchResult.second > 0) Color.Black else Color.White
                     )
                 }
 
