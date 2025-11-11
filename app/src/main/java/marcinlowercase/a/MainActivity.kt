@@ -226,47 +226,53 @@ const val default_url = "https://oo1.studio"
 
 //region JS Code
 
-
-const val JS_HOVER_SIMULATOR = """
+const val JS_INJECT_CORNER_RADIUS = """
     (function() {
-        console.log("JS_HOVER_SIMULATOR")
-        // Keep track of the last element we hovered over to correctly fire mouseout.
-        window.lastHoveredElement = null;
-
-        // The main function that Kotlin will call.
-        window.simulateHover = function(x, y) {
-            try {
-                // Find the element at the given viewport coordinates.
-                var currentElement = document.elementFromPoint(x, y);
-
-                // If the element under the cursor has changed...
-                if (currentElement !== window.lastHoveredElement) {
-                    // ...dispatch a 'mouseout' event on the old element (if it exists).
-                    if (window.lastHoveredElement) {
-                        var mouseOutEvent = new MouseEvent('mouseout', { bubbles: true, cancelable: true, view: window });
-                        window.lastHoveredElement.dispatchEvent(mouseOutEvent);
-                    }
-                    // ...and dispatch a 'mouseover' event on the new element (if it exists).
-                    if (currentElement) {
-                        var mouseOverEvent = new MouseEvent('mouseover', { bubbles: true, cancelable: true, view: window });
-                        currentElement.dispatchEvent(mouseOverEvent);
-                    }
-                }
-
-                // Always dispatch a 'mousemove' event on the current element for continuous effects.
-                if (currentElement) {
-                    var mouseMoveEvent = new MouseEvent('mousemove', { clientX: x, clientY: y, bubbles: true, cancelable: true, view: window });
-                    currentElement.dispatchEvent(mouseMoveEvent);
-                }
-
-                // Update the last hovered element for the next call.
-                window.lastHoveredElement = currentElement;
-            } catch (e) {
-                // Fails silently if the page context is weird.
-            }
-        };
+        render(___corner-radius___) 
     })();
 """
+
+
+//const val JS_HOVER_SIMULATOR = """
+//    (function() {
+//        console.log("JS_HOVER_SIMULATOR")
+//        // Keep track of the last element we hovered over to correctly fire mouseout.
+//        window.lastHoveredElement = null;
+//
+//        // The main function that Kotlin will call.
+//        window.simulateHover = function(x, y) {
+//            try {
+//                // Find the element at the given viewport coordinates.
+//                var currentElement = document.elementFromPoint(x, y);
+//
+//                // If the element under the cursor has changed...
+//                if (currentElement !== window.lastHoveredElement) {
+//                    // ...dispatch a 'mouseout' event on the old element (if it exists).
+//                    if (window.lastHoveredElement) {
+//                        var mouseOutEvent = new MouseEvent('mouseout', { bubbles: true, cancelable: true, view: window });
+//                        window.lastHoveredElement.dispatchEvent(mouseOutEvent);
+//                    }
+//                    // ...and dispatch a 'mouseover' event on the new element (if it exists).
+//                    if (currentElement) {
+//                        var mouseOverEvent = new MouseEvent('mouseover', { bubbles: true, cancelable: true, view: window });
+//                        currentElement.dispatchEvent(mouseOverEvent);
+//                    }
+//                }
+//
+//                // Always dispatch a 'mousemove' event on the current element for continuous effects.
+//                if (currentElement) {
+//                    var mouseMoveEvent = new MouseEvent('mousemove', { clientX: x, clientY: y, bubbles: true, cancelable: true, view: window });
+//                    currentElement.dispatchEvent(mouseMoveEvent);
+//                }
+//
+//                // Update the last hovered element for the next call.
+//                window.lastHoveredElement = currentElement;
+//            } catch (e) {
+//                // Fails silently if the page context is weird.
+//            }
+//        };
+//    })();
+//"""
 
 //endregion
 
@@ -2790,7 +2796,13 @@ fun BrowserScreen(
 
 
 
-                    view.evaluateJavascript(JS_HOVER_SIMULATOR.trimIndent().replace("\n", ""), null)
+//                    view.evaluateJavascript(JS_HOVER_SIMULATOR.trimIndent().replace("\n", ""), null)
+                    val jsInjectCornerRadius = JS_INJECT_CORNER_RADIUS.replace(
+                        "___corner-radius___",
+                        browserSettings.deviceCornerRadius.toString()
+                    )
+                    view.evaluateJavascript(jsInjectCornerRadius, null)
+                    Log.d("JSEnvironment", "Injected corner radius: ${browserSettings.deviceCornerRadius}")
 
                 },
                 onDoUpdateVisitedHistoryFun = { view, url, isReload ->
