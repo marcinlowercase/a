@@ -2024,13 +2024,19 @@ fun BrowserScreen(
 
                 isUrlBarVisible = false
                 isNavigateInProgressWithTabDataPanel = true
-                isNavigateInProgress = true
+
+//                webViewManager.getWebView(tabToNavigate).goBackOrForward(1)
+
                 val webViewToNavigate = webViewManager.getWebView(tabToNavigate)
 
                 val stepsToNavigate =
-                    webViewToNavigate.copyBackForwardList().currentIndex - historyIndex
+                    -1 * (webViewToNavigate.copyBackForwardList().currentIndex - historyIndex)
 
-                if (webViewToNavigate.canGoBackOrForward(stepsToNavigate)) {
+//                Log.d("HistoryNavigation", "currentIndex: ${webViewToNavigate.copyBackForwardList().currentIndex}")
+//                Log.d("HistoryNavigation", "historyIndex: ${historyIndex}")
+//                Log.d("HistoryNavigation", "Step: ${stepsToNavigate}")
+
+                if (stepsToNavigate != 0 && webViewToNavigate.canGoBackOrForward(stepsToNavigate)) {
 
                     // --- All checks passed, proceed with the logic ---
 
@@ -2687,7 +2693,7 @@ fun BrowserScreen(
                     if (tabIndex == -1) return@setWebViewClients
 
                     val targetTab = tabs[tabIndex]
-                   
+
 
                     // Check if an update is even needed to prevent unnecessary recompositions.
                     if (faviconUrl.isNotBlank()) {
@@ -2696,7 +2702,7 @@ fun BrowserScreen(
                             "Update new favicon for ${tab.currentURL} to $faviconUrl"
                         )
 
-                       
+
                         tabs[tabIndex] = targetTab.copy(currentFaviconUrl = faviconUrl)
                         saveTrigger++
                     } else {
@@ -2767,7 +2773,8 @@ fun BrowserScreen(
                         textFieldValue = TextFieldValue(it, TextRange(it.length))
                     }
                     if (url != null && activeTab.currentURL != url) {
-                        tabs[activeTabIndex.intValue] = tabs[activeTabIndex.intValue].copy(currentURL = url)
+                        tabs[activeTabIndex.intValue] =
+                            tabs[activeTabIndex.intValue].copy(currentURL = url)
                     }
 //
 //                    if (url == null) return@setWebViewClients
@@ -4074,7 +4081,7 @@ fun BottomPanel(
                 browserSettings = browserSettings,
                 activeAction = activeNavAction,
 
-            )
+                )
             DownloadPanel(
                 confirmationPopup = confirmationPopup,
                 setIsDownloadPanelVisible = setIsDownloadPanelVisible,
@@ -5432,7 +5439,7 @@ fun NavigationPanel(
     browserSettings: BrowserSettings,
     activeAction: GestureNavAction,
 
-) {
+    ) {
     AnimatedVisibility(
         visible = isNavPanelVisible,
         enter = expandVertically(
@@ -5714,9 +5721,11 @@ fun TabsPanel(
 
                         val title = tab.currentTitle
 
-                        val faviconUrl = tab.currentFaviconUrl.ifBlank { getFaviconUrlFromGoogleServer(
-                            tab.currentURL
-                        ) }
+                        val faviconUrl = tab.currentFaviconUrl.ifBlank {
+                            getFaviconUrlFromGoogleServer(
+                                tab.currentURL
+                            )
+                        }
                         TabItem(
                             faviconUrl = faviconUrl,
                             title = title,
