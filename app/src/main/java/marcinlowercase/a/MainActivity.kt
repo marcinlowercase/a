@@ -1822,8 +1822,6 @@ fun BrowserScreen(
 
     val hapticFeedback = LocalHapticFeedback.current
 
-    var isNavigateInProgress by rememberSaveable { mutableStateOf(false) }
-    var isNavigateInProgressWithTabDataPanel by rememberSaveable { mutableStateOf(false) }
 
 
     var isOptionsPanelVisible by rememberSaveable { mutableStateOf(false) }
@@ -2019,11 +2017,11 @@ fun BrowserScreen(
         { tabToNavigate: Tab, historyIndex: Int, webViewManager: WebViewManager ->
             val tabIndexInMainList = tabs.indexOf(tabToNavigate)
 
+//            Log.d("HistoryNavigation", "tabIndexInMainList: ${tabIndexInMainList}")
             // --- Use a positive case check ---
-            if (tabIndexInMainList != -1 && !isNavigateInProgressWithTabDataPanel && !isNavigateInProgress) {
+            if (tabIndexInMainList != -1 ) {
 
                 isUrlBarVisible = false
-                isNavigateInProgressWithTabDataPanel = true
 
 //                webViewManager.getWebView(tabToNavigate).goBackOrForward(1)
 
@@ -2039,22 +2037,24 @@ fun BrowserScreen(
                 if (stepsToNavigate != 0 && webViewToNavigate.canGoBackOrForward(stepsToNavigate)) {
 
                     // --- All checks passed, proceed with the logic ---
+//                    Log.d("HistoryNavigation", "All checks passed, proceed with the logic")
 
                     // 1. Update the history state of the target tab
 
 
                     // 2. Make the target tab the active tab
-                    if (activeTabIndex.intValue != tabIndexInMainList) {
-                        tabs[activeTabIndex.intValue].state = TabState.BACKGROUND
-                        activeTabIndex.intValue = tabIndexInMainList
-                        tabToNavigate.state = TabState.ACTIVE
-                    }
+
 
                     webViewToNavigate.goBackOrForward(stepsToNavigate)
 
                     val newUrl = webViewToNavigate.url ?: ""
                     textFieldValue = TextFieldValue(newUrl, TextRange(newUrl.length))
 
+                }
+                if (activeTabIndex.intValue != tabIndexInMainList) {
+                    tabs[activeTabIndex.intValue].state = TabState.BACKGROUND
+                    activeTabIndex.intValue = tabIndexInMainList
+                    tabToNavigate.state = TabState.ACTIVE
                 }
                 // If the inner 'if' fails (bad history), nothing happens, which is correct.
             }
@@ -2326,8 +2326,6 @@ fun BrowserScreen(
             }
 
             GestureNavAction.REFRESH -> {
-                isNavigateInProgress = true
-
                 activeWebView?.reload()
             }
 
@@ -2756,7 +2754,6 @@ fun BrowserScreen(
                 },
                 onPageFinishedFun = { view, currentUrlString ->
                     isLoading = false
-                    isNavigateInProgressWithTabDataPanel = false
 
 
 
@@ -6475,46 +6472,51 @@ fun TabDataPanel(
                             ).url ?: browserSettings.defaultUrl
                         )
                     val settings = if (domain != null) siteSettings[domain] else null
+                    val history = webViewManager.getWebView(tab).copyBackForwardList()
 
                     when (currentView) {
                         TabDataPanelView.MAIN -> {
                             Column(
                                 modifier = Modifier
                                     .padding(horizontal = browserSettings.paddingDp.dp)
-                                    .padding(top = browserSettings.paddingDp.dp),
+                                    .padding(top = if ( (settings != null && settings.permissionDecisions.isNotEmpty()) || history.size > 0)browserSettings.paddingDp.dp else 0.dp)
+
+                                ,
                                 verticalArrangement = Arrangement.spacedBy(browserSettings.paddingDp.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 // History Button
-                                IconButton(
-                                    onClick = { currentView = TabDataPanelView.HISTORY },
-                                    modifier = buttonModifierForLayer(
-                                        3,
-                                        browserSettings.deviceCornerRadius,
-                                        browserSettings.paddingDp,
-                                        browserSettings.singleLineHeight,
-                                        false
-                                    )
-                                        .fillMaxWidth()
-                                        .background(Color.Transparent)
-                                        .border(
-                                            width = 1.dp,
-                                            color = Color.White,
-                                            shape = RoundedCornerShape(
-                                                cornerRadiusForLayer(
-                                                    3,
-                                                    browserSettings.deviceCornerRadius,
-                                                    browserSettings.paddingDp
-                                                ).dp
-                                            )
+                                if (history.size > 0)
+                                    IconButton(
+                                        onClick = { currentView = TabDataPanelView.HISTORY },
+                                        modifier = buttonModifierForLayer(
+                                            3,
+                                            browserSettings.deviceCornerRadius,
+                                            browserSettings.paddingDp,
+                                            browserSettings.singleLineHeight,
+                                            false
                                         )
-                                ) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.ic_history),
-                                        contentDescription = "History",
-                                        tint = Color.White
-                                    )
-                                }
+                                            .fillMaxWidth()
+                                            .background(Color.Transparent)
+                                            .border(
+                                                width = 1.dp,
+                                                color = Color.White,
+                                                shape = RoundedCornerShape(
+                                                    cornerRadiusForLayer(
+                                                        3,
+                                                        browserSettings.deviceCornerRadius,
+                                                        browserSettings.paddingDp
+                                                    ).dp
+                                                )
+                                            )
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.ic_history),
+                                            contentDescription = "History",
+                                            tint = Color.White
+                                        )
+                                    }
+
 
                                 // Permissions Button
 
@@ -6528,6 +6530,7 @@ fun TabDataPanel(
                                             browserSettings.singleLineHeight,
                                             false
                                         )
+
                                             .fillMaxWidth()
                                             .background(Color.Transparent)
                                             .border(
