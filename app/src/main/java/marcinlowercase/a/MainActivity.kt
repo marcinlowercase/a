@@ -3149,11 +3149,11 @@ fun BrowserScreen(
         if (!isUrlBarVisible) {
             isOptionsPanelVisible = false
             isTabDataPanelVisible = false
-            if (!tabsPanelLock) isTabsPanelVisible = false
+             isTabsPanelVisible = false
             isSettingsPanelVisible = false
             if (downloads.isEmpty()) isDownloadPanelVisible = false
         } else {
-//            if (tabsPanelLock) isTabsPanelVisible = true
+            if (tabsPanelLock) isTabsPanelVisible = true
             if (isCursorMode) isCursorMode = false
         }
     }
@@ -6635,10 +6635,11 @@ fun TabDataPanel(
                             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                                 if (settings != null && settings.permissionDecisions.isNotEmpty()) {
                                     settings.permissionDecisions.forEach { (permission, isGranted) ->
+
                                         Row(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .padding(horizontal = browserSettings.paddingDp.dp),
+                                                .padding(horizontal = browserSettings.paddingDp.dp * 3),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Text(
