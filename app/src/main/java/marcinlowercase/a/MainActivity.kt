@@ -109,7 +109,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -122,7 +121,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
@@ -219,6 +217,7 @@ import kotlin.system.exitProcess
 
 
 //region Global Variables
+const val GENERIC_LOCATION_PERMISSION = "marcinlowercase.a.permission.LOCATION"
 var pixel_9_corner_radius = 54.85f
 
 const val default_url = "https://oo1.studio"
@@ -1126,8 +1125,11 @@ class WebViewManager(private val context: Context) {
                 if (origin == null || callback == null) return
 
                 val domain = siteSettingsManager.getDomain(origin)
-                val locationPermission = Manifest.permission.ACCESS_FINE_LOCATION
-                val decision = siteSettings[domain]?.permissionDecisions?.get(locationPermission)
+                val decision =
+                    siteSettings[domain]?.permissionDecisions?.get(GENERIC_LOCATION_PERMISSION)
+
+//                val locationPermission = Manifest.permission.ACCESS_FINE_LOCATION
+//                val decision = siteSettings[domain]?.permissionDecisions?.get(locationPermission)
 
                 if (decision != null) {
                     Log.d("PermissionCheck", "Found saved location decision for $domain: $decision")
@@ -1771,7 +1773,10 @@ fun BrowserScreen(
                     } catch (e: Exception) {
                         Log.e("WebViewState", "Failed to restore WebView state", e)
                         // Fallback to loading the URL if restore fails
-                        webViewLoad(this, browserSettings.defaultUrl, browserSettings)
+//                        webViewLoad(this, browserSettings.defaultUrl, browserSettings)
+                        val urlToLoad =
+                            tab.currentURL.ifBlank { browserSettings.defaultUrl }
+                        webViewLoad(this, urlToLoad, browserSettings)
                     }
                 } else {
                     // No saved state, just load the URL normally
@@ -1821,7 +1826,6 @@ fun BrowserScreen(
     var isTabDataPanelVisible by remember { mutableStateOf(false) }
 
     val hapticFeedback = LocalHapticFeedback.current
-
 
 
     var isOptionsPanelVisible by rememberSaveable { mutableStateOf(false) }
@@ -1877,14 +1881,42 @@ fun BrowserScreen(
         foregroundColor = if (isDarkTheme) Color.White else Color.Black
     )
 
+//    val savePermissionDecision = { domain: String, permissions: Map<String, Boolean> ->
+//        val currentSettings = siteSettings.getOrPut(domain) { SiteSettings(domain = domain) }
+//        currentSettings.permissionDecisions.putAll(permissions)
+//        siteSettings[domain] = currentSettings // Trigger state update
+//        siteSettingsManager.saveSettings(siteSettings)
+//        Log.d("PermissionSave", "Saved decisions for $domain: $permissions")
+//    }
+
     val savePermissionDecision = { domain: String, permissions: Map<String, Boolean> ->
         val currentSettings = siteSettings.getOrPut(domain) { SiteSettings(domain = domain) }
-        currentSettings.permissionDecisions.putAll(permissions)
-        siteSettings[domain] = currentSettings // Trigger state update
-        siteSettingsManager.saveSettings(siteSettings)
-        Log.d("PermissionSave", "Saved decisions for $domain: $permissions")
-    }
+        val updatedDecisions = currentSettings.permissionDecisions.toMutableMap()
+        // First, add all results from the system dialog
+        updatedDecisions.putAll(permissions)
 
+        // Now, check if any location permission was part of the request
+        if (updatedDecisions.containsKey(Manifest.permission.ACCESS_FINE_LOCATION) ||
+            updatedDecisions.containsKey(Manifest.permission.ACCESS_COARSE_LOCATION)
+        ) {
+            // Determine if location was granted (either fine or coarse is enough)
+            val isGranted = updatedDecisions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+                    updatedDecisions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+
+            // Remove the specific, detailed permissions
+            updatedDecisions.remove(Manifest.permission.ACCESS_FINE_LOCATION)
+            updatedDecisions.remove(Manifest.permission.ACCESS_COARSE_LOCATION)
+
+            // Add our single, generic permission entry
+            updatedDecisions[GENERIC_LOCATION_PERMISSION] = isGranted
+        }
+
+        // Proceed with saving the consolidated map
+        val newSettings = currentSettings.copy(permissionDecisions = updatedDecisions)
+        siteSettings[domain] = newSettings // Trigger state update
+        siteSettingsManager.saveSettings(siteSettings)
+        Log.d("PermissionSave", "Saved consolidated decisions for $domain: $updatedDecisions")
+    }
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions(),
         onResult = { permissions ->
@@ -2019,7 +2051,7 @@ fun BrowserScreen(
 
 //            Log.d("HistoryNavigation", "tabIndexInMainList: ${tabIndexInMainList}")
             // --- Use a positive case check ---
-            if (tabIndexInMainList != -1 ) {
+            if (tabIndexInMainList != -1) {
 
                 isUrlBarVisible = false
 
@@ -3149,7 +3181,7 @@ fun BrowserScreen(
         if (!isUrlBarVisible) {
             isOptionsPanelVisible = false
             isTabDataPanelVisible = false
-             isTabsPanelVisible = false
+            isTabsPanelVisible = false
             isSettingsPanelVisible = false
             if (downloads.isEmpty()) isDownloadPanelVisible = false
         } else {
@@ -6474,16 +6506,15 @@ fun TabDataPanel(
                     val settings = if (domain != null) siteSettings[domain] else null
                     val history = webViewManager.getWebView(tab).copyBackForwardList()
 
-                    val isStillHaveOptions = (settings != null && settings.permissionDecisions.isNotEmpty()) || history.size > 0
+                    val isStillHaveOptions =
+                        (settings != null && settings.permissionDecisions.isNotEmpty()) || history.size > 0
 
                     when (currentView) {
                         TabDataPanelView.MAIN -> {
                             Column(
                                 modifier = Modifier
                                     .padding(horizontal = browserSettings.paddingDp.dp)
-                                    .padding(top = if (isStillHaveOptions )browserSettings.paddingDp.dp else 0.dp)
-
-                                ,
+                                    .padding(top = if (isStillHaveOptions) browserSettings.paddingDp.dp else 0.dp),
                                 verticalArrangement = Arrangement.spacedBy(browserSettings.paddingDp.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
@@ -6560,7 +6591,7 @@ fun TabDataPanel(
 
                         TabDataPanelView.HISTORY -> {
                             val lazyListState = rememberLazyListState()
-                            if ( history.size > 0) {
+                            if (history.size > 0) {
                                 LazyColumn(
                                     state = lazyListState,
                                     modifier = Modifier
@@ -6582,7 +6613,8 @@ fun TabDataPanel(
                                             )
                                         )
                                 ) {
-                                    val history = webViewManager.getWebView(tab).copyBackForwardList()
+                                    val history =
+                                        webViewManager.getWebView(tab).copyBackForwardList()
                                     items(history.size) { index ->
                                         val item = history.getItemAtIndex(index)
                                         HistoryRow(
@@ -6601,7 +6633,8 @@ fun TabDataPanel(
                                     }
                                 }
                                 LaunchedEffect(
-                                    webViewManager.getWebView(tab).copyBackForwardList().currentIndex
+                                    webViewManager.getWebView(tab)
+                                        .copyBackForwardList().currentIndex
                                 ) {
                                     webViewManager.getWebView(tab).copyBackForwardList().let {
                                         if (it.currentIndex in 0 until it.size) {
@@ -6610,10 +6643,18 @@ fun TabDataPanel(
                                         }
                                     }
                                 }
-                            }
-                            else {
+                            } else {
                                 Box(
-                                    modifier = Modifier.fillMaxWidth()
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(
+                                            heightForLayer(
+                                                3,
+                                                browserSettings.deviceCornerRadius,
+                                                browserSettings.paddingDp,
+                                                browserSettings.singleLineHeight,
+                                            ).dp
+                                        )
                                         .padding(top = browserSettings.paddingDp.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -6623,49 +6664,129 @@ fun TabDataPanel(
 
                         }
 
+//                        TabDataPanelView.PERMISSIONS -> {
+//                            val domain =
+//                                SiteSettingsManager(LocalContext.current).getDomain(
+//                                    webViewManager.getWebView(
+//                                        tab
+//                                    ).url ?: browserSettings.defaultUrl
+//                                )
+//                            val settings = if (domain != null) siteSettings[domain] else null
+//
+//                            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+//                                if (settings != null && settings.permissionDecisions.isNotEmpty()) {
+//                                    settings.permissionDecisions.forEach { (permission, isGranted) ->
+//                                        val permissionName = when (permission) {
+//                                            GENERIC_LOCATION_PERMISSION -> "Location"
+//                                            Manifest.permission.CAMERA -> "Camera"
+//                                            Manifest.permission.RECORD_AUDIO -> "Microphone"
+//                                            else -> permission.substringAfterLast('.') // Fallback
+//                                        }
+//
+//                                        Row(
+//                                            modifier = Modifier
+//                                                .fillMaxWidth()
+//                                                .padding(horizontal = browserSettings.paddingDp.dp * 3),
+//                                            verticalAlignment = Alignment.CenterVertically
+//                                        ) {
+//                                            Text(
+//                                                permissionName,
+//                                                color = Color.White,
+//                                                modifier = Modifier.weight(1f)
+//                                            )
+//                                            Switch(
+//                                                checked = isGranted,
+//                                                onCheckedChange = {
+//                                                    onPermissionToggle(
+//                                                        domain,
+//                                                        permission,
+//                                                        it
+//                                                    )
+//                                                })
+//                                        }
+//                                    }
+//                                } else {
+//                                    Box(
+//                                        modifier = Modifier.fillMaxSize()
+//                                            .padding(top = browserSettings.paddingDp.dp),
+//                                        contentAlignment = Alignment.Center
+//                                    ) {
+//                                        Text("No permissions requested yet.", color = Color.Gray)
+//                                    }
+//                                }
+//                            }
+//                        }
+
                         TabDataPanelView.PERMISSIONS -> {
                             val domain =
                                 SiteSettingsManager(LocalContext.current).getDomain(
-                                    webViewManager.getWebView(
-                                        tab
-                                    ).url ?: browserSettings.defaultUrl
+                                    webViewManager.getWebView(tab).url ?: browserSettings.defaultUrl
                                 )
                             val settings = if (domain != null) siteSettings[domain] else null
 
-                            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                                if (settings != null && settings.permissionDecisions.isNotEmpty()) {
+                            // Check if there are any permissions to display
+                            if (settings != null && settings.permissionDecisions.isNotEmpty()) {
+                                // A single row that can scroll horizontally if needed
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = browserSettings.paddingDp.dp)
+                                        .padding(top = browserSettings.paddingDp.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(browserSettings.paddingDp.dp)
+                                ) {
                                     settings.permissionDecisions.forEach { (permission, isGranted) ->
+                                        // Determine the correct icon and name for the button
+                                        val (iconRes, name) = when (permission) {
+                                            GENERIC_LOCATION_PERMISSION -> R.drawable.ic_location_on to "Location"
+                                            Manifest.permission.CAMERA -> R.drawable.ic_camera_on to "Camera"
+                                            Manifest.permission.RECORD_AUDIO -> R.drawable.ic_mic_on to "Microphone"
+                                            else -> R.drawable.ic_bug to "Unknown" // Fallback
+                                        }
 
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(horizontal = browserSettings.paddingDp.dp * 3),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(
-                                                permission.substringAfterLast('.'),
-                                                color = Color.White,
-                                                modifier = Modifier.weight(1f)
+                                        // Create the toggleable IconButton
+                                        IconButton(
+                                            onClick = {
+                                                // Toggle the permission state when clicked
+                                                onPermissionToggle(domain, permission, !isGranted)
+                                            },
+                                            // The `white` parameter controls the background
+                                            modifier = buttonModifierForLayer(
+                                                layer = 3,
+                                                browserSettings.deviceCornerRadius,
+                                                browserSettings.paddingDp,
+                                                browserSettings.singleLineHeight,
+                                                white = isGranted
                                             )
-                                            Switch(
-                                                checked = isGranted,
-                                                onCheckedChange = {
-                                                    onPermissionToggle(
-                                                        domain,
-                                                        permission,
-                                                        it
-                                                    )
-                                                })
+                                                .weight(1f),
+                                            colors = IconButtonDefaults.iconButtonColors(
+                                                // The `contentColor` controls the icon tint
+                                                contentColor = if (isGranted) Color.Black else Color.White
+                                            )
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(id = iconRes),
+                                                contentDescription = name
+                                            )
                                         }
                                     }
-                                } else {
-                                    Box(
-                                        modifier = Modifier.fillMaxSize()
-                                            .padding(top = browserSettings.paddingDp.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text("No permissions requested yet.", color = Color.Gray)
-                                    }
+                                }
+                            } else {
+                                // Same fallback UI for when no permissions are set
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(
+                                            heightForLayer(
+                                                3,
+                                                browserSettings.deviceCornerRadius,
+                                                browserSettings.paddingDp,
+                                                browserSettings.singleLineHeight,
+                                            ).dp
+                                        )
+                                        .padding(top = browserSettings.paddingDp.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("No permissions requested yet.", color = Color.Gray)
                                 }
                             }
                         }
