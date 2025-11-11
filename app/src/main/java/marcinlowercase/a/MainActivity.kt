@@ -6560,55 +6560,67 @@ fun TabDataPanel(
 
                         TabDataPanelView.HISTORY -> {
                             val lazyListState = rememberLazyListState()
-                            LazyColumn(
-                                state = lazyListState,
-                                modifier = Modifier
-                                    .heightIn(
-                                        max = maxLazyColumnHeight
-                                    )
-                                    .padding(
-                                        top =  if (isStillHaveOptions )browserSettings.paddingDp.dp else 0.dp,
-                                        start = browserSettings.paddingDp.dp,
-                                        end = browserSettings.paddingDp.dp
-                                    )
-                                    .clip(
-                                        RoundedCornerShape(
-                                            cornerRadiusForLayer(
-                                                3,
-                                                browserSettings.deviceCornerRadius,
-                                                browserSettings.paddingDp
-                                            ).dp
+                            if ( history.size > 0) {
+                                LazyColumn(
+                                    state = lazyListState,
+                                    modifier = Modifier
+                                        .heightIn(
+                                            max = maxLazyColumnHeight
                                         )
-                                    )
-                            ) {
-                                val history = webViewManager.getWebView(tab).copyBackForwardList()
-                                items(history.size) { index ->
-                                    val item = history.getItemAtIndex(index)
-                                    HistoryRow(
-                                        item = item,
-                                        isLast = index == history.size - 1,
-                                        isCurrent = index == history.currentIndex,
-                                        browserSettings = browserSettings,
-                                        onClick = {
-                                            onHistoryItemClicked(
-                                                tab,
-                                                index,
-                                                webViewManager
+                                        .padding(
+                                            top = browserSettings.paddingDp.dp,
+                                            start = browserSettings.paddingDp.dp,
+                                            end = browserSettings.paddingDp.dp
+                                        )
+                                        .clip(
+                                            RoundedCornerShape(
+                                                cornerRadiusForLayer(
+                                                    3,
+                                                    browserSettings.deviceCornerRadius,
+                                                    browserSettings.paddingDp
+                                                ).dp
                                             )
-                                        }
-                                    )
+                                        )
+                                ) {
+                                    val history = webViewManager.getWebView(tab).copyBackForwardList()
+                                    items(history.size) { index ->
+                                        val item = history.getItemAtIndex(index)
+                                        HistoryRow(
+                                            item = item,
+                                            isLast = index == history.size - 1,
+                                            isCurrent = index == history.currentIndex,
+                                            browserSettings = browserSettings,
+                                            onClick = {
+                                                onHistoryItemClicked(
+                                                    tab,
+                                                    index,
+                                                    webViewManager
+                                                )
+                                            }
+                                        )
+                                    }
                                 }
-                            }
-                            LaunchedEffect(
-                                webViewManager.getWebView(tab).copyBackForwardList().currentIndex
-                            ) {
-                                webViewManager.getWebView(tab).copyBackForwardList().let {
-                                    if (it.currentIndex in 0 until it.size) {
-                                        lazyListState.animateScrollToItem(index = it.currentIndex)
+                                LaunchedEffect(
+                                    webViewManager.getWebView(tab).copyBackForwardList().currentIndex
+                                ) {
+                                    webViewManager.getWebView(tab).copyBackForwardList().let {
+                                        if (it.currentIndex in 0 until it.size) {
+                                            lazyListState.animateScrollToItem(index = it.currentIndex)
 
+                                        }
                                     }
                                 }
                             }
+                            else {
+                                Box(
+                                    modifier = Modifier.fillMaxWidth()
+                                        .padding(top = browserSettings.paddingDp.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("This tab is not active", color = Color.Gray)
+                                }
+                            }
+
                         }
 
                         TabDataPanelView.PERMISSIONS -> {
@@ -6644,6 +6656,14 @@ fun TabDataPanel(
                                                     )
                                                 })
                                         }
+                                    }
+                                } else {
+                                    Box(
+                                        modifier = Modifier.fillMaxSize()
+                                            .padding(top = browserSettings.paddingDp.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text("No permissions requested yet.", color = Color.Gray)
                                     }
                                 }
                             }
