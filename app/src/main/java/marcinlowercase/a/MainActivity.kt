@@ -6474,12 +6474,14 @@ fun TabDataPanel(
                     val settings = if (domain != null) siteSettings[domain] else null
                     val history = webViewManager.getWebView(tab).copyBackForwardList()
 
+                    val isStillHaveOptions = (settings != null && settings.permissionDecisions.isNotEmpty()) || history.size > 0
+
                     when (currentView) {
                         TabDataPanelView.MAIN -> {
                             Column(
                                 modifier = Modifier
                                     .padding(horizontal = browserSettings.paddingDp.dp)
-                                    .padding(top = if ( (settings != null && settings.permissionDecisions.isNotEmpty()) || history.size > 0)browserSettings.paddingDp.dp else 0.dp)
+                                    .padding(top = if (isStillHaveOptions )browserSettings.paddingDp.dp else 0.dp)
 
                                 ,
                                 verticalArrangement = Arrangement.spacedBy(browserSettings.paddingDp.dp),
@@ -6565,7 +6567,7 @@ fun TabDataPanel(
                                         max = maxLazyColumnHeight
                                     )
                                     .padding(
-                                        top = browserSettings.paddingDp.dp,
+                                        top =  if (isStillHaveOptions )browserSettings.paddingDp.dp else 0.dp,
                                         start = browserSettings.paddingDp.dp,
                                         end = browserSettings.paddingDp.dp
                                     )
@@ -6624,7 +6626,7 @@ fun TabDataPanel(
                                         Row(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .padding(horizontal = 16.dp),
+                                                .padding(horizontal = browserSettings.paddingDp.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Text(
@@ -6642,13 +6644,6 @@ fun TabDataPanel(
                                                     )
                                                 })
                                         }
-                                    }
-                                } else {
-                                    Box(
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text("No permissions requested yet.", color = Color.Gray)
                                     }
                                 }
                             }
