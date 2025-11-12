@@ -816,6 +816,7 @@ class TabManager(context: Context) {
     fun clearAllTabs() {
         prefs.edit {
             remove(tabsKey)
+            remove(activeTabIndexKey)
             commit()
         }
 
@@ -2090,6 +2091,21 @@ fun BrowserScreen(
 
     //region Functions
 
+    val closeAllTabs = {
+        tabs.forEach { tab ->
+            webViewManager.destroyWebView(tab)
+        }
+
+        // 2. Clear the in-memory list
+        tabs.clear()
+
+        // 3. Clear the persisted list in SharedPreferences
+        tabManager.clearAllTabs()
+
+        // 4. Close the application
+        activity?.finishAndRemoveTask()
+        exitProcess(0)
+    }
     val removeSuggestionFromHistory = { suggestionToRemove: Suggestion ->
         if (suggestionToRemove.source == SuggestionSource.HISTORY) {
             // Remove from persistent storage
@@ -3650,7 +3666,15 @@ fun BrowserScreen(
 
 
             BottomPanel(
-
+                onCloseAllTabs = {
+                    confirmationPopup(
+                        message = "close all tabs and exit ? ",
+                        onConfirm = {
+                            closeAllTabs()
+                        },
+                        onCancel = {}
+                    )
+                },
                 suggestions = suggestions,
                 onSuggestionClick = { suggestion ->
                     webViewLoad(activeWebView, suggestion.url, browserSettings)
@@ -4178,6 +4202,7 @@ fun BrowserScreen(
 
 @Composable
 fun BottomPanel(
+    onCloseAllTabs: () -> Unit,
     suggestions: List<Suggestion>, // Changed from List<String>
     onSuggestionClick: (Suggestion) -> Unit, // Changed from (String)
     onRemoveSuggestion: (Suggestion) -> Unit,
@@ -4911,6 +4936,7 @@ fun BottomPanel(
 
             // SETTING OPTIONS
             OptionsPanel(
+                onCloseAllTabs = onCloseAllTabs,
                 activeWebView = activeWebView,
                 isFindInPageVisible = isFindInPageVisible,
                 descriptionContent = descriptionContent,
@@ -5050,6 +5076,7 @@ fun PermissionPanel(
 
 @Composable
 fun OptionsPanel(
+    onCloseAllTabs: () -> Unit,
     activeWebView: CustomWebView?,
     isFindInPageVisible: MutableState<Boolean>,
     descriptionContent: MutableState<String>,
@@ -5158,6 +5185,15 @@ fun OptionsPanel(
                     )
                     setIsOptionsPanelVisible(false)
 
+                },
+
+                OptionItem(
+                    iconRes = R.drawable.ic_close_all_tabs, // Ensure you have this drawable
+                    contentDescription = "close all tabs",
+                    enabled = false // Not a toggle, so never "active"
+                ) {
+                    onCloseAllTabs() // Call the function from BrowserScreen
+                    setIsOptionsPanelVisible(false) // Hide the panel after initiating
                 },
 
                 OptionItem(
