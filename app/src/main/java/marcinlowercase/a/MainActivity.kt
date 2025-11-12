@@ -5148,16 +5148,6 @@ fun OptionsPanel(
                 },
 
                 OptionItem(
-                    R.drawable.ic_settings, // You'll need a settings icon
-                    "settings",
-                    isSettingsPanelVisible,
-                ) {
-                    // When clicked, show the settings panel and hide this one.
-                    setIsSettingsPanelVisible(!isSettingsPanelVisible)
-                    setIsOptionsPanelVisible(false)
-                },
-
-                OptionItem(
                     iconRes = R.drawable.ic_lightbulb, // Or a more specific icon like ic_manage_search
                     contentDescription = "suggestions",
                     enabled = browserSettings.showSuggestions // The button is "active" when suggestions are on
@@ -5169,6 +5159,18 @@ fun OptionsPanel(
                     setIsOptionsPanelVisible(false)
 
                 },
+
+                OptionItem(
+                    R.drawable.ic_settings, // You'll need a settings icon
+                    "settings",
+                    isSettingsPanelVisible,
+                ) {
+                    // When clicked, show the settings panel and hide this one.
+                    setIsSettingsPanelVisible(!isSettingsPanelVisible)
+                    setIsOptionsPanelVisible(false)
+                },
+
+
 
                 OptionItem(R.drawable.ic_bug, "debug", false) {
                     Log.e("BROWSER SETTINGS", browserSettings.toString())
