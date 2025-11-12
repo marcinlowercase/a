@@ -100,6 +100,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -195,17 +196,21 @@ import coil.imageLoader
 import coil.request.ImageRequest
 import coil.transform.CircleCropTransformation
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import marcinlowercase.a.ui.theme.Themeinlowercase
+import org.json.JSONArray
 import java.io.File
 import java.io.FileOutputStream
 import java.net.URISyntaxException
+import java.net.URL
 import java.net.URLDecoder
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
@@ -489,6 +494,65 @@ class BlobDownloaderInterface(
 
 //region Data Class
 
+
+class VisitedUrlManager(context: Context) {
+    private val prefs = context.getSharedPreferences("BrowserHistory", Context.MODE_PRIVATE)
+    private val json = Json { ignoreUnknownKeys = true }
+    private val historyKey = "visited_urls_map_json" // Renamed key
+
+    // This now accepts both a URL and a title
+    fun addUrl(url: String, title: String?) {
+        // Don't save empty titles or invalid URLs
+        if (title.isNullOrBlank() || !Patterns.WEB_URL.matcher(url).matches()) return
+
+        val history = loadUrlMap().toMutableMap()
+        history[url] = title
+
+        // Serialize the whole map to a JSON string for storage
+        val jsonString = json.encodeToString(history)
+        prefs.edit {
+            putString(historyKey, jsonString)
+        }
+    }
+
+    // This now returns a Map<String, String>
+    fun loadUrlMap(): Map<String, String> {
+        val jsonString = prefs.getString(historyKey, null)
+        return if (jsonString != null) {
+            try {
+                json.decodeFromString<Map<String, String>>(jsonString)
+            } catch (e: Exception) {
+                Log.e("VisitedUrlManager", "Failed to decode history map", e)
+                emptyMap()
+            }
+        } else {
+            emptyMap()
+        }
+    }
+
+    fun removeUrl(url: String) {
+        val history = loadUrlMap().toMutableMap()
+        if (history.containsKey(url)) {
+            history.remove(url)
+            val jsonString = json.encodeToString(history)
+            prefs.edit {
+                putString(historyKey, jsonString)
+            }
+        }
+    }
+}
+
+enum class SuggestionSource {
+    HISTORY,
+    GOOGLE
+}
+
+data class Suggestion(
+    val text: String,
+    val source: SuggestionSource,
+    val url: String // For history, this is the direct URL. For Google, it's the search query URL.
+)
+
 data class PanelVisibilityState(
     val options: Boolean,
     val tabs: Boolean,
@@ -662,6 +726,7 @@ data class BrowserSettings(
     val cursorContainerSize: Float,
     val cursorPointerSize: Float,
     val cursorTrackingSpeed: Float,
+    val showSuggestions: Boolean,
     val closedTabHistorySize: Float,
 
     )
@@ -1692,6 +1757,7 @@ fun BrowserScreen(
                 ),
                 cursorPointerSize = sharedPrefs.getFloat("cursor_pointer_size", 5f),
                 cursorTrackingSpeed = sharedPrefs.getFloat("cursor_tracking_speed", 1.75f),
+                showSuggestions = sharedPrefs.getBoolean("show_suggestions", false),
                 closedTabHistorySize = sharedPrefs.getFloat("closed_tab_history_size", 2f)
             )
         )
@@ -2008,9 +2074,35 @@ fun BrowserScreen(
     val findInPageText = remember { mutableStateOf("") }
     val findInPageResult = remember { mutableStateOf(0 to 0) }
 
+
+//    val suggestions = remember { mutableStateListOf<String>() }
+
+    // 1. Instantiate the VisitedUrlManager
+    val visitedUrlManager = remember { VisitedUrlManager(context) }
+
+    // Load the initial history
+    val visitedUrlMap = remember { mutableStateMapOf<String, String>().apply { putAll(visitedUrlManager.loadUrlMap()) } }
+
+    // 2. Update the suggestions state to use the new data class
+    val suggestions = remember { mutableStateListOf<Suggestion>() }
+
     //endregion
 
     //region Functions
+
+    val removeSuggestionFromHistory = { suggestionToRemove: Suggestion ->
+        if (suggestionToRemove.source == SuggestionSource.HISTORY) {
+            // Remove from persistent storage
+            visitedUrlManager.removeUrl(suggestionToRemove.url)
+
+            // Remove from our in-memory state maps
+            visitedUrlMap.remove(suggestionToRemove.url)
+
+            // Remove from the currently displayed suggestion list for immediate UI feedback
+            suggestions.remove(suggestionToRemove)
+        }
+    }
+
     val reopenClosedTab = {
         // Check if there are any tabs to reopen.
         if (recentlyClosedTabs.isNotEmpty()) {
@@ -2545,6 +2637,88 @@ fun BrowserScreen(
 
 
     //region LaunchedEffect
+
+    LaunchedEffect(textFieldValue.text, isFocusOnTextField) {
+
+        if (!browserSettings.showSuggestions) {
+            suggestions.clear()
+            return@LaunchedEffect
+        }
+
+        val query = textFieldValue.text.trim()
+
+        if (query.isNotBlank() && isFocusOnTextField) {
+            delay(300L) // Debounce
+            if (query != textFieldValue.text.trim()) return@LaunchedEffect
+
+            // --- COMBINED SUGGESTION LOGIC ---
+            val finalSuggestions = mutableListOf<Suggestion>()
+            val addedHistoryUrls = mutableSetOf<String>()
+
+            // A. Process History (ranked by match type and recency)
+            val historyMatches = visitedUrlMap.entries
+                .filter { (url, title) ->
+                    url.contains(query, ignoreCase = true) || title.contains(query, ignoreCase = true)
+                }
+                .map { (url, title) ->
+                    // Determine which part matched for ranking
+                    val urlStartsWith = url.startsWith(query, ignoreCase = true)
+                    val titleStartsWith = title.startsWith(query, ignoreCase = true)
+
+                    // Create a rank: URL starts > Title starts > URL contains > Title contains
+                    val rank = when {
+                        urlStartsWith -> 1
+                        titleStartsWith -> 2
+                        url.contains(query, ignoreCase = true) -> 3
+                        else -> 4
+                    }
+                    // The text displayed is the title, and the payload is the URL
+                    Triple(Suggestion(text = title, source = SuggestionSource.HISTORY, url = url), rank, url)
+                }
+                .sortedBy { it.second } // Sort by the rank
+                .map { it.first } // Get just the Suggestion object
+
+//            // Rank "starts with" matches higher
+//            val (startsWithHistory, containsHistory) = historyMatches.partition {
+//                it.text.startsWith(query, ignoreCase = true)
+//            }
+//            finalSuggestions.addAll(startsWithHistory)
+//            finalSuggestions.addAll(containsHistory)
+//            addedHistoryTexts.addAll(historyMatches.map { it.text })
+
+            finalSuggestions.addAll(historyMatches)
+            addedHistoryUrls.addAll(historyMatches.map { it.url })
+
+            // B. Fetch and process Google Suggestions
+            try {
+                withContext(Dispatchers.IO) {
+                    val encodedQuery = URLEncoder.encode(query, "UTF-8")
+                    val url = "http://suggestqueries.google.com/complete/search?client=chrome&ie=UTF-8&oe=UTF-8&q=$encodedQuery"
+                    val result = URL(url).readText(Charsets.UTF_8)
+
+                    val jsonArray = JSONArray(result)
+                    val suggestionsArray = jsonArray.getJSONArray(1)
+                    val googleSuggestions = List(suggestionsArray.length()) { suggestionsArray.getString(it) }
+
+                    googleSuggestions.forEach { suggestionText ->
+                        // Add Google suggestion only if it's not already in our history list
+                        if (!addedHistoryUrls.contains(suggestionText)) {
+                            val searchUrl = "https://www.google.com/search?q=${URLEncoder.encode(suggestionText, "UTF-8")}"
+                            finalSuggestions.add(Suggestion(text = suggestionText, source = SuggestionSource.GOOGLE, url = searchUrl))
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("SuggestionFetch", "Failed to fetch Google suggestions", e)
+            }
+
+            // C. Update the UI state
+            suggestions.clear()
+            suggestions.addAll(finalSuggestions.take(10)) // Limit to a reasonable number
+        } else {
+            suggestions.clear()
+        }
+    }
     LaunchedEffect(isFindInPageVisible.value) {
         if (!isFindInPageVisible.value) {
             findInPageText.value = ""
@@ -2794,15 +2968,28 @@ fun BrowserScreen(
                     isLoading = false
 
 
-
-
 //                    view.evaluateJavascript(JS_HOVER_SIMULATOR.trimIndent().replace("\n", ""), null)
                     val jsInjectCornerRadius = JS_INJECT_CORNER_RADIUS.replace(
                         "___corner-radius___",
                         browserSettings.deviceCornerRadius.toString()
                     )
                     view.evaluateJavascript(jsInjectCornerRadius, null)
-                    Log.d("JSEnvironment", "Injected corner radius: ${browserSettings.deviceCornerRadius}")
+                    Log.d(
+                        "JSEnvironment",
+                        "Injected corner radius: ${browserSettings.deviceCornerRadius}"
+                    )
+
+
+                    if (currentUrlString != null) {
+                        // Pass both the URL and the title to the manager
+                        visitedUrlManager.addUrl(currentUrlString, view.title)
+                        // Update our in-memory map
+                        view.title?.let { title ->
+                            if (title.isNotBlank()) {
+                                visitedUrlMap[currentUrlString] = title
+                            }
+                        }
+                    }
 
                 },
                 onDoUpdateVisitedHistoryFun = { view, url, isReload ->
@@ -3002,6 +3189,14 @@ fun BrowserScreen(
                     view.evaluateJavascript(jsFaviconDiscovery, null)
 
 
+                    // Pass both the URL and the title to the manager
+                    visitedUrlManager.addUrl(url, view.title)
+                    // Update our in-memory map
+                    view.title?.let { title ->
+                        if (title.isNotBlank()) {
+                            visitedUrlMap[url] = title
+                        }
+                    }
                 },
 
                 onBlobDownloadRequested = { base64Data, filename, mimeType ->
@@ -3336,6 +3531,7 @@ fun BrowserScreen(
             putFloat("cursor_container_size", browserSettings.cursorContainerSize)
             putFloat("cursor_pointer_size", browserSettings.cursorPointerSize)
             putFloat("cursor_tracking_speed", browserSettings.cursorTrackingSpeed)
+            putBoolean("show_suggestions", browserSettings.showSuggestions)
             putFloat("closed_tab_history_size", browserSettings.closedTabHistorySize)
 
 
@@ -3454,6 +3650,23 @@ fun BrowserScreen(
 
 
             BottomPanel(
+
+                suggestions = suggestions,
+                onSuggestionClick = { suggestion ->
+                    webViewLoad(activeWebView, suggestion.url, browserSettings)
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
+                },
+                onRemoveSuggestion = { suggestionToRemove ->
+                    confirmationPopup(
+                        message = "remove suggestion from history ? ",
+                        onConfirm = {
+                            removeSuggestionFromHistory(suggestionToRemove)
+                        },
+                        onCancel = {}
+                    )
+                },
+
                 webViewManager = webViewManager,
                 activeWebView = activeWebView,
 
@@ -3965,6 +4178,9 @@ fun BrowserScreen(
 
 @Composable
 fun BottomPanel(
+    suggestions: List<Suggestion>, // Changed from List<String>
+    onSuggestionClick: (Suggestion) -> Unit, // Changed from (String)
+    onRemoveSuggestion: (Suggestion) -> Unit,
     webViewManager: WebViewManager,
     isFindInPageVisible: MutableState<Boolean>,
     findInPageText: MutableState<String>,
@@ -4218,12 +4434,95 @@ fun BottomPanel(
                     onPermissionDeny()
                 }
             )
+
+
+            AnimatedVisibility(visible = suggestions.isNotEmpty()) {
+                LazyColumn(
+                    modifier = Modifier
+                        .padding(horizontal = browserSettings.paddingDp.dp)
+                        .padding(top = browserSettings.paddingDp.dp)
+                        .clip(
+                            RoundedCornerShape(
+                                cornerRadiusForLayer(
+                                    2,
+                                    browserSettings.deviceCornerRadius,
+                                    browserSettings.paddingDp
+                                ).dp
+                            )
+                        )
+                        .border(
+                            1.dp,
+                            Color.White,
+                            RoundedCornerShape(
+                                cornerRadiusForLayer(
+                                    2,
+                                    browserSettings.deviceCornerRadius,
+                                    browserSettings.paddingDp
+                                ).dp
+                            )
+                        )
+                        .heightIn(max = 250.dp), // Prevent the list from being too tall
+                    reverseLayout = true,
+                ) {
+
+                    items(suggestions) { suggestion ->
+                        val iconRes = when (suggestion.source) {
+                            SuggestionSource.HISTORY -> R.drawable.ic_history
+                            SuggestionSource.GOOGLE -> R.drawable.ic_search
+                        }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onSuggestionClick(suggestion) }
+                                .padding(browserSettings.paddingDp.dp * 2),
+                            verticalAlignment = Alignment.CenterVertically // Align icon and text vertically
+                        ) {
+                            // 2. Add the search Icon
+                            Icon(
+                                painter = painterResource(id = iconRes), // Make sure you have this drawable
+                                contentDescription = "Search suggestion",
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp) // Give the icon a suitable size
+                            )
+
+                            // 3. Add a Spacer for visual separation
+                            Spacer(modifier = Modifier.width(browserSettings.paddingDp.dp))
+
+                            // 4. Add the Text, which now takes the remaining space
+                            Text(
+                                text = suggestion.text,
+                                color = Color.White,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f) // Ensures text fills available space
+                            )
+
+                            if (suggestion.source == SuggestionSource.HISTORY) {
+                                IconButton(
+                                    onClick = { onRemoveSuggestion(suggestion) },
+                                    modifier = Modifier.size(24.dp) // A small, compact size
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_close), // The 'X' icon
+                                        contentDescription = "Remove from history",
+                                        tint = Color.Gray // A subtle color
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+
             ConfirmationPanel(
                 isUrlBarVisible = isUrlBarVisible,
                 browserSettings = browserSettings,
                 state = confirmationDisplayState, // Use the display state here
                 isConfirmationPanelVisible = confirmationState != null // Visibility is controlled by the primary state
             )
+
+
 
             // URL BAR
             AnimatedVisibility(
@@ -4708,31 +5007,14 @@ fun PermissionPanel(
                 // --- Deny Button ---
                 IconButton(
                     onClick = onDeny,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(
-                            heightForLayer(
-                                2,
-                                browserSettings.deviceCornerRadius,
-                                browserSettings.paddingDp,
-                                browserSettings.singleLineHeight
-                            ).dp
-                        )
-                        .border(
-                            width = 1.dp,
-                            color = Color.White,
-                            shape = RoundedCornerShape(
-                                cornerRadiusForLayer(
-                                    2,
-                                    browserSettings.deviceCornerRadius,
-                                    browserSettings.paddingDp
-                                ).dp
-                            )
-                        ),
-
-                    colors = IconButtonDefaults.iconButtonColors(
-                        containerColor = Color.Transparent
-                    ),
+                    modifier = buttonModifierForLayer(
+                        layer = 2,
+                        browserSettings.deviceCornerRadius,
+                        browserSettings.paddingDp,
+                        browserSettings.singleLineHeight,
+                        white = false // false = transparent background, white border
+                    )
+                        .weight(1f),
 
                     ) {
                     Icon(
@@ -4745,19 +5027,14 @@ fun PermissionPanel(
                 // --- Allow Button ---
                 IconButton(
                     onClick = onAllow,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(
-                            heightForLayer(
-                                2,
-                                browserSettings.deviceCornerRadius,
-                                browserSettings.paddingDp,
-                                browserSettings.singleLineHeight,
-                            ).dp
-                        ),
-                    colors = IconButtonDefaults.iconButtonColors(
-                        containerColor = Color.White
+                    modifier = buttonModifierForLayer(
+                        layer = 2,
+                        browserSettings.deviceCornerRadius,
+                        browserSettings.paddingDp,
+                        browserSettings.singleLineHeight,
+                        white = true // true = white background
                     )
+                        .weight(1f),
                 ) {
                     Icon(
                         painter = painterResource(id = currentRequest.iconResAllow), // You can make this icon generic too
@@ -4806,6 +5083,7 @@ fun OptionsPanel(
             isCursorPadVisible,
             isSettingsPanelVisible,
             activeWebView,
+            browserSettings.showSuggestions
         ) {
             listOf(
                 OptionItem(
@@ -4879,6 +5157,18 @@ fun OptionsPanel(
                     setIsOptionsPanelVisible(false)
                 },
 
+                OptionItem(
+                    iconRes = R.drawable.ic_lightbulb, // Or a more specific icon like ic_manage_search
+                    contentDescription = "suggestions",
+                    enabled = browserSettings.showSuggestions // The button is "active" when suggestions are on
+                ) {
+                    // When clicked, create a new settings object with the toggled value
+                    updateBrowserSettings(
+                        browserSettings.copy(showSuggestions = !browserSettings.showSuggestions)
+                    )
+                    setIsOptionsPanelVisible(false)
+
+                },
 
                 OptionItem(R.drawable.ic_bug, "debug", false) {
                     Log.e("BROWSER SETTINGS", browserSettings.toString())
