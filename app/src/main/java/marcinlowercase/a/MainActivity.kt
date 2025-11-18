@@ -8,6 +8,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.ActivityNotFoundException
+import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
@@ -115,6 +116,7 @@ import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.input.selectAll
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
+import androidx.compose.foundation.text.input.setTextAndSelectAll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -165,6 +167,9 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
@@ -721,7 +726,7 @@ data class ColorScheme(
 )
 
 data class BrowserSettings(
-    val paddingDp: Float,
+    val padding: Float,
     val deviceCornerRadius: Float,
     val defaultUrl: String,
     val animationSpeed: Float,
@@ -1744,7 +1749,7 @@ fun BrowserScreen(
     var browserSettings by remember {
         mutableStateOf(
             BrowserSettings(
-                paddingDp = sharedPrefs.getFloat("padding_dp", 8f),
+                padding = sharedPrefs.getFloat("padding", 8f),
                 deviceCornerRadius = sharedPrefs.getFloat(
                     "corner_radius_dp",
                     pixel_9_corner_radius
@@ -2439,7 +2444,7 @@ fun BrowserScreen(
     val resetBrowserSettings = {
         updateBrowserSettings(
             browserSettings.copy(
-                paddingDp = 8f,
+                padding = 8f,
                 deviceCornerRadius = pixel_9_corner_radius,
                 defaultUrl = default_url,
                 animationSpeed = 300f,
@@ -2670,7 +2675,10 @@ fun BrowserScreen(
 
     LaunchedEffect(textFieldState.text, isFocusOnTextField) {
 
-        if (!browserSettings.showSuggestions || (textFieldState.text as String) == activeWebView?.url) {
+        Log.w("TextFieldState", "${textFieldState.text}")
+        Log.w("TextFieldState", "${textFieldState.text.isBlank()}")
+        Log.w("TextFieldState", "${textFieldState.text.isNotEmpty()}")
+        if (!browserSettings.showSuggestions || (textFieldState.text as String) == activeWebView?.url || textFieldState.text.isBlank()) {
             suggestions.clear()
             return@LaunchedEffect
         }
@@ -2764,6 +2772,7 @@ fun BrowserScreen(
 
             // C. Update the UI state
             suggestions.clear()
+            if (textFieldState.text.isNotEmpty())
             suggestions.addAll(finalSuggestions.take(10)) // Limit to a reasonable number
         } else {
             suggestions.clear()
@@ -3569,7 +3578,7 @@ fun BrowserScreen(
     // The LaunchedEffect now saves the entire settings object (or individual fields)
     LaunchedEffect(browserSettings) {
         sharedPrefs.edit {
-            putFloat("padding_dp", browserSettings.paddingDp)
+            putFloat("padding", browserSettings.padding)
             putFloat("corner_radius_dp", browserSettings.deviceCornerRadius)
             putString("default_url", browserSettings.defaultUrl)
             putFloat("animation_speed", browserSettings.animationSpeed)
@@ -3700,6 +3709,7 @@ fun BrowserScreen(
 
 
             BottomPanel(
+                isFocusOnTextField = isFocusOnTextField,
                 textFieldState = textFieldState,
                 onCloseAllTabs = {
                     confirmationPopup(
@@ -3978,7 +3988,7 @@ fun BrowserScreen(
                         heightForLayer(
                             1,
                             browserSettings.deviceCornerRadius,
-                            browserSettings.paddingDp,
+                            browserSettings.padding,
                             browserSettings.singleLineHeight,
                         ).dp
 
@@ -4012,13 +4022,13 @@ fun BrowserScreen(
 
                                         val initialCursorX =
                                             if (squareAlignment == Alignment.BottomEnd) (
-                                                    screenSize.width - ((screenSize.width * 0.45f) + browserSettings.paddingDp.dp.toPx()) + down.position.x
+                                                    screenSize.width - ((screenSize.width * 0.45f) + browserSettings.padding.dp.toPx()) + down.position.x
                                                     )
-                                            else browserSettings.paddingDp.dp.toPx() + down.position.x
+                                            else browserSettings.padding.dp.toPx() + down.position.x
 
 
                                         val initialCursorY =
-                                            screenSize.height - (squareBoxSmallHeight.toPx() - browserSettings.paddingDp.dp.toPx()) + down.position.y - ((screenSize.height - cutoutTop.toPx()) / 2)
+                                            screenSize.height - (squareBoxSmallHeight.toPx() - browserSettings.padding.dp.toPx()) + down.position.y - ((screenSize.height - cutoutTop.toPx()) / 2)
 
 
 
@@ -4176,16 +4186,16 @@ fun BrowserScreen(
                                 }
                             }
                             .padding(
-                                end = browserSettings.paddingDp.dp,
-                                start = browserSettings.paddingDp.dp, // Add start padding for when it's on the left
-                                bottom = browserSettings.paddingDp.dp
+                                end = browserSettings.padding.dp,
+                                start = browserSettings.padding.dp, // Add start padding for when it's on the left
+                                bottom = browserSettings.padding.dp
                             )
                             .clip(
                                 RoundedCornerShape(
                                     cornerRadiusForLayer(
                                         1,
                                         browserSettings.deviceCornerRadius,
-                                        browserSettings.paddingDp
+                                        browserSettings.padding
                                     ).dp
                                 )
                             )
@@ -4197,7 +4207,7 @@ fun BrowserScreen(
 //                                    cornerRadiusForLayer(
 //                                        1,
 //                                        browserSettings.deviceCornerRadius,
-//                                        browserSettings.paddingDp
+//                                        browserSettings.padding
 //                                    ).dp
 //                                )
 //                            )
@@ -4236,6 +4246,7 @@ fun BrowserScreen(
 
 @Composable
 fun BottomPanel(
+    isFocusOnTextField: Boolean,
     textFieldState: TextFieldState,
     onCloseAllTabs: () -> Unit,
     suggestions: List<Suggestion>, // Changed from List<String>
@@ -4348,10 +4359,11 @@ fun BottomPanel(
             targetOffsetY = { it }
         )
     ) {
+        val clipboard = LocalClipboard.current
 
         Column(
             modifier = Modifier
-                .padding(browserSettings.paddingDp.dp)
+                .padding(browserSettings.padding.dp)
 
 
                 .clip(
@@ -4359,7 +4371,7 @@ fun BottomPanel(
                         cornerRadiusForLayer(
                             1,
                             browserSettings.deviceCornerRadius,
-                            browserSettings.paddingDp
+                            browserSettings.padding
                         ).dp
                     )
                 )
@@ -4375,7 +4387,7 @@ fun BottomPanel(
 //                        cornerRadiusForLayer(
 //                            1,
 //                            browserSettings.deviceCornerRadius,
-//                            browserSettings.paddingDp
+//                            browserSettings.padding
 //                        ).dp
 //                    )
 //                )
@@ -4498,14 +4510,14 @@ fun BottomPanel(
             AnimatedVisibility(visible = suggestions.isNotEmpty()) {
                 LazyColumn(
                     modifier = Modifier
-                        .padding(horizontal = browserSettings.paddingDp.dp)
-                        .padding(top = browserSettings.paddingDp.dp)
+                        .padding(horizontal = browserSettings.padding.dp)
+                        .padding(top = browserSettings.padding.dp)
                         .clip(
                             RoundedCornerShape(
                                 cornerRadiusForLayer(
                                     2,
                                     browserSettings.deviceCornerRadius,
-                                    browserSettings.paddingDp
+                                    browserSettings.padding
                                 ).dp
                             )
                         )
@@ -4516,7 +4528,7 @@ fun BottomPanel(
 //                                cornerRadiusForLayer(
 //                                    2,
 //                                    browserSettings.deviceCornerRadius,
-//                                    browserSettings.paddingDp
+//                                    browserSettings.padding
 //                                ).dp
 //                            )
 //                        )
@@ -4533,7 +4545,7 @@ fun BottomPanel(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { onSuggestionClick(suggestion) }
-                                .padding(browserSettings.paddingDp.dp * 2),
+                                .padding(browserSettings.padding.dp * 2),
                             verticalAlignment = Alignment.CenterVertically // Align icon and text vertically
                         ) {
                             // 2. Add the search Icon
@@ -4545,7 +4557,7 @@ fun BottomPanel(
                             )
 
                             // 3. Add a Spacer for visual separation
-                            Spacer(modifier = Modifier.width(browserSettings.paddingDp.dp))
+                            Spacer(modifier = Modifier.width(browserSettings.padding.dp))
 
                             // 4. Add the Text, which now takes the remaining space
                             Text(
@@ -4609,17 +4621,17 @@ fun BottomPanel(
                                 heightForLayer(
                                     1,
                                     browserSettings.deviceCornerRadius,
-                                    browserSettings.paddingDp,
+                                    browserSettings.padding,
                                     browserSettings.singleLineHeight,
                                 ).dp
                             )
-                            .padding(browserSettings.paddingDp.dp)
+                            .padding(browserSettings.padding.dp)
                             .onSizeChanged { size ->
                                 setTextFieldHeightPx(size.height)
                             }
                             .fillMaxWidth()
                             .focusRequester(urlBarFocusRequester)
-                            //                            .padding(horizontal = browserSettings.paddingDp.dp, vertical = browserSettings.paddingDp.dp / 2)
+                            //                            .padding(horizontal = browserSettings.padding.dp, vertical = browserSettings.padding.dp / 2)
                             .onFocusChanged {
                                 val resetUrl = activeWebView?.url ?: ""
                                 setIsFocusOnTextField(it.isFocused)
@@ -4640,15 +4652,8 @@ fun BottomPanel(
                                     setIsNavPanelVisible(false)
                                     setIsSettingsPanelVisible(false)
 
-                                    textFieldState.edit { selectAll() }
-//                                    val text = textFieldValue.text
-//                                    changeTextFieldValue(
-//                                        textFieldValue.copy(text = "hello",selection = TextRange(0, text.length))
-//                                    )
-//                                    if (textFieldValue.text == resetUrl) {
-//
-//                                        changeTextFieldValue(TextFieldValue("", TextRange(0)))
-//                                    }
+//                                    textFieldState.edit { selectAll() }
+                                    textFieldState.setTextAndPlaceCursorAtEnd("")
                                 } else {
 
                                     savedPanelState?.let { savedState ->
@@ -4685,7 +4690,7 @@ fun BottomPanel(
                                     cornerRadiusForLayer(
                                         2,
                                         browserSettings.deviceCornerRadius,
-                                        browserSettings.paddingDp
+                                        browserSettings.padding
                                     ).dp
                                 )
                             ),
@@ -4697,11 +4702,17 @@ fun BottomPanel(
                             val input = (textFieldState.text as String).trim()
                             val resetUrl = activeWebView?.url ?: ""
 
-                            if (input.isBlank()) {
+                            Log.e("TextFieldState", input)
+                            if (input.isEmpty()) {
+                                Log.e("TextFieldState", "input empty, reload")
 
+                                activeWebView?.reload()
                                 textFieldState.setTextAndPlaceCursorAtEnd(resetUrl)
                                 focusManager.clearFocus()
                                 keyboardController?.hide()
+                                setIsFocusOnTextField(false)
+
+                                return@TextField
                             }
                             val isUrl = try {
                                 Patterns.WEB_URL.matcher(input).matches() ||
@@ -4729,6 +4740,7 @@ fun BottomPanel(
 
                             focusManager.clearFocus()
                             keyboardController?.hide()
+                            setIsFocusOnTextField(false)
 
                         },
 //                        keyboardActions = KeyboardActions(
@@ -4781,7 +4793,7 @@ fun BottomPanel(
                             cornerRadiusForLayer(
                                 2,
                                 browserSettings.deviceCornerRadius,
-                                browserSettings.paddingDp
+                                browserSettings.padding
                             ).dp
                         ),
                         colors = TextFieldDefaults.colors(
@@ -4804,17 +4816,17 @@ fun BottomPanel(
 //                                heightForLayer(
 //                                    1,
 //                                    browserSettings.deviceCornerRadius,
-//                                    browserSettings.paddingDp,
+//                                    browserSettings.padding,
 //                                    browserSettings.singleLineHeight,
 //                                ).dp
 //                            )
-//                            .padding(browserSettings.paddingDp.dp)
+//                            .padding(browserSettings.padding.dp)
 //                            .onSizeChanged { size ->
 //                                setTextFieldHeightPx(size.height)
 //                            }
 //                            .fillMaxWidth()
 //                            .focusRequester(urlBarFocusRequester)
-//                            //                            .padding(horizontal = browserSettings.paddingDp.dp, vertical = browserSettings.paddingDp.dp / 2)
+//                            //                            .padding(horizontal = browserSettings.padding.dp, vertical = browserSettings.padding.dp / 2)
 //                            .onFocusChanged {
 //                                val resetUrl = activeWebView?.url ?: ""
 //                                setIsFocusOnTextField(it.isFocused)
@@ -4884,7 +4896,7 @@ fun BottomPanel(
 //                                    cornerRadiusForLayer(
 //                                        2,
 //                                        browserSettings.deviceCornerRadius,
-//                                        browserSettings.paddingDp
+//                                        browserSettings.padding
 //                                    ).dp
 //                                )
 //                            ),
@@ -4949,7 +4961,7 @@ fun BottomPanel(
 //                            cornerRadiusForLayer(
 //                                2,
 //                                browserSettings.deviceCornerRadius,
-//                                browserSettings.paddingDp
+//                                browserSettings.padding
 //                            ).dp
 //                        ),
 //                        colors = TextFieldDefaults.colors(
@@ -4974,7 +4986,7 @@ fun BottomPanel(
                                     cornerRadiusForLayer(
                                         1,
                                         browserSettings.deviceCornerRadius,
-                                        browserSettings.paddingDp
+                                        browserSettings.padding
                                     ).dp
                                 )
                             )
@@ -4983,7 +4995,7 @@ fun BottomPanel(
                                     cornerRadiusForLayer(
                                         1,
                                         browserSettings.deviceCornerRadius,
-                                        browserSettings.paddingDp
+                                        browserSettings.padding
                                     ).dp
                                 )
                             )
@@ -5188,6 +5200,22 @@ fun BottomPanel(
                 setIsSettingsPanelVisible = setIsSettingsPanelVisible,
                 closedTabsCount = recentlyClosedTabs.size,
             )
+
+            UrlEditPanel(
+                isVisible = isFocusOnTextField && textFieldState.text.isBlank(),
+                browserSettings = browserSettings,
+                onCopyClick = {
+                    val clipData = ClipData.newPlainText("url",activeWebView?.url ?: "")
+
+                    clipboard.nativeClipboard.setPrimaryClip(clipData)
+
+                },
+                onEditClick = {
+                    textFieldState.setTextAndPlaceCursorAtEnd(activeWebView?.url ?: "")
+                    urlBarFocusRequester.requestFocus()
+                    keyboardController?.show()
+                }
+            ) 
         }
 
     }
@@ -5234,10 +5262,10 @@ fun PermissionPanel(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = browserSettings.paddingDp.dp)
+                .padding(horizontal = browserSettings.padding.dp)
                 .padding(
-                    bottom = if (!isUrlBarVisible) browserSettings.paddingDp.dp else 0.dp,
-                    top = browserSettings.paddingDp.dp,
+                    bottom = if (!isUrlBarVisible) browserSettings.padding.dp else 0.dp,
+                    top = browserSettings.padding.dp,
                 )
 
 
@@ -5247,7 +5275,7 @@ fun PermissionPanel(
                         cornerRadiusForLayer(
                             2,
                             browserSettings.deviceCornerRadius,
-                            browserSettings.paddingDp
+                            browserSettings.padding
                         ).dp
                     )
                 ),
@@ -5258,7 +5286,7 @@ fun PermissionPanel(
             // Action buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(browserSettings.paddingDp.dp)
+                horizontalArrangement = Arrangement.spacedBy(browserSettings.padding.dp)
             ) {
                 // --- Deny Button ---
                 IconButton(
@@ -5266,7 +5294,7 @@ fun PermissionPanel(
                     modifier = buttonModifierForLayer(
                         layer = 2,
                         browserSettings.deviceCornerRadius,
-                        browserSettings.paddingDp,
+                        browserSettings.padding,
                         browserSettings.singleLineHeight,
                         white = false // false = transparent background, white border
                     )
@@ -5286,7 +5314,7 @@ fun PermissionPanel(
                     modifier = buttonModifierForLayer(
                         layer = 2,
                         browserSettings.deviceCornerRadius,
-                        browserSettings.paddingDp,
+                        browserSettings.padding,
                         browserSettings.singleLineHeight,
                         white = true // true = white background
                     )
@@ -5529,15 +5557,15 @@ fun OptionsPanel(
     ) {
         Box(
             modifier = Modifier
-                .padding(horizontal = browserSettings.paddingDp.dp)
-                .padding(bottom = browserSettings.paddingDp.dp)
+                .padding(horizontal = browserSettings.padding.dp)
+                .padding(bottom = browserSettings.padding.dp)
                 .fillMaxWidth()
                 .clip(
                     RoundedCornerShape(
                         cornerRadiusForLayer(
                             2,
                             browserSettings.deviceCornerRadius,
-                            browserSettings.paddingDp
+                            browserSettings.padding
                         ).dp
                     )
                 )
@@ -5574,12 +5602,12 @@ fun OptionsPanel(
                                 cornerRadiusForLayer(
                                     2,
                                     browserSettings.deviceCornerRadius,
-                                    browserSettings.paddingDp
+                                    browserSettings.padding
                                 ).dp
                             )
                         ),
 
-                    horizontalArrangement = Arrangement.spacedBy(browserSettings.paddingDp.dp)
+                    horizontalArrangement = Arrangement.spacedBy(browserSettings.padding.dp)
                 ) {
                     // Get the options for the current page
                     val pageOptions = optionPages[pageIndex]
@@ -5594,7 +5622,7 @@ fun OptionsPanel(
                                     heightForLayer(
                                         2,
                                         browserSettings.deviceCornerRadius,
-                                        browserSettings.paddingDp,
+                                        browserSettings.padding,
                                         browserSettings.singleLineHeight,
                                     ).dp
                                 )
@@ -5604,7 +5632,7 @@ fun OptionsPanel(
                                         cornerRadiusForLayer(
                                             2,
                                             browserSettings.deviceCornerRadius,
-                                            browserSettings.paddingDp
+                                            browserSettings.padding
                                         ).dp
                                     )
                                 )
@@ -5737,24 +5765,24 @@ fun PromptPanel(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = browserSettings.paddingDp.dp)
+                .padding(horizontal = browserSettings.padding.dp)
                 .padding(
-                    top = browserSettings.paddingDp.dp,
-                    bottom = if (isUrlBarVisible) 0.dp else browserSettings.paddingDp.dp
+                    top = browserSettings.padding.dp,
+                    bottom = if (isUrlBarVisible) 0.dp else browserSettings.padding.dp
                 )
         ) {
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = browserSettings.paddingDp.dp)
-                    .padding(horizontal = browserSettings.paddingDp.dp * 3)
+                    .padding(bottom = browserSettings.padding.dp)
+                    .padding(horizontal = browserSettings.padding.dp * 3)
                     .clip(
                         RoundedCornerShape(
                             cornerRadiusForLayer(
                                 2,
                                 browserSettings.deviceCornerRadius,
-                                browserSettings.paddingDp
+                                browserSettings.padding
                             ).dp
                         )
                     )
@@ -5768,7 +5796,7 @@ fun PromptPanel(
 //                            cornerRadiusForLayer(
 //                                2,
 //                                browserSettings.deviceCornerRadius,
-//                                browserSettings.paddingDp
+//                                browserSettings.padding
 //                            ).dp
 //                        )
 //                    )
@@ -5779,7 +5807,7 @@ fun PromptPanel(
                 // "from" Text - Fixed Size
                 Row(
                     modifier = Modifier
-                        .padding(browserSettings.paddingDp.dp)
+                        .padding(browserSettings.padding.dp)
                 ) {
                     Text(
                         text = "from ", // Added a space for better readability
@@ -5814,7 +5842,7 @@ fun PromptPanel(
                             cornerRadiusForLayer(
                                 2,
                                 browserSettings.deviceCornerRadius,
-                                browserSettings.paddingDp
+                                browserSettings.padding
                             ).dp
                         )
                     )
@@ -5825,7 +5853,7 @@ fun PromptPanel(
 //                            cornerRadiusForLayer(
 //                                2,
 //                                browserSettings.deviceCornerRadius,
-//                                browserSettings.paddingDp
+//                                browserSettings.padding
 //                            ).dp
 //                        )
 //                    )
@@ -5833,17 +5861,17 @@ fun PromptPanel(
             {
 
                 val textModifier = Modifier
-                    .padding(browserSettings.paddingDp.dp)
+                    .padding(browserSettings.padding.dp)
                 Column(
                     modifier = Modifier
-                        .padding(browserSettings.paddingDp.dp)
+                        .padding(browserSettings.padding.dp)
                         .background(
                             color = Color.Transparent,
                             shape = RoundedCornerShape(
                                 cornerRadiusForLayer(
                                     3,
                                     browserSettings.deviceCornerRadius,
-                                    browserSettings.paddingDp
+                                    browserSettings.padding
                                 ).dp
                             )
                         )
@@ -5864,7 +5892,7 @@ fun PromptPanel(
                                 text = promptComponentDisplayState.message,
                                 modifier = textModifier
                             )
-                            Spacer(Modifier.height(browserSettings.paddingDp.dp))
+                            Spacer(Modifier.height(browserSettings.padding.dp))
                             OutlinedTextField(
                                 value = textInput,
                                 onValueChange = { textInput = it },
@@ -5884,7 +5912,7 @@ fun PromptPanel(
                                     cornerRadiusForLayer(
                                         3,
                                         browserSettings.deviceCornerRadius,
-                                        browserSettings.paddingDp
+                                        browserSettings.padding
                                     ).dp
                                 ),
                                 colors = TextFieldDefaults.colors(
@@ -5913,9 +5941,9 @@ fun PromptPanel(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(browserSettings.paddingDp.dp),
+                        .padding(browserSettings.padding.dp),
                     horizontalArrangement = Arrangement.spacedBy(
-                        browserSettings.paddingDp.dp
+                        browserSettings.padding.dp
                     ),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -5926,7 +5954,7 @@ fun PromptPanel(
                             modifier = buttonModifierForLayer(
                                 3,
                                 browserSettings.deviceCornerRadius,
-                                browserSettings.paddingDp,
+                                browserSettings.padding,
                                 browserSettings.singleLineHeight
                             )
                                 .weight(1f)
@@ -5935,7 +5963,7 @@ fun PromptPanel(
 //                                        cornerRadiusForLayer(
 //                                            3,
 //                                            browserSettings.deviceCornerRadius,
-//                                            browserSettings.paddingDp,
+//                                            browserSettings.padding,
 //                                        ).dp
 //                                    )
 //                                )
@@ -5947,7 +5975,7 @@ fun PromptPanel(
                                 cornerRadiusForLayer(
                                     3,
                                     browserSettings.deviceCornerRadius,
-                                    browserSettings.paddingDp,
+                                    browserSettings.padding,
                                 ).dp
                             ),
 
@@ -5976,7 +6004,7 @@ fun PromptPanel(
                         modifier = buttonModifierForLayer(
                             3,
                             browserSettings.deviceCornerRadius,
-                            browserSettings.paddingDp,
+                            browserSettings.padding,
                             browserSettings.singleLineHeight
                         )
                             .weight(1f)
@@ -5985,7 +6013,7 @@ fun PromptPanel(
                                     cornerRadiusForLayer(
                                         3,
                                         browserSettings.deviceCornerRadius,
-                                        browserSettings.paddingDp
+                                        browserSettings.padding
                                     ).dp
                                 )
                             ),
@@ -5993,7 +6021,7 @@ fun PromptPanel(
                             cornerRadiusForLayer(
                                 2,
                                 browserSettings.deviceCornerRadius,
-                                browserSettings.paddingDp,
+                                browserSettings.padding,
                             ).dp
                         ),
                         colors = ButtonDefaults.buttonColors(
@@ -6069,8 +6097,8 @@ fun NavigationPanel(
     ) {
         Box(
             modifier = Modifier
-                .padding(horizontal = browserSettings.paddingDp.dp)
-                .padding(top = browserSettings.paddingDp.dp)
+                .padding(horizontal = browserSettings.padding.dp)
+                .padding(top = browserSettings.padding.dp)
         ) {
             Column(
                 modifier = modifier
@@ -6080,7 +6108,7 @@ fun NavigationPanel(
                             cornerRadiusForLayer(
                                 2,
                                 browserSettings.deviceCornerRadius,
-                                browserSettings.paddingDp
+                                browserSettings.padding
                             ).dp
                         )
                     )
@@ -6090,8 +6118,8 @@ fun NavigationPanel(
                 Row(
                     modifier = modifier
                         .fillMaxWidth()
-                        .padding(top = browserSettings.paddingDp.dp)
-                        .padding(horizontal = browserSettings.paddingDp.dp),
+                        .padding(top = browserSettings.padding.dp)
+                        .padding(horizontal = browserSettings.padding.dp),
 
 
                     horizontalArrangement = Arrangement.SpaceEvenly,
@@ -6128,8 +6156,8 @@ fun NavigationPanel(
                     modifier = modifier
                         .fillMaxWidth()
 
-                        .padding(browserSettings.paddingDp.dp),
-                    horizontalArrangement = Arrangement.spacedBy(browserSettings.paddingDp.dp),
+                        .padding(browserSettings.padding.dp),
+                    horizontalArrangement = Arrangement.spacedBy(browserSettings.padding.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Back Icon
@@ -6187,7 +6215,7 @@ fun NavigationItem(
                 heightForLayer(
                     3,
                     browserSettings.deviceCornerRadius,
-                    browserSettings.paddingDp,
+                    browserSettings.padding,
                     browserSettings.singleLineHeight,
                 ).dp
             )
@@ -6196,7 +6224,7 @@ fun NavigationItem(
                     cornerRadiusForLayer(
                         3,
                         browserSettings.deviceCornerRadius,
-                        browserSettings.paddingDp
+                        browserSettings.padding
                     ).dp
                 )
             )
@@ -6282,15 +6310,15 @@ fun TabsPanel(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = browserSettings.paddingDp.dp)
-                .padding(horizontal = browserSettings.paddingDp.dp)
+                .padding(top = browserSettings.padding.dp)
+                .padding(horizontal = browserSettings.padding.dp)
 
                 .clip(
                     RoundedCornerShape(
                         cornerRadiusForLayer(
                             2,
                             browserSettings.deviceCornerRadius,
-                            browserSettings.paddingDp
+                            browserSettings.padding
                         ).dp
                     )
                 )
@@ -6301,7 +6329,7 @@ fun TabsPanel(
                     .fillMaxWidth(),
                 // We use a smaller content padding so the active tab is larger
                 contentPadding = PaddingValues(horizontal = 32.dp),
-                pageSpacing = browserSettings.paddingDp.dp / 2
+                pageSpacing = browserSettings.padding.dp / 2
             ) { pageIndex ->
 
                 when (pageIndex) {
@@ -6369,13 +6397,13 @@ fun TabItem(
     Box(
 
         modifier = Modifier
-            .padding(browserSettings.paddingDp.dp)
+            .padding(browserSettings.padding.dp)
             .clip(
                 RoundedCornerShape(
                     cornerRadiusForLayer(
                         3,
                         browserSettings.deviceCornerRadius,
-                        browserSettings.paddingDp
+                        browserSettings.padding
                     ).dp
                 )
             )
@@ -6397,7 +6425,7 @@ fun TabItem(
                     heightForLayer(
                         3,
                         browserSettings.deviceCornerRadius,
-                        browserSettings.paddingDp,
+                        browserSettings.padding,
                         browserSettings.singleLineHeight,
                     ).dp
                 )
@@ -6406,24 +6434,24 @@ fun TabItem(
                         cornerRadiusForLayer(
                             3,
                             browserSettings.deviceCornerRadius,
-                            browserSettings.paddingDp
+                            browserSettings.padding
                         ).dp
                     )
                 )
                 .background(if (isActive) Color.White else Color.White.copy(alpha = 0.5f)) // Different background for inactive
-                .padding(horizontal = browserSettings.paddingDp.dp),
+                .padding(horizontal = browserSettings.padding.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(
                 modifier = Modifier
-                    .padding(browserSettings.paddingDp.dp)
+                    .padding(browserSettings.padding.dp)
 
             ) {
                 Box(
                     modifier = Modifier
                         .size(24.dp),
 
-//                        .clip(RoundedCornerShape(browserSettings.paddingDp.dp / 2)),
+//                        .clip(RoundedCornerShape(browserSettings.padding.dp / 2)),
 //                        .background(Color.White.copy(alpha = 0.2f)),
 //                        .background(if (isActive) Color.White else Color.White.copy(alpha = 0.7f)),
                     contentAlignment = Alignment.Center
@@ -6455,7 +6483,7 @@ fun TabItem(
                     )
                 }
 
-                Spacer(Modifier.width(browserSettings.paddingDp.dp))
+                Spacer(Modifier.width(browserSettings.padding.dp))
                 Text(
                     text = title,
                     color = if (isActive) Color.Black else Color.Black.copy(alpha = 0.7f), // Dim the text for inactive
@@ -6476,19 +6504,19 @@ fun NewTabButton(
     onClick: () -> Unit
 ) {
     Box(
-        modifier = modifier.padding(browserSettings.paddingDp.dp)
+        modifier = modifier.padding(browserSettings.padding.dp)
     )
     {
         Box(
             modifier = modifier
 
-                .padding(horizontal = browserSettings.paddingDp.dp)
+                .padding(horizontal = browserSettings.padding.dp)
                 .clip(
                     RoundedCornerShape(
                         cornerRadiusForLayer(
                             3,
                             browserSettings.deviceCornerRadius,
-                            browserSettings.paddingDp
+                            browserSettings.padding
                         ).dp
                     )
                 )
@@ -6498,7 +6526,7 @@ fun NewTabButton(
                     heightForLayer(
                         3,
                         browserSettings.deviceCornerRadius,
-                        browserSettings.paddingDp,
+                        browserSettings.padding,
                         browserSettings.singleLineHeight,
                     ).dp
                 )
@@ -6553,8 +6581,8 @@ fun DownloadPanel(
     ) {
         Column(
             modifier = Modifier
-                .padding(horizontal = browserSettings.paddingDp.dp)
-                .padding(top = browserSettings.paddingDp.dp)
+                .padding(horizontal = browserSettings.padding.dp)
+                .padding(top = browserSettings.padding.dp)
 
                 .fillMaxWidth()
 
@@ -6567,7 +6595,7 @@ fun DownloadPanel(
                         cornerRadiusForLayer(
                             2,
                             browserSettings.deviceCornerRadius,
-                            browserSettings.paddingDp
+                            browserSettings.padding
                         ).dp
                     )
                 )
@@ -6578,7 +6606,7 @@ fun DownloadPanel(
 //                        cornerRadiusForLayer(
 //                            2,
 //                            browserSettings.deviceCornerRadius,
-//                            browserSettings.paddingDp
+//                            browserSettings.padding
 //                        ).dp
 //                    )
 //                )
@@ -6587,15 +6615,15 @@ fun DownloadPanel(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = browserSettings.paddingDp.dp)
-                        .padding(top = browserSettings.paddingDp.dp)
+                        .padding(horizontal = browserSettings.padding.dp)
+                        .padding(top = browserSettings.padding.dp)
                         .background(Color.Transparent)
                         .clip(
                             RoundedCornerShape(
                                 cornerRadiusForLayer(
                                     3,
                                     browserSettings.deviceCornerRadius,
-                                    browserSettings.paddingDp
+                                    browserSettings.padding
                                 ).dp
                             )
                         )
@@ -6603,7 +6631,7 @@ fun DownloadPanel(
                             heightForLayer(
                                 3,
                                 browserSettings.deviceCornerRadius,
-                                browserSettings.paddingDp,
+                                browserSettings.padding,
                                 browserSettings.singleLineHeight,
                             ).dp
                         ),
@@ -6617,23 +6645,23 @@ fun DownloadPanel(
                 val itemHeight = heightForLayer(
                     3,
                     browserSettings.deviceCornerRadius,
-                    browserSettings.paddingDp,
+                    browserSettings.padding,
                     browserSettings.singleLineHeight
-                ).dp + browserSettings.paddingDp.dp
+                ).dp + browserSettings.padding.dp
                 LazyColumn(
                     modifier = Modifier
 //                        .weight(1f)
                         .heightIn(max = itemHeight * 2.5f)
 
-                        .padding(top = browserSettings.paddingDp.dp)
-                        .padding(horizontal = browserSettings.paddingDp.dp)
+                        .padding(top = browserSettings.padding.dp)
+                        .padding(horizontal = browserSettings.padding.dp)
 
                         .clip(
                             RoundedCornerShape(
                                 cornerRadiusForLayer(
                                     3,
                                     browserSettings.deviceCornerRadius,
-                                    browserSettings.paddingDp
+                                    browserSettings.padding
                                 ).dp
                             )
                         ),
@@ -6656,13 +6684,13 @@ fun DownloadPanel(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(browserSettings.paddingDp.dp)
+                    .padding(browserSettings.padding.dp)
                     .clip(
                         RoundedCornerShape(
                             cornerRadiusForLayer(
                                 3,
                                 browserSettings.deviceCornerRadius,
-                                browserSettings.paddingDp
+                                browserSettings.padding
                             ).dp
                         )
                     )
@@ -6670,11 +6698,11 @@ fun DownloadPanel(
                         heightForLayer(
                             3,
                             browserSettings.deviceCornerRadius,
-                            browserSettings.paddingDp,
+                            browserSettings.padding,
                             browserSettings.singleLineHeight,
                         ).dp
                     )
-//                                .padding(bottom = browserSettings.paddingDp.dp),
+//                                .padding(bottom = browserSettings.padding.dp),
             ) {
 
                 IconButton(
@@ -6684,7 +6712,7 @@ fun DownloadPanel(
                     modifier = buttonModifierForLayer(
                         3,
                         browserSettings.deviceCornerRadius,
-                        browserSettings.paddingDp,
+                        browserSettings.padding,
                         browserSettings.singleLineHeight
                     ).weight(1f)
                 ) {
@@ -6694,14 +6722,14 @@ fun DownloadPanel(
                         tint = Color.Black
                     )
                 }
-                Spacer(modifier = Modifier.width(browserSettings.paddingDp.dp))
+                Spacer(modifier = Modifier.width(browserSettings.padding.dp))
                 //  Show Download Folder Button
                 IconButton(
                     onClick = onOpenFolderClicked,
                     modifier = buttonModifierForLayer(
                         3,
                         browserSettings.deviceCornerRadius,
-                        browserSettings.paddingDp,
+                        browserSettings.padding,
                         browserSettings.singleLineHeight
 
                     ).weight(1f)
@@ -6713,7 +6741,7 @@ fun DownloadPanel(
                         tint = Color.Black
                     )
                 }
-                if (downloads.isNotEmpty()) Spacer(modifier = Modifier.width(browserSettings.paddingDp.dp))
+                if (downloads.isNotEmpty()) Spacer(modifier = Modifier.width(browserSettings.padding.dp))
                 if (downloads.isNotEmpty()) IconButton(
                     onClick = {
                         confirmationPopup(
@@ -6728,7 +6756,7 @@ fun DownloadPanel(
                     modifier = buttonModifierForLayer(
                         3,
                         browserSettings.deviceCornerRadius,
-                        browserSettings.paddingDp,
+                        browserSettings.padding,
                         browserSettings.singleLineHeight
                     ).weight(1f)
 
@@ -6761,7 +6789,7 @@ fun DownloadRow(
     // The clip and overall modifier are applied here.
     Box(
         modifier = Modifier
-            .padding(bottom = if (index != 0) browserSettings.paddingDp.dp else 0.dp)
+            .padding(bottom = if (index != 0) browserSettings.padding.dp else 0.dp)
 
             .fillMaxWidth()
 
@@ -6769,7 +6797,7 @@ fun DownloadRow(
                 heightForLayer(
                     3,
                     browserSettings.deviceCornerRadius,
-                    browserSettings.paddingDp,
+                    browserSettings.padding,
                     browserSettings.singleLineHeight,
                 ).dp
             )
@@ -6779,7 +6807,7 @@ fun DownloadRow(
                     cornerRadiusForLayer(
                         3,
                         browserSettings.deviceCornerRadius,
-                        browserSettings.paddingDp
+                        browserSettings.padding
                     ).dp
                 )
             )
@@ -6794,7 +6822,7 @@ fun DownloadRow(
 //                    cornerRadiusForLayer(
 //                        3,
 //                        browserSettings.deviceCornerRadius,
-//                        browserSettings.paddingDp
+//                        browserSettings.padding
 //                    ).dp
 //                )
 //            )
@@ -6841,7 +6869,7 @@ fun DownloadRow(
             modifier = Modifier
                 .fillMaxWidth()
 
-                .padding(browserSettings.paddingDp.dp)
+                .padding(browserSettings.padding.dp)
 
         ) {
             Row(
@@ -6851,11 +6879,11 @@ fun DownloadRow(
                         heightForLayer(
                             4,
                             browserSettings.deviceCornerRadius,
-                            browserSettings.paddingDp,
+                            browserSettings.padding,
                             browserSettings.singleLineHeight,
                         ).dp
                     )
-                    .padding(horizontal = browserSettings.paddingDp.dp)
+                    .padding(horizontal = browserSettings.padding.dp)
             ) {
                 Box(
                     modifier = Modifier
@@ -6881,7 +6909,7 @@ fun DownloadRow(
 
                     )
                 }
-                Spacer(Modifier.width(browserSettings.paddingDp.dp))
+                Spacer(Modifier.width(browserSettings.padding.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         item.filename,
@@ -7020,8 +7048,8 @@ fun TabDataPanel(
             Column(
                 modifier = Modifier
                     .clickable(enabled = false, onClick = {}) // Block clicks
-                    .padding(top = browserSettings.paddingDp.dp)
-                    .padding(horizontal = browserSettings.paddingDp.dp)
+                    .padding(top = browserSettings.padding.dp)
+                    .padding(horizontal = browserSettings.padding.dp)
                     .fillMaxWidth()
                     .heightIn(max = 450.dp)
                     .clip(
@@ -7029,7 +7057,7 @@ fun TabDataPanel(
                             cornerRadiusForLayer(
                                 2,
                                 browserSettings.deviceCornerRadius,
-                                browserSettings.paddingDp
+                                browserSettings.padding
                             ).dp
                         )
                     )
@@ -7041,7 +7069,7 @@ fun TabDataPanel(
 //                            cornerRadiusForLayer(
 //                                2,
 //                                browserSettings.deviceCornerRadius,
-//                                browserSettings.paddingDp
+//                                browserSettings.padding
 //                            ).dp
 //                        )
 //                    )
@@ -7064,9 +7092,9 @@ fun TabDataPanel(
                     val maxLazyColumnHeight = (heightForLayer(
                         3,
                         browserSettings.deviceCornerRadius,
-                        browserSettings.paddingDp,
+                        browserSettings.padding,
                         browserSettings.singleLineHeight,
-                    ).dp + browserSettings.paddingDp.dp) * 2.5f
+                    ).dp + browserSettings.padding.dp) * 2.5f
 
                     val domain =
                         SiteSettingsManager(LocalContext.current).getDomain(
@@ -7084,9 +7112,9 @@ fun TabDataPanel(
                         TabDataPanelView.MAIN -> {
                             Column(
                                 modifier = Modifier
-                                    .padding(horizontal = browserSettings.paddingDp.dp)
-                                    .padding(top = if (isStillHaveOptions) browserSettings.paddingDp.dp else 0.dp),
-                                verticalArrangement = Arrangement.spacedBy(browserSettings.paddingDp.dp),
+                                    .padding(horizontal = browserSettings.padding.dp)
+                                    .padding(top = if (isStillHaveOptions) browserSettings.padding.dp else 0.dp),
+                                verticalArrangement = Arrangement.spacedBy(browserSettings.padding.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 // History Button
@@ -7096,7 +7124,7 @@ fun TabDataPanel(
                                         modifier = buttonModifierForLayer(
                                             3,
                                             browserSettings.deviceCornerRadius,
-                                            browserSettings.paddingDp,
+                                            browserSettings.padding,
                                             browserSettings.singleLineHeight,
                                             false
                                         )
@@ -7109,7 +7137,7 @@ fun TabDataPanel(
 //                                                    cornerRadiusForLayer(
 //                                                        3,
 //                                                        browserSettings.deviceCornerRadius,
-//                                                        browserSettings.paddingDp
+//                                                        browserSettings.padding
 //                                                    ).dp
 //                                                )
 //                                            )
@@ -7130,7 +7158,7 @@ fun TabDataPanel(
                                         modifier = buttonModifierForLayer(
                                             3,
                                             browserSettings.deviceCornerRadius,
-                                            browserSettings.paddingDp,
+                                            browserSettings.padding,
                                             browserSettings.singleLineHeight,
                                             false
                                         )
@@ -7144,7 +7172,7 @@ fun TabDataPanel(
 //                                                    cornerRadiusForLayer(
 //                                                        3,
 //                                                        browserSettings.deviceCornerRadius,
-//                                                        browserSettings.paddingDp
+//                                                        browserSettings.padding
 //                                                    ).dp
 //                                                )
 //                                            )
@@ -7170,16 +7198,16 @@ fun TabDataPanel(
                                             max = maxLazyColumnHeight
                                         )
                                         .padding(
-                                            top = browserSettings.paddingDp.dp,
-                                            start = browserSettings.paddingDp.dp,
-                                            end = browserSettings.paddingDp.dp
+                                            top = browserSettings.padding.dp,
+                                            start = browserSettings.padding.dp,
+                                            end = browserSettings.padding.dp
                                         )
                                         .clip(
                                             RoundedCornerShape(
                                                 cornerRadiusForLayer(
                                                     3,
                                                     browserSettings.deviceCornerRadius,
-                                                    browserSettings.paddingDp
+                                                    browserSettings.padding
                                                 ).dp
                                             )
                                         )
@@ -7222,11 +7250,11 @@ fun TabDataPanel(
                                             heightForLayer(
                                                 3,
                                                 browserSettings.deviceCornerRadius,
-                                                browserSettings.paddingDp,
+                                                browserSettings.padding,
                                                 browserSettings.singleLineHeight,
                                             ).dp
                                         )
-                                        .padding(top = browserSettings.paddingDp.dp),
+                                        .padding(top = browserSettings.padding.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text("This tab is not active", color = Color.Gray)
@@ -7257,7 +7285,7 @@ fun TabDataPanel(
 //                                        Row(
 //                                            modifier = Modifier
 //                                                .fillMaxWidth()
-//                                                .padding(horizontal = browserSettings.paddingDp.dp * 3),
+//                                                .padding(horizontal = browserSettings.padding.dp * 3),
 //                                            verticalAlignment = Alignment.CenterVertically
 //                                        ) {
 //                                            Text(
@@ -7279,7 +7307,7 @@ fun TabDataPanel(
 //                                } else {
 //                                    Box(
 //                                        modifier = Modifier.fillMaxSize()
-//                                            .padding(top = browserSettings.paddingDp.dp),
+//                                            .padding(top = browserSettings.padding.dp),
 //                                        contentAlignment = Alignment.Center
 //                                    ) {
 //                                        Text("No permissions requested yet.", color = Color.Gray)
@@ -7301,9 +7329,9 @@ fun TabDataPanel(
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(horizontal = browserSettings.paddingDp.dp)
-                                        .padding(top = browserSettings.paddingDp.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(browserSettings.paddingDp.dp)
+                                        .padding(horizontal = browserSettings.padding.dp)
+                                        .padding(top = browserSettings.padding.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(browserSettings.padding.dp)
                                 ) {
                                     settings.permissionDecisions.forEach { (permission, isGranted) ->
                                         // Determine the correct icon and name for the button
@@ -7324,7 +7352,7 @@ fun TabDataPanel(
                                             modifier = buttonModifierForLayer(
                                                 layer = 3,
                                                 browserSettings.deviceCornerRadius,
-                                                browserSettings.paddingDp,
+                                                browserSettings.padding,
                                                 browserSettings.singleLineHeight,
                                                 white = isGranted
                                             )
@@ -7350,11 +7378,11 @@ fun TabDataPanel(
                                             heightForLayer(
                                                 3,
                                                 browserSettings.deviceCornerRadius,
-                                                browserSettings.paddingDp,
+                                                browserSettings.padding,
                                                 browserSettings.singleLineHeight,
                                             ).dp
                                         )
-                                        .padding(top = browserSettings.paddingDp.dp),
+                                        .padding(top = browserSettings.padding.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text("No permissions requested yet.", color = Color.Gray)
@@ -7368,8 +7396,8 @@ fun TabDataPanel(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(browserSettings.paddingDp.dp),
-                    horizontalArrangement = Arrangement.spacedBy(browserSettings.paddingDp.dp)
+                        .padding(browserSettings.padding.dp),
+                    horizontalArrangement = Arrangement.spacedBy(browserSettings.padding.dp)
                 ) {
                     IconButton(
                         onClick = {
@@ -7382,7 +7410,7 @@ fun TabDataPanel(
                         modifier = buttonModifierForLayer(
                             3,
                             browserSettings.deviceCornerRadius,
-                            browserSettings.paddingDp,
+                            browserSettings.padding,
                             browserSettings.singleLineHeight
                         ).weight(1f)
                     ) {
@@ -7398,7 +7426,7 @@ fun TabDataPanel(
                             modifier = buttonModifierForLayer(
                                 3,
                                 browserSettings.deviceCornerRadius,
-                                browserSettings.paddingDp,
+                                browserSettings.padding,
                                 browserSettings.singleLineHeight
                             ).weight(1f)
                         ) {
@@ -7415,7 +7443,7 @@ fun TabDataPanel(
                         modifier = buttonModifierForLayer(
                             3,
                             browserSettings.deviceCornerRadius,
-                            browserSettings.paddingDp,
+                            browserSettings.padding,
                             browserSettings.singleLineHeight
                         ).weight(1f)
                     ) {
@@ -7431,7 +7459,7 @@ fun TabDataPanel(
                         modifier = buttonModifierForLayer(
                             3,
                             browserSettings.deviceCornerRadius,
-                            browserSettings.paddingDp,
+                            browserSettings.padding,
                             browserSettings.singleLineHeight
                         ).weight(1f)
                     ) {
@@ -7459,12 +7487,12 @@ fun HistoryRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = if (!isLast) browserSettings.paddingDp.dp else 0.dp)
+            .padding(bottom = if (!isLast) browserSettings.padding.dp else 0.dp)
             .height(
                 heightForLayer(
                     3,
                     browserSettings.deviceCornerRadius,
-                    browserSettings.paddingDp,
+                    browserSettings.padding,
                     browserSettings.singleLineHeight,
                 ).dp
             )
@@ -7473,7 +7501,7 @@ fun HistoryRow(
                     cornerRadiusForLayer(
                         3,
                         browserSettings.deviceCornerRadius,
-                        browserSettings.paddingDp
+                        browserSettings.padding
                     ).dp
                 )
             )
@@ -7485,12 +7513,12 @@ fun HistoryRow(
 //                    cornerRadiusForLayer(
 //                        3,
 //                        browserSettings.deviceCornerRadius,
-//                        browserSettings.paddingDp
+//                        browserSettings.padding
 //                    ).dp
 //                )
 //            )
             .clickable(onClick = onClick)
-            .padding(horizontal = browserSettings.paddingDp.dp * 2),
+            .padding(horizontal = browserSettings.padding.dp * 2),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // --- Favicon ---
@@ -7516,7 +7544,7 @@ fun HistoryRow(
             )
         }
 
-        Spacer(Modifier.width(browserSettings.paddingDp.dp))
+        Spacer(Modifier.width(browserSettings.padding.dp))
 
         // --- Title ---
         Text(
@@ -7548,10 +7576,10 @@ fun ConfirmationPanel(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = browserSettings.paddingDp.dp)
+                .padding(horizontal = browserSettings.padding.dp)
                 .padding(
-                    top = browserSettings.paddingDp.dp,
-                    bottom = if (isUrlBarVisible) 0.dp else browserSettings.paddingDp.dp
+                    top = browserSettings.padding.dp,
+                    bottom = if (isUrlBarVisible) 0.dp else browserSettings.padding.dp
                 )
                 .background(
                     Color.Black,
@@ -7559,7 +7587,7 @@ fun ConfirmationPanel(
                         cornerRadiusForLayer(
                             2,
                             browserSettings.deviceCornerRadius,
-                            browserSettings.paddingDp
+                            browserSettings.padding
                         ).dp
                     )
                 )
@@ -7570,7 +7598,7 @@ fun ConfirmationPanel(
 //                        cornerRadiusForLayer(
 //                            2,
 //                            browserSettings.deviceCornerRadius,
-//                            browserSettings.paddingDp
+//                            browserSettings.padding
 //                        ).dp
 //                    )
 //                )
@@ -7580,7 +7608,7 @@ fun ConfirmationPanel(
                 text = state.message,
                 color = Color.Yellow,
                 modifier = Modifier
-                    .padding(browserSettings.paddingDp.dp)
+                    .padding(browserSettings.padding.dp)
                     .fillMaxWidth(),
                 textAlign = TextAlign.Center
             )
@@ -7588,15 +7616,15 @@ fun ConfirmationPanel(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(browserSettings.paddingDp.dp),
-                horizontalArrangement = Arrangement.spacedBy(browserSettings.paddingDp.dp)
+                    .padding(browserSettings.padding.dp),
+                horizontalArrangement = Arrangement.spacedBy(browserSettings.padding.dp)
             ) {
                 // Cancel Button
                 IconButton(
                     modifier = buttonModifierForLayer(
                         3,
                         browserSettings.deviceCornerRadius,
-                        browserSettings.paddingDp,
+                        browserSettings.padding,
                         browserSettings.singleLineHeight,
                         false
                     )
@@ -7606,7 +7634,7 @@ fun ConfirmationPanel(
 //                                cornerRadiusForLayer(
 //                                    3,
 //                                    browserSettings.deviceCornerRadius,
-//                                    browserSettings.paddingDp,
+//                                    browserSettings.padding,
 //                                ).dp
 //                            )
 //                        )
@@ -7615,7 +7643,7 @@ fun ConfirmationPanel(
                         cornerRadiusForLayer(
                             3,
                             browserSettings.deviceCornerRadius,
-                            browserSettings.paddingDp,
+                            browserSettings.padding,
                         ).dp
                     ),
                     onClick = state.onCancel
@@ -7632,7 +7660,7 @@ fun ConfirmationPanel(
                     modifier = buttonModifierForLayer(
                         3,
                         browserSettings.deviceCornerRadius,
-                        browserSettings.paddingDp,
+                        browserSettings.padding,
                         browserSettings.singleLineHeight,
                     )
                         .weight(1f)
@@ -7641,7 +7669,7 @@ fun ConfirmationPanel(
                         cornerRadiusForLayer(
                             2,
                             browserSettings.deviceCornerRadius,
-                            browserSettings.paddingDp,
+                            browserSettings.padding,
                         ).dp
                     ),
                     onClick = state.onConfirm
@@ -8056,16 +8084,16 @@ fun CursorPad(
                     }
 
                     .padding(
-                        end = browserSettings.paddingDp.dp,
-                        start = browserSettings.paddingDp.dp, // Add start padding for when it's on the left
-                        bottom = browserSettings.paddingDp.dp
+                        end = browserSettings.padding.dp,
+                        start = browserSettings.padding.dp, // Add start padding for when it's on the left
+                        bottom = browserSettings.padding.dp
                     )
                     .clip(
                         RoundedCornerShape(
                             cornerRadiusForLayer(
                                 1,
                                 browserSettings.deviceCornerRadius,
-                                browserSettings.paddingDp
+                                browserSettings.padding
                             ).dp
                         )
                     )
@@ -8077,7 +8105,7 @@ fun CursorPad(
 //                            cornerRadiusForLayer(
 //                                1,
 //                                browserSettings.deviceCornerRadius,
-//                                browserSettings.paddingDp
+//                                browserSettings.padding
 //                            ).dp
 //                        )
 //                    )
@@ -8190,15 +8218,15 @@ fun SettingsPanel(
     ) {
         Box(
             modifier = Modifier
-                .padding(horizontal = browserSettings.paddingDp.dp)
-                .padding(top = browserSettings.paddingDp.dp)
+                .padding(horizontal = browserSettings.padding.dp)
+                .padding(top = browserSettings.padding.dp)
                 .fillMaxWidth()
                 .clip(
                     RoundedCornerShape(
                         cornerRadiusForLayer(
                             2,
                             browserSettings.deviceCornerRadius,
-                            browserSettings.paddingDp
+                            browserSettings.padding
                         ).dp
                     )
                 )
@@ -8217,7 +8245,7 @@ fun SettingsPanel(
 //                        cornerRadiusForLayer(
 //                            2,
 //                            browserSettings.deviceCornerRadius,
-//                            browserSettings.paddingDp
+//                            browserSettings.padding
 //                        ).dp
 //                    )
 //                )
@@ -8239,13 +8267,13 @@ fun SettingsPanel(
                                         cornerRadiusForLayer(
                                             2,
                                             browserSettings.deviceCornerRadius,
-                                            browserSettings.paddingDp
+                                            browserSettings.padding
                                         ).dp
                                     )
                                 )
-//                                .padding(horizontal = browserSettings.paddingDp.dp /2)
+//                                .padding(horizontal = browserSettings.padding.dp /2)
                             ,
-                            horizontalArrangement = Arrangement.spacedBy(browserSettings.paddingDp.dp)
+                            horizontalArrangement = Arrangement.spacedBy(browserSettings.padding.dp)
                         ) {
                             val pageOptions = optionPages[pageIndex]
                             pageOptions.forEach { option ->
@@ -8257,7 +8285,7 @@ fun SettingsPanel(
                                                 cornerRadiusForLayer(
                                                     2,
                                                     browserSettings.deviceCornerRadius,
-                                                    browserSettings.paddingDp,
+                                                    browserSettings.padding,
                                                 ).dp
                                             )
                                         )
@@ -8265,7 +8293,7 @@ fun SettingsPanel(
                                             heightForLayer(
                                                 2,
                                                 browserSettings.deviceCornerRadius,
-                                                browserSettings.paddingDp,
+                                                browserSettings.padding,
                                                 browserSettings.singleLineHeight,
                                             ).dp
                                         )
@@ -8275,7 +8303,7 @@ fun SettingsPanel(
                                                 cornerRadiusForLayer(
                                                     2,
                                                     browserSettings.deviceCornerRadius,
-                                                    browserSettings.paddingDp
+                                                    browserSettings.padding
                                                 ).dp
                                             )
                                         )
@@ -8388,13 +8416,13 @@ fun SettingsPanel(
                         updateBrowserSettingsForSpecificValue = { newValue ->
 
                             updateBrowserSettings(
-                                browserSettings.copy(paddingDp = newValue)
+                                browserSettings.copy(padding = newValue)
                             )
                         },
                         onBackClick = { currentView = SettingPanelView.MAIN },
                         valueRange = 3f..11f,
                         steps = 7,
-                        currentSettingOriginalValue = browserSettings.paddingDp,
+                        currentSettingOriginalValue = browserSettings.padding,
                         textFieldValueFun = { src ->
                             src
                         },
@@ -8473,7 +8501,7 @@ fun SettingsPanel(
                                     heightForLayer(
                                         2,
                                         browserSettings.deviceCornerRadius,
-                                        browserSettings.paddingDp,
+                                        browserSettings.padding,
                                         browserSettings.singleLineHeight,
                                     ).dp
                                 ),
@@ -8521,6 +8549,7 @@ fun SliderSetting(
     digitCount: Int = 4,
     currentSettingOriginalValue: Float,
 ) {
+
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
 
@@ -8563,11 +8592,11 @@ fun SliderSetting(
                     cornerRadiusForLayer(
                         2,
                         browserSettings.deviceCornerRadius,
-                        browserSettings.paddingDp
+                        browserSettings.padding
                     ).dp
                 )
             )
-            .padding(browserSettings.paddingDp.dp),
+            .padding(browserSettings.padding.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
 
@@ -8578,7 +8607,7 @@ fun SliderSetting(
                     heightForLayer(
                         3,
                         browserSettings.deviceCornerRadius,
-                        browserSettings.paddingDp,
+                        browserSettings.padding,
                         browserSettings.singleLineHeight,
                     ).dp
                 ),
@@ -8594,7 +8623,7 @@ fun SliderSetting(
                             cornerRadiusForLayer(
                                 3,
                                 browserSettings.deviceCornerRadius,
-                                browserSettings.paddingDp
+                                browserSettings.padding
                             ).dp
                         )
                     )
@@ -8604,7 +8633,7 @@ fun SliderSetting(
                         minWidth = heightForLayer(
                             3,
                             browserSettings.deviceCornerRadius,
-                            browserSettings.paddingDp,
+                            browserSettings.padding,
                             browserSettings.singleLineHeight,
                         ).dp
                     )
@@ -8694,7 +8723,7 @@ fun SliderSetting(
                             cornerRadiusForLayer(
                                 3,
                                 browserSettings.deviceCornerRadius,
-                                browserSettings.paddingDp
+                                browserSettings.padding
                             ).dp
                         )
                     )
@@ -8703,7 +8732,7 @@ fun SliderSetting(
                         minWidth = heightForLayer(
                             3,
                             browserSettings.deviceCornerRadius,
-                            browserSettings.paddingDp,
+                            browserSettings.padding,
                             browserSettings.singleLineHeight,
                         ).dp
                     )
@@ -8736,16 +8765,16 @@ fun SliderSetting(
 
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = browserSettings.paddingDp.dp)
+                .padding(top = browserSettings.padding.dp)
                 .height(
                     heightForLayer(
                         3,
                         browserSettings.deviceCornerRadius,
-                        browserSettings.paddingDp,
+                        browserSettings.padding,
                         browserSettings.singleLineHeight,
                     ).dp
                 )
-                .padding(browserSettings.paddingDp.dp),
+                .padding(browserSettings.padding.dp),
             colors = SliderDefaults.colors(
                 thumbColor = Color.White,
                 activeTrackColor = Color.White,
@@ -8783,11 +8812,11 @@ fun TextSetting(
                     cornerRadiusForLayer(
                         2,
                         browserSettings.deviceCornerRadius,
-                        browserSettings.paddingDp
+                        browserSettings.padding
                     ).dp
                 )
             )
-            .padding(browserSettings.paddingDp.dp),
+            .padding(browserSettings.padding.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // --- TOP ROW ---
@@ -8798,7 +8827,7 @@ fun TextSetting(
                     heightForLayer(
                         3,
                         browserSettings.deviceCornerRadius,
-                        browserSettings.paddingDp,
+                        browserSettings.padding,
                         browserSettings.singleLineHeight,
                     ).dp
                 ),
@@ -8813,7 +8842,7 @@ fun TextSetting(
                             cornerRadiusForLayer(
                                 3,
                                 browserSettings.deviceCornerRadius,
-                                browserSettings.paddingDp
+                                browserSettings.padding
                             ).dp
                         )
                     )
@@ -8823,7 +8852,7 @@ fun TextSetting(
                         minWidth = heightForLayer(
                             3,
                             browserSettings.deviceCornerRadius,
-                            browserSettings.paddingDp,
+                            browserSettings.padding,
                             browserSettings.singleLineHeight,
                         ).dp
                     )
@@ -8847,7 +8876,7 @@ fun TextSetting(
                             cornerRadiusForLayer(
                                 3,
                                 browserSettings.deviceCornerRadius,
-                                browserSettings.paddingDp
+                                browserSettings.padding
                             ).dp
                         )
                     )
@@ -8856,7 +8885,7 @@ fun TextSetting(
                         minWidth = heightForLayer(
                             3,
                             browserSettings.deviceCornerRadius,
-                            browserSettings.paddingDp,
+                            browserSettings.padding,
                             browserSettings.singleLineHeight,
                         ).dp
                     )
@@ -8875,12 +8904,12 @@ fun TextSetting(
             onValueChange = { textValue = it },
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = browserSettings.paddingDp.dp)
+                .padding(top = browserSettings.padding.dp)
                 .height(
                     heightForLayer(
                         3,
                         browserSettings.deviceCornerRadius,
-                        browserSettings.paddingDp,
+                        browserSettings.padding,
                         browserSettings.singleLineHeight,
                     ).dp
                 ),
@@ -8888,7 +8917,7 @@ fun TextSetting(
                 cornerRadiusForLayer(
                     3,
                     browserSettings.deviceCornerRadius,
-                    browserSettings.paddingDp
+                    browserSettings.padding
                 ).dp
             ),
             colors = TextFieldDefaults.colors(
@@ -8966,8 +8995,8 @@ fun DescriptionPanel(
                 color = Color.White,
                 textAlign = TextAlign.Center,
                 modifier = Modifier
-                    .padding(horizontal = browserSettings.paddingDp.dp)
-                    .padding(top = browserSettings.paddingDp.dp)
+                    .padding(horizontal = browserSettings.padding.dp)
+                    .padding(top = browserSettings.padding.dp)
                     .fillMaxWidth()
             )
         }
@@ -9021,12 +9050,12 @@ fun FindInPageBar(
                         cornerRadiusForLayer(
                             1,
                             browserSettings.deviceCornerRadius,
-                            browserSettings.paddingDp
+                            browserSettings.padding
                         ).dp
                     )
                 )
-                .padding(horizontal = browserSettings.paddingDp.dp)
-                .padding(top = browserSettings.paddingDp.dp)
+                .padding(horizontal = browserSettings.padding.dp)
+                .padding(top = browserSettings.padding.dp)
 
         ) {
             TextField(
@@ -9039,7 +9068,7 @@ fun FindInPageBar(
                             cornerRadiusForLayer(
                                 2,
                                 browserSettings.deviceCornerRadius,
-                                browserSettings.paddingDp
+                                browserSettings.padding
                             ).dp
                         )
                     )
@@ -9047,7 +9076,7 @@ fun FindInPageBar(
                         heightForLayer(
                             2,
                             browserSettings.deviceCornerRadius,
-                            browserSettings.paddingDp,
+                            browserSettings.padding,
                             browserSettings.singleLineHeight
                         ).dp
                     ),
@@ -9055,7 +9084,7 @@ fun FindInPageBar(
                     cornerRadiusForLayer(
                         2,
                         browserSettings.deviceCornerRadius,
-                        browserSettings.paddingDp
+                        browserSettings.padding
                     ).dp
                 ),
                 placeholder = { Text("find in page") },
@@ -9079,9 +9108,9 @@ fun FindInPageBar(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = browserSettings.paddingDp.dp),
+                    .padding(top = browserSettings.padding.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(browserSettings.paddingDp.dp)
+                horizontalArrangement = Arrangement.spacedBy(browserSettings.padding.dp)
             ) {
 
                 IconButton(
@@ -9089,7 +9118,7 @@ fun FindInPageBar(
                     modifier = buttonModifierForLayer(
                         2,
                         browserSettings.deviceCornerRadius,
-                        browserSettings.paddingDp,
+                        browserSettings.padding,
                         browserSettings.singleLineHeight,
                         false,
                     )
@@ -9108,7 +9137,7 @@ fun FindInPageBar(
                     modifier = buttonModifierForLayer(
                         2,
                         browserSettings.deviceCornerRadius,
-                        browserSettings.paddingDp,
+                        browserSettings.padding,
                         browserSettings.singleLineHeight,
                         searchResult.second > 0
                     ).weight(1f)
@@ -9135,7 +9164,7 @@ fun FindInPageBar(
                     modifier = buttonModifierForLayer(
                         2,
                         browserSettings.deviceCornerRadius,
-                        browserSettings.paddingDp,
+                        browserSettings.padding,
                         browserSettings.singleLineHeight,
                         searchResult.second > 0
 
@@ -9149,6 +9178,76 @@ fun FindInPageBar(
                     )
                 }
 
+            }
+        }
+    }
+}
+
+@Composable
+fun UrlEditPanel(
+    isVisible: Boolean,
+    browserSettings: BrowserSettings,
+    onCopyClick: () -> Unit,
+    onEditClick: () -> Unit,
+) {
+    AnimatedVisibility(
+        visible = isVisible,
+        enter = expandVertically(animationSpec = tween(animationSpeedForLayer(2, browserSettings.animationSpeed))) +
+                fadeIn(tween(animationSpeedForLayer(2, browserSettings.animationSpeed))),
+        exit = shrinkVertically(animationSpec = tween(animationSpeedForLayer(2, browserSettings.animationSpeed))) +
+                fadeOut(tween(animationSpeedForLayer(2, browserSettings.animationSpeed)))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = browserSettings.padding.dp)
+                .padding(bottom = browserSettings.padding.dp)
+                .background(
+                    color = Color.Black,
+                    shape = RoundedCornerShape(
+                        cornerRadiusForLayer(
+                            3,
+                            browserSettings.deviceCornerRadius,
+                            browserSettings.padding
+                        ).dp
+                    )
+                )
+                .padding(browserSettings.padding.dp)
+            ,
+            horizontalArrangement = Arrangement.spacedBy(browserSettings.padding.dp)
+        ) {
+            // Copy Button
+            IconButton(
+                onClick = onCopyClick,
+                modifier = buttonModifierForLayer(
+                    layer = 3,
+                    browserSettings.deviceCornerRadius,
+                    browserSettings.padding,
+                    browserSettings.singleLineHeight,
+                ).weight(1f)
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_content_copy),
+                    contentDescription = "Copy URL",
+                    tint = Color.Black
+                )
+            }
+
+            // Edit Button (ensures keyboard is shown)
+            IconButton(
+                onClick = onEditClick,
+                modifier = buttonModifierForLayer(
+                    layer = 3,
+                    browserSettings.deviceCornerRadius,
+                    browserSettings.padding,
+                    browserSettings.singleLineHeight,
+                ).weight(1f)
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_edit),
+                    contentDescription = "Edit URL",
+                    tint = Color.Black
+                )
             }
         }
     }
