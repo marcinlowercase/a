@@ -110,6 +110,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.foundation.text.input.selectAll
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -123,6 +128,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -205,7 +211,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import marcinlowercase.a.ui.theme.Themeinlowercase
+import marcinlowercase.a.ui.theme.Theme
 import org.json.JSONArray
 import java.io.File
 import java.io.FileOutputStream
@@ -284,6 +290,8 @@ const val JS_INJECT_CORNER_RADIUS = """
 //endregion
 
 //region Global Functions
+
+
 
 fun addToHomeScreen(
     context: Context,
@@ -386,17 +394,17 @@ fun buttonModifierForLayer(
             heightForLayer(layer, deviceCornerRadius, padding, singleLineHeight).dp
         )
         .background(if (white) Color.White else Color.Transparent)
-        .border(
-            width = 1.dp,
-            color = if (white) Color.Transparent else Color.White,
-            shape = RoundedCornerShape(
-                cornerRadiusForLayer(
-                    layer,
-                    deviceCornerRadius,
-                    padding
-                ).dp
-            )
-        )
+//        .border(
+//            width = 1.dp,
+//            color = if (white) Color.Transparent else Color.White,
+//            shape = RoundedCornerShape(
+//                cornerRadiusForLayer(
+//                    layer,
+//                    deviceCornerRadius,
+//                    padding
+//                ).dp
+//            )
+//        )
 }
 
 fun formatSpeed(bytesPerSecond: Float): String {
@@ -1644,7 +1652,7 @@ class MainActivity : ComponentActivity() {
 
         createNotificationChannel(this) // Call it here
         setContent {
-            Themeinlowercase {
+            Theme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     BrowserScreen(
                         newUrlFlow = newUrlFromIntent,
@@ -1774,13 +1782,16 @@ fun BrowserScreen(
     val activeTabIndex = remember {
         mutableIntStateOf(tabs.indexOfFirst { it.state == TabState.ACTIVE }.coerceAtLeast(0))
     }
-    var textFieldValue by rememberSaveable(stateSaver = TextFieldValue.Saver) {
-        mutableStateOf(
-            TextFieldValue(
-                webViewManager.getWebView(tabs[activeTabIndex.intValue]).url ?: ""
-            )
-        )
-    }
+//    var textFieldValue by rememberSaveable(stateSaver = TextFieldValue.Saver) {
+//        mutableStateOf(
+//            TextFieldValue(
+//                webViewManager.getWebView(tabs[activeTabIndex.intValue]).url ?: ""
+//            )
+//        )
+//    }
+
+    var textFieldState = rememberTextFieldState(webViewManager.getWebView(tabs[activeTabIndex.intValue]).url ?: "")
+    Log.i("TextFieldState", textFieldState.text as String)
 
 //    val tabManager = remember { TabManager(context) }
 
@@ -1834,8 +1845,9 @@ fun BrowserScreen(
 
                         initialLoadDone = true
                         this.url?.let { restoredUrl ->
-                            textFieldValue =
-                                TextFieldValue(restoredUrl, TextRange(restoredUrl.length))
+                            textFieldState.setTextAndPlaceCursorAtEnd(restoredUrl)
+//                            textFieldValue =
+//                                TextFieldValue(restoredUrl, TextRange(restoredUrl.length))
                         }
 
 
@@ -2082,7 +2094,8 @@ fun BrowserScreen(
     val visitedUrlManager = remember { VisitedUrlManager(context) }
 
     // Load the initial history
-    val visitedUrlMap = remember { mutableStateMapOf<String, String>().apply { putAll(visitedUrlManager.loadUrlMap()) } }
+    val visitedUrlMap =
+        remember { mutableStateMapOf<String, String>().apply { putAll(visitedUrlManager.loadUrlMap()) } }
 
     // 2. Update the suggestions state to use the new data class
     val suggestions = remember { mutableStateListOf<Suggestion>() }
@@ -2194,7 +2207,8 @@ fun BrowserScreen(
                     webViewToNavigate.goBackOrForward(stepsToNavigate)
 
                     val newUrl = webViewToNavigate.url ?: ""
-                    textFieldValue = TextFieldValue(newUrl, TextRange(newUrl.length))
+                    textFieldState.setTextAndPlaceCursorAtEnd(newUrl)
+//                    textFieldValue = TextFieldValue(newUrl, TextRange(newUrl.length))
 
                 }
                 if (activeTabIndex.intValue != tabIndexInMainList) {
@@ -2458,7 +2472,8 @@ fun BrowserScreen(
         activeTabIndex.intValue = insertAtIndex
 
 
-        textFieldValue = TextFieldValue(url, TextRange(url.length))
+//        textFieldValue = TextFieldValue(url, TextRange(url.length))
+        textFieldState.setTextAndPlaceCursorAtEnd(url)
         saveTrigger++
 
 
@@ -2508,8 +2523,7 @@ fun BrowserScreen(
                     val urlToLoad = webViewManager.getWebView(tabs[nextTabIndex]).url
                         ?: browserSettings.defaultUrl
                     webViewLoad(activeWebView, urlToLoad, browserSettings)
-
-                    textFieldValue = TextFieldValue(urlToLoad, TextRange(urlToLoad.length))
+                    textFieldState.setTextAndPlaceCursorAtEnd(urlToLoad)
                     saveTrigger++
                 } else {
 
@@ -2654,18 +2668,18 @@ fun BrowserScreen(
 
     //region LaunchedEffect
 
-    LaunchedEffect(textFieldValue.text, isFocusOnTextField) {
+    LaunchedEffect(textFieldState.text, isFocusOnTextField) {
 
-        if (!browserSettings.showSuggestions) {
+        if (!browserSettings.showSuggestions || (textFieldState.text as String) == activeWebView?.url) {
             suggestions.clear()
             return@LaunchedEffect
         }
 
-        val query = textFieldValue.text.trim()
+        val query = (textFieldState.text as String).trim()
 
         if (query.isNotBlank() && isFocusOnTextField) {
-            delay(300L) // Debounce
-            if (query != textFieldValue.text.trim()) return@LaunchedEffect
+//            delay(50L) // Debounce
+            if (query != textFieldState.text.trim()) return@LaunchedEffect
 
             // --- COMBINED SUGGESTION LOGIC ---
             val finalSuggestions = mutableListOf<Suggestion>()
@@ -2674,7 +2688,10 @@ fun BrowserScreen(
             // A. Process History (ranked by match type and recency)
             val historyMatches = visitedUrlMap.entries
                 .filter { (url, title) ->
-                    url.contains(query, ignoreCase = true) || title.contains(query, ignoreCase = true)
+                    url.contains(query, ignoreCase = true) || title.contains(
+                        query,
+                        ignoreCase = true
+                    )
                 }
                 .map { (url, title) ->
                     // Determine which part matched for ranking
@@ -2689,7 +2706,11 @@ fun BrowserScreen(
                         else -> 4
                     }
                     // The text displayed is the title, and the payload is the URL
-                    Triple(Suggestion(text = title, source = SuggestionSource.HISTORY, url = url), rank, url)
+                    Triple(
+                        Suggestion(text = title, source = SuggestionSource.HISTORY, url = url),
+                        rank,
+                        url
+                    )
                 }
                 .sortedBy { it.second } // Sort by the rank
                 .map { it.first } // Get just the Suggestion object
@@ -2709,18 +2730,31 @@ fun BrowserScreen(
             try {
                 withContext(Dispatchers.IO) {
                     val encodedQuery = URLEncoder.encode(query, "UTF-8")
-                    val url = "http://suggestqueries.google.com/complete/search?client=chrome&ie=UTF-8&oe=UTF-8&q=$encodedQuery"
+                    val url =
+                        "http://suggestqueries.google.com/complete/search?client=chrome&ie=UTF-8&oe=UTF-8&q=$encodedQuery"
                     val result = URL(url).readText(Charsets.UTF_8)
 
                     val jsonArray = JSONArray(result)
                     val suggestionsArray = jsonArray.getJSONArray(1)
-                    val googleSuggestions = List(suggestionsArray.length()) { suggestionsArray.getString(it) }
+                    val googleSuggestions =
+                        List(suggestionsArray.length()) { suggestionsArray.getString(it) }
 
                     googleSuggestions.forEach { suggestionText ->
                         // Add Google suggestion only if it's not already in our history list
                         if (!addedHistoryUrls.contains(suggestionText)) {
-                            val searchUrl = "https://www.google.com/search?q=${URLEncoder.encode(suggestionText, "UTF-8")}"
-                            finalSuggestions.add(Suggestion(text = suggestionText, source = SuggestionSource.GOOGLE, url = searchUrl))
+                            val searchUrl = "https://www.google.com/search?q=${
+                                URLEncoder.encode(
+                                    suggestionText,
+                                    "UTF-8"
+                                )
+                            }"
+                            finalSuggestions.add(
+                                Suggestion(
+                                    text = suggestionText,
+                                    source = SuggestionSource.GOOGLE,
+                                    url = searchUrl
+                                )
+                            )
                         }
                     }
                 }
@@ -3014,7 +3048,7 @@ fun BrowserScreen(
 //                    Log.i("doUpdateVisitedHistory", "URL updated: $url")
 //                    Log.i("doUpdateVisitedHistory", "isReload: $isReload")
                     if (!isFocusOnTextField) view.url?.let {
-                        textFieldValue = TextFieldValue(it, TextRange(it.length))
+                        textFieldState.setTextAndPlaceCursorAtEnd(it)
                     }
                     if (url != null && activeTab.currentURL != url) {
                         tabs[activeTabIndex.intValue] =
@@ -3585,7 +3619,7 @@ fun BrowserScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(backgroundColor.value)
+            .background(Color.Black)
     ) {
         Box(
             modifier = modifier
@@ -3666,6 +3700,7 @@ fun BrowserScreen(
 
 
             BottomPanel(
+                textFieldState = textFieldState,
                 onCloseAllTabs = {
                     confirmationPopup(
                         message = "close all tabs and exit ? ",
@@ -3804,7 +3839,7 @@ fun BrowserScreen(
                         val urlToLoad = webViewManager.getWebView(tabs[newIndex]).url
                             ?: browserSettings.defaultUrl
 //                        activeWebView?.loadUrl(urlToLoad)
-                        textFieldValue = TextFieldValue(urlToLoad, TextRange(urlToLoad.length))
+                        textFieldState.setTextAndPlaceCursorAtEnd(urlToLoad)
                         saveTrigger++
 
                         inspectingTabId = tabs[newIndex].id
@@ -3840,12 +3875,10 @@ fun BrowserScreen(
                 isOptionsPanelVisible = isOptionsPanelVisible,
                 browserSettings = browserSettings,
                 updateBrowserSettings = updateBrowserSettings,
-                textFieldValue = textFieldValue,
 //                        url = url,
                 focusManager = focusManager,
                 keyboardController = keyboardController,
                 setIsOptionsPanelVisible = { isOptionsPanelVisible = it },
-                changeTextFieldValue = { textFieldValue = it },
                 onNewUrl = { newUrl ->
                     webViewLoad(activeWebView, newUrl, browserSettings)
 
@@ -4157,17 +4190,18 @@ fun BrowserScreen(
                                 )
                             )
                             .background(Color.Black.copy(alpha = 0.4f))
-                            .border(
-                                2.dp,
-                                Color.White.copy(alpha = 0.5f),
-                                shape = RoundedCornerShape(
-                                    cornerRadiusForLayer(
-                                        1,
-                                        browserSettings.deviceCornerRadius,
-                                        browserSettings.paddingDp
-                                    ).dp
-                                )
-                            ),
+//                            .border(
+//                                2.dp,
+//                                Color.White.copy(alpha = 0.5f),
+//                                shape = RoundedCornerShape(
+//                                    cornerRadiusForLayer(
+//                                        1,
+//                                        browserSettings.deviceCornerRadius,
+//                                        browserSettings.paddingDp
+//                                    ).dp
+//                                )
+//                            )
+                        ,
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -4202,6 +4236,7 @@ fun BrowserScreen(
 
 @Composable
 fun BottomPanel(
+    textFieldState: TextFieldState,
     onCloseAllTabs: () -> Unit,
     suggestions: List<Suggestion>, // Changed from List<String>
     onSuggestionClick: (Suggestion) -> Unit, // Changed from (String)
@@ -4282,13 +4317,11 @@ fun BottomPanel(
     isOptionsPanelVisible: Boolean,
     browserSettings: BrowserSettings,
     updateBrowserSettings: (BrowserSettings) -> Int,
-    textFieldValue: TextFieldValue,
 //    url: String,
     focusManager: FocusManager,
     keyboardController: SoftwareKeyboardController?,
     setIsOptionsPanelVisible: (Boolean) -> Unit = {},
     toggleIsTabsPanelVisible: () -> Unit = {},
-    changeTextFieldValue: (TextFieldValue) -> Unit = {},
     onNewUrl: (String) -> Unit = {},
     setTextFieldHeightPx: (Int) -> Unit = {},
     setIsFocusOnTextField: (Boolean) -> Unit = {},
@@ -4332,19 +4365,20 @@ fun BottomPanel(
                 )
 
                 .background(
+//                    MaterialTheme.colorScheme.primaryContainer
                     Color.Black,
                 )
-                .border(
-                    color = Color.White,
-                    width = 1.dp,
-                    shape = RoundedCornerShape(
-                        cornerRadiusForLayer(
-                            1,
-                            browserSettings.deviceCornerRadius,
-                            browserSettings.paddingDp
-                        ).dp
-                    )
-                )
+//                .border(
+//                    color = Color.White,
+//                    width = 1.dp,
+//                    shape = RoundedCornerShape(
+//                        cornerRadiusForLayer(
+//                            1,
+//                            browserSettings.deviceCornerRadius,
+//                            browserSettings.paddingDp
+//                        ).dp
+//                    )
+//                )
 
         ) {
 
@@ -4475,17 +4509,17 @@ fun BottomPanel(
                                 ).dp
                             )
                         )
-                        .border(
-                            1.dp,
-                            Color.White,
-                            RoundedCornerShape(
-                                cornerRadiusForLayer(
-                                    2,
-                                    browserSettings.deviceCornerRadius,
-                                    browserSettings.paddingDp
-                                ).dp
-                            )
-                        )
+//                        .border(
+//                            1.dp,
+//                            Color.White,
+//                            RoundedCornerShape(
+//                                cornerRadiusForLayer(
+//                                    2,
+//                                    browserSettings.deviceCornerRadius,
+//                                    browserSettings.paddingDp
+//                                ).dp
+//                            )
+//                        )
                         .heightIn(max = 250.dp), // Prevent the list from being too tall
                     reverseLayout = true,
                 ) {
@@ -4548,7 +4582,6 @@ fun BottomPanel(
             )
 
 
-
             // URL BAR
             AnimatedVisibility(
                 modifier = modifier
@@ -4570,7 +4603,7 @@ fun BottomPanel(
             ) {
                 Box {
 
-                    OutlinedTextField(
+                    TextField(
                         modifier = Modifier
                             .height(
                                 heightForLayer(
@@ -4591,8 +4624,6 @@ fun BottomPanel(
                                 val resetUrl = activeWebView?.url ?: ""
                                 setIsFocusOnTextField(it.isFocused)
                                 if (it.isFocused) {
-
-
                                     setSavedPanelState(
                                         PanelVisibilityState(
                                             options = isOptionsPanelVisible,
@@ -4609,10 +4640,15 @@ fun BottomPanel(
                                     setIsNavPanelVisible(false)
                                     setIsSettingsPanelVisible(false)
 
-                                    if (textFieldValue.text == resetUrl) {
-
-                                        changeTextFieldValue(TextFieldValue("", TextRange(0)))
-                                    }
+                                    textFieldState.edit { selectAll() }
+//                                    val text = textFieldValue.text
+//                                    changeTextFieldValue(
+//                                        textFieldValue.copy(text = "hello",selection = TextRange(0, text.length))
+//                                    )
+//                                    if (textFieldValue.text == resetUrl) {
+//
+//                                        changeTextFieldValue(TextFieldValue("", TextRange(0)))
+//                                    }
                                 } else {
 
                                     savedPanelState?.let { savedState ->
@@ -4623,15 +4659,9 @@ fun BottomPanel(
                                         setIsNavPanelVisible(savedState.nav)
                                         setSavedPanelState(null) // Clear the saved state
                                     }
+                                    textFieldState.setTextAndPlaceCursorAtEnd(resetUrl)
 
-                                    if (textFieldValue.text.isBlank()) {
-                                        changeTextFieldValue(
-                                            TextFieldValue(
-                                                resetUrl,
-                                                TextRange(resetUrl.length)
-                                            )
-                                        )
-                                    }
+
                                     setIsUrlOverlayBoxVisible(true)
                                 }
                             }
@@ -4640,12 +4670,13 @@ fun BottomPanel(
                                     if (dragAmount > 0) {
                                         val resetUrl =
                                             activeWebView?.url ?: ""
-                                        changeTextFieldValue(
-                                            TextFieldValue(
-                                                resetUrl,
-                                                selection = TextRange(resetUrl.length)
-                                            )
-                                        )
+                                        textFieldState.setTextAndPlaceCursorAtEnd(resetUrl)
+//                                        changeTextFieldValue(
+//                                            TextFieldValue(
+//                                                resetUrl,
+//                                                selection = TextRange(resetUrl.length)
+//                                            )
+//                                        )
                                     }
                                 }
                             }
@@ -4658,62 +4689,93 @@ fun BottomPanel(
                                     ).dp
                                 )
                             ),
-                        value = textFieldValue.text,
-                        onValueChange = { newValue ->
-                            changeTextFieldValue(
-                                TextFieldValue(
-                                    newValue,
-                                    selection = TextRange(newValue.length)
-                                )
-                            )
-                        },
-                        singleLine = true,
+                        state = textFieldState,
+//                        state = rememberTextFieldState("Hello"),
+                        lineLimits = TextFieldLineLimits.SingleLine,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
-                        keyboardActions = KeyboardActions(
-                            onGo = {
-                                val input = textFieldValue.text.trim()
-                                val resetUrl = activeWebView?.url ?: ""
+                        onKeyboardAction = {
+                            val input = (textFieldState.text as String).trim()
+                            val resetUrl = activeWebView?.url ?: ""
 
-                                if (input.isBlank()) {
-                                    changeTextFieldValue(
-                                        TextFieldValue(
-                                            resetUrl,
-                                            TextRange(resetUrl.length)
-                                        )
-                                    )
-                                    focusManager.clearFocus()
-                                    keyboardController?.hide()
-                                    return@KeyboardActions
-                                }
-                                val isUrl = try {
-                                    Patterns.WEB_URL.matcher(input).matches() ||
-                                            (input.contains(".") && !input.contains(" "))
-                                } catch (_: Exception) {
-                                    false
-                                }
+                            if (input.isBlank()) {
 
-                                val finalUrl = if (isUrl) {
-                                    if (input.startsWith("http://") || input.startsWith("https://")) {
-                                        input
-                                    } else {
-                                        "https://$input"
-                                    }
-                                } else {
-                                    val encodedQuery =
-                                        URLEncoder.encode(
-                                            input,
-                                            StandardCharsets.UTF_8.toString()
-                                        )
-                                    "https://www.google.com/search?q=$encodedQuery"
-                                }
-
-                                onNewUrl(finalUrl)
-
+                                textFieldState.setTextAndPlaceCursorAtEnd(resetUrl)
                                 focusManager.clearFocus()
                                 keyboardController?.hide()
-
                             }
-                        ),
+                            val isUrl = try {
+                                Patterns.WEB_URL.matcher(input).matches() ||
+                                        (input.contains(".") && !input.contains(" "))
+                            } catch (_: Exception) {
+                                false
+                            }
+
+                            val finalUrl = if (isUrl) {
+                                if (input.startsWith("http://") || input.startsWith("https://")) {
+                                    input
+                                } else {
+                                    "https://$input"
+                                }
+                            } else {
+                                val encodedQuery =
+                                    URLEncoder.encode(
+                                        input,
+                                        StandardCharsets.UTF_8.toString()
+                                    )
+                                "https://www.google.com/search?q=$encodedQuery"
+                            }
+
+                            onNewUrl(finalUrl)
+
+                            focusManager.clearFocus()
+                            keyboardController?.hide()
+
+                        },
+//                        keyboardActions = KeyboardActions(
+//                            onGo = {
+//                                val input = textFieldValue.text.trim()
+//                                val resetUrl = activeWebView?.url ?: ""
+//
+//                                if (input.isBlank()) {
+//                                    changeTextFieldValue(
+//                                        TextFieldValue(
+//                                            resetUrl,
+//                                            TextRange(resetUrl.length)
+//                                        )
+//                                    )
+//                                    focusManager.clearFocus()
+//                                    keyboardController?.hide()
+//                                    return@KeyboardActions
+//                                }
+//                                val isUrl = try {
+//                                    Patterns.WEB_URL.matcher(input).matches() ||
+//                                            (input.contains(".") && !input.contains(" "))
+//                                } catch (_: Exception) {
+//                                    false
+//                                }
+//
+//                                val finalUrl = if (isUrl) {
+//                                    if (input.startsWith("http://") || input.startsWith("https://")) {
+//                                        input
+//                                    } else {
+//                                        "https://$input"
+//                                    }
+//                                } else {
+//                                    val encodedQuery =
+//                                        URLEncoder.encode(
+//                                            input,
+//                                            StandardCharsets.UTF_8.toString()
+//                                        )
+//                                    "https://www.google.com/search?q=$encodedQuery"
+//                                }
+//
+//                                onNewUrl(finalUrl)
+//
+//                                focusManager.clearFocus()
+//                                keyboardController?.hide()
+//
+//                            }
+//                        ),
 //                        shape = CircleShape,
                         shape = RoundedCornerShape(
                             cornerRadiusForLayer(
@@ -4723,19 +4785,187 @@ fun BottomPanel(
                             ).dp
                         ),
                         colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.Black, // Background when focused
-                            unfocusedContainerColor = Color.Black, // Background when unfocused
+                            focusedContainerColor = Color.Black,
+                            unfocusedContainerColor = Color.Black,
                             cursorColor = Color.White,
-                            disabledContainerColor = Color.White, // Background when disabled
-                            errorContainerColor = Color.Red, // Background when in error state.
-                            focusedIndicatorColor = Color.White,      // Outline color when focused
-                            unfocusedIndicatorColor = Color.White,    // Outline color when unfocused
-                            disabledIndicatorColor = Color.White, // Outline color when disabled
-                            errorIndicatorColor = Color.Red,          // Outline color on error
                             focusedTextColor = Color.White,
                             unfocusedTextColor = Color.White,
-                        )
+
+                            // 3. This is the key to removing the underline
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                            disabledIndicatorColor = Color.Transparent,
+                            errorIndicatorColor = Color.Transparent
+                        ),
                     )
+//                    TextField(
+//                        modifier = Modifier
+//                            .height(
+//                                heightForLayer(
+//                                    1,
+//                                    browserSettings.deviceCornerRadius,
+//                                    browserSettings.paddingDp,
+//                                    browserSettings.singleLineHeight,
+//                                ).dp
+//                            )
+//                            .padding(browserSettings.paddingDp.dp)
+//                            .onSizeChanged { size ->
+//                                setTextFieldHeightPx(size.height)
+//                            }
+//                            .fillMaxWidth()
+//                            .focusRequester(urlBarFocusRequester)
+//                            //                            .padding(horizontal = browserSettings.paddingDp.dp, vertical = browserSettings.paddingDp.dp / 2)
+//                            .onFocusChanged {
+//                                val resetUrl = activeWebView?.url ?: ""
+//                                setIsFocusOnTextField(it.isFocused)
+//                                if (it.isFocused) {
+//                                    setSavedPanelState(
+//                                        PanelVisibilityState(
+//                                            options = isOptionsPanelVisible,
+//                                            tabs = isTabsPanelVisible,
+//                                            downloads = isDownloadPanelVisible,
+//                                            tabData = isTabDataPanelVisible,
+//                                            nav = isNavPanelVisible
+//                                        )
+//                                    )
+//                                    setIsOptionsPanelVisible(false)
+//                                    setIsTabsPanelVisible(false)
+//                                    setIsDownloadPanelVisible(false)
+//                                    setIsTabDataPanelVisible(false)
+//                                    setIsNavPanelVisible(false)
+//                                    setIsSettingsPanelVisible(false)
+//
+//                                    val text = textFieldValue.text
+//                                    changeTextFieldValue(
+//                                        textFieldValue.copy(text = "hello",selection = TextRange(0, text.length))
+//                                    )
+////                                    if (textFieldValue.text == resetUrl) {
+////
+////                                        changeTextFieldValue(TextFieldValue("", TextRange(0)))
+////                                    }
+//                                } else {
+//
+//                                    savedPanelState?.let { savedState ->
+//                                        setIsOptionsPanelVisible(savedState.options)
+//                                        setIsTabsPanelVisible(savedState.tabs)
+//                                        setIsDownloadPanelVisible(savedState.downloads)
+//                                        setIsTabDataPanelVisible(savedState.tabData)
+//                                        setIsNavPanelVisible(savedState.nav)
+//                                        setSavedPanelState(null) // Clear the saved state
+//                                    }
+//
+//                                    if (textFieldValue.text.isBlank()) {
+//                                        changeTextFieldValue(
+//                                            TextFieldValue(
+//                                                resetUrl,
+//                                                TextRange(resetUrl.length)
+//                                            )
+//                                        )
+//                                    }
+//                                    setIsUrlOverlayBoxVisible(true)
+//                                }
+//                            }
+//                            .pointerInput(Unit) {
+//                                detectHorizontalDragGestures { _, dragAmount ->
+//                                    if (dragAmount > 0) {
+//                                        val resetUrl =
+//                                            activeWebView?.url ?: ""
+//                                        changeTextFieldValue(
+//                                            TextFieldValue(
+//                                                resetUrl,
+//                                                selection = TextRange(resetUrl.length)
+//                                            )
+//                                        )
+//                                    }
+//                                }
+//                            }
+//                            .clip(
+//                                RoundedCornerShape(
+//                                    cornerRadiusForLayer(
+//                                        2,
+//                                        browserSettings.deviceCornerRadius,
+//                                        browserSettings.paddingDp
+//                                    ).dp
+//                                )
+//                            ),
+//                        value = textFieldValue.text,
+//                        onValueChange = { newValue ->
+//                            changeTextFieldValue(
+//                                TextFieldValue(
+//                                    newValue,
+//                                    selection = TextRange(newValue.length)
+//                                )
+//                            )
+//                        },
+//                        singleLine = true,
+//                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
+//                        keyboardActions = KeyboardActions(
+//                            onGo = {
+//                                val input = textFieldValue.text.trim()
+//                                val resetUrl = activeWebView?.url ?: ""
+//
+//                                if (input.isBlank()) {
+//                                    changeTextFieldValue(
+//                                        TextFieldValue(
+//                                            resetUrl,
+//                                            TextRange(resetUrl.length)
+//                                        )
+//                                    )
+//                                    focusManager.clearFocus()
+//                                    keyboardController?.hide()
+//                                    return@KeyboardActions
+//                                }
+//                                val isUrl = try {
+//                                    Patterns.WEB_URL.matcher(input).matches() ||
+//                                            (input.contains(".") && !input.contains(" "))
+//                                } catch (_: Exception) {
+//                                    false
+//                                }
+//
+//                                val finalUrl = if (isUrl) {
+//                                    if (input.startsWith("http://") || input.startsWith("https://")) {
+//                                        input
+//                                    } else {
+//                                        "https://$input"
+//                                    }
+//                                } else {
+//                                    val encodedQuery =
+//                                        URLEncoder.encode(
+//                                            input,
+//                                            StandardCharsets.UTF_8.toString()
+//                                        )
+//                                    "https://www.google.com/search?q=$encodedQuery"
+//                                }
+//
+//                                onNewUrl(finalUrl)
+//
+//                                focusManager.clearFocus()
+//                                keyboardController?.hide()
+//
+//                            }
+//                        ),
+////                        shape = CircleShape,
+//                        shape = RoundedCornerShape(
+//                            cornerRadiusForLayer(
+//                                2,
+//                                browserSettings.deviceCornerRadius,
+//                                browserSettings.paddingDp
+//                            ).dp
+//                        ),
+//                        colors = TextFieldDefaults.colors(
+//                            focusedContainerColor = Color.Black,
+//                            unfocusedContainerColor = Color.Black,
+//                            cursorColor = Color.White,
+//                            focusedTextColor = Color.White,
+//                            unfocusedTextColor = Color.White,
+//
+//                            // 3. This is the key to removing the underline
+//                            focusedIndicatorColor = Color.Transparent,
+//                            unfocusedIndicatorColor = Color.Transparent,
+//                            disabledIndicatorColor = Color.Transparent,
+//                            errorIndicatorColor = Color.Transparent
+//                        ),
+//                    )
 
                     if (isUrlOverlayBoxVisible) Box(
                         modifier = Modifier
@@ -5207,7 +5437,6 @@ fun OptionsPanel(
                 },
 
 
-
                 OptionItem(R.drawable.ic_bug, "debug", false) {
                     Log.e("BROWSER SETTINGS", browserSettings.toString())
                     Log.e("Tabs List", tabs.toString())
@@ -5532,17 +5761,18 @@ fun PromptPanel(
                     .background(
                         Color.Black
                     )
-                    .border(
-                        1.dp,
-                        Color.White,
-                        shape = RoundedCornerShape(
-                            cornerRadiusForLayer(
-                                2,
-                                browserSettings.deviceCornerRadius,
-                                browserSettings.paddingDp
-                            ).dp
-                        )
-                    ),
+//                    .border(
+//                        1.dp,
+//                        Color.White,
+//                        shape = RoundedCornerShape(
+//                            cornerRadiusForLayer(
+//                                2,
+//                                browserSettings.deviceCornerRadius,
+//                                browserSettings.paddingDp
+//                            ).dp
+//                        )
+//                    )
+                ,
 
                 verticalAlignment = Alignment.CenterVertically // Keeps text aligned nicely
             ) {
@@ -5588,17 +5818,17 @@ fun PromptPanel(
                             ).dp
                         )
                     )
-                    .border(
-                        width = 1.dp,
-                        color = Color.White,
-                        shape = RoundedCornerShape(
-                            cornerRadiusForLayer(
-                                2,
-                                browserSettings.deviceCornerRadius,
-                                browserSettings.paddingDp
-                            ).dp
-                        )
-                    )
+//                    .border(
+//                        width = 1.dp,
+//                        color = Color.White,
+//                        shape = RoundedCornerShape(
+//                            cornerRadiusForLayer(
+//                                2,
+//                                browserSettings.deviceCornerRadius,
+//                                browserSettings.paddingDp
+//                            ).dp
+//                        )
+//                    )
             )
             {
 
@@ -5700,15 +5930,16 @@ fun PromptPanel(
                                 browserSettings.singleLineHeight
                             )
                                 .weight(1f)
-                                .border(
-                                    1.dp, Color.White, shape = RoundedCornerShape(
-                                        cornerRadiusForLayer(
-                                            3,
-                                            browserSettings.deviceCornerRadius,
-                                            browserSettings.paddingDp,
-                                        ).dp
-                                    )
-                                ),
+//                                .border(
+//                                    1.dp, Color.White, shape = RoundedCornerShape(
+//                                        cornerRadiusForLayer(
+//                                            3,
+//                                            browserSettings.deviceCornerRadius,
+//                                            browserSettings.paddingDp,
+//                                        ).dp
+//                                    )
+//                                )
+                            ,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Color.Black
                             ),
@@ -6340,17 +6571,17 @@ fun DownloadPanel(
                         ).dp
                     )
                 )
-                .border(
-                    width = 1.dp,
-                    color = Color.White,
-                    shape = RoundedCornerShape(
-                        cornerRadiusForLayer(
-                            2,
-                            browserSettings.deviceCornerRadius,
-                            browserSettings.paddingDp
-                        ).dp
-                    )
-                )
+//                .border(
+//                    width = 1.dp,
+//                    color = Color.White,
+//                    shape = RoundedCornerShape(
+//                        cornerRadiusForLayer(
+//                            2,
+//                            browserSettings.deviceCornerRadius,
+//                            browserSettings.paddingDp
+//                        ).dp
+//                    )
+//                )
         ) {
             if (downloads.isEmpty()) {
                 Box(
@@ -6556,17 +6787,17 @@ fun DownloadRow(
                 onClick()
             }
             .background(Color.Black.copy(alpha = 0.5f))
-            .border(
-                width = 1.dp,
-                color = Color.White,
-                shape = RoundedCornerShape(
-                    cornerRadiusForLayer(
-                        3,
-                        browserSettings.deviceCornerRadius,
-                        browserSettings.paddingDp
-                    ).dp
-                )
-            )
+//            .border(
+//                width = 1.dp,
+//                color = Color.White,
+//                shape = RoundedCornerShape(
+//                    cornerRadiusForLayer(
+//                        3,
+//                        browserSettings.deviceCornerRadius,
+//                        browserSettings.paddingDp
+//                    ).dp
+//                )
+//            )
 
             .pointerInput(item.status) { // Re-read when status changes
                 detectTapGestures(
@@ -6803,17 +7034,17 @@ fun TabDataPanel(
                         )
                     )
                     .background(Color.Black)
-                    .border(
-                        1.dp,
-                        Color.White,
-                        RoundedCornerShape(
-                            cornerRadiusForLayer(
-                                2,
-                                browserSettings.deviceCornerRadius,
-                                browserSettings.paddingDp
-                            ).dp
-                        )
-                    )
+//                    .border(
+//                        1.dp,
+//                        Color.White,
+//                        RoundedCornerShape(
+//                            cornerRadiusForLayer(
+//                                2,
+//                                browserSettings.deviceCornerRadius,
+//                                browserSettings.paddingDp
+//                            ).dp
+//                        )
+//                    )
             ) {
                 val tab = inspectingTab ?: return@Column
 
@@ -6871,17 +7102,17 @@ fun TabDataPanel(
                                         )
                                             .fillMaxWidth()
                                             .background(Color.Transparent)
-                                            .border(
-                                                width = 1.dp,
-                                                color = Color.White,
-                                                shape = RoundedCornerShape(
-                                                    cornerRadiusForLayer(
-                                                        3,
-                                                        browserSettings.deviceCornerRadius,
-                                                        browserSettings.paddingDp
-                                                    ).dp
-                                                )
-                                            )
+//                                            .border(
+//                                                width = 1.dp,
+//                                                color = Color.White,
+//                                                shape = RoundedCornerShape(
+//                                                    cornerRadiusForLayer(
+//                                                        3,
+//                                                        browserSettings.deviceCornerRadius,
+//                                                        browserSettings.paddingDp
+//                                                    ).dp
+//                                                )
+//                                            )
                                     ) {
                                         Icon(
                                             painter = painterResource(id = R.drawable.ic_history),
@@ -6906,17 +7137,17 @@ fun TabDataPanel(
 
                                             .fillMaxWidth()
                                             .background(Color.Transparent)
-                                            .border(
-                                                width = 1.dp,
-                                                color = Color.White,
-                                                shape = RoundedCornerShape(
-                                                    cornerRadiusForLayer(
-                                                        3,
-                                                        browserSettings.deviceCornerRadius,
-                                                        browserSettings.paddingDp
-                                                    ).dp
-                                                )
-                                            )
+//                                            .border(
+//                                                width = 1.dp,
+//                                                color = Color.White,
+//                                                shape = RoundedCornerShape(
+//                                                    cornerRadiusForLayer(
+//                                                        3,
+//                                                        browserSettings.deviceCornerRadius,
+//                                                        browserSettings.paddingDp
+//                                                    ).dp
+//                                                )
+//                                            )
                                     ) {
                                         Icon(
                                             painter = painterResource(id = R.drawable.ic_shield_toggle),
@@ -7247,17 +7478,17 @@ fun HistoryRow(
                 )
             )
             .background(if (isCurrent) Color.White else Color.Transparent)
-            .border(
-                width = 1.dp,
-                color = if (isCurrent) Color.Transparent else Color.White,
-                shape = RoundedCornerShape(
-                    cornerRadiusForLayer(
-                        3,
-                        browserSettings.deviceCornerRadius,
-                        browserSettings.paddingDp
-                    ).dp
-                )
-            )
+//            .border(
+//                width = 1.dp,
+//                color = if (isCurrent) Color.Transparent else Color.White,
+//                shape = RoundedCornerShape(
+//                    cornerRadiusForLayer(
+//                        3,
+//                        browserSettings.deviceCornerRadius,
+//                        browserSettings.paddingDp
+//                    ).dp
+//                )
+//            )
             .clickable(onClick = onClick)
             .padding(horizontal = browserSettings.paddingDp.dp * 2),
         verticalAlignment = Alignment.CenterVertically
@@ -7332,17 +7563,17 @@ fun ConfirmationPanel(
                         ).dp
                     )
                 )
-                .border(
-                    width = 1.dp,
-                    color = Color.White,
-                    shape = RoundedCornerShape(
-                        cornerRadiusForLayer(
-                            2,
-                            browserSettings.deviceCornerRadius,
-                            browserSettings.paddingDp
-                        ).dp
-                    )
-                )
+//                .border(
+//                    width = 1.dp,
+//                    color = Color.White,
+//                    shape = RoundedCornerShape(
+//                        cornerRadiusForLayer(
+//                            2,
+//                            browserSettings.deviceCornerRadius,
+//                            browserSettings.paddingDp
+//                        ).dp
+//                    )
+//                )
         ) {
 
             Text(
@@ -7361,24 +7592,25 @@ fun ConfirmationPanel(
                 horizontalArrangement = Arrangement.spacedBy(browserSettings.paddingDp.dp)
             ) {
                 // Cancel Button
-                Button(
+                IconButton(
                     modifier = buttonModifierForLayer(
                         3,
                         browserSettings.deviceCornerRadius,
                         browserSettings.paddingDp,
                         browserSettings.singleLineHeight,
+                        false
                     )
                         .weight(1f)
-                        .border(
-                            1.dp, Color.White, shape = RoundedCornerShape(
-                                cornerRadiusForLayer(
-                                    3,
-                                    browserSettings.deviceCornerRadius,
-                                    browserSettings.paddingDp,
-                                ).dp
-                            )
-                        ),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Black),
+//                        .border(
+//                            1.dp, Color.White, shape = RoundedCornerShape(
+//                                cornerRadiusForLayer(
+//                                    3,
+//                                    browserSettings.deviceCornerRadius,
+//                                    browserSettings.paddingDp,
+//                                ).dp
+//                            )
+//                        )
+                    ,
                     shape = RoundedCornerShape(
                         cornerRadiusForLayer(
                             3,
@@ -7396,7 +7628,7 @@ fun ConfirmationPanel(
                 }
 
                 // Confirm Button
-                Button(
+                IconButton(
                     modifier = buttonModifierForLayer(
                         3,
                         browserSettings.deviceCornerRadius,
@@ -7404,15 +7636,7 @@ fun ConfirmationPanel(
                         browserSettings.singleLineHeight,
                     )
                         .weight(1f)
-                        .background(
-                            Color.White, shape = RoundedCornerShape(
-                                cornerRadiusForLayer(
-                                    3,
-                                    browserSettings.deviceCornerRadius,
-                                    browserSettings.paddingDp
-                                ).dp
-                            )
-                        ),
+                      ,
                     shape = RoundedCornerShape(
                         cornerRadiusForLayer(
                             2,
@@ -7420,7 +7644,6 @@ fun ConfirmationPanel(
                             browserSettings.paddingDp,
                         ).dp
                     ),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.White),
                     onClick = state.onConfirm
                 ) {
                     Icon(
@@ -7457,7 +7680,7 @@ fun CursorPointer(
                 }
                 .size(cursorContainerSize)
                 .background(Color.Black.copy(alpha = 0.5f), CircleShape)
-                .border(2.dp, Color.White, CircleShape)
+//                .border(2.dp, Color.White, CircleShape)
         ) {
             Icon(
                 painter = painterResource(id = R.drawable.ic_dot), // Ensure you have this drawable
@@ -7847,17 +8070,18 @@ fun CursorPad(
                         )
                     )
                     .background(Color.Black.copy(alpha = 0.4f))
-                    .border(
-                        2.dp,
-                        Color.White.copy(alpha = 0.5f),
-                        shape = RoundedCornerShape(
-                            cornerRadiusForLayer(
-                                1,
-                                browserSettings.deviceCornerRadius,
-                                browserSettings.paddingDp
-                            ).dp
-                        )
-                    ),
+//                    .border(
+//                        2.dp,
+//                        Color.White.copy(alpha = 0.5f),
+//                        shape = RoundedCornerShape(
+//                            cornerRadiusForLayer(
+//                                1,
+//                                browserSettings.deviceCornerRadius,
+//                                browserSettings.paddingDp
+//                            ).dp
+//                        )
+//                    )
+                ,
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -7986,17 +8210,17 @@ fun SettingsPanel(
                         )
                     )
                 )
-                .border(
-                    1.dp,
-                    Color.White,
-                    RoundedCornerShape(
-                        cornerRadiusForLayer(
-                            2,
-                            browserSettings.deviceCornerRadius,
-                            browserSettings.paddingDp
-                        ).dp
-                    )
-                )
+//                .border(
+//                    1.dp,
+//                    Color.White,
+//                    RoundedCornerShape(
+//                        cornerRadiusForLayer(
+//                            2,
+//                            browserSettings.deviceCornerRadius,
+//                            browserSettings.paddingDp
+//                        ).dp
+//                    )
+//                )
         ) {
 
             when (currentView) {
@@ -8646,7 +8870,7 @@ fun TextSetting(
         }
 
         // --- OutlinedTextField (replaces Slider) ---
-        OutlinedTextField(
+        TextField(
             value = textValue,
             onValueChange = { textValue = it },
             modifier = Modifier
@@ -8668,13 +8892,17 @@ fun TextSetting(
                 ).dp
             ),
             colors = TextFieldDefaults.colors(
-                focusedContainerColor = Color.Black.copy(0.95f),
-                unfocusedContainerColor = Color.Black.copy(0.8f),
+                focusedContainerColor = Color.Black,
+                unfocusedContainerColor = Color.Black,
                 cursorColor = Color.White,
-                focusedIndicatorColor = Color.White.copy(0.95f),
-                unfocusedIndicatorColor = Color.White.copy(0.8f),
                 focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White.copy(0.8f),
+                unfocusedTextColor = Color.White,
+
+                // 3. This is the key to removing the underline
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
+                disabledIndicatorColor = Color.Transparent,
+                errorIndicatorColor = Color.Transparent
             ),
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Uri, // Good for URLs
@@ -8801,7 +9029,7 @@ fun FindInPageBar(
                 .padding(top = browserSettings.paddingDp.dp)
 
         ) {
-            OutlinedTextField(
+            TextField(
                 value = searchText,
                 onValueChange = onSearchTextChanged,
                 modifier = Modifier
@@ -8833,7 +9061,20 @@ fun FindInPageBar(
                 placeholder = { Text("find in page") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() })
+                keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() }),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Black,
+                    unfocusedContainerColor = Color.Black,
+                    cursorColor = Color.White,
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+
+                    // 3. This is the key to removing the underline
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    disabledIndicatorColor = Color.Transparent,
+                    errorIndicatorColor = Color.Transparent
+                ),
             )
             Row(
                 modifier = Modifier
