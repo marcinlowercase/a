@@ -67,7 +67,6 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -114,9 +113,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
-import androidx.compose.foundation.text.input.selectAll
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
-import androidx.compose.foundation.text.input.setTextAndSelectAll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -167,9 +164,7 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
@@ -179,12 +174,9 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.SoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -209,6 +201,7 @@ import coil.request.ImageRequest
 import coil.transform.CircleCropTransformation
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -227,7 +220,6 @@ import java.net.URLDecoder
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.util.regex.Pattern
-import kotlin.coroutines.coroutineContext
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.system.exitProcess
@@ -298,10 +290,10 @@ const val JS_INJECT_CORNER_RADIUS = """
 //region Global Functions
 
 fun String.toDomain(): String = try {
-    java.net.URL(this).host?.let {
+    URL(this).host?.let {
         if (it.startsWith("www.", ignoreCase = true)) it.substring(4) else it
     } ?: this
-} catch (e: Exception) {
+} catch (_: Exception) {
     this
 }
 
@@ -1802,7 +1794,8 @@ fun BrowserScreen(
 //        )
 //    }
 
-    var textFieldState = rememberTextFieldState(webViewManager.getWebView(tabs[activeTabIndex.intValue]).url ?: "")
+    val textFieldState =
+        rememberTextFieldState(webViewManager.getWebView(tabs[activeTabIndex.intValue]).url ?: "")
     Log.i("TextFieldState", textFieldState.text as String)
 
 //    val tabManager = remember { TabManager(context) }
@@ -2286,9 +2279,7 @@ fun BrowserScreen(
                     Log.i("CloseTab", "$indexToClose")
 
                     if (tabs.size > 1) {
-                        val tabToRemoveIndex = indexToClose
 
-                        val tabToRemove = tabToClose
                         recentlyClosedTabs.add(tabToClose)
                         val limit = browserSettings.closedTabHistorySize.roundToInt()
                         while (recentlyClosedTabs.size > limit) {
@@ -2296,15 +2287,15 @@ fun BrowserScreen(
                             recentlyClosedTabs.removeAt(0)
                         }
 
-                        webViewManager.destroyWebView(tabToRemove)
-                        tabs.removeAt(tabToRemoveIndex)
+                        webViewManager.destroyWebView(tabToClose)
+                        tabs.removeAt(indexToClose)
 
                         // Determine the next active tab
-                        if (tabToRemoveIndex == activeTabIndex.intValue) {
-                            val nextTabIndex = if (tabToRemoveIndex >= tabs.size) {
+                        if (indexToClose == activeTabIndex.intValue) {
+                            val nextTabIndex = if (indexToClose >= tabs.size) {
                                 tabs.lastIndex
                             } else {
-                                tabToRemoveIndex
+                                indexToClose
                             }
 
 
@@ -2317,8 +2308,8 @@ fun BrowserScreen(
 //
 //                    activeWebView?.loadUrl(urlToLoad)
                         } else
-                            if (tabToRemoveIndex < activeTabIndex.intValue) {
-                                activeTabIndex.intValue = activeTabIndex.intValue - 1
+                            if (indexToClose < activeTabIndex.intValue) {
+                                activeTabIndex.intValue -= 1
                             }
 
 
@@ -2780,7 +2771,7 @@ fun BrowserScreen(
             // C. Update the UI state
             suggestions.clear()
             if (textFieldState.text.isNotEmpty())
-            suggestions.addAll(finalSuggestions.take(10)) // Limit to a reasonable number
+                suggestions.addAll(finalSuggestions.take(10)) // Limit to a reasonable number
         } else {
             suggestions.clear()
         }
@@ -2946,7 +2937,6 @@ fun BrowserScreen(
     LaunchedEffect(activeWebView) {
         activeWebView?.let { webView ->
 
-            val tab = activeTab
             val jsFaviconDiscovery = """
         (function() {
             let icon = document.querySelector("link[rel='apple-touch-icon']") ||
@@ -2960,7 +2950,7 @@ fun BrowserScreen(
             webViewManager.setWebViewClients(
                 browserSettings = browserSettings,
                 webView = webView,
-                tab = tab, // Pass the active tab
+                tab = activeTab, // Pass the active tab
                 siteSettingsManager = siteSettingsManager,
                 siteSettings = siteSettings,
                 onFaviconChanged = { tabId, faviconUrl ->
@@ -2975,7 +2965,7 @@ fun BrowserScreen(
                     if (faviconUrl.isNotBlank()) {
                         Log.d(
                             "Favicon",
-                            "Update new favicon for ${tab.currentURL} to $faviconUrl"
+                            "Update new favicon for ${activeTab.currentURL} to $faviconUrl"
                         )
 
 
@@ -2984,7 +2974,7 @@ fun BrowserScreen(
                     } else {
                         Log.d(
                             "FaviconUpdate",
-                            "Skipping favicon update for ${tab.currentURL}. An icon already exists or the new one is invalid."
+                            "Skipping favicon update for ${activeTab.currentURL}. An icon already exists or the new one is invalid."
                         )
                     }
                 },
@@ -2995,7 +2985,7 @@ fun BrowserScreen(
                 },
                 onPermissionRequest = { request -> pendingPermissionRequest = request },
                 setCustomViewCallback = { callback -> customViewCallback = callback },
-                setOriginalOrientation = { orientation -> originalOrientation = orientation },
+                setOriginalOrientation = { _ -> },
                 resetCustomView = {
                     activity?.requestedOrientation = originalOrientation
 
@@ -3009,7 +2999,7 @@ fun BrowserScreen(
                     insetsController?.hide(WindowInsetsCompat.Type.systemBars())
                     customViewCallback = null
                 },
-                onPageStartedFun = { view, url, favicon ->
+                onPageStartedFun = { _, url, _ ->
                     pendingPermissionRequest?.let { request ->
                         // Check if the new URL's host is DIFFERENT from the origin of the permission request.
                         val newHost = url?.toUri()?.host
@@ -3058,7 +3048,7 @@ fun BrowserScreen(
                     }
 
                 },
-                onDoUpdateVisitedHistoryFun = { view, url, isReload ->
+                onDoUpdateVisitedHistoryFun = { view, url, _ ->
 //                    Log.i("doUpdateVisitedHistory", "<<<<<<<<<<<<<<<<")
 //                    Log.i("doUpdateVisitedHistory", "<<<<<<<<<<<<<<<<")
 //                    Log.i("doUpdateVisitedHistory", "URL updated: $url")
@@ -3367,7 +3357,7 @@ fun BrowserScreen(
                         Toast.makeText(context, "Download failed", Toast.LENGTH_LONG).show()
                     }
                 },
-                onDownloadRequested = { url, userAgent, contentDisposition, mimeType, contentLength ->
+                onDownloadRequested = { url, userAgent, contentDisposition, mimeType, _ ->
 
                     if (!isUrlBarVisible) isUrlBarVisible = true
                     if (!isDownloadPanelVisible) isDownloadPanelVisible = true
@@ -3577,7 +3567,6 @@ fun BrowserScreen(
             val urlToLoad = browserSettings.defaultUrl
 //            activeWebView?.loadUrl(urlToLoad)
             webViewLoad(activeWebView, urlToLoad, browserSettings)
-            initialLoadDone = true
 
         }
     }
@@ -3671,6 +3660,7 @@ fun BrowserScreen(
                     ) {
 
 
+                        @Suppress("COMPOSE_APPLIER_CALL_MISMATCH")
                         AndroidView(
                             // The factory now ONLY creates the container. It's simple.
                             factory = { context ->
@@ -4235,6 +4225,7 @@ fun BrowserScreen(
 
         // This appears on top of everything when customView is not null.
         if (customView != null) {
+            @Suppress("COMPOSE_APPLIER_CALL_MISMATCH")
             AndroidView(
                 factory = { customView!! as ViewGroup },
                 // This onRelease block is the KEY to preventing the crash.
@@ -4728,6 +4719,8 @@ fun BottomPanel(
                             val isUrl = try {
                                 Patterns.WEB_URL.matcher(input).matches() ||
                                         (input.contains(".") && !input.contains(" "))
+                                        && !input.endsWith(".")
+                                        && !input.startsWith(".")
                             } catch (_: Exception) {
                                 false
                             }
@@ -4754,52 +4747,6 @@ fun BottomPanel(
                             setIsFocusOnTextField(false)
 
                         },
-//                        keyboardActions = KeyboardActions(
-//                            onGo = {
-//                                val input = textFieldValue.text.trim()
-//                                val resetUrl = activeWebView?.url ?: ""
-//
-//                                if (input.isBlank()) {
-//                                    changeTextFieldValue(
-//                                        TextFieldValue(
-//                                            resetUrl,
-//                                            TextRange(resetUrl.length)
-//                                        )
-//                                    )
-//                                    focusManager.clearFocus()
-//                                    keyboardController?.hide()
-//                                    return@KeyboardActions
-//                                }
-//                                val isUrl = try {
-//                                    Patterns.WEB_URL.matcher(input).matches() ||
-//                                            (input.contains(".") && !input.contains(" "))
-//                                } catch (_: Exception) {
-//                                    false
-//                                }
-//
-//                                val finalUrl = if (isUrl) {
-//                                    if (input.startsWith("http://") || input.startsWith("https://")) {
-//                                        input
-//                                    } else {
-//                                        "https://$input"
-//                                    }
-//                                } else {
-//                                    val encodedQuery =
-//                                        URLEncoder.encode(
-//                                            input,
-//                                            StandardCharsets.UTF_8.toString()
-//                                        )
-//                                    "https://www.google.com/search?q=$encodedQuery"
-//                                }
-//
-//                                onNewUrl(finalUrl)
-//
-//                                focusManager.clearFocus()
-//                                keyboardController?.hide()
-//
-//                            }
-//                        ),
-//                        shape = CircleShape,
                         shape = RoundedCornerShape(
                             cornerRadiusForLayer(
                                 2,
@@ -5017,7 +4964,7 @@ fun BottomPanel(
                                 activeWebView?.canGoForward()
                             ) {
                                 // 1. CAPTURE the CoroutineScope provided by pointerInput
-                                val coroutineScope = CoroutineScope(coroutineContext)
+                                val coroutineScope = CoroutineScope(currentCoroutineContext())
                                 awaitEachGesture {
                                     val down = awaitFirstDown(requireUnconsumed = false)
 
@@ -5047,10 +4994,10 @@ fun BottomPanel(
                                             var verticalDragAccumulator = 0f
                                             var previousAction = GestureNavAction.REFRESH
                                             val horizontalDragThreshold =
-                                                with(density) { 40.dp.toPx() }
+                                                40.dp.toPx()
 
                                             val verticalCancelThreshold =
-                                                with(density) { -40.dp.toPx() }
+                                                -40.dp.toPx()
 
 
                                             drag(drag.id) { change ->
@@ -5106,10 +5053,10 @@ fun BottomPanel(
                                             var verticalDragAccumulator = 0f
 //                                            var previousAction = GestureNavAction.REFRESH
                                             val horizontalDragThreshold =
-                                                with(density) { 40.dp.toPx() }
+                                                40.dp.toPx()
 
                                             val verticalCancelThreshold =
-                                                with(density) { -40.dp.toPx() }
+                                                -40.dp.toPx()
 
 
                                             drag(drag.id) { change ->
@@ -5216,7 +5163,7 @@ fun BottomPanel(
                 isVisible = isFocusOnTextField && textFieldState.text.isBlank(),
                 browserSettings = browserSettings,
                 onCopyClick = {
-                    val clipData = ClipData.newPlainText("url",activeWebView?.url ?: "")
+                    val clipData = ClipData.newPlainText("url", activeWebView?.url ?: "")
 
                     clipboard.nativeClipboard.setPrimaryClip(clipData)
 
@@ -5226,7 +5173,7 @@ fun BottomPanel(
                     urlBarFocusRequester.requestFocus()
                     keyboardController?.show()
                 }
-            ) 
+            )
         }
 
     }
@@ -5267,8 +5214,7 @@ fun PermissionPanel(
         )
     ) {
 
-        val currentRequest = requestToShow
-        if (currentRequest == null) return@AnimatedVisibility
+        val currentRequest = requestToShow ?: return@AnimatedVisibility
 
         Column(
             modifier = Modifier
@@ -5582,7 +5528,7 @@ fun OptionsPanel(
                 )
                 .pointerInput(Unit) {
                     detectVerticalDragGestures(
-                        onVerticalDrag = { change, dragAmount ->
+                        onVerticalDrag = { _, dragAmount ->
                             // dragAmount is the change in the Y-axis.
                             // A negative value means the finger has moved UP.
                             if (dragAmount < 0) {
@@ -5649,7 +5595,7 @@ fun OptionsPanel(
                                 )
                                 .pointerInput(Unit) {
                                     // 1. CAPTURE the CoroutineScope provided by pointerInput
-                                    val coroutineScope = CoroutineScope(coroutineContext)
+                                    val coroutineScope = CoroutineScope(currentCoroutineContext())
                                     awaitEachGesture {
                                         val down = awaitFirstDown(requireUnconsumed = false)
 
@@ -5968,7 +5914,7 @@ fun PromptPanel(
                                 browserSettings.padding,
                                 browserSettings.singleLineHeight
                             )
-                                .weight(1f)
+                                .weight(1f),
 //                                .border(
 //                                    1.dp, Color.White, shape = RoundedCornerShape(
 //                                        cornerRadiusForLayer(
@@ -5978,7 +5924,6 @@ fun PromptPanel(
 //                                        ).dp
 //                                    )
 //                                )
-                            ,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Color.Black
                             ),
@@ -7674,8 +7619,7 @@ fun ConfirmationPanel(
                         browserSettings.padding,
                         browserSettings.singleLineHeight,
                     )
-                        .weight(1f)
-                      ,
+                        .weight(1f),
                     shape = RoundedCornerShape(
                         cornerRadiusForLayer(
                             2,
@@ -8320,7 +8264,9 @@ fun SettingsPanel(
                                         )
                                         .pointerInput(Unit) {
                                             // 1. CAPTURE the CoroutineScope provided by pointerInput
-                                            val coroutineScope = CoroutineScope(coroutineContext)
+                                            val coroutineScope = CoroutineScope(
+                                                currentCoroutineContext()
+                                            )
                                             awaitEachGesture {
                                                 val down = awaitFirstDown(requireUnconsumed = false)
 
@@ -8392,7 +8338,7 @@ fun SettingsPanel(
                         steps = 5999,
                         currentSettingOriginalValue = browserSettings.deviceCornerRadius,
                         textFieldValueFun = { src ->
-                            src.substring(0, 2) + "." + src.substring(2, 4)
+                            src.take(2) + "." + src.substring(2, 4)
                         },
                         iconID = R.drawable.ic_adjust_corner_radius,
                     )
@@ -8484,7 +8430,7 @@ fun SettingsPanel(
                         steps = 29,
                         currentSettingOriginalValue = browserSettings.cursorTrackingSpeed,
                         textFieldValueFun = { src ->
-                            src.substring(1, 2) + "." + src.substring(2, 4)
+                            src[1] + "." + src.substring(2, 4)
                         },
                         iconID = R.drawable.ic_cursor_speed,
                         digitCount = 4,
@@ -9203,9 +9149,23 @@ fun UrlEditPanel(
 ) {
     AnimatedVisibility(
         visible = isVisible,
-        enter = expandVertically(animationSpec = tween(animationSpeedForLayer(2, browserSettings.animationSpeed))) +
+        enter = expandVertically(
+            animationSpec = tween(
+                animationSpeedForLayer(
+                    2,
+                    browserSettings.animationSpeed
+                )
+            )
+        ) +
                 fadeIn(tween(animationSpeedForLayer(2, browserSettings.animationSpeed))),
-        exit = shrinkVertically(animationSpec = tween(animationSpeedForLayer(2, browserSettings.animationSpeed))) +
+        exit = shrinkVertically(
+            animationSpec = tween(
+                animationSpeedForLayer(
+                    2,
+                    browserSettings.animationSpeed
+                )
+            )
+        ) +
                 fadeOut(tween(animationSpeedForLayer(2, browserSettings.animationSpeed)))
     ) {
         Row(
@@ -9223,8 +9183,7 @@ fun UrlEditPanel(
                         ).dp
                     )
                 )
-                .padding(browserSettings.padding.dp)
-            ,
+                .padding(browserSettings.padding.dp),
             horizontalArrangement = Arrangement.spacedBy(browserSettings.padding.dp)
         ) {
             // Copy Button
