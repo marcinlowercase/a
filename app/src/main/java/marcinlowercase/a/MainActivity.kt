@@ -180,6 +180,7 @@ import androidx.compose.ui.platform.SoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -296,7 +297,13 @@ const val JS_INJECT_CORNER_RADIUS = """
 
 //region Global Functions
 
-
+fun String.toDomain(): String = try {
+    java.net.URL(this).host?.let {
+        if (it.startsWith("www.", ignoreCase = true)) it.substring(4) else it
+    } ?: this
+} catch (e: Exception) {
+    this
+}
 
 fun addToHomeScreen(
     context: Context,
@@ -1850,7 +1857,7 @@ fun BrowserScreen(
 
                         initialLoadDone = true
                         this.url?.let { restoredUrl ->
-                            textFieldState.setTextAndPlaceCursorAtEnd(restoredUrl)
+                            textFieldState.setTextAndPlaceCursorAtEnd(restoredUrl.toDomain())
 //                            textFieldValue =
 //                                TextFieldValue(restoredUrl, TextRange(restoredUrl.length))
                         }
@@ -2212,7 +2219,7 @@ fun BrowserScreen(
                     webViewToNavigate.goBackOrForward(stepsToNavigate)
 
                     val newUrl = webViewToNavigate.url ?: ""
-                    textFieldState.setTextAndPlaceCursorAtEnd(newUrl)
+                    textFieldState.setTextAndPlaceCursorAtEnd(newUrl.toDomain())
 //                    textFieldValue = TextFieldValue(newUrl, TextRange(newUrl.length))
 
                 }
@@ -2478,7 +2485,7 @@ fun BrowserScreen(
 
 
 //        textFieldValue = TextFieldValue(url, TextRange(url.length))
-        textFieldState.setTextAndPlaceCursorAtEnd(url)
+        textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
         saveTrigger++
 
 
@@ -2528,7 +2535,7 @@ fun BrowserScreen(
                     val urlToLoad = webViewManager.getWebView(tabs[nextTabIndex]).url
                         ?: browserSettings.defaultUrl
                     webViewLoad(activeWebView, urlToLoad, browserSettings)
-                    textFieldState.setTextAndPlaceCursorAtEnd(urlToLoad)
+                    textFieldState.setTextAndPlaceCursorAtEnd(urlToLoad.toDomain())
                     saveTrigger++
                 } else {
 
@@ -3057,7 +3064,7 @@ fun BrowserScreen(
 //                    Log.i("doUpdateVisitedHistory", "URL updated: $url")
 //                    Log.i("doUpdateVisitedHistory", "isReload: $isReload")
                     if (!isFocusOnTextField) view.url?.let {
-                        textFieldState.setTextAndPlaceCursorAtEnd(it)
+                        textFieldState.setTextAndPlaceCursorAtEnd(it.toDomain())
                     }
                     if (url != null && activeTab.currentURL != url) {
                         tabs[activeTabIndex.intValue] =
@@ -3849,7 +3856,7 @@ fun BrowserScreen(
                         val urlToLoad = webViewManager.getWebView(tabs[newIndex]).url
                             ?: browserSettings.defaultUrl
 //                        activeWebView?.loadUrl(urlToLoad)
-                        textFieldState.setTextAndPlaceCursorAtEnd(urlToLoad)
+                        textFieldState.setTextAndPlaceCursorAtEnd(urlToLoad.toDomain())
                         saveTrigger++
 
                         inspectingTabId = tabs[newIndex].id
@@ -4664,7 +4671,7 @@ fun BottomPanel(
                                         setIsNavPanelVisible(savedState.nav)
                                         setSavedPanelState(null) // Clear the saved state
                                     }
-                                    textFieldState.setTextAndPlaceCursorAtEnd(resetUrl)
+                                    textFieldState.setTextAndPlaceCursorAtEnd(resetUrl.toDomain())
 
 
                                     setIsUrlOverlayBoxVisible(true)
@@ -4675,7 +4682,7 @@ fun BottomPanel(
                                     if (dragAmount > 0) {
                                         val resetUrl =
                                             activeWebView?.url ?: ""
-                                        textFieldState.setTextAndPlaceCursorAtEnd(resetUrl)
+                                        textFieldState.setTextAndPlaceCursorAtEnd(resetUrl.toDomain())
 //                                        changeTextFieldValue(
 //                                            TextFieldValue(
 //                                                resetUrl,
@@ -4695,6 +4702,10 @@ fun BottomPanel(
                                 )
                             ),
                         state = textFieldState,
+                        textStyle = LocalTextStyle.current.copy(
+//                            fontFamily = FontFamily.Monospace,
+                            textAlign = if (isFocusOnTextField) TextAlign.Start else TextAlign.Center
+                        ),
 //                        state = rememberTextFieldState("Hello"),
                         lineLimits = TextFieldLineLimits.SingleLine,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
@@ -4707,7 +4718,7 @@ fun BottomPanel(
                                 Log.e("TextFieldState", "input empty, reload")
 
                                 activeWebView?.reload()
-                                textFieldState.setTextAndPlaceCursorAtEnd(resetUrl)
+                                textFieldState.setTextAndPlaceCursorAtEnd(resetUrl.toDomain())
                                 focusManager.clearFocus()
                                 keyboardController?.hide()
                                 setIsFocusOnTextField(false)
