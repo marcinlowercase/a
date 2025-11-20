@@ -895,98 +895,7 @@ class CustomWebView(context: Context) : WebView(context) {
         // clicking, and other gestures normally.
         return super.onTouchEvent(event)
     }
-//
-//
-//    override fun startActionMode(
-//        callback: ActionMode.Callback,
-//        type: Int
-//    ): ActionMode? {
-//        // Create a custom callback that does just enough to keep the mode alive
-//        // for text highlighting, but never shows a menu.
-//        val customCallback = object : ActionMode.Callback {
-//            /**
-//             * MUST return true. This tells the system to create the ActionMode,
-//             * which is what enables the text highlighting.
-//             */
-//            override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
-//                callback.onCreateActionMode(mode, menu)
-//                return true
-//            }
-//
-//            /**
-//
-//             * This is the key. By returning false, we tell the system "Don't
-//             * prepare or show the menu UI". The mode stays active in the background,
-//             * but the user never sees the floating toolbar.
-//             */
-//            override fun onPrepareActionMode(mode: ActionMode, menu: Menu): Boolean {
-//                // Let the default callback prepare the menu.
-//                callback.onPrepareActionMode(mode, menu)
-//
-//                // --- OUR CUSTOM LOGIC STARTS HERE ---
-//
-//                var translateItem: MenuItem? = null
-//                var itemIndex = -1
-//
-//                // 1. Find the "Translate" item
-//                for (i in 0 until menu.size()) {
-//                    val item = menu[i]
-//                    if (item.title.toString().equals("Translate", ignoreCase = true)) {
-//                        translateItem = item
-//                        itemIndex = i
-//                        break // Stop searching once we've found it
-//                    }
-//                }
-//
-//                // 2. If we found it, move it to the front
-//                if (translateItem != null) {
-//                    // a. Store all of its original properties
-//                    val originalTitle: CharSequence? = translateItem.title
-//                    val originalIcon: Drawable? = translateItem.icon
-//                    val originalIntent: Intent? = translateItem.intent
-//                    val originalGroupId: Int = translateItem.groupId
-//                    val originalItemId: Int = translateItem.itemId
-//
-//                    // b. Remove the item from its original position
-//                    menu.removeItem(originalItemId)
-//
-//                    // c. Re-add the item at the very beginning of the menu
-//                    val newTranslateItem = menu.add(
-//                        originalGroupId,
-//                        originalItemId,
-//                        Menu.FIRST, // This is the key to forcing it to the front
-//                        originalTitle
-//                    )
-//
-//                    // d. Restore its original intent and icon
-//                    newTranslateItem.intent = originalIntent
-//                    newTranslateItem.icon = originalIcon
-//                }
-//
-//                // --- OUR CUSTOM LOGIC ENDS HERE ---
-//
-//                // **CRUCIAL**: Return true to allow the system to draw the
-//                // now-modified menu. Returning false would hide it.
-//                return true
-//            }
-//
-//            // These methods won't be called since there are no menu items,
-//            // but we must implement them.
-//            override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
-//                return callback.onActionItemClicked(mode, item)
-//            }
-//
-//            override fun onDestroyActionMode(mode: ActionMode) {
-//                // No action needed here. Our JavaScript handles hiding the
-//                // custom Compose menu when the user clicks away.
-//                callback.onDestroyActionMode(mode)
-//
-//            }
-//        }
-//
-//        // We start the action mode, but we pass OUR custom callback, not the original one.
-//        return super.startActionMode(callback, type)
-//    }
+
 }
 
 class WebViewManager(private val context: Context) {
@@ -4757,6 +4666,8 @@ fun BottomPanel(
                         colors = TextFieldDefaults.colors(
                             focusedContainerColor = Color.Black,
                             unfocusedContainerColor = Color.Black,
+//                            focusedContainerColor = MaterialTheme.colorScheme.onPrimary,
+//                            unfocusedContainerColor = MaterialTheme.colorScheme.onPrimary,
                             cursorColor = Color.White,
                             focusedTextColor = Color.White,
                             unfocusedTextColor = Color.White,
@@ -4768,174 +4679,6 @@ fun BottomPanel(
                             errorIndicatorColor = Color.Transparent
                         ),
                     )
-//                    TextField(
-//                        modifier = Modifier
-//                            .height(
-//                                heightForLayer(
-//                                    1,
-//                                    browserSettings.deviceCornerRadius,
-//                                    browserSettings.padding,
-//                                    browserSettings.singleLineHeight,
-//                                ).dp
-//                            )
-//                            .padding(browserSettings.padding.dp)
-//                            .onSizeChanged { size ->
-//                                setTextFieldHeightPx(size.height)
-//                            }
-//                            .fillMaxWidth()
-//                            .focusRequester(urlBarFocusRequester)
-//                            //                            .padding(horizontal = browserSettings.padding.dp, vertical = browserSettings.padding.dp / 2)
-//                            .onFocusChanged {
-//                                val resetUrl = activeWebView?.url ?: ""
-//                                setIsFocusOnTextField(it.isFocused)
-//                                if (it.isFocused) {
-//                                    setSavedPanelState(
-//                                        PanelVisibilityState(
-//                                            options = isOptionsPanelVisible,
-//                                            tabs = isTabsPanelVisible,
-//                                            downloads = isDownloadPanelVisible,
-//                                            tabData = isTabDataPanelVisible,
-//                                            nav = isNavPanelVisible
-//                                        )
-//                                    )
-//                                    setIsOptionsPanelVisible(false)
-//                                    setIsTabsPanelVisible(false)
-//                                    setIsDownloadPanelVisible(false)
-//                                    setIsTabDataPanelVisible(false)
-//                                    setIsNavPanelVisible(false)
-//                                    setIsSettingsPanelVisible(false)
-//
-//                                    val text = textFieldValue.text
-//                                    changeTextFieldValue(
-//                                        textFieldValue.copy(text = "hello",selection = TextRange(0, text.length))
-//                                    )
-////                                    if (textFieldValue.text == resetUrl) {
-////
-////                                        changeTextFieldValue(TextFieldValue("", TextRange(0)))
-////                                    }
-//                                } else {
-//
-//                                    savedPanelState?.let { savedState ->
-//                                        setIsOptionsPanelVisible(savedState.options)
-//                                        setIsTabsPanelVisible(savedState.tabs)
-//                                        setIsDownloadPanelVisible(savedState.downloads)
-//                                        setIsTabDataPanelVisible(savedState.tabData)
-//                                        setIsNavPanelVisible(savedState.nav)
-//                                        setSavedPanelState(null) // Clear the saved state
-//                                    }
-//
-//                                    if (textFieldValue.text.isBlank()) {
-//                                        changeTextFieldValue(
-//                                            TextFieldValue(
-//                                                resetUrl,
-//                                                TextRange(resetUrl.length)
-//                                            )
-//                                        )
-//                                    }
-//                                    setIsUrlOverlayBoxVisible(true)
-//                                }
-//                            }
-//                            .pointerInput(Unit) {
-//                                detectHorizontalDragGestures { _, dragAmount ->
-//                                    if (dragAmount > 0) {
-//                                        val resetUrl =
-//                                            activeWebView?.url ?: ""
-//                                        changeTextFieldValue(
-//                                            TextFieldValue(
-//                                                resetUrl,
-//                                                selection = TextRange(resetUrl.length)
-//                                            )
-//                                        )
-//                                    }
-//                                }
-//                            }
-//                            .clip(
-//                                RoundedCornerShape(
-//                                    cornerRadiusForLayer(
-//                                        2,
-//                                        browserSettings.deviceCornerRadius,
-//                                        browserSettings.padding
-//                                    ).dp
-//                                )
-//                            ),
-//                        value = textFieldValue.text,
-//                        onValueChange = { newValue ->
-//                            changeTextFieldValue(
-//                                TextFieldValue(
-//                                    newValue,
-//                                    selection = TextRange(newValue.length)
-//                                )
-//                            )
-//                        },
-//                        singleLine = true,
-//                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
-//                        keyboardActions = KeyboardActions(
-//                            onGo = {
-//                                val input = textFieldValue.text.trim()
-//                                val resetUrl = activeWebView?.url ?: ""
-//
-//                                if (input.isBlank()) {
-//                                    changeTextFieldValue(
-//                                        TextFieldValue(
-//                                            resetUrl,
-//                                            TextRange(resetUrl.length)
-//                                        )
-//                                    )
-//                                    focusManager.clearFocus()
-//                                    keyboardController?.hide()
-//                                    return@KeyboardActions
-//                                }
-//                                val isUrl = try {
-//                                    Patterns.WEB_URL.matcher(input).matches() ||
-//                                            (input.contains(".") && !input.contains(" "))
-//                                } catch (_: Exception) {
-//                                    false
-//                                }
-//
-//                                val finalUrl = if (isUrl) {
-//                                    if (input.startsWith("http://") || input.startsWith("https://")) {
-//                                        input
-//                                    } else {
-//                                        "https://$input"
-//                                    }
-//                                } else {
-//                                    val encodedQuery =
-//                                        URLEncoder.encode(
-//                                            input,
-//                                            StandardCharsets.UTF_8.toString()
-//                                        )
-//                                    "https://www.google.com/search?q=$encodedQuery"
-//                                }
-//
-//                                onNewUrl(finalUrl)
-//
-//                                focusManager.clearFocus()
-//                                keyboardController?.hide()
-//
-//                            }
-//                        ),
-////                        shape = CircleShape,
-//                        shape = RoundedCornerShape(
-//                            cornerRadiusForLayer(
-//                                2,
-//                                browserSettings.deviceCornerRadius,
-//                                browserSettings.padding
-//                            ).dp
-//                        ),
-//                        colors = TextFieldDefaults.colors(
-//                            focusedContainerColor = Color.Black,
-//                            unfocusedContainerColor = Color.Black,
-//                            cursorColor = Color.White,
-//                            focusedTextColor = Color.White,
-//                            unfocusedTextColor = Color.White,
-//
-//                            // 3. This is the key to removing the underline
-//                            focusedIndicatorColor = Color.Transparent,
-//                            unfocusedIndicatorColor = Color.Transparent,
-//                            disabledIndicatorColor = Color.Transparent,
-//                            errorIndicatorColor = Color.Transparent
-//                        ),
-//                    )
 
                     if (isUrlOverlayBoxVisible) Box(
                         modifier = Modifier
@@ -5005,6 +4748,8 @@ fun BottomPanel(
                                                 horizontalDragAccumulator += change.position.x - change.previousPosition.x
                                                 verticalDragAccumulator += change.position.y - change.previousPosition.y
 
+
+
                                                 val newAction = when {
                                                     verticalDragAccumulator < verticalCancelThreshold -> {
                                                         when {
@@ -5064,6 +4809,8 @@ fun BottomPanel(
                                                 horizontalDragAccumulator += change.position.x - change.previousPosition.x
                                                 verticalDragAccumulator += change.position.y - change.previousPosition.y
 
+                                                Log.i("DragTest", "horizontalDragAccumulator : $horizontalDragAccumulator")
+                                                Log.i("DragTest", "verticalDragAccumulator : $verticalDragAccumulator")
                                                 when {
                                                     horizontalDragAccumulator < -horizontalDragThreshold -> { // left
                                                         Log.e("BotHDrag", "left")
