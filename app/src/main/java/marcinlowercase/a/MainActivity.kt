@@ -1,5 +1,9 @@
 package marcinlowercase.a
-
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
+import kotlin.math.sqrt
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
@@ -56,6 +60,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -130,6 +135,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.derivedStateOf
@@ -586,6 +592,7 @@ private enum class SettingPanelView {
     ANIMATION_SPEED,
     CURSOR_CONTAINER_SIZE,
     CURSOR_TRACKING_SPEED,
+    BACK_SQUARE_OPACITY,
     DEFAULT_URL,
     INFO,
     CLOSED_TAB_HISTORY_SIZE,
@@ -740,6 +747,10 @@ data class BrowserSettings(
     val cursorTrackingSpeed: Float,
     val showSuggestions: Boolean,
     val closedTabHistorySize: Float,
+
+    val backSquareOffsetX: Float = 0f,
+    val backSquareOffsetY: Float = 0f,
+    val backSquareIdleOpacity: Float = 0.2f,
 
     )
 
@@ -1680,7 +1691,10 @@ fun BrowserScreen(
                 cursorPointerSize = sharedPrefs.getFloat("cursor_pointer_size", 5f),
                 cursorTrackingSpeed = sharedPrefs.getFloat("cursor_tracking_speed", 1.75f),
                 showSuggestions = sharedPrefs.getBoolean("show_suggestions", false),
-                closedTabHistorySize = sharedPrefs.getFloat("closed_tab_history_size", 2f)
+                closedTabHistorySize = sharedPrefs.getFloat("closed_tab_history_size", 2f),
+                backSquareOffsetX = sharedPrefs.getFloat("back_square_offset_x", -1f), // Use -1f as a flag for "not set"
+                backSquareOffsetY = sharedPrefs.getFloat("back_square_offset_y", -1f),
+                backSquareIdleOpacity = sharedPrefs.getFloat("back_square_idle_opacity", 0.2f),
             )
         )
     }
@@ -1936,7 +1950,6 @@ fun BrowserScreen(
         }
     )
 
-    var squareAlignment by remember { mutableStateOf(Alignment.BottomEnd) }
     val squareAlpha = remember { Animatable(0f) }
 
     //  hold the currently active dialog
@@ -2014,7 +2027,15 @@ fun BrowserScreen(
     // 2. Update the suggestions state to use the new data class
     val suggestions = remember { mutableStateListOf<Suggestion>() }
 
-    //endregion
+    val initialX = if (browserSettings.backSquareOffsetX != -1f) browserSettings.backSquareOffsetX else 0f
+    val initialY = if (browserSettings.backSquareOffsetY != -1f) browserSettings.backSquareOffsetY else 0f
+
+    val backSquareOffsetX = remember { Animatable(initialX) }
+    val backSquareOffsetY = remember { Animatable(initialY) }
+    var isBackSquareInitialized by remember {
+        mutableStateOf(browserSettings.backSquareOffsetX != -1f)
+    }
+    //endregionf
 
     //region Functions
 
@@ -2579,6 +2600,22 @@ fun BrowserScreen(
 
 
     //region LaunchedEffect
+
+
+    LaunchedEffect(screenSize) {
+        if (screenSize.width > 0 && !isBackSquareInitialized) {
+            val buttonSize = with(density) {
+                heightForLayer(1, browserSettings.deviceCornerRadius, browserSettings.padding, browserSettings.singleLineHeight).dp.toPx()
+            }
+
+            val defaultX = screenSize.width - buttonSize - with(density) { browserSettings.padding.dp.toPx() }
+            val defaultY = screenSize.height - buttonSize - with(density) { browserSettings.padding.dp.toPx()  }
+
+            backSquareOffsetX.snapTo(defaultX)
+            backSquareOffsetY.snapTo(defaultY)
+            isBackSquareInitialized = true
+        }
+    }
 
     LaunchedEffect(textFieldState.text, isFocusOnTextField) {
 
@@ -3382,38 +3419,68 @@ fun BrowserScreen(
     }
 
 
-    suspend fun triggerBlinkEffect() {
-        squareAlpha.snapTo(0.7f)
+    suspend fun hideBackSquare(blinkEffect: Boolean = true) {
+        val idle = browserSettings.backSquareIdleOpacity
+       if ( blinkEffect) {
+           val peak = 1f
 
-        // b. Wait a moment so the user can see it before it blinks.
-        delay(400)
+           squareAlpha.animateTo(peak)
 
-        // c. Blink twice.
-        repeat(2) {
-            // Fade out
-            squareAlpha.animateTo(0f, animationSpec = tween(durationMillis = 300))
-            // Fade back in
-            squareAlpha.animateTo(0.7f, animationSpec = tween(durationMillis = 300))
+           // b. Wait a moment so the user can see it before it blinks.
+           delay(400)
+
+           // c. Blink twice.
+           repeat(2) {
+               squareAlpha.animateTo(idle, animationSpec = tween(300))
+               squareAlpha.animateTo(peak, animationSpec = tween(300))
+           }
+
+       } else {
+           delay(200)
+       }
+        squareAlpha.animateTo(idle, animationSpec = tween(400))
+
+    }
+
+    DisposableEffect(Unit) {
+        val shakeDetector = ShakeDetector(context) {
+            // This code runs when a shake is detected
+            coroutineScope.launch {
+                // Only trigger if the URL bar isn't already visible to avoid conflicts
+                if (!isBottomPanelVisible) {
+                    hideBackSquare()
+                }
+            }
         }
-        squareAlpha.animateTo(0f, animationSpec = tween(durationMillis = 400))
 
+        shakeDetector.start()
+
+        // Clean up when the Composable is destroyed (e.g. app closed)
+        onDispose {
+            shakeDetector.stop()
+        }
     }
     LaunchedEffect(pendingPermissionRequest) {
         Log.i("Permission Panel", "pendingPermissionRequest: $pendingPermissionRequest")
         isPermissionPanelVisible = pendingPermissionRequest != null
     }
     // This effect will re-launch whenever isBottomPanelVisible changes.
-    LaunchedEffect(isBottomPanelVisible, squareAlignment) {
+    LaunchedEffect(isBottomPanelVisible) {
         if (!isBottomPanelVisible) {
             // -- The URL bar has just been hidden. Start the "show and blink" sequence. --
 
             // a. Instantly appear with 0.6 opacity.
-            if (!isCursorMode) triggerBlinkEffect()
+            if (!isCursorMode) hideBackSquare()
 
             // d. After blinking, fade out completely.
         } else {
             // -- The URL bar is visible. Ensure the square is fully transparent. --
-            squareAlpha.snapTo(0f)
+            hideBackSquare(false)
+        }
+    }
+    LaunchedEffect(browserSettings.backSquareIdleOpacity) {
+        if (!isBottomPanelVisible && !isCursorPadVisible) {
+            squareAlpha.animateTo(browserSettings.backSquareIdleOpacity)
         }
     }
     // This effect runs once and whenever isDarkTheme changes.
@@ -3497,6 +3564,10 @@ fun BrowserScreen(
             putFloat("cursor_tracking_speed", browserSettings.cursorTrackingSpeed)
             putBoolean("show_suggestions", browserSettings.showSuggestions)
             putFloat("closed_tab_history_size", browserSettings.closedTabHistorySize)
+            putFloat("back_square_offset_x", browserSettings.backSquareOffsetX)
+            putFloat("back_square_offset_y", browserSettings.backSquareOffsetY)
+            putFloat("back_square_idle_opacity", browserSettings.backSquareIdleOpacity)
+
 
 
         }
@@ -3847,41 +3918,43 @@ fun BrowserScreen(
                             "Screen Size: ${screenSize.width}x${screenSize.height} px | ${screenSizeDp.width}x${screenSizeDp.height} dp"
                         )
                     },
-                enter = slideInHorizontally(
-                    animationSpec = tween(
-                        animationSpeedForLayer(
-                            0,
-                            browserSettings.animationSpeed
-                        )
-                    ),
-                    initialOffsetX = { if (squareAlignment == Alignment.BottomEnd) it else (-it) }
-                ) + fadeIn(
-                    animationSpec = tween(
-                        animationSpeedForLayer(
-                            0,
-                            browserSettings.animationSpeed
-                        )
-                    )
-                ),
-                exit =
-                    slideOutHorizontally(
-                        animationSpec = tween(
-                            animationSpeedForLayer(
-                                0,
-                                browserSettings.animationSpeed
-                            )
-
-                        ),
-                        targetOffsetX = { if (squareAlignment == Alignment.BottomEnd) it else (-it) }
-                    )
-                            + fadeOut(
-                        animationSpec = tween(
-                            animationSpeedForLayer(
-                                0,
-                                browserSettings.animationSpeed
-                            )
-                        )
-                    )
+                enter = fadeIn(tween(browserSettings.animationSpeed.roundToInt())),
+                exit = fadeOut(tween(browserSettings.animationSpeed.roundToInt()))
+//                enter = slideInHorizontally(
+//                    animationSpec = tween(
+//                        animationSpeedForLayer(
+//                            0,
+//                            browserSettings.animationSpeed
+//                        )
+//                    ),
+//                    initialOffsetX = { if (squareAlignment == Alignment.BottomEnd) it else (-it) }
+//                ) + fadeIn(
+//                    animationSpec = tween(
+//                        animationSpeedForLayer(
+//                            0,
+//                            browserSettings.animationSpeed
+//                        )
+//                    )
+//                ),
+//                exit =
+//                    slideOutHorizontally(
+//                        animationSpec = tween(
+//                            animationSpeedForLayer(
+//                                0,
+//                                browserSettings.animationSpeed
+//                            )
+//
+//                        ),
+//                        targetOffsetX = { if (squareAlignment == Alignment.BottomEnd) it else (-it) }
+//                    )
+//                            + fadeOut(
+//                        animationSpec = tween(
+//                            animationSpeedForLayer(
+//                                0,
+//                                browserSettings.animationSpeed
+//                            )
+//                        )
+//                    )
             ) {
 
 
@@ -3898,9 +3971,25 @@ fun BrowserScreen(
                             browserSettings.singleLineHeight,
                         ).dp
 
+                    val squareBoxSize = heightForLayer(
+                        1,
+                        browserSettings.deviceCornerRadius,
+                        browserSettings.padding,
+                        browserSettings.singleLineHeight,
+                    ).dp
+
+                    val squareBoxSizePx = with(density) { squareBoxSize.toPx() }
+                    val paddingPx = with(density) { browserSettings.padding.dp.toPx() }
+
                     Box(
                         modifier = Modifier
-                            .align(squareAlignment)
+//                            .align(squareAlignment)
+                            .offset {
+                                IntOffset(
+                                    backSquareOffsetX.value.roundToInt(),
+                                    backSquareOffsetY.value.roundToInt()
+                                )
+                            }
 
                             .animateContentSize(
                                 tween(
@@ -3910,8 +3999,9 @@ fun BrowserScreen(
                                     )
                                 )
                             )
-                            .height(squareBoxSmallHeight)
-                            .width(screenSizeDp.width.dp * 0.45f)
+                            .size(squareBoxSize)
+//                            .height(squareBoxSmallHeight)
+//                            .width(screenSizeDp.width.dp * 0.45f)
                             .graphicsLayer {
                                 alpha = squareAlpha.value
                             }
@@ -3919,6 +4009,9 @@ fun BrowserScreen(
 
                                 if (!isCursorMode) awaitEachGesture {
                                     val down = awaitFirstDown(requireUnconsumed = false)
+                                    coroutineScope.launch {
+                                        squareAlpha.animateTo(1f)
+                                    }
 
                                     val longPressJob = coroutineScope.launch {
                                         delay(viewConfiguration.longPressTimeoutMillis)
@@ -3926,16 +4019,18 @@ fun BrowserScreen(
                                         isCursorPadVisible = true
                                         squareAlpha.snapTo(0f)
 
-                                        val initialCursorX =
-                                            if (squareAlignment == Alignment.BottomEnd) (
-                                                    screenSize.width - ((screenSize.width * 0.45f) + browserSettings.padding.dp.toPx()) + down.position.x
-                                                    )
-                                            else browserSettings.padding.dp.toPx() + down.position.x
+//
+//                                        val initialCursorX =
+//                                            if (squareAlignment == Alignment.BottomEnd) (
+//                                                    screenSize.width - ((screenSize.width * 0.45f) + browserSettings.padding.dp.toPx()) + down.position.x
+//                                                    )
+//                                            else browserSettings.padding.dp.toPx() + down.position.x
 
 
-                                        val initialCursorY =
-                                            screenSize.height - (squareBoxSmallHeight.toPx() - browserSettings.padding.dp.toPx()) + down.position.y - ((screenSize.height - cutoutTop.toPx()) / 2)
+                                        val initialCursorX = backSquareOffsetX.value + browserSettings.padding + down.position.x
 
+//                                        val initialCursorY = screenSize.height - (squareBoxSmallHeight.toPx() - browserSettings.padding.dp.toPx()) + down.position.y - ((screenSize.height - cutoutTop.toPx()) / 2)
+                                        val initialCursorY = ((screenSize.height - cutoutTop.toPx()) / 2) - (screenSize.height - backSquareOffsetY.value) + down.position.y + cutoutTop.toPx()
 
 
                                         cursorPointerPosition.value =
@@ -4017,7 +4112,7 @@ fun BrowserScreen(
                                         }
 
                                         coroutineScope.launch {
-                                            squareAlpha.snapTo(0f)
+                                           squareAlpha.animateTo(browserSettings.backSquareIdleOpacity)
                                         }
                                     } else {
                                         // --- TAP OR SHORT-DRAG PATH ---
@@ -4027,27 +4122,68 @@ fun BrowserScreen(
                                             var verticalDragAccumulator = 0f
                                             drag(drag.id) { change ->
                                                 change.consume()
-                                                horizontalDragAccumulator += change.position.x - change.previousPosition.x
-                                                verticalDragAccumulator += change.position.y - change.previousPosition.y
+                                                val newX = backSquareOffsetX.value + change.position.x - change.previousPosition.x
+                                                val newY = backSquareOffsetY.value + change.position.y - change.previousPosition.y
 
-                                                if (abs(horizontalDragAccumulator) > abs(
-                                                        verticalDragAccumulator
-                                                    )
-                                                ) {
-                                                    squareAlignment =
-                                                        if (horizontalDragAccumulator < 0) Alignment.BottomStart else Alignment.BottomEnd
-                                                } else {
-                                                    if (!isUrlBarVisible) {
-                                                        isUrlBarVisible = true
-                                                    }
+                                                coroutineScope.launch {
+                                                    backSquareOffsetX.snapTo(newX)
+                                                    backSquareOffsetY.snapTo(newY)
                                                 }
+
+
+//                                                horizontalDragAccumulator += change.position.x - change.previousPosition.x
+//                                                verticalDragAccumulator += change.position.y - change.previousPosition.y
+//
+//                                                if (abs(horizontalDragAccumulator) > abs(
+//                                                        verticalDragAccumulator
+//                                                    )
+//                                                ) {
+//                                                    squareAlignment =
+//                                                        if (horizontalDragAccumulator < 0) Alignment.BottomStart else Alignment.BottomEnd
+//                                                } else {
+//                                                    if (!isUrlBarVisible) {
+//                                                        isUrlBarVisible = true
+//                                                    }
+//                                                }
+                                            }
+
+                                            // --- SNAP LOGIC (Release) ---
+                                            val screenWidth = screenSize.width.toFloat()
+                                            val currentX = backSquareOffsetX.value
+
+                                            // Determine snap target (Left or Right edge)
+                                            val targetX = if (currentX + (squareBoxSizePx / 2) < screenWidth / 2) {
+                                                paddingPx // Snap Left
+                                            } else {
+                                                screenWidth - squareBoxSizePx - paddingPx // Snap Right
+                                            }
+
+                                            // Clamp Y to screen bounds
+                                            val targetY = backSquareOffsetY.value.coerceIn(
+                                                paddingPx,
+                                                screenSize.height.toFloat() - squareBoxSizePx - paddingPx
+                                            )
+
+                                            coroutineScope.launch {
+                                                // Animate snapping
+                                                launch { backSquareOffsetX.animateTo(targetX, spring()) }
+                                                launch { backSquareOffsetY.animateTo(targetY, spring()) }
+
+                                                updateBrowserSettings(
+                                                    browserSettings.copy(
+                                                        backSquareOffsetX = targetX,
+                                                        backSquareOffsetY = targetY
+                                                    )
+                                                )
+                                                // Fade out after snap
+                                                hideBackSquare(false)
                                             }
                                         } else {
                                             // TAP
                                             if (longPressJob.isActive) {
                                                 longPressJob.cancel()
                                                 coroutineScope.launch {
-                                                    triggerBlinkEffect()
+                                                    if (!isUrlBarVisible) isUrlBarVisible = true
                                                 }
                                             }
                                         }
@@ -4055,7 +4191,9 @@ fun BrowserScreen(
                                 }
                                 else awaitEachGesture {
                                     val down = awaitFirstDown(requireUnconsumed = false)
-
+                                    coroutineScope.launch {
+                                        squareAlpha.animateTo(1f)
+                                    }
 
                                     val drag = awaitTouchSlopOrCancellation(down.id) { change, _ ->
 
@@ -4068,34 +4206,30 @@ fun BrowserScreen(
                                         var verticalDragAccumulator = 0f
                                         drag(drag.id) { change ->
                                             change.consume()
-                                            horizontalDragAccumulator += change.position.x - change.previousPosition.x
-                                            verticalDragAccumulator += change.position.y - change.previousPosition.y
-
-                                            if (abs(horizontalDragAccumulator) > abs(
-                                                    verticalDragAccumulator
-                                                )
-                                            ) {
-                                                squareAlignment =
-                                                    if (horizontalDragAccumulator < 0) Alignment.BottomStart else Alignment.BottomEnd
-                                            } else {
-                                                if (!isUrlBarVisible) {
-                                                    isUrlBarVisible = true
-                                                }
-                                            }
+//                                            horizontalDragAccumulator += change.position.x - change.previousPosition.x
+//                                            verticalDragAccumulator += change.position.y - change.previousPosition.y
+//
+//                                            if (abs(horizontalDragAccumulator) > abs(
+//                                                    verticalDragAccumulator
+//                                                )
+//                                            ) {
+//                                                squareAlignment =
+//                                                    if (horizontalDragAccumulator < 0) Alignment.BottomStart else Alignment.BottomEnd
+//                                            } else {
+//                                                if (!isUrlBarVisible) {
+//                                                    isUrlBarVisible = true
+//                                                }
+//                                            }
                                         }
                                     } else {
                                         // TAP
                                         coroutineScope.launch {
-                                            triggerBlinkEffect()
+                                            if (!isUrlBarVisible) isUrlBarVisible = true
                                         }
                                     }
                                 }
                             }
-                            .padding(
-                                end = browserSettings.padding.dp,
-                                start = browserSettings.padding.dp, // Add start padding for when it's on the left
-                                bottom = browserSettings.padding.dp
-                            )
+
                             .clip(
                                 RoundedCornerShape(
                                     cornerRadiusForLayer(
@@ -7870,6 +8004,7 @@ fun SettingsPanel(
             ) {
                 currentView = SettingPanelView.CORNER_RADIUS
             },
+
             OptionItem(R.drawable.ic_link, "default url") {
                 currentView = SettingPanelView.DEFAULT_URL
             },
@@ -7888,6 +8023,9 @@ fun SettingsPanel(
             },
             OptionItem(R.drawable.ic_manage_history, "history size") {
                 currentView = SettingPanelView.CLOSED_TAB_HISTORY_SIZE
+            },
+            OptionItem(R.drawable.ic_opacity, "back square idle opacity") {
+                currentView = SettingPanelView.BACK_SQUARE_OPACITY
             },
 
             OptionItem(R.drawable.ic_reset_settings, "reset settings", false) {
@@ -8232,6 +8370,37 @@ fun SettingsPanel(
                         afterDecimal = false, // We are dealing with whole numbers
                         iconID = R.drawable.ic_history,
                         digitCount = 2 // Allow up to 99
+                    )
+                }
+
+                SettingPanelView.BACK_SQUARE_OPACITY -> {
+                    SliderSetting(
+                        browserSettings = browserSettings,
+                        updateBrowserSettingsForSpecificValue = { newValue ->
+                            updateBrowserSettings(
+                                browserSettings.copy(backSquareIdleOpacity = newValue)
+                            )
+                        },
+                        onBackClick = { currentView = SettingPanelView.MAIN },
+                        valueRange = 0f..1f, // 0% to 100%
+                        steps = 19, // 5% increments
+                        currentSettingOriginalValue = browserSettings.backSquareIdleOpacity,
+                      
+                        // You might need to tweak how SliderSetting handles the text conversion
+                        // For simplicity, here is how to adapt the existing one:
+                        // Since your SliderSetting expects digits for the internal string,
+                        // we pass 0-100 to the logic but save 0.0-1.0
+
+                        // NOTE: Your SliderSetting is quite specific about digits.
+                        // It might be easier to just use the existing logic which assumes 2 decimal places:
+                        // e.g. 0.20
+                        textFieldValueFun = { src ->
+                            // src is "0020" -> "0.20"
+                            "0." + src.takeLast(2)
+                        },
+                        iconID = R.drawable.ic_link,
+                        digitCount = 2, // We want "20" for 0.20
+                        afterDecimal = true
                     )
                 }
             }
@@ -8965,6 +9134,58 @@ fun UrlEditPanel(
                     contentDescription = "Edit URL",
                     tint = Color.Black
                 )
+            }
+        }
+    }
+}
+
+class ShakeDetector(context: Context, private val onShake: () -> Unit) : SensorEventListener {
+
+    private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+    private val accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+
+    // Threshold: acceleration > 2.7g (Earth gravity is 1.0g)
+    // Adjust this: Lower = more sensitive, Higher = harder shake required
+    private val shakeThresholdGravity = 2.7F
+    private val shakeSlopTimeMs = 500 // Minimum time between shakes
+    private var shakeTimestamp: Long = 0
+
+    fun start() {
+        accelerometer?.let {
+            sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_UI)
+        }
+    }
+
+    fun stop() {
+        sensorManager.unregisterListener(this)
+    }
+
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
+        // Not used
+    }
+
+    override fun onSensorChanged(event: SensorEvent) {
+        if (event.sensor.type == Sensor.TYPE_ACCELEROMETER) {
+            val x = event.values[0]
+            val y = event.values[1]
+            val z = event.values[2]
+
+            val gX = x / SensorManager.GRAVITY_EARTH
+            val gY = y / SensorManager.GRAVITY_EARTH
+            val gZ = z / SensorManager.GRAVITY_EARTH
+
+            // Calculate gForce (vector magnitude)
+            val gForce = sqrt(gX * gX + gY * gY + gZ * gZ)
+
+            if (gForce > shakeThresholdGravity) {
+                val now = System.currentTimeMillis()
+                // Ignore shakes that happen too close together
+                if (shakeTimestamp + shakeSlopTimeMs > now) {
+                    return
+                }
+
+                shakeTimestamp = now
+                onShake()
             }
         }
     }
