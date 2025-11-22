@@ -2383,7 +2383,8 @@ fun BrowserScreen(
                 isSharpMode = false,
                 cursorContainerSize = 50f,
                 cursorPointerSize = 5f,
-                cursorTrackingSpeed = 1.75f
+                cursorTrackingSpeed = 1.75f,
+                backSquareIdleOpacity = 0.2f
             )
         )
     }
