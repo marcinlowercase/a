@@ -8396,7 +8396,7 @@ fun SettingsPanel(
                         // e.g. 0.20
                         textFieldValueFun = { src ->
                             // src is "0020" -> "0.20"
-                            "0." + src.takeLast(2)
+                            src[0] + "." + src.takeLast(2)
                         },
                         iconID = R.drawable.ic_link,
                         digitCount = 2, // We want "20" for 0.20
