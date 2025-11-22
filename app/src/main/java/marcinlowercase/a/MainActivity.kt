@@ -1,9 +1,5 @@
 package marcinlowercase.a
-import android.hardware.Sensor
-import android.hardware.SensorEvent
-import android.hardware.SensorEventListener
-import android.hardware.SensorManager
-import kotlin.math.sqrt
+
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
@@ -21,6 +17,10 @@ import android.content.pm.PackageManager
 import android.content.pm.ShortcutInfo
 import android.content.pm.ShortcutManager
 import android.graphics.Bitmap
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
@@ -66,9 +66,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -226,8 +224,8 @@ import java.net.URLDecoder
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.util.regex.Pattern
-import kotlin.math.abs
 import kotlin.math.roundToInt
+import kotlin.math.sqrt
 import kotlin.system.exitProcess
 
 
@@ -1692,7 +1690,10 @@ fun BrowserScreen(
                 cursorTrackingSpeed = sharedPrefs.getFloat("cursor_tracking_speed", 1.75f),
                 showSuggestions = sharedPrefs.getBoolean("show_suggestions", false),
                 closedTabHistorySize = sharedPrefs.getFloat("closed_tab_history_size", 2f),
-                backSquareOffsetX = sharedPrefs.getFloat("back_square_offset_x", -1f), // Use -1f as a flag for "not set"
+                backSquareOffsetX = sharedPrefs.getFloat(
+                    "back_square_offset_x",
+                    -1f
+                ), // Use -1f as a flag for "not set"
                 backSquareOffsetY = sharedPrefs.getFloat("back_square_offset_y", -1f),
                 backSquareIdleOpacity = sharedPrefs.getFloat("back_square_idle_opacity", 0.2f),
             )
@@ -2027,15 +2028,17 @@ fun BrowserScreen(
     // 2. Update the suggestions state to use the new data class
     val suggestions = remember { mutableStateListOf<Suggestion>() }
 
-    val initialX = if (browserSettings.backSquareOffsetX != -1f) browserSettings.backSquareOffsetX else 0f
-    val initialY = if (browserSettings.backSquareOffsetY != -1f) browserSettings.backSquareOffsetY else 0f
+    val initialX =
+        if (browserSettings.backSquareOffsetX != -1f) browserSettings.backSquareOffsetX else 0f
+    val initialY =
+        if (browserSettings.backSquareOffsetY != -1f) browserSettings.backSquareOffsetY else 0f
 
     val backSquareOffsetX = remember { Animatable(initialX) }
     val backSquareOffsetY = remember { Animatable(initialY) }
     var isBackSquareInitialized by remember {
         mutableStateOf(browserSettings.backSquareOffsetX != -1f)
     }
-    //endregionf
+    //endregion
 
     //region Functions
 
@@ -2605,15 +2608,21 @@ fun BrowserScreen(
     LaunchedEffect(screenSize) {
         if (screenSize.width > 0 && !isBackSquareInitialized) {
             val buttonSize = with(density) {
-                heightForLayer(1, browserSettings.deviceCornerRadius, browserSettings.padding, browserSettings.singleLineHeight).dp.toPx()
+                heightForLayer(
+                    1,
+                    browserSettings.deviceCornerRadius,
+                    browserSettings.padding,
+                    browserSettings.singleLineHeight
+                ).dp.toPx()
             }
 
-            val defaultX = screenSize.width - buttonSize - with(density) { browserSettings.padding.dp.toPx() }
-            val defaultY = screenSize.height - buttonSize - with(density) { browserSettings.padding.dp.toPx()  }
+            val defaultX =
+                screenSize.width - buttonSize - with(density) { browserSettings.padding.dp.toPx() }
+            val defaultY =
+                screenSize.height - buttonSize - with(density) { browserSettings.padding.dp.toPx() }
 
             backSquareOffsetX.snapTo(defaultX)
             backSquareOffsetY.snapTo(defaultY)
-            isBackSquareInitialized = true
         }
     }
 
@@ -3421,23 +3430,23 @@ fun BrowserScreen(
 
     suspend fun hideBackSquare(blinkEffect: Boolean = true) {
         val idle = browserSettings.backSquareIdleOpacity
-       if ( blinkEffect) {
-           val peak = 1f
+        if (blinkEffect) {
+            val peak = 1f
 
-           squareAlpha.animateTo(peak)
+            squareAlpha.animateTo(peak)
 
-           // b. Wait a moment so the user can see it before it blinks.
-           delay(400)
+            // b. Wait a moment so the user can see it before it blinks.
+            delay(400)
 
-           // c. Blink twice.
-           repeat(2) {
-               squareAlpha.animateTo(idle, animationSpec = tween(300))
-               squareAlpha.animateTo(peak, animationSpec = tween(300))
-           }
+            // c. Blink twice.
+            repeat(2) {
+                squareAlpha.animateTo(idle, animationSpec = tween(300))
+                squareAlpha.animateTo(peak, animationSpec = tween(300))
+            }
 
-       } else {
-           delay(200)
-       }
+        } else {
+            delay(200)
+        }
         squareAlpha.animateTo(idle, animationSpec = tween(400))
 
     }
@@ -3567,7 +3576,6 @@ fun BrowserScreen(
             putFloat("back_square_offset_x", browserSettings.backSquareOffsetX)
             putFloat("back_square_offset_y", browserSettings.backSquareOffsetY)
             putFloat("back_square_idle_opacity", browserSettings.backSquareIdleOpacity)
-
 
 
         }
@@ -3963,13 +3971,12 @@ fun BrowserScreen(
                         .fillMaxSize(),
                 ) {
 
-                    val squareBoxSmallHeight =
-                        heightForLayer(
-                            1,
-                            browserSettings.deviceCornerRadius,
-                            browserSettings.padding,
-                            browserSettings.singleLineHeight,
-                        ).dp
+                    heightForLayer(
+                        1,
+                        browserSettings.deviceCornerRadius,
+                        browserSettings.padding,
+                        browserSettings.singleLineHeight,
+                    ).dp
 
                     val squareBoxSize = heightForLayer(
                         1,
@@ -4027,10 +4034,12 @@ fun BrowserScreen(
 //                                            else browserSettings.padding.dp.toPx() + down.position.x
 
 
-                                        val initialCursorX = backSquareOffsetX.value + browserSettings.padding + down.position.x
+                                        val initialCursorX =
+                                            backSquareOffsetX.value + browserSettings.padding + down.position.x
 
 //                                        val initialCursorY = screenSize.height - (squareBoxSmallHeight.toPx() - browserSettings.padding.dp.toPx()) + down.position.y - ((screenSize.height - cutoutTop.toPx()) / 2)
-                                        val initialCursorY = ((screenSize.height - cutoutTop.toPx()) / 2) - (screenSize.height - backSquareOffsetY.value) + down.position.y + cutoutTop.toPx()
+                                        val initialCursorY =
+                                            ((screenSize.height - cutoutTop.toPx()) / 2) - (screenSize.height - backSquareOffsetY.value) + down.position.y + cutoutTop.toPx()
 
 
                                         cursorPointerPosition.value =
@@ -4112,18 +4121,18 @@ fun BrowserScreen(
                                         }
 
                                         coroutineScope.launch {
-                                           squareAlpha.animateTo(browserSettings.backSquareIdleOpacity)
+                                            squareAlpha.animateTo(browserSettings.backSquareIdleOpacity)
                                         }
                                     } else {
                                         // --- TAP OR SHORT-DRAG PATH ---
                                         if (drag != null) {
                                             // SHORT-DRAG
-                                            var horizontalDragAccumulator = 0f
-                                            var verticalDragAccumulator = 0f
                                             drag(drag.id) { change ->
                                                 change.consume()
-                                                val newX = backSquareOffsetX.value + change.position.x - change.previousPosition.x
-                                                val newY = backSquareOffsetY.value + change.position.y - change.previousPosition.y
+                                                val newX =
+                                                    backSquareOffsetX.value + change.position.x - change.previousPosition.x
+                                                val newY =
+                                                    backSquareOffsetY.value + change.position.y - change.previousPosition.y
 
                                                 coroutineScope.launch {
                                                     backSquareOffsetX.snapTo(newX)
@@ -4152,11 +4161,12 @@ fun BrowserScreen(
                                             val currentX = backSquareOffsetX.value
 
                                             // Determine snap target (Left or Right edge)
-                                            val targetX = if (currentX + (squareBoxSizePx / 2) < screenWidth / 2) {
-                                                paddingPx // Snap Left
-                                            } else {
-                                                screenWidth - squareBoxSizePx - paddingPx // Snap Right
-                                            }
+                                            val targetX =
+                                                if (currentX + (squareBoxSizePx / 2) < screenWidth / 2) {
+                                                    paddingPx // Snap Left
+                                                } else {
+                                                    screenWidth - squareBoxSizePx - paddingPx // Snap Right
+                                                }
 
                                             // Clamp Y to screen bounds
                                             val targetY = backSquareOffsetY.value.coerceIn(
@@ -4166,8 +4176,18 @@ fun BrowserScreen(
 
                                             coroutineScope.launch {
                                                 // Animate snapping
-                                                launch { backSquareOffsetX.animateTo(targetX, spring()) }
-                                                launch { backSquareOffsetY.animateTo(targetY, spring()) }
+                                                launch {
+                                                    backSquareOffsetX.animateTo(
+                                                        targetX,
+                                                        spring()
+                                                    )
+                                                }
+                                                launch {
+                                                    backSquareOffsetY.animateTo(
+                                                        targetY,
+                                                        spring()
+                                                    )
+                                                }
 
                                                 updateBrowserSettings(
                                                     browserSettings.copy(
@@ -4202,8 +4222,6 @@ fun BrowserScreen(
 
                                     if (drag != null) {
                                         // SHORT-DRAG
-                                        var horizontalDragAccumulator = 0f
-                                        var verticalDragAccumulator = 0f
                                         drag(drag.id) { change ->
                                             change.consume()
 //                                            horizontalDragAccumulator += change.position.x - change.previousPosition.x
@@ -4883,7 +4901,6 @@ fun BottomPanel(
                                                 verticalDragAccumulator += change.position.y - change.previousPosition.y
 
 
-
                                                 val newAction = when {
                                                     verticalDragAccumulator < verticalCancelThreshold -> {
                                                         when {
@@ -4943,8 +4960,14 @@ fun BottomPanel(
                                                 horizontalDragAccumulator += change.position.x - change.previousPosition.x
                                                 verticalDragAccumulator += change.position.y - change.previousPosition.y
 
-                                                Log.i("DragTest", "horizontalDragAccumulator : $horizontalDragAccumulator")
-                                                Log.i("DragTest", "verticalDragAccumulator : $verticalDragAccumulator")
+                                                Log.i(
+                                                    "DragTest",
+                                                    "horizontalDragAccumulator : $horizontalDragAccumulator"
+                                                )
+                                                Log.i(
+                                                    "DragTest",
+                                                    "verticalDragAccumulator : $verticalDragAccumulator"
+                                                )
                                                 when {
                                                     horizontalDragAccumulator < -horizontalDragThreshold -> { // left
                                                         Log.e("BotHDrag", "left")
@@ -8385,7 +8408,7 @@ fun SettingsPanel(
                         valueRange = 0f..1f, // 0% to 100%
                         steps = 19, // 5% increments
                         currentSettingOriginalValue = browserSettings.backSquareIdleOpacity,
-                      
+
                         // You might need to tweak how SliderSetting handles the text conversion
                         // For simplicity, here is how to adapt the existing one:
                         // Since your SliderSetting expects digits for the internal string,
