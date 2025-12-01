@@ -4852,11 +4852,6 @@ fun BottomPanel(
                             keyboardController?.hide()
 
                             setIsFocusOnTextField(false)
-                            Log.d("QQQQ", textFieldState.text.isBlank().toString())
-                            Log.d("QQQQ", (textFieldState.text as String))
-                            Log.d("QQQQ", "${activeWebView?.url}")
-                            Log.d("QQQQ", "${(textFieldState.text as String) == activeWebView?.url}")
-
                         },
                         shape = RoundedCornerShape(
                             cornerRadiusForLayer(
