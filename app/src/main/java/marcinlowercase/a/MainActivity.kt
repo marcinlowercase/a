@@ -913,18 +913,62 @@ class WebViewManager(private val context: Context) {
     val activity = context as? Activity
 
     //region JS Code
+//    private val jsFaviconDiscovery = """
+//    (function() {
+//        let icon = document.querySelector("link[rel='apple-touch-icon']") ||
+//                   document.querySelector("link[rel='icon']") ||
+//                   document.querySelector("link[rel='shortcut icon']");
+//
+//        // The 'href' property of an HTMLAnchorElement or HTMLLinkElement is
+//        // automatically resolved to an absolute URL by the browser engine.
+//        // We don't need to resolve it in Kotlin anymore.
+//        WebAppFavicon.passFaviconUrl(icon ? icon.href : null);
+//    })();
+//""".trimIndent()
+
     private val jsFaviconDiscovery = """
     (function() {
-        let icon = document.querySelector("link[rel='apple-touch-icon']") ||
-                   document.querySelector("link[rel='icon']") ||
-                   document.querySelector("link[rel='shortcut icon']");
+        var links = document.querySelectorAll("link[rel*='icon']");
+        var bestHref = null;
+        var maxSize = 0;
+
+        for (var i = 0; i < links.length; i++) {
+            var link = links[i];
+            var sizes = link.getAttribute('sizes');
+            var currentSize = 0;
+
+            if (sizes && sizes !== 'any') {
+                // Parse "192x192" or "192x192 32x32" -> take the first dimension
+                try {
+                    var dim = parseInt(sizes.split('x')[0]);
+                    if (!isNaN(dim)) {
+                        currentSize = dim * dim;
+                    }
+                } catch (e) {}
+            }
+            
+            // Give a high baseline score to apple-touch-icons if they lack size attributes
+            // as they are typically 180x180 or higher.
+            if (currentSize === 0 && link.rel.indexOf('apple-touch-icon') > -1) {
+                currentSize = 32400; // Equivalent to 180x180
+            }
+
+            // If we found a bigger one, or if we haven't found any yet
+            if (currentSize > maxSize || (bestHref === null && link.href)) {
+                maxSize = currentSize;
+                bestHref = link.href;
+            }
+        }
         
-        // The 'href' property of an HTMLAnchorElement or HTMLLinkElement is
-        // automatically resolved to an absolute URL by the browser engine.
-        // We don't need to resolve it in Kotlin anymore.
-        WebAppFavicon.passFaviconUrl(icon ? icon.href : null);
+        // If still nothing, try the standard favicon.ico location
+        if (!bestHref) {
+             bestHref = window.location.origin + "/favicon.ico";
+        }
+
+        WebAppFavicon.passFaviconUrl(bestHref);
     })();
 """.trimIndent()
+
     //endregion
 
 
@@ -2720,12 +2764,14 @@ fun BrowserScreen(
                     }
                 }
             } catch (e: Exception) {
+                if (e is kotlin.coroutines.cancellation.CancellationException) throw e
+
                 Log.e("SuggestionFetch", "Failed to fetch Google suggestions", e)
             }
 
             // C. Update the UI state
             suggestions.clear()
-            if (textFieldState.text.isNotEmpty())
+            if (textFieldState.text.isNotEmpty() && isFocusOnTextField)
                 suggestions.addAll(finalSuggestions.take(10)) // Limit to a reasonable number
         } else {
             suggestions.clear()
@@ -4804,7 +4850,12 @@ fun BottomPanel(
 
                             focusManager.clearFocus()
                             keyboardController?.hide()
+
                             setIsFocusOnTextField(false)
+                            Log.d("QQQQ", textFieldState.text.isBlank().toString())
+                            Log.d("QQQQ", (textFieldState.text as String))
+                            Log.d("QQQQ", "${activeWebView?.url}")
+                            Log.d("QQQQ", "${(textFieldState.text as String) == activeWebView?.url}")
 
                         },
                         shape = RoundedCornerShape(
@@ -7532,6 +7583,7 @@ fun ConfirmationPanel(
                 ) {
                     Icon(
                         painter = painterResource(id = R.drawable.ic_check),
+                        tint = Color.Black,
                         contentDescription = "Confirm",
                     )
                 }
