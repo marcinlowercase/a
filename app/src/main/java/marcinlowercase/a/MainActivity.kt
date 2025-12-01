@@ -124,7 +124,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LocalTextStyle
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -4437,7 +4436,6 @@ fun BottomPanel(
                 )
 
                 .background(
-//                    MaterialTheme.colorScheme.primaryContainer
                     Color.Black,
                 )
 //                .border(
@@ -4819,8 +4817,6 @@ fun BottomPanel(
                         colors = TextFieldDefaults.colors(
                             focusedContainerColor = Color.Black,
                             unfocusedContainerColor = Color.Black,
-//                            focusedContainerColor = MaterialTheme.colorScheme.onPrimary,
-//                            unfocusedContainerColor = MaterialTheme.colorScheme.onPrimary,
                             cursorColor = Color.White,
                             focusedTextColor = Color.White,
                             unfocusedTextColor = Color.White,
@@ -5817,7 +5813,8 @@ fun PromptPanel(
                                 3,
                                 browserSettings.deviceCornerRadius,
                                 browserSettings.padding,
-                                browserSettings.singleLineHeight
+                                browserSettings.singleLineHeight,
+                                false
                             )
                                 .weight(1f),
 //                                .border(
@@ -6804,7 +6801,6 @@ fun DownloadRow(
                         Text(
                             statusText,
                             color = Color.White.copy(alpha = 0.7f),
-                            style = MaterialTheme.typography.bodySmall,
                             maxLines = 1
                         )
                     }
@@ -8334,7 +8330,7 @@ fun SettingsPanel(
                                 "Updated to ${browserSettings.cursorTrackingSpeed}"
                             )
                         },
-                        onBackClick = { currentView = SettingPanelView.MAIN },
+                           onBackClick = { currentView = SettingPanelView.MAIN },
                         valueRange = 0.5f..2f,
                         steps = 29,
                         currentSettingOriginalValue = browserSettings.cursorTrackingSpeed,
