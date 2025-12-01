@@ -508,7 +508,10 @@ class BlobDownloaderInterface(
 //endregion
 
 //region Data Class
-
+data class ContextMenuData(
+    val url: String,
+    val type: Int
+)
 
 class VisitedUrlManager(context: Context) {
     private val prefs = context.getSharedPreferences("BrowserHistory", Context.MODE_PRIVATE)
@@ -1069,6 +1072,7 @@ class WebViewManager(private val context: Context) {
         onFindResultReceived: (activeIndex: Int, numberOfMatches: Int, isDoneCounting: Boolean) -> Unit,
 
         onTitleReceived: (webView: WebView, url: String, title: String) -> Unit,
+        onContextMenu: (ContextMenuData) -> Unit,
     ) {
 
         webView.addJavascriptInterface(
@@ -1594,7 +1598,23 @@ class WebViewManager(private val context: Context) {
         webView.setFindListener { activeIndex, numberOfMatches, isDoneCounting ->
             onFindResultReceived(activeIndex, numberOfMatches, isDoneCounting)
         }
+        webView.setOnLongClickListener { v ->
+            val result = (v as WebView).hitTestResult
+            val type = result.type
 
+            // Check for Link (SRC_ANCHOR_TYPE) or Image Link (SRC_IMAGE_ANCHOR_TYPE)
+            if (type == WebView.HitTestResult.SRC_ANCHOR_TYPE || type == WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE ||
+                type == WebView.HitTestResult.IMAGE_TYPE) {
+                val url = result.extra
+                if (url != null) {
+                    onContextMenu(ContextMenuData(url, type))
+                    // Return TRUE to stop the event here (prevents default drag/selection)
+                    return@setOnLongClickListener true
+                }
+            }
+            // Return FALSE to let normal long presses (like text selection) continue
+            false
+        }
     }
 }
 
@@ -2081,9 +2101,14 @@ fun BrowserScreen(
     var isBackSquareInitialized by remember {
         mutableStateOf(browserSettings.backSquareOffsetX != -1f)
     }
+
+    var contextMenuData by remember { mutableStateOf<ContextMenuData?>(null) }
+
+
     //endregion
 
     //region Functions
+
 
     val closeAllTabs = {
         tabs.forEach { tab ->
@@ -2408,6 +2433,35 @@ fun BrowserScreen(
         }
     }
 
+
+    val startDownload = { url: String, userAgent: String, contentDisposition: String?, mimeType: String? ->
+        if (!isUrlBarVisible) isUrlBarVisible = true
+        if (!isDownloadPanelVisible) isDownloadPanelVisible = true
+
+        // (Reuse your existing filename/unique logic here)
+        val initialFilename = getBestGuessFilename(url, contentDisposition, mimeType)
+        val finalFilename = generateUniqueFilename(initialFilename, downloads)
+
+        val request = DownloadManager.Request(url.toUri())
+            .setTitle(finalFilename)
+            .setDescription("Downloading...")
+            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+            .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, finalFilename)
+            .addRequestHeader("User-Agent", userAgent)
+
+        val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+        val downloadId = downloadManager.enqueue(request)
+
+        val newDownload = DownloadItem(
+            id = downloadId,
+            url = url,
+            filename = finalFilename,
+            mimeType = mimeType ?: "application/octet-stream",
+            status = DownloadStatus.PENDING
+        )
+        downloads.add(0, newDownload)
+        downloadTracker.saveDownloads(downloads)
+    }
 
     // This function will be our single, safe way to update settings.
     val updateBrowserSettings = { newSettings: BrowserSettings ->
@@ -3429,6 +3483,11 @@ fun BrowserScreen(
                     findInPageResult.value = (activeIndex + 1) to numberOfMatches
                 },
 
+                onContextMenu = { data ->
+                    contextMenuData = data
+                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                }
+
                 )
             webView.onWebViewTouch = {
                 if (isUrlBarVisible) isUrlBarVisible = false
@@ -3461,10 +3520,11 @@ fun BrowserScreen(
         isUrlBarVisible,
         isPermissionPanelVisible,
         isPromptPanelVisible,
-        confirmationState
+        confirmationState,
+        contextMenuData
     ) {
         isBottomPanelVisible =
-            isUrlBarVisible || isPermissionPanelVisible || isPromptPanelVisible || (confirmationState != null)
+            isUrlBarVisible || isPermissionPanelVisible || isPromptPanelVisible || (confirmationState != null || (contextMenuData != null))
 //        Log.i("VisibleState", "isBottomPanelVisible: $isBottomPanelVisible")
     }
     LaunchedEffect(isTabsPanelVisible) {
@@ -3740,6 +3800,17 @@ fun BrowserScreen(
 
 
             BottomPanel(
+               onOpenInNewTab = {url ->
+//                   createNewTab(tabs.size, url)
+                   createNewTab(activeTabIndex.intValue + 1, url)
+
+               },
+                onDownloadImage = { url ->
+                    // Simple generic download for images found via context menu
+                    startDownload(url, activeWebView?.settings?.userAgentString ?: "", null, "image/*")
+                },
+                contextMenuData = contextMenuData,
+                onDismissContextMenu = { contextMenuData = null },
                 isFocusOnTextField = isFocusOnTextField,
                 textFieldState = textFieldState,
                 onCloseAllTabs = {
@@ -4351,6 +4422,10 @@ fun BrowserScreen(
 
 @Composable
 fun BottomPanel(
+    onOpenInNewTab: (String) -> Unit,
+    onDownloadImage: (String) -> Unit,
+    contextMenuData: ContextMenuData?,
+    onDismissContextMenu: () -> Unit,
     isFocusOnTextField: Boolean,
     textFieldState: TextFieldState,
     onCloseAllTabs: () -> Unit,
@@ -4507,6 +4582,8 @@ fun BottomPanel(
                 }
 
             )
+
+
             NavigationPanel(
                 isNavPanelVisible = isNavPanelVisible,
                 activeWebView = activeWebView,
@@ -4514,6 +4591,8 @@ fun BottomPanel(
                 activeAction = activeNavAction,
 
                 )
+
+
             DownloadPanel(
                 confirmationPopup = confirmationPopup,
                 setIsDownloadPanelVisible = setIsDownloadPanelVisible,
@@ -4525,6 +4604,19 @@ fun BottomPanel(
                 onOpenFolderClicked = onOpenFolderClicked,
                 onClearAllClicked = onClearAllClicked
             )
+
+            ContextMenuPanel(
+                isVisible = contextMenuData != null,
+                data = contextMenuData,
+                browserSettings = browserSettings,
+                onDismiss = onDismissContextMenu,
+                onOpenInNewTab = { url ->
+                    onOpenInNewTab(url)
+                    onDismissContextMenu()
+                                 },
+                onDownloadImage = onDownloadImage // Pass the function
+            )
+
             FindInPageBar(
                 isVisible = isFindInPageVisible.value,
                 searchText = findInPageText.value,
@@ -9253,6 +9345,159 @@ class ShakeDetector(context: Context, private val onShake: () -> Unit) : SensorE
 
                 shakeTimestamp = now
                 onShake()
+            }
+        }
+    }
+}
+
+@Composable
+fun ContextMenuPanel(
+    isVisible: Boolean,
+    data: ContextMenuData?,
+    browserSettings: BrowserSettings,
+    onDismiss: () -> Unit,
+    onOpenInNewTab: (String) -> Unit,
+    onDownloadImage: (String) -> Unit
+) {
+    val clipboard = LocalClipboard.current
+    val context = LocalContext.current
+
+    AnimatedVisibility(
+        visible = isVisible,
+        enter = expandVertically(tween(browserSettings.animationSpeed.roundToInt())) + fadeIn(),
+        exit = shrinkVertically(tween(browserSettings.animationSpeed.roundToInt())) + fadeOut()
+    ) {
+        if (data == null) return@AnimatedVisibility
+
+        // Determine if the target is an image (IMAGE_TYPE) or a Link (SRC_ANCHOR / SRC_IMAGE_ANCHOR)
+        // Note: SRC_IMAGE_ANCHOR usually provides the Link URL in 'extra', not the image source.
+        // Pure images return IMAGE_TYPE.
+        val isImage = data.type == WebView.HitTestResult.IMAGE_TYPE
+
+        Column(
+            modifier = Modifier
+                .padding(horizontal = browserSettings.padding.dp)
+                .padding(top = browserSettings.padding.dp)
+                .fillMaxWidth()
+        ) {
+            // 1. Header (URL or "Image")
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = browserSettings.padding.dp)
+                    .clip(
+                        RoundedCornerShape(
+                            cornerRadiusForLayer(
+                                2,
+                                browserSettings.deviceCornerRadius,
+                                browserSettings.padding
+                            ).dp
+                        )
+                    )
+                    .padding(browserSettings.padding.dp * 2)
+
+                ,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    painter = painterResource(if(isImage) R.drawable.ic_image else R.drawable.ic_link),
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(Modifier.width(browserSettings.padding.dp))
+                Text(
+                    text = data.url,
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            // 2. Action Buttons
+            val actions = mutableListOf<Triple<Int, String, () -> Unit>>()
+
+            if (isImage) {
+                // --- IMAGE ACTIONS ---
+                actions.add(Triple(R.drawable.ic_download, "Download Image") {
+                    onDownloadImage(data.url)
+                    onDismiss()
+                })
+                actions.add(Triple(R.drawable.ic_add, "Open Image in New Tab") {
+                    onOpenInNewTab(data.url)
+                })
+            } else {
+                // --- LINK ACTIONS ---
+                actions.add(Triple(R.drawable.ic_add, "Open in New Tab") {
+                    onOpenInNewTab(data.url)
+                })
+                actions.add(Triple(R.drawable.ic_content_copy, "Copy Link") {
+                    val clip = ClipData.newPlainText("Link", data.url)
+                    clipboard.nativeClipboard.setPrimaryClip(clip)
+                    onDismiss()
+                })
+                actions.add(Triple(R.drawable.ic_share, "Share Link") {
+                    val intent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, data.url)
+                    }
+                    context.startActivity(Intent.createChooser(intent, "Share Link"))
+                    onDismiss()
+                })
+            }
+
+            // Common Cancel Action
+            actions.add(Triple(R.drawable.ic_close, "Cancel") { onDismiss() })
+
+            // Render Buttons
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(
+                        RoundedCornerShape(
+                            cornerRadiusForLayer(
+                                2,
+                                browserSettings.deviceCornerRadius,
+                                browserSettings.padding
+                            ).dp
+                        )
+                    )
+                    .padding(bottom = browserSettings.padding.dp),
+                horizontalArrangement = Arrangement.spacedBy(browserSettings.padding.dp)
+            ) {
+                actions.forEach { (icon, desc, action) ->
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(
+                                heightForLayer(
+                                    2,
+                                    browserSettings.deviceCornerRadius,
+                                    browserSettings.padding,
+                                    browserSettings.singleLineHeight
+                                ).dp
+                            )
+                            .clip(
+                                RoundedCornerShape(
+                                    cornerRadiusForLayer(
+                                        2,
+                                        browserSettings.deviceCornerRadius,
+                                        browserSettings.padding
+                                    ).dp
+                                )
+                            )
+                            .background(Color.White)
+                            .clickable(onClick = action),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            painter = painterResource(icon),
+                            contentDescription = desc,
+                            tint = Color.Black
+                        )
+                    }
+                }
             }
         }
     }
