@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lint>
+    <!-- Turn off the camelCase naming rule completely -->
+    <issue id="NamingPattern">
+        <option name="severity" value="ignore" />
+    </issue>
+
+    <!-- Or, if you only want to silence it for variable names but keep it for classes, use regex override: -->
+    <!--
+    <issue id="NamingPattern">
+        <option name="variablePattern" value="[a-z_][a-z0-9_]*" />
+    </issue>
+    -->
+</lint>

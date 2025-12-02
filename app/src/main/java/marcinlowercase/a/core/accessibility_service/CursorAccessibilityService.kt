@@ -1,11 +1,11 @@
-package marcinlowercase.a
+package marcinlowercase.a.core.accessibility_service
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
 import android.annotation.SuppressLint
 import android.graphics.Path
-import android.view.accessibility.AccessibilityEvent
 import android.util.Log
+import android.view.accessibility.AccessibilityEvent
 
 @SuppressLint("AccessibilityPolicy")
 class CursorAccessibilityService : AccessibilityService() {
