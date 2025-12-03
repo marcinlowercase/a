@@ -12,7 +12,6 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.google.services)
 }
 
 android {
@@ -55,8 +54,8 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
     buildFeatures {
         compose = true
@@ -65,7 +64,7 @@ android {
         target {
             compilerOptions {
                 optIn.add("kotlin.RequiresOptIn")
-                jvmTarget.set(JvmTarget.JVM_11)
+                jvmTarget.set(JvmTarget.JVM_21)
             }
         }
     }
@@ -79,8 +78,6 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
-    implementation(platform(libs.google.firebase.bom))
-    implementation(libs.google.firebase.analytics)
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
