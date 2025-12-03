@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -95,6 +96,7 @@ import kotlin.math.abs
 
 @Composable
 fun BottomPanel(
+    bottomPanelPagerState: PagerState,
     onOpenInNewTab: (String) -> Unit,
     onDownloadImage: (String) -> Unit,
     contextMenuData: ContextMenuData?,
@@ -473,34 +475,9 @@ fun BottomPanel(
                     )
                 )
             ) {
-                val pagerState = rememberPagerState(initialPage = 1, pageCount = { 2 })
 
-                LaunchedEffect(pagerState.settledPage, pagerState.currentPage, isUrlOverlayBoxVisible) {
-
-                    Log.e("PagerState", "curren ${pagerState.currentPage}")
-                    Log.e("PagerState", "targe ${pagerState.targetPage}")
-                    Log.e("PagerState", "settled ${pagerState.settledPage}")
-
-                    if (pagerState.currentPage == 1) {
-                        setIsUrlOverlayBoxVisible(true)
-                    } else {
-                        setIsFocusOnTextField(false)
-                        setIsDownloadPanelVisible(false)
-                        setIsNavPanelVisible(false)
-                        setIsTabsPanelVisible(false)
-                        setIsOptionsPanelVisible(false)
-                        setIsSettingsPanelVisible(false)
-                        isFindInPageVisible.value = false
-                        keyboardController?.hide()
-
-                    }
-                    if (pagerState.settledPage != 1) {
-                        focusManager.clearFocus()
-                    }
-
-                }
                 HorizontalPager(
-                    state = pagerState,
+                    state = bottomPanelPagerState,
                     modifier = Modifier
                         .fillMaxWidth()
                        ,
@@ -785,7 +762,7 @@ fun BottomPanel(
 
 
 //                                                            coroutineScope.launch {
-//                                                                pagerState.scrollBy(change.position.x)
+//                                                                bottomPanelPagerState.scrollBy(change.position.x)
 //                                                            }
 
                                                             Log.i(
@@ -891,6 +868,7 @@ fun BottomPanel(
 
             // SETTING OPTIONS
             OptionsPanel(
+                bottomPanelPagerState = bottomPanelPagerState,
                 onCloseAllTabs = onCloseAllTabs,
                 activeWebView = activeWebView,
                 isFindInPageVisible = isFindInPageVisible,

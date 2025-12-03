@@ -65,6 +65,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.input.rememberTextFieldState
@@ -574,6 +575,9 @@ fun BrowserScreen(
 
     var contextMenuData by remember { mutableStateOf<ContextMenuData?>(null) }
     var displayContextMenuData by remember { mutableStateOf<ContextMenuData?>(null) }
+
+    val bottomPanelPagerState = rememberPagerState(initialPage = 1, pageCount = { 2 })
+
 
     //endregion
 
@@ -1172,6 +1176,29 @@ fun BrowserScreen(
 
 
     //region LaunchedEffect
+
+    LaunchedEffect(bottomPanelPagerState.settledPage, bottomPanelPagerState.currentPage, isUrlOverlayBoxVisible) {
+
+        if (bottomPanelPagerState.currentPage == 1) {
+            isUrlOverlayBoxVisible = true
+            if (tabsPanelLock) isTabsPanelVisible = true
+        } else {
+            isFocusOnTextField = false
+            isDownloadPanelVisible = false
+            isNavPanelVisible = false
+            isTabsPanelVisible = false
+            isOptionsPanelVisible = false
+            isSettingsPanelVisible = false
+
+            isFindInPageVisible.value = false
+            keyboardController?.hide()
+
+        }
+        if (bottomPanelPagerState.settledPage != 1) {
+            focusManager.clearFocus()
+        }
+
+    }
 
 
     LaunchedEffect(screenSize) {
@@ -2269,6 +2296,7 @@ fun BrowserScreen(
 
             BottomPanel(
 
+                bottomPanelPagerState = bottomPanelPagerState,
                 onOpenInNewTab = { url ->
 //                   createNewTab(tabs.size, url)
                     createNewTab(activeTabIndex.intValue + 1, url)

@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -49,6 +50,7 @@ import kotlin.collections.forEach
 
 @Composable
 fun OptionsPanel(
+    bottomPanelPagerState: PagerState,
     onCloseAllTabs: () -> Unit,
     activeWebView: CustomWebView?,
     isFindInPageVisible: MutableState<Boolean>,
@@ -83,7 +85,9 @@ fun OptionsPanel(
             isCursorPadVisible,
             isSettingsPanelVisible,
             activeWebView,
-            browserSettings.showSuggestions
+            browserSettings.showSuggestions,
+            bottomPanelPagerState,
+
         ) {
             listOf(
                 OptionItem(
