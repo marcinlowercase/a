@@ -149,6 +149,7 @@ import marcinlowercase.a.core.data_class.PollData
 import marcinlowercase.a.core.data_class.SiteSettings
 import marcinlowercase.a.core.data_class.Suggestion
 import marcinlowercase.a.core.data_class.Tab
+import marcinlowercase.a.core.enum_class.BottomPanelMode
 import marcinlowercase.a.core.enum_class.DownloadStatus
 import marcinlowercase.a.core.enum_class.GestureNavAction
 import marcinlowercase.a.core.enum_class.SuggestionSource
@@ -429,6 +430,8 @@ fun BrowserScreen(
     val hapticFeedback = LocalHapticFeedback.current
     var isOptionsPanelVisible by rememberSaveable { mutableStateOf(false) }
     var isSettingsPanelVisible by remember { mutableStateOf(false) }
+    val isBottomPanelLock = remember { mutableStateOf(false) }
+
     val offsetY = remember { Animatable(0f) }
     var overlayHeightPx by remember { mutableFloatStateOf(0f) }
     val animatedCornerRadius by animateDpAsState(
@@ -577,7 +580,7 @@ fun BrowserScreen(
     var contextMenuData by remember { mutableStateOf<ContextMenuData?>(null) }
     var displayContextMenuData by remember { mutableStateOf<ContextMenuData?>(null) }
 
-    val bottomPanelPagerState = rememberPagerState(initialPage = 1, pageCount = { 2 })
+    val bottomPanelPagerState = rememberPagerState(initialPage = 1, pageCount = { 3 })
 
 
     //endregion
@@ -1180,7 +1183,7 @@ fun BrowserScreen(
 
     LaunchedEffect(bottomPanelPagerState.settledPage, bottomPanelPagerState.currentPage, isUrlOverlayBoxVisible) {
 
-        if (bottomPanelPagerState.currentPage == 1) {
+        if (bottomPanelPagerState.currentPage == BottomPanelMode.SEARCH.ordinal) {
             isUrlOverlayBoxVisible = true
             if (tabsPanelLock && !isFocusOnTextField) isTabsPanelVisible = true
         } else {
@@ -1195,13 +1198,27 @@ fun BrowserScreen(
             keyboardController?.hide()
 
         }
-        if (bottomPanelPagerState.settledPage != 1) {
+        if (bottomPanelPagerState.settledPage != BottomPanelMode.SEARCH.ordinal) {
             focusManager.clearFocus()
         }
 
     }
 
+    LaunchedEffect(bottomPanelPagerState.currentPage) {
+        if (bottomPanelPagerState.currentPage == BottomPanelMode.LOCK.ordinal) {
+            Log.d("BottomPanelLock", "B:  ${isBottomPanelLock.value}")
+            isBottomPanelLock.value = !isBottomPanelLock.value
+            Log.d("BottomPanelLock", "A:  ${isBottomPanelLock.value}")
 
+
+        }
+    }
+    LaunchedEffect(bottomPanelPagerState.settledPage) {
+        if (bottomPanelPagerState.settledPage == BottomPanelMode.LOCK.ordinal) {
+            bottomPanelPagerState.animateScrollToPage(BottomPanelMode.SEARCH.ordinal)
+
+        }
+    }
     LaunchedEffect(screenSize) {
         if (screenSize.width > 0 && !isBackSquareInitialized) {
             val buttonSize = with(density) {
@@ -1978,7 +1995,7 @@ fun BrowserScreen(
 
             )
             webView.onWebViewTouch = {
-                if (isUrlBarVisible) isUrlBarVisible = false
+                if (isUrlBarVisible && !isBottomPanelLock.value) isUrlBarVisible = false
                 if (contextMenuData != null) contextMenuData = null
             }
         }
@@ -1997,7 +2014,7 @@ fun BrowserScreen(
             isSettingsPanelVisible = false
             if (downloads.isEmpty()) isDownloadPanelVisible = false
         } else {
-            if (tabsPanelLock) isTabsPanelVisible = true
+            if (tabsPanelLock && bottomPanelPagerState.currentPage == BottomPanelMode.SEARCH.ordinal) isTabsPanelVisible = true
             if (isCursorMode) isCursorMode = false
         }
     }
@@ -2289,7 +2306,7 @@ fun BrowserScreen(
 
 
             BottomPanel(
-
+                isBottomPanelLock = isBottomPanelLock,
                 bottomPanelPagerState = bottomPanelPagerState,
                 onOpenInNewTab = { url ->
 //                   createNewTab(tabs.size, url)
@@ -2540,43 +2557,8 @@ fun BrowserScreen(
                             "Screen Size: ${screenSize.width}x${screenSize.height} px | ${screenSizeDp.width}x${screenSizeDp.height} dp"
                         )
                     },
-                enter = fadeIn(tween(browserSettings.animationSpeed.roundToInt())),
-                exit = fadeOut(tween(browserSettings.animationSpeed.roundToInt()))
-//                enter = slideInHorizontally(
-//                    animationSpec = tween(
-//                        animationSpeedForLayer(
-//                            0,
-//                            browserSettings.animationSpeed
-//                        )
-//                    ),
-//                    initialOffsetX = { if (squareAlignment == Alignment.BottomEnd) it else (-it) }
-//                ) + fadeIn(
-//                    animationSpec = tween(
-//                        animationSpeedForLayer(
-//                            0,
-//                            browserSettings.animationSpeed
-//                        )
-//                    )
-//                ),
-//                exit =
-//                    slideOutHorizontally(
-//                        animationSpec = tween(
-//                            animationSpeedForLayer(
-//                                0,
-//                                browserSettings.animationSpeed
-//                            )
-//
-//                        ),
-//                        targetOffsetX = { if (squareAlignment == Alignment.BottomEnd) it else (-it) }
-//                    )
-//                            + fadeOut(
-//                        animationSpec = tween(
-//                            animationSpeedForLayer(
-//                                0,
-//                                browserSettings.animationSpeed
-//                            )
-//                        )
-//                    )
+                enter = fadeIn(tween(browserSettings.animationSpeedForLayer(0))),
+                exit = fadeOut(tween(browserSettings.animationSpeedForLayer(0)))
             ) {
 
 
@@ -2585,7 +2567,7 @@ fun BrowserScreen(
                         .fillMaxSize(),
                 ) {
 
-                    browserSettings.heightForLayer(1).dp
+
 
                     val squareBoxSize = browserSettings.heightForLayer(1).dp
 
@@ -2869,11 +2851,11 @@ fun BrowserScreen(
                         ,
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_link),
-                            contentDescription = "Back",
-                            tint = Color.White
-                        )
+//                        Icon(
+//                            painter = painterResource(R.drawable.ic_link),
+//                            contentDescription = "Back",
+//                            tint = Color.White
+//                        )
                     }
                 }
             }
@@ -2916,21 +2898,26 @@ fun LoadingIndicator(
         Box(
             modifier = Modifier
                 .padding(browserSettings.padding.dp)
+                .clip(
+                    RoundedCornerShape(
+                        browserSettings.cornerRadiusForLayer(1).dp
+                    )
+                )
+                .size(browserSettings.heightForLayer(1).dp)
                 .background(
                     Color.Black.copy(alpha = 0.5f),
-                    RoundedCornerShape(browserSettings.cornerRadiusForLayer(1).dp)
-
                 )
 
 
         ) {
             CircularProgressIndicator(
                 modifier = Modifier
-                    .size(browserSettings.heightForLayer(2).dp)
-                    .padding(browserSettings.padding.dp),
+                    .padding(browserSettings.padding.dp)
+                    .size(browserSettings.heightForLayer(1).dp)
+                    ,
                 // Use a contrasting color that works well on the dark scrim.
                 color = Color.White,
-                strokeWidth = browserSettings.heightForLayer(2).dp / 8
+                strokeWidth = browserSettings.heightForLayer(1).dp / 8
             )
         }
     }

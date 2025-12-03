@@ -136,6 +136,7 @@ fun TabItem(
                     .padding(browserSettings.padding.dp)
 
             ) {
+
                 Box(
                     modifier = Modifier
                         .size(24.dp),
@@ -148,6 +149,7 @@ fun TabItem(
                     val imageSizePx = with(LocalDensity.current) {
                         (24.dp * 3).roundToPx()
                     }
+                    Log.i("Favicon", "24dp * 3 -> ${imageSizePx}px")
 
                     // 1. Build the same robust ImageRequest as before.
                     val imageRequest = ImageRequest.Builder(LocalContext.current)
@@ -168,7 +170,6 @@ fun TabItem(
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .fillMaxSize()
-//                            .padding(3.dp)
                     )
                 }
 

@@ -90,6 +90,7 @@ import kotlin.math.abs
 
 @Composable
 fun BottomPanel(
+    isBottomPanelLock: MutableState<Boolean>,
     bottomPanelPagerState: PagerState,
     onOpenInNewTab: (String) -> Unit,
     onDownloadImage: (String) -> Unit,
@@ -843,19 +844,24 @@ fun BottomPanel(
                             }
                         }
 
-//                        2 -> {
-//                            Box(
-//                                modifier = Modifier
-//                                    .height(
-//                                        browserSettings.heightForLayer(1).dp
-//                                    )
-//                                    .fillMaxWidth()
-//                                    .padding(browserSettings.padding.dp)
-//                                    .clip(RoundedCornerShape(browserSettings.cornerRadiusForLayer(1).dp))
-//                            ) {
-//                                // Content for Left Swipe
-//                            }
-//                        }
+                        2 -> {
+                            Box(
+                                modifier = Modifier
+                                    .height(
+                                        browserSettings.heightForLayer(1).dp
+                                    )
+                                    .fillMaxWidth()
+                                    .padding(browserSettings.padding.dp)
+                                    .clip(RoundedCornerShape(browserSettings.cornerRadiusForLayer(1).dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = if (isBottomPanelLock.value)R.drawable.ic_lock else R.drawable.ic_lock_open_right),
+                                    contentDescription = "toggle bottom panel lock",
+                                    tint = Color.White
+                                )
+                            }
+                        }
                     }
                 }
             }
