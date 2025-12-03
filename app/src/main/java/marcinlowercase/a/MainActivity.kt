@@ -1181,7 +1181,7 @@ fun BrowserScreen(
 
         if (bottomPanelPagerState.currentPage == 1) {
             isUrlOverlayBoxVisible = true
-            if (tabsPanelLock) isTabsPanelVisible = true
+            if (tabsPanelLock && !isFocusOnTextField) isTabsPanelVisible = true
         } else {
             isFocusOnTextField = false
             isDownloadPanelVisible = false
