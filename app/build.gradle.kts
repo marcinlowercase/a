@@ -10,6 +10,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.google.services)
 }
 
 android {
@@ -78,14 +79,16 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
+    implementation(platform(libs.google.firebase.bom))
+    implementation(libs.google.firebase.analytics)
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.androidx.compose.foundation)
-    implementation("io.coil-kt:coil-compose:2.7.0")
-    implementation("io.coil-kt:coil-svg:2.7.0")
+    implementation(libs.coil.compose)
+    implementation(libs.coil.svg)
     implementation(libs.androidx.compose.material3)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
