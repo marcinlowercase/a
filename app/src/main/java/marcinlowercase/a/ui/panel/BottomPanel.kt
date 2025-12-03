@@ -90,6 +90,7 @@ fun BottomPanel(
     onOpenInNewTab: (String) -> Unit,
     onDownloadImage: (String) -> Unit,
     contextMenuData: ContextMenuData?,
+    displayContextMenuData: ContextMenuData?,
     onDismissContextMenu: () -> Unit,
     isFocusOnTextField: Boolean,
     textFieldState: TextFieldState,
@@ -261,15 +262,19 @@ fun BottomPanel(
             )
 
             ContextMenuPanel(
+                descriptionContent = descriptionContent,
+
                 isVisible = contextMenuData != null,
-                data = contextMenuData,
+                data = displayContextMenuData,
+
                 browserSettings = browserSettings,
                 onDismiss = onDismissContextMenu,
                 onOpenInNewTab = { url ->
                     onOpenInNewTab(url)
                     onDismissContextMenu()
                 },
-                onDownloadImage = onDownloadImage // Pass the function
+                onDownloadImage = onDownloadImage,
+                hapticFeedback = hapticFeedback,
             )
 
             FindInPagePanel(

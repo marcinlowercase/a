@@ -10,7 +10,9 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,15 +27,23 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import marcinlowercase.a.R
 import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.ContextMenuData
@@ -41,21 +51,26 @@ import kotlin.math.roundToInt
 
 @Composable
 fun ContextMenuPanel(
+    descriptionContent: MutableState<String>,
     isVisible: Boolean,
     data: ContextMenuData?,
     browserSettings: BrowserSettings,
     onDismiss: () -> Unit,
     onOpenInNewTab: (String) -> Unit,
-    onDownloadImage: (String) -> Unit
+    onDownloadImage: (String) -> Unit,
+    hapticFeedback: HapticFeedback,
 ) {
     val clipboard = LocalClipboard.current
     val context = LocalContext.current
+
 
     AnimatedVisibility(
         visible = isVisible,
         enter = expandVertically(tween(browserSettings.animationSpeed.roundToInt())) + fadeIn(),
         exit = shrinkVertically(tween(browserSettings.animationSpeed.roundToInt())) + fadeOut()
     ) {
+
+
         if (data == null) return@AnimatedVisibility
 
         // Determine if the target is an image (IMAGE_TYPE) or a Link (SRC_ANCHOR / SRC_IMAGE_ANCHOR)
@@ -105,24 +120,24 @@ fun ContextMenuPanel(
 
             if (isImage) {
                 // --- IMAGE ACTIONS ---
-                actions.add(Triple(R.drawable.ic_download, "Download Image") {
+                actions.add(Triple(R.drawable.ic_download, "download image") {
                     onDownloadImage(data.url)
                     onDismiss()
                 })
-                actions.add(Triple(R.drawable.ic_add, "Open Image in New Tab") {
+                actions.add(Triple(R.drawable.ic_add, "open image in new tab") {
                     onOpenInNewTab(data.url)
                 })
             } else {
                 // --- LINK ACTIONS ---
-                actions.add(Triple(R.drawable.ic_add, "Open in New Tab") {
+                actions.add(Triple(R.drawable.ic_add, "open link in new tab") {
                     onOpenInNewTab(data.url)
                 })
-                actions.add(Triple(R.drawable.ic_content_copy, "Copy Link") {
+                actions.add(Triple(R.drawable.ic_content_copy, "copy link") {
                     val clip = ClipData.newPlainText("Link", data.url)
                     clipboard.nativeClipboard.setPrimaryClip(clip)
                     onDismiss()
                 })
-                actions.add(Triple(R.drawable.ic_share, "Share Link") {
+                actions.add(Triple(R.drawable.ic_share, "share link") {
                     val intent = Intent(Intent.ACTION_SEND).apply {
                         type = "text/plain"
                         putExtra(Intent.EXTRA_TEXT, data.url)
@@ -132,8 +147,7 @@ fun ContextMenuPanel(
                 })
             }
 
-            // Common Cancel Action
-            actions.add(Triple(R.drawable.ic_close, "Cancel") { onDismiss() })
+
 
             // Render Buttons
             Row(
@@ -160,7 +174,54 @@ fun ContextMenuPanel(
                                 )
                             )
                             .background(Color.White)
-                            .clickable(onClick = action),
+//                            .clickable(onClick = action)
+                            .pointerInput(Unit) {
+                                // 1. CAPTURE the CoroutineScope provided by pointerInput
+                                val coroutineScope = CoroutineScope(
+                                    currentCoroutineContext()
+                                )
+                                awaitEachGesture {
+                                    val down = awaitFirstDown(requireUnconsumed = false)
+
+                                    // 2. USE the captured scope to launch the long press job
+                                    val longPressJob = coroutineScope.launch {
+                                        delay(viewConfiguration.longPressTimeoutMillis)
+
+                                        // LONG PRESS CONFIRMED
+                                        hapticFeedback.performHapticFeedback(
+                                            HapticFeedbackType.LongPress
+                                        )
+                                        descriptionContent.value =
+                                            desc
+
+
+                                    }
+                                    val drag =
+                                        awaitTouchSlopOrCancellation(down.id) { change, _ ->
+                                            if (longPressJob.isActive) {
+                                                longPressJob.cancel()
+                                            }
+                                            change.consume()
+                                        }
+
+
+
+                                    if (!(longPressJob.isCompleted && !longPressJob.isCancelled)) {
+                                        if (drag == null) {
+                                            if (longPressJob.isActive) {
+                                                longPressJob.cancel()
+                                                // This was a tap
+                                                action()
+
+                                            }
+                                        }
+                                    }
+
+
+                                    descriptionContent.value = ""
+                                }
+                            }
+                        ,
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(

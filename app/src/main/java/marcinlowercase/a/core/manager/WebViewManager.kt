@@ -722,6 +722,11 @@ class WebViewManager(private val context: Context) {
         }
         webView.setOnLongClickListener { v ->
             val result = (v as WebView).hitTestResult
+//            val heref = (v as WebView).requestFocusNodeHref(null)
+//            Log.d("WebViewLongClick", "heref  $heref")
+            Log.d("WebViewLongClick", "extra  ${result.extra}")
+            Log.d("WebViewLongClick", "type  ${result.type}")
+
             val type = result.type
 
             // Check for Link (SRC_ANCHOR_TYPE) or Image Link (SRC_IMAGE_ANCHOR_TYPE)
@@ -729,6 +734,7 @@ class WebViewManager(private val context: Context) {
                 type == WebView.HitTestResult.IMAGE_TYPE
             ) {
                 val url = result.extra
+
                 if (url != null) {
                     onContextMenu(ContextMenuData(url, type))
                     // Return TRUE to stop the event here (prevents default drag/selection)

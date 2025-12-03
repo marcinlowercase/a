@@ -177,8 +177,6 @@ import kotlin.system.exitProcess
 //endregion
 
 
-
-
 //region Composable
 
 
@@ -575,6 +573,8 @@ fun BrowserScreen(
     }
 
     var contextMenuData by remember { mutableStateOf<ContextMenuData?>(null) }
+    var displayContextMenuData by remember { mutableStateOf<ContextMenuData?>(null) }
+
     //endregion
 
     //region Functions
@@ -1951,12 +1951,14 @@ fun BrowserScreen(
 
                 onContextMenu = { data ->
                     contextMenuData = data
+                    displayContextMenuData = contextMenuData
                     hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                 }
 
             )
             webView.onWebViewTouch = {
                 if (isUrlBarVisible) isUrlBarVisible = false
+                if (contextMenuData != null) contextMenuData = null
             }
         }
     }
@@ -2252,7 +2254,7 @@ fun BrowserScreen(
                             modifier = Modifier.fillMaxSize()
                         )
                     }
-                    LoadingOverlay(isLoading = isLoading)
+                    LoadingIndicator(isLoading = isLoading, browserSettings = browserSettings)
                 }
             }
 
@@ -2281,6 +2283,7 @@ fun BrowserScreen(
                     )
                 },
                 contextMenuData = contextMenuData,
+                displayContextMenuData = displayContextMenuData,
                 onDismissContextMenu = { contextMenuData = null },
                 isFocusOnTextField = isFocusOnTextField,
                 textFieldState = textFieldState,
@@ -2875,7 +2878,11 @@ fun BrowserScreen(
 }
 
 @Composable
-fun LoadingOverlay(isLoading: Boolean, modifier: Modifier = Modifier) {
+fun LoadingIndicator(
+    isLoading: Boolean,
+    browserSettings: BrowserSettings,
+    modifier: Modifier = Modifier
+) {
     // Animate the appearance and disappearance of the overlay.
     AnimatedVisibility(
         visible = isLoading,
@@ -2885,19 +2892,22 @@ fun LoadingOverlay(isLoading: Boolean, modifier: Modifier = Modifier) {
     ) {
         Box(
             modifier = Modifier
-                .fillMaxSize()
-                // Use a theme-aware scrim color for a professional look.
-                .background(Color.Black.copy(alpha = 0.7f))
-                // CRITICAL: This consumes all touch events, preventing the user
-                // from interacting with the WebView while it's loading.
-                .pointerInput(Unit) {},
-            contentAlignment = Alignment.Center
+                .padding(browserSettings.padding.dp)
+                .background(
+                    Color.Black.copy(alpha = 0.5f),
+                    RoundedCornerShape(browserSettings.cornerRadiusForLayer(1).dp)
+
+                )
+
+
         ) {
             CircularProgressIndicator(
-                modifier = Modifier.size(64.dp),
+                modifier = Modifier
+                    .size(browserSettings.heightForLayer(2).dp)
+                    .padding(browserSettings.padding.dp),
                 // Use a contrasting color that works well on the dark scrim.
                 color = Color.White,
-                strokeWidth = 6.dp
+                strokeWidth = browserSettings.heightForLayer(2).dp / 8
             )
         }
     }
@@ -3310,7 +3320,7 @@ fun CursorPad(
                     )
                     .clip(
                         RoundedCornerShape(
-                           browserSettings.cornerRadiusForLayer(1).dp
+                            browserSettings.cornerRadiusForLayer(1).dp
                         )
                     )
                     .background(Color.Black.copy(alpha = 0.4f))

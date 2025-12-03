@@ -208,17 +208,6 @@ fun TabDataPanel(
                         )
                     )
                     .background(Color.Black)
-//                    .border(
-//                        1.dp,
-//                        Color.White,
-//                        RoundedCornerShape(
-//                            cornerRadiusForLayer(
-//                                2,
-//                                browserSettings.deviceCornerRadius,
-//                                browserSettings.padding
-//                            ).dp
-//                        )
-//                    )
             ) {
                 val tab = inspectingTab ?: return@Column
 
@@ -229,7 +218,7 @@ fun TabDataPanel(
                             tween(
                                 browserSettings.animationSpeedForLayer(1)
                             )
-                        ) // Smoothly animates size changes
+                        )
                 ) {
 
                     val maxLazyColumnHeight = (browserSettings.heightForLayer(3).dp + browserSettings.padding.dp) * 2.5f
