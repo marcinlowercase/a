@@ -26,6 +26,7 @@ import androidx.core.net.toUri
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import marcinlowercase.a.R
+import marcinlowercase.a.core.constant.favicon_discovery
 import marcinlowercase.a.core.constant.generic_location_permission
 import marcinlowercase.a.core.custom_class.CustomWebView
 import marcinlowercase.a.core.data_class.BrowserSettings
@@ -46,61 +47,9 @@ class WebViewManager(private val context: Context) {
     val activity = context as? Activity
 
     //region JS Code
-//    private val jsFaviconDiscovery = """
-//    (function() {
-//        let icon = document.querySelector("link[rel='apple-touch-icon']") ||
-//                   document.querySelector("link[rel='icon']") ||
-//                   document.querySelector("link[rel='shortcut icon']");
-//
-//        // The 'href' property of an HTMLAnchorElement or HTMLLinkElement is
-//        // automatically resolved to an absolute URL by the browser engine.
-//        // We don't need to resolve it in Kotlin anymore.
-//        WebAppFavicon.passFaviconUrl(icon ? icon.href : null);
-//    })();
-//""".trimIndent()
 
-    private val jsFaviconDiscovery = """
-    (function() {
-        var links = document.querySelectorAll("link[rel*='icon']");
-        var bestHref = null;
-        var maxSize = 0;
 
-        for (var i = 0; i < links.length; i++) {
-            var link = links[i];
-            var sizes = link.getAttribute('sizes');
-            var currentSize = 0;
 
-            if (sizes && sizes !== 'any') {
-                // Parse "192x192" or "192x192 32x32" -> take the first dimension
-                try {
-                    var dim = parseInt(sizes.split('x')[0]);
-                    if (!isNaN(dim)) {
-                        currentSize = dim * dim;
-                    }
-                } catch (e) {}
-            }
-            
-            // Give a high baseline score to apple-touch-icons if they lack size attributes
-            // as they are typically 180x180 or higher.
-            if (currentSize === 0 && link.rel.indexOf('apple-touch-icon') > -1) {
-                currentSize = 32400; // Equivalent to 180x180
-            }
-
-            // If we found a bigger one, or if we haven't found any yet
-            if (currentSize > maxSize || (bestHref === null && link.href)) {
-                maxSize = currentSize;
-                bestHref = link.href;
-            }
-        }
-        
-        // If still nothing, try the standard favicon.ico location
-        if (!bestHref) {
-             bestHref = window.location.origin + "/favicon.ico";
-        }
-
-        WebAppFavicon.passFaviconUrl(bestHref);
-    })();
-""".trimIndent()
 
     //endregion
 
@@ -210,7 +159,7 @@ class WebViewManager(private val context: Context) {
                 // This is called from the JS bridge
                 onFaviconChanged(tab.id, faviconUrl)
             },
-            "WebAppFavicon" // This name must match the JS
+            "FaviconJavascriptInterface" // This name must match the JS
         )
 
         // The WebChromeClient handles UI-related browser events.
@@ -623,7 +572,8 @@ class WebViewManager(private val context: Context) {
 
                 if (view != null) {
                     Log.e("Favicon", "onPageFinished")
-                    view.evaluateJavascript(jsFaviconDiscovery, null)
+                    Log.d("Favicon", "evaluate the jsFaviconDiscovery")
+                    view.evaluateJavascript(favicon_discovery, null)
 
                     onPageFinishedFun(view, currentUrlString)
                 }

@@ -9,6 +9,9 @@ class FaviconJavascriptInterface(
     @Suppress("unused")
     @JavascriptInterface
     fun passFaviconUrl(absoluteIconUrl: String?) {
+        Log.e("Favicon",  "Entered Interface")
+
+        Log.d("Favicon", "passFaviconUrl called")
         if (absoluteIconUrl != null) {
             Log.d("Favicon", "Received absolute icon URL from JS: $absoluteIconUrl")
             onFaviconUrlFound(absoluteIconUrl)

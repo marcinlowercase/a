@@ -132,6 +132,7 @@ import kotlinx.coroutines.withContext
 import marcinlowercase.a.core.constant.inject_corner_radius
 import marcinlowercase.a.core.constant.generic_location_permission
 import marcinlowercase.a.core.constant.default_url
+import marcinlowercase.a.core.constant.favicon_discovery
 import marcinlowercase.a.core.constant.pixel_9_corner_radius
 import marcinlowercase.a.core.custom_class.CustomWebView
 import marcinlowercase.a.core.data_class.BrowserSettings
@@ -1485,14 +1486,7 @@ fun BrowserScreen(
     LaunchedEffect(activeWebView) {
         activeWebView?.let { webView ->
 
-            val jsFaviconDiscovery = """
-        (function() {
-            let icon = document.querySelector("link[rel='apple-touch-icon']") ||
-                       document.querySelector("link[rel='icon']") ||
-                       document.querySelector("link[rel='shortcut icon']");
-            WebAppFavicon.passFaviconUrl(icon ? icon.href : null);
-        })();
-        """.trimIndent()
+
 
             // Set up all the clients for the *current* active WebView.
             webViewManager.setWebViewClients(
@@ -1522,7 +1516,7 @@ fun BrowserScreen(
                     } else {
                         Log.d(
                             "FaviconUpdate",
-                            "Skipping favicon update for ${activeTab.currentURL}. An icon already exists or the new one is invalid."
+                            "Skipping favicon update for ${activeTab.currentURL}. The new icon is invalid."
                         )
                     }
                 },
@@ -1790,7 +1784,7 @@ fun BrowserScreen(
                     }
 
 
-                    view.evaluateJavascript(jsFaviconDiscovery, null)
+                    view.evaluateJavascript(favicon_discovery, null)
 
 
                     // Pass both the URL and the title to the manager
