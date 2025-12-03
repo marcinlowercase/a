@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 //import java.util.Properties
 //import java.io.FileInputStream
 
@@ -56,9 +58,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
-    kotlinOptions {
-        jvmTarget = "11"
-    }
     buildFeatures {
         compose = true
     }
@@ -66,6 +65,7 @@ android {
         target {
             compilerOptions {
                 optIn.add("kotlin.RequiresOptIn")
+                jvmTarget.set(JvmTarget.JVM_11)
             }
         }
     }
