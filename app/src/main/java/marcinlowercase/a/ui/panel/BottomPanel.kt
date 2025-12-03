@@ -16,11 +16,15 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.drag
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -29,6 +33,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldLineLimits
@@ -41,6 +47,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
@@ -84,6 +91,7 @@ import marcinlowercase.a.core.function.toDomain
 import marcinlowercase.a.core.manager.WebViewManager
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+import kotlin.math.abs
 
 @Composable
 fun BottomPanel(
@@ -465,299 +473,361 @@ fun BottomPanel(
                     )
                 )
             ) {
-                Box {
+                val pagerState = rememberPagerState(initialPage = 1, pageCount = { 2 })
 
-                    TextField(
-                        modifier = Modifier
-                            .height(
-                                browserSettings.heightForLayer(1).dp
-                            )
-                            .padding(browserSettings.padding.dp)
-                            .onSizeChanged { size ->
-                                setTextFieldHeightPx(size.height)
-                            }
-                            .fillMaxWidth()
-                            .focusRequester(urlBarFocusRequester)
-                            //                            .padding(horizontal = browserSettings.padding.dp, vertical = browserSettings.padding.dp / 2)
-                            .onFocusChanged {
-                                val resetUrl = activeWebView?.url ?: ""
-                                setIsFocusOnTextField(it.isFocused)
-                                if (it.isFocused) {
-                                    setSavedPanelState(
-                                        PanelVisibilityState(
-                                            options = isOptionsPanelVisible,
-                                            tabs = isTabsPanelVisible,
-                                            downloads = isDownloadPanelVisible,
-                                            tabData = isTabDataPanelVisible,
-                                            nav = isNavPanelVisible
-                                        )
+                LaunchedEffect(pagerState.settledPage, pagerState.currentPage, isUrlOverlayBoxVisible) {
+
+                    Log.e("PagerState", "curren ${pagerState.currentPage}")
+                    Log.e("PagerState", "targe ${pagerState.targetPage}")
+                    Log.e("PagerState", "settled ${pagerState.settledPage}")
+
+                    if (pagerState.currentPage == 1) {
+                        setIsUrlOverlayBoxVisible(true)
+                    } else {
+                        setIsFocusOnTextField(false)
+                        setIsDownloadPanelVisible(false)
+                        setIsNavPanelVisible(false)
+                        setIsTabsPanelVisible(false)
+                        setIsOptionsPanelVisible(false)
+                        setIsSettingsPanelVisible(false)
+                        isFindInPageVisible.value = false
+                        keyboardController?.hide()
+
+                    }
+                    if (pagerState.settledPage != 1) {
+                        focusManager.clearFocus()
+                    }
+
+                }
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                       ,
+                    contentPadding = PaddingValues(0.dp),
+                    pageSpacing = browserSettings.padding.dp // Optional spacing
+                ) { pageIndex ->
+
+                    when (pageIndex) {
+                        // --- LEFT BOX (Page 0) ---
+                        0 -> {
+                            Box(
+                                modifier = Modifier
+                                    .height(
+                                        browserSettings.heightForLayer(1).dp
                                     )
-                                    setIsOptionsPanelVisible(false)
-                                    setIsTabsPanelVisible(false)
-                                    setIsDownloadPanelVisible(false)
-                                    setIsTabDataPanelVisible(false)
-                                    setIsNavPanelVisible(false)
-                                    setIsSettingsPanelVisible(false)
+                                    .fillMaxWidth()
+                                    .padding(browserSettings.padding.dp)
+                                    .clip(RoundedCornerShape(browserSettings.cornerRadiusForLayer(1).dp))
+                            ) {
+                                // Content for Left Swipe
+                            }
+                        }
+
+                        1 -> {
+                            Box (modifier = Modifier){
+
+                                TextField(
+                                    modifier = Modifier
+                                        .height(
+                                            browserSettings.heightForLayer(1).dp
+                                        )
+                                        .padding(browserSettings.padding.dp)
+                                        .onSizeChanged { size ->
+                                            setTextFieldHeightPx(size.height)
+                                        }
+                                        .fillMaxWidth()
+                                        .focusRequester(urlBarFocusRequester)
+                                        //                            .padding(horizontal = browserSettings.padding.dp, vertical = browserSettings.padding.dp / 2)
+                                        .onFocusChanged {
+                                            val resetUrl = activeWebView?.url ?: ""
+                                            setIsFocusOnTextField(it.isFocused)
+                                            if (it.isFocused) {
+                                                setSavedPanelState(
+                                                    PanelVisibilityState(
+                                                        options = isOptionsPanelVisible,
+                                                        tabs = isTabsPanelVisible,
+                                                        downloads = isDownloadPanelVisible,
+                                                        tabData = isTabDataPanelVisible,
+                                                        nav = isNavPanelVisible
+                                                    )
+                                                )
+                                                setIsOptionsPanelVisible(false)
+                                                setIsTabsPanelVisible(false)
+                                                setIsDownloadPanelVisible(false)
+                                                setIsTabDataPanelVisible(false)
+                                                setIsNavPanelVisible(false)
+                                                setIsSettingsPanelVisible(false)
+                                                setIsUrlOverlayBoxVisible(false)
 
 //                                    textFieldState.edit { selectAll() }
-                                    textFieldState.setTextAndPlaceCursorAtEnd("")
-                                } else {
-
-                                    savedPanelState?.let { savedState ->
-                                        setIsOptionsPanelVisible(savedState.options)
-                                        setIsTabsPanelVisible(savedState.tabs)
-                                        setIsDownloadPanelVisible(savedState.downloads)
-                                        setIsTabDataPanelVisible(savedState.tabData)
-                                        setIsNavPanelVisible(savedState.nav)
-                                        setSavedPanelState(null) // Clear the saved state
-                                    }
-                                    textFieldState.setTextAndPlaceCursorAtEnd(resetUrl.toDomain())
-
-
-                                    setIsUrlOverlayBoxVisible(true)
-                                }
-                            }
-                            .pointerInput(Unit) {
-                                detectHorizontalDragGestures { _, dragAmount ->
-                                    if (dragAmount > 0) {
-                                        val resetUrl =
-                                            activeWebView?.url ?: ""
-                                        textFieldState.setTextAndPlaceCursorAtEnd(resetUrl.toDomain())
-                                    }
-                                }
-                            }
-                            .clip(
-                                RoundedCornerShape(
-                                    browserSettings.cornerRadiusForLayer(2).dp
-                                )
-                            ),
-                        state = textFieldState,
-                        textStyle = LocalTextStyle.current.copy(
-//                            fontFamily = FontFamily.Monospace,
-                            textAlign = if (isFocusOnTextField) TextAlign.Start else TextAlign.Center
-                        ),
-//                        state = rememberTextFieldState("Hello"),
-                        lineLimits = TextFieldLineLimits.SingleLine,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
-                        onKeyboardAction = {
-                            val input = (textFieldState.text as String).trim()
-                            val resetUrl = activeWebView?.url ?: ""
-
-                            Log.e("TextFieldState", input)
-                            if (input.isEmpty()) {
-                                Log.e("TextFieldState", "input empty, reload")
-
-                                activeWebView?.reload()
-                                textFieldState.setTextAndPlaceCursorAtEnd(resetUrl.toDomain())
-                                focusManager.clearFocus()
-                                keyboardController?.hide()
-                                setIsFocusOnTextField(false)
-
-                                return@TextField
-                            }
-                            val isUrl = try {
-                                Patterns.WEB_URL.matcher(input).matches() ||
-                                        (input.contains(".") && !input.contains(" "))
-                                        && !input.endsWith(".")
-                                        && !input.startsWith(".")
-                            } catch (_: Exception) {
-                                false
-                            }
-
-                            val finalUrl = if (isUrl) {
-                                if (input.startsWith("http://") || input.startsWith("https://")) {
-                                    input
-                                } else {
-                                    "https://$input"
-                                }
-                            } else {
-                                val encodedQuery =
-                                    URLEncoder.encode(
-                                        input,
-                                        StandardCharsets.UTF_8.toString()
-                                    )
-                                "https://www.google.com/search?q=$encodedQuery"
-                            }
-
-                            onNewUrl(finalUrl)
-
-                            focusManager.clearFocus()
-                            keyboardController?.hide()
-
-                            setIsFocusOnTextField(false)
-                        },
-                        shape = RoundedCornerShape(
-                           browserSettings.cornerRadiusForLayer(2).dp
-                        ),
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.Black,
-                            unfocusedContainerColor = Color.Black,
-                            cursorColor = Color.White,
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-
-                            // 3. This is the key to removing the underline
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent,
-                            disabledIndicatorColor = Color.Transparent,
-                            errorIndicatorColor = Color.Transparent
-                        ),
-                    )
-
-                    if (isUrlOverlayBoxVisible) Box(
-                        modifier = Modifier
-                            .background(
-                                Color.Transparent, shape = RoundedCornerShape(
-                                    browserSettings.cornerRadiusForLayer(1).dp
-                                )
-                            )
-                            .clip(
-                                RoundedCornerShape(
-                                   browserSettings.cornerRadiusForLayer(1).dp
-                                )
-                            )
-                            .matchParentSize()
-                            .pointerInput(
-                                Unit,
-                                activeWebView?.canGoBack(),
-                                activeWebView?.canGoForward()
-                            ) {
-                                // 1. CAPTURE the CoroutineScope provided by pointerInput
-                                val coroutineScope = CoroutineScope(currentCoroutineContext())
-                                awaitEachGesture {
-                                    val down = awaitFirstDown(requireUnconsumed = false)
-
-                                    // 2. USE the captured scope to launch the long press job
-                                    val longPressJob = coroutineScope.launch {
-                                        delay(viewConfiguration.longPressTimeoutMillis)
-
-                                        // LONG PRESS CONFIRMED
-                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        focusManager.clearFocus(true)
-                                        setIsNavPanelVisible(true)
-                                        setActiveNavAction(GestureNavAction.NONE)
-
-                                    }
-
-                                    val drag =
-                                        awaitTouchSlopOrCancellation(down.id) { change, _ ->
-                                            if (longPressJob.isActive) {
-                                                longPressJob.cancel()
-                                            }
-                                            change.consume()
-                                        }
-
-                                    if (longPressJob.isCompleted && !longPressJob.isCancelled) {
-                                        if (drag != null) {
-                                            var horizontalDragAccumulator = 0f
-                                            var verticalDragAccumulator = 0f
-                                            var previousAction = GestureNavAction.REFRESH
-                                            val horizontalDragThreshold =
-                                                40.dp.toPx()
-
-                                            val verticalCancelThreshold =
-                                                -40.dp.toPx()
-
-
-                                            drag(drag.id) { change ->
-                                                change.consume()
-                                                horizontalDragAccumulator += change.position.x - change.previousPosition.x
-                                                verticalDragAccumulator += change.position.y - change.previousPosition.y
-
-
-                                                val newAction = when {
-                                                    verticalDragAccumulator < verticalCancelThreshold -> {
-                                                        when {
-                                                            horizontalDragAccumulator < -horizontalDragThreshold -> GestureNavAction.CLOSE_TAB
-                                                            horizontalDragAccumulator > horizontalDragThreshold -> GestureNavAction.NEW_TAB
-                                                            else -> GestureNavAction.REFRESH
-                                                        }
-                                                    }
-
-                                                    horizontalDragAccumulator < -horizontalDragThreshold -> if (activeWebView?.canGoBack()
-                                                            ?: false
-                                                    ) GestureNavAction.BACK else GestureNavAction.NONE
-
-                                                    horizontalDragAccumulator > horizontalDragThreshold -> if (activeWebView?.canGoForward()
-                                                            ?: false
-                                                    ) GestureNavAction.FORWARD else GestureNavAction.NONE
-
-                                                    else -> GestureNavAction.NONE
+                                                textFieldState.setTextAndPlaceCursorAtEnd("")
+                                            } else {
+                                                setIsUrlOverlayBoxVisible(true)
+                                                savedPanelState?.let { savedState ->
+                                                    setIsOptionsPanelVisible(savedState.options)
+                                                    setIsTabsPanelVisible(savedState.tabs)
+                                                    setIsDownloadPanelVisible(savedState.downloads)
+                                                    setIsTabDataPanelVisible(savedState.tabData)
+                                                    setIsNavPanelVisible(savedState.nav)
+                                                    setSavedPanelState(null) // Clear the saved state
                                                 }
+                                                textFieldState.setTextAndPlaceCursorAtEnd(resetUrl.toDomain())
 
-                                                if (newAction != previousAction) {
-                                                    hapticFeedback.performHapticFeedback(
-                                                        HapticFeedbackType.TextHandleMove
-                                                    )
-                                                    previousAction = newAction
-                                                }
-                                                //                                                    activeNavAction = newAction
-                                                setActiveNavAction(newAction)
+
+                                                setIsUrlOverlayBoxVisible(true)
                                             }
-
-                                            navigateWebView()
                                         }
-                                    } else {
-                                        if (drag != null) {
-//                                            // IT'S A VERTICAL SWIPE to open OptionsPanel
-//                                            var vAccumulator = 0f
-//                                            drag(drag.id) { change ->
-//                                                vAccumulator += change.position.y - change.previousPosition.y
+//                                        .pointerInput(Unit) {
+//                                            detectHorizontalDragGestures { _, dragAmount ->
+//                                                if (dragAmount > 0) {
+//                                                    val resetUrl =
+//                                                        activeWebView?.url ?: ""
+//                                                    textFieldState.setTextAndPlaceCursorAtEnd(
+//                                                        resetUrl.toDomain()
+//                                                    )
+//                                                }
 //                                            }
-//                                            // Check the final drag direction
-//                                            if (vAccumulator < 0) setIsOptionsPanelVisible(true) // Swipe Up
-//                                            else setIsOptionsPanelVisible(false) // Swipe Down
+//                                        }
 
+                                        .clip(
+                                            RoundedCornerShape(
+                                                browserSettings.cornerRadiusForLayer(2).dp
+                                            )
+                                        ),
+                                    state = textFieldState,
+                                    textStyle = LocalTextStyle.current.copy(
+//                            fontFamily = FontFamily.Monospace,
+                                        textAlign = if (isFocusOnTextField) TextAlign.Start else TextAlign.Center
+                                    ),
+//                        state = rememberTextFieldState("Hello"),
+                                    lineLimits = TextFieldLineLimits.SingleLine,
+                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
+                                    onKeyboardAction = {
+                                        val input = (textFieldState.text as String).trim()
+                                        val resetUrl = activeWebView?.url ?: ""
 
-                                            var horizontalDragAccumulator = 0f
-                                            var verticalDragAccumulator = 0f
-//                                            var previousAction = GestureNavAction.REFRESH
-                                            val horizontalDragThreshold =
-                                                40.dp.toPx()
+                                        Log.e("TextFieldState", input)
+                                        if (input.isEmpty()) {
+                                            Log.e("TextFieldState", "input empty, reload")
 
-                                            val verticalCancelThreshold =
-                                                -40.dp.toPx()
+                                            activeWebView?.reload()
+                                            textFieldState.setTextAndPlaceCursorAtEnd(resetUrl.toDomain())
+                                            focusManager.clearFocus()
+                                            keyboardController?.hide()
+                                            setIsFocusOnTextField(false)
 
+                                            return@TextField
+                                        }
+                                        val isUrl = try {
+                                            Patterns.WEB_URL.matcher(input).matches() ||
+                                                    (input.contains(".") && !input.contains(" "))
+                                                    && !input.endsWith(".")
+                                                    && !input.startsWith(".")
+                                        } catch (_: Exception) {
+                                            false
+                                        }
 
-                                            drag(drag.id) { change ->
-                                                change.consume()
-                                                horizontalDragAccumulator += change.position.x - change.previousPosition.x
-                                                verticalDragAccumulator += change.position.y - change.previousPosition.y
-
-                                                Log.i(
-                                                    "DragTest",
-                                                    "horizontalDragAccumulator : $horizontalDragAccumulator"
+                                        val finalUrl = if (isUrl) {
+                                            if (input.startsWith("http://") || input.startsWith("https://")) {
+                                                input
+                                            } else {
+                                                "https://$input"
+                                            }
+                                        } else {
+                                            val encodedQuery =
+                                                URLEncoder.encode(
+                                                    input,
+                                                    StandardCharsets.UTF_8.toString()
                                                 )
-                                                Log.i(
-                                                    "DragTest",
-                                                    "verticalDragAccumulator : $verticalDragAccumulator"
-                                                )
-                                                when {
-                                                    horizontalDragAccumulator < -horizontalDragThreshold -> { // left
-                                                        Log.e("BotHDrag", "left")
+                                            "https://www.google.com/search?q=$encodedQuery"
+                                        }
 
-                                                    }
+                                        onNewUrl(finalUrl)
 
-                                                    horizontalDragAccumulator > horizontalDragThreshold -> { // right
-                                                        Log.e("BotHDrag", "right")
+                                        focusManager.clearFocus()
+                                        keyboardController?.hide()
 
-                                                    }
+                                        setIsFocusOnTextField(false)
+                                    },
+                                    shape = RoundedCornerShape(
+                                        browserSettings.cornerRadiusForLayer(2).dp
+                                    ),
+                                    colors = TextFieldDefaults.colors(
+                                        focusedContainerColor = Color.Black,
+                                        unfocusedContainerColor = Color.Black,
+                                        cursorColor = Color.White,
+                                        focusedTextColor = Color.White,
+                                        unfocusedTextColor = Color.White,
 
-                                                    verticalDragAccumulator < verticalCancelThreshold -> { // up
-                                                        Log.e("BotVDrag", "up")
-                                                        setIsOptionsPanelVisible(true)
-                                                    }
+                                        // 3. This is the key to removing the underline
+                                        focusedIndicatorColor = Color.Transparent,
+                                        unfocusedIndicatorColor = Color.Transparent,
+                                        disabledIndicatorColor = Color.Transparent,
+                                        errorIndicatorColor = Color.Transparent
+                                    ),
+                                )
 
-                                                    verticalDragAccumulator > verticalCancelThreshold -> { // down
-                                                        Log.e("BotVDrag", "down")
+                                if (isUrlOverlayBoxVisible) Box(
+                                    modifier = Modifier
+                                        .background(
+                                            Color.Transparent, shape = RoundedCornerShape(
+                                                browserSettings.cornerRadiusForLayer(1).dp
+                                            )
+                                        )
+//                                        .background(Color.Cyan)
+                                        .clip(
+                                            RoundedCornerShape(
+                                                browserSettings.cornerRadiusForLayer(1).dp
+                                            )
+                                        )
+                                        .matchParentSize()
+                                        .pointerInput(
+                                            Unit,
+                                            activeWebView?.canGoBack(),
+                                            activeWebView?.canGoForward()
+                                        ) {
+                                            // 1. CAPTURE the CoroutineScope provided by pointerInput
+                                            val coroutineScope =
+                                                CoroutineScope(currentCoroutineContext())
+                                            awaitEachGesture {
+                                                val down = awaitFirstDown(requireUnconsumed = false)
 
-                                                        setIsOptionsPanelVisible(false)
-                                                    }
+                                                // 2. USE the captured scope to launch the long press job
+                                                val longPressJob = coroutineScope.launch {
+                                                    delay(viewConfiguration.longPressTimeoutMillis)
 
+                                                    // LONG PRESS CONFIRMED
+                                                    hapticFeedback.performHapticFeedback(
+                                                        HapticFeedbackType.LongPress
+                                                    )
+                                                    focusManager.clearFocus(true)
+                                                    setIsNavPanelVisible(true)
+                                                    setActiveNavAction(GestureNavAction.NONE)
 
-                                                    else -> {// nothing
-                                                    }
                                                 }
+
+                                                val drag =
+                                                    awaitTouchSlopOrCancellation(down.id) { change, _ ->
+                                                        if (longPressJob.isActive) {
+                                                            longPressJob.cancel()
+                                                        }
+                                                        change.consume()
+                                                    }
+
+                                                if (longPressJob.isCompleted && !longPressJob.isCancelled) {
+                                                    if (drag != null) {
+                                                        var horizontalDragAccumulator = 0f
+                                                        var verticalDragAccumulator = 0f
+                                                        var previousAction =
+                                                            GestureNavAction.REFRESH
+                                                        val horizontalDragThreshold =
+                                                            40.dp.toPx()
+
+                                                        val verticalCancelThreshold =
+                                                            -40.dp.toPx()
+
+
+                                                        drag(drag.id) { change ->
+                                                            change.consume()
+                                                            horizontalDragAccumulator += change.position.x - change.previousPosition.x
+                                                            verticalDragAccumulator += change.position.y - change.previousPosition.y
+
+
+                                                            val newAction = when {
+                                                                verticalDragAccumulator < verticalCancelThreshold -> {
+                                                                    when {
+                                                                        horizontalDragAccumulator < -horizontalDragThreshold -> GestureNavAction.CLOSE_TAB
+                                                                        horizontalDragAccumulator > horizontalDragThreshold -> GestureNavAction.NEW_TAB
+                                                                        else -> GestureNavAction.REFRESH
+                                                                    }
+                                                                }
+
+                                                                horizontalDragAccumulator < -horizontalDragThreshold -> if (activeWebView?.canGoBack()
+                                                                        ?: false
+                                                                ) GestureNavAction.BACK else GestureNavAction.NONE
+
+                                                                horizontalDragAccumulator > horizontalDragThreshold -> if (activeWebView?.canGoForward()
+                                                                        ?: false
+                                                                ) GestureNavAction.FORWARD else GestureNavAction.NONE
+
+                                                                else -> GestureNavAction.NONE
+                                                            }
+
+                                                            if (newAction != previousAction) {
+                                                                hapticFeedback.performHapticFeedback(
+                                                                    HapticFeedbackType.TextHandleMove
+                                                                )
+                                                                previousAction = newAction
+                                                            }
+                                                            //                                                    activeNavAction = newAction
+                                                            setActiveNavAction(newAction)
+                                                        }
+
+                                                        navigateWebView()
+                                                    }
+                                                } else {
+                                                    if (drag != null) {
+
+                                                        var horizontalDragAccumulator = 0f
+                                                        var verticalDragAccumulator = 0f
+                                                        val horizontalDragThreshold =
+                                                            40.dp.toPx()
+
+                                                        val verticalCancelThreshold =
+                                                            -40.dp.toPx()
+
+
+                                                        drag(drag.id) { change ->
+                                                            change.consume()
+                                                            horizontalDragAccumulator += change.position.x - change.previousPosition.x
+                                                            verticalDragAccumulator += change.position.y - change.previousPosition.y
+
+
+//                                                            coroutineScope.launch {
+//                                                                pagerState.scrollBy(change.position.x)
+//                                                            }
+
+                                                            Log.i(
+                                                                "DragTest",
+                                                                "horizontalDragAccumulator : $horizontalDragAccumulator"
+                                                            )
+                                                            Log.i(
+                                                                "DragTest",
+                                                                "verticalDragAccumulator : $verticalDragAccumulator"
+                                                            )
+                                                            when {
+//                                                                horizontalDragAccumulator < -horizontalDragThreshold -> { // left
+//                                                                    Log.e("BotHDrag", "left")
+//
+//                                                                }
+//
+//                                                                horizontalDragAccumulator > horizontalDragThreshold -> { // right
+//                                                                    Log.e("BotHDrag", "right")
+//
+//                                                                }
+                                                                abs(horizontalDragAccumulator) > abs(verticalDragAccumulator) -> {
+                                                                    setIsUrlOverlayBoxVisible(false)
+                                                                }
+
+                                                                verticalDragAccumulator < verticalCancelThreshold -> { // up
+                                                                    Log.e("BotVDrag", "up")
+                                                                    setIsOptionsPanelVisible(true)
+                                                                }
+
+                                                                verticalDragAccumulator > verticalCancelThreshold -> { // down
+                                                                    Log.e("BotVDrag", "down")
+
+                                                                    setIsOptionsPanelVisible(false)
+                                                                }
+
+//                                                                abs(horizontalDragAccumulator) > 0 -> {
+//                                                                    setIsUrlOverlayBoxVisible(false)
+//                                                                }
+
+                                                                else -> {// nothing
+                                                                }
+                                                            }
 
 
 //                                                if (newAction != previousAction) {
@@ -768,35 +838,52 @@ fun BottomPanel(
 //                                                }
 //                                                //                                                    activeNavAction = newAction
 //                                                setActiveNavAction(newAction)
-                                            }
+                                                        }
 
 
-                                        } else {
-                                            // Gesture is fully over
-                                            if (longPressJob.isActive) {
-                                                longPressJob.cancel()
-                                                // This was a tap
-                                                urlBarFocusRequester.requestFocus()
-                                                setIsUrlOverlayBoxVisible(false)
+                                                    } else {
+                                                        // Gesture is fully over
+                                                        if (longPressJob.isActive) {
+                                                            longPressJob.cancel()
+                                                            // This was a tap
+                                                            urlBarFocusRequester.requestFocus()
+                                                            setIsUrlOverlayBoxVisible(false)
+                                                        }
+                                                    }
+                                                }
+
+                                                //                                        // Gesture is fully over
+                                                //                                        if (longPressJob.isActive) {
+                                                //                                            longPressJob.cancel()
+                                                //                                            // This was a tap
+                                                //                                            focusRequester.requestFocus()
+                                                //                                        }
+
+                                                // Reset the UI state
+                                                //                                        isNavPanelVisible = false
+                                                setIsNavPanelVisible(false)
+                                                //                                        activeNavAction = GestureNavAction.NONE
+                                                setActiveNavAction(GestureNavAction.NONE)
                                             }
                                         }
-                                    }
-
-                                    //                                        // Gesture is fully over
-                                    //                                        if (longPressJob.isActive) {
-                                    //                                            longPressJob.cancel()
-                                    //                                            // This was a tap
-                                    //                                            focusRequester.requestFocus()
-                                    //                                        }
-
-                                    // Reset the UI state
-                                    //                                        isNavPanelVisible = false
-                                    setIsNavPanelVisible(false)
-                                    //                                        activeNavAction = GestureNavAction.NONE
-                                    setActiveNavAction(GestureNavAction.NONE)
+                                ) {
                                 }
                             }
-                    ) {
+                        }
+
+//                        2 -> {
+//                            Box(
+//                                modifier = Modifier
+//                                    .height(
+//                                        browserSettings.heightForLayer(1).dp
+//                                    )
+//                                    .fillMaxWidth()
+//                                    .padding(browserSettings.padding.dp)
+//                                    .clip(RoundedCornerShape(browserSettings.cornerRadiusForLayer(1).dp))
+//                            ) {
+//                                // Content for Left Swipe
+//                            }
+//                        }
                     }
                 }
             }

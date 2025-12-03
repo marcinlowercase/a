@@ -2268,6 +2268,7 @@ fun BrowserScreen(
 
 
             BottomPanel(
+
                 onOpenInNewTab = { url ->
 //                   createNewTab(tabs.size, url)
                     createNewTab(activeTabIndex.intValue + 1, url)
