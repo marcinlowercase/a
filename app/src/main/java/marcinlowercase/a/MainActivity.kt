@@ -2040,7 +2040,8 @@ fun BrowserScreen(
             isTabDataPanelVisible = false
             isTabsPanelVisible = false
             isSettingsPanelVisible = false
-            if (downloads.isEmpty()) isDownloadPanelVisible = false
+//            if (downloads.isEmpty()) isDownloadPanelVisible = false
+            isDownloadPanelVisible = false
             coroutineScope.launch {
                 bottomPanelPagerState.animateScrollToPage(BottomPanelMode.SEARCH.ordinal)
             }
