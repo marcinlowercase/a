@@ -98,6 +98,7 @@ fun BottomPanel(
     setIsBottomPanelVisible : (Boolean) -> Unit,
     setIsUrlBarVisible : (Boolean) -> Unit,
     isAppsPanelVisible: MutableState<Boolean>,
+    resetBottomPanelTrigger: MutableState<Boolean>,
     apps: MutableList<App>,
     isBottomPanelLock: MutableState<Boolean>,
     bottomPanelPagerState: PagerState,
@@ -514,6 +515,10 @@ fun BottomPanel(
                                     .fillMaxWidth()
                                     .padding(browserSettings.padding.dp)
                                     .clip(RoundedCornerShape(browserSettings.cornerRadiusForLayer(1).dp))
+                                    .clickable{
+                                        resetBottomPanelTrigger.value = !resetBottomPanelTrigger.value
+                                    }
+
                                 ,
                                 contentAlignment = Alignment.Center
                             ) {

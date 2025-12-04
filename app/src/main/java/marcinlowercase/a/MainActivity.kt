@@ -438,6 +438,7 @@ fun BrowserScreen(
     var isSettingsPanelVisible by remember { mutableStateOf(false) }
     val isBottomPanelLock = remember { mutableStateOf(false) }
     val isAppsPanelVisible = remember { mutableStateOf(false) }
+    val resetBottomPanelTrigger = remember { mutableStateOf(false) }
 
 
     val offsetY = remember { Animatable(0f) }
@@ -1192,7 +1193,11 @@ fun BrowserScreen(
     LaunchedEffect(apps.size) {
         appManager.saveApps(apps)
     }
-    LaunchedEffect(bottomPanelPagerState.settledPage, bottomPanelPagerState.currentPage, isUrlOverlayBoxVisible) {
+    LaunchedEffect(
+        bottomPanelPagerState.settledPage,
+        bottomPanelPagerState.currentPage,
+        isUrlOverlayBoxVisible
+    ) {
 
         if (bottomPanelPagerState.currentPage == BottomPanelMode.SEARCH.ordinal) {
             isUrlOverlayBoxVisible = true
@@ -1224,6 +1229,11 @@ fun BrowserScreen(
             isBottomPanelLock.value = !isBottomPanelLock.value
 
 
+        }
+    }
+    LaunchedEffect(resetBottomPanelTrigger.value) {
+        if (bottomPanelPagerState.settledPage != BottomPanelMode.SEARCH.ordinal) {
+            bottomPanelPagerState.animateScrollToPage(BottomPanelMode.SEARCH.ordinal)
         }
     }
     LaunchedEffect(bottomPanelPagerState.settledPage) {
@@ -1521,7 +1531,6 @@ fun BrowserScreen(
 
     LaunchedEffect(activeWebView) {
         activeWebView?.let { webView ->
-
 
 
             // Set up all the clients for the *current* active WebView.
@@ -2036,7 +2045,8 @@ fun BrowserScreen(
                 bottomPanelPagerState.animateScrollToPage(BottomPanelMode.SEARCH.ordinal)
             }
         } else {
-            if (tabsPanelLock && bottomPanelPagerState.currentPage == BottomPanelMode.SEARCH.ordinal) isTabsPanelVisible = true
+            if (tabsPanelLock && bottomPanelPagerState.currentPage == BottomPanelMode.SEARCH.ordinal) isTabsPanelVisible =
+                true
             if (isCursorMode) isCursorMode = false
         }
     }
@@ -2328,9 +2338,9 @@ fun BrowserScreen(
 
 
             BottomPanel(
-
-                setIsBottomPanelVisible = {isBottomPanelVisible = it},
-                setIsUrlBarVisible = {isUrlBarVisible = it},
+                resetBottomPanelTrigger = resetBottomPanelTrigger,
+                setIsBottomPanelVisible = { isBottomPanelVisible = it },
+                setIsUrlBarVisible = { isUrlBarVisible = it },
                 isAppsPanelVisible = isAppsPanelVisible,
                 apps = apps,
 
@@ -2594,7 +2604,6 @@ fun BrowserScreen(
                     modifier = Modifier
                         .fillMaxSize(),
                 ) {
-
 
 
                     val squareBoxSize = browserSettings.heightForLayer(1).dp
@@ -2941,8 +2950,7 @@ fun LoadingIndicator(
             CircularProgressIndicator(
                 modifier = Modifier
                     .padding(browserSettings.padding.dp)
-                    .size(browserSettings.heightForLayer(1).dp)
-                    ,
+                    .size(browserSettings.heightForLayer(1).dp),
                 // Use a contrasting color that works well on the dark scrim.
                 color = Color.White,
                 strokeWidth = browserSettings.heightForLayer(1).dp / 8
