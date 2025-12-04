@@ -79,7 +79,7 @@ fun UrlEditPanel(
                     tint = Color.Black
                 )
             }
-            if (isPinningApp.value){
+            if (isPinningApp.value) {
                 if (activeWebViewTitle.isNotBlank()) {
                     // Edit Button (ensures keyboard is shown)
                     IconButton(

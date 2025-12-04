@@ -41,16 +41,14 @@ fun AppsPanel(
 ) {
 
 
-
-    val maxPanelHeight = (browserSettings.heightForLayer(2).dp * 2.5f) +  (browserSettings.padding.dp * 2)
+    val maxPanelHeight =
+        (browserSettings.heightForLayer(2).dp * 2.5f) + (browserSettings.padding.dp * 2)
 
     AnimatedVisibility(
         visible = visibility.value,
         modifier = Modifier.fillMaxWidth()
 
     ) {
-
-
         LazyVerticalGrid(
             columns = GridCells.Fixed(4),
             modifier = Modifier
@@ -76,7 +74,7 @@ fun AppsPanel(
 
                     onClick = { onAppClick(app) },
 
-                )
+                    )
             }
         }
     }
@@ -104,10 +102,10 @@ fun AppIcon(
             contentAlignment = Alignment.Center
 
         ) {
-            Box (
+            Box(
                 modifier = Modifier
                     .size(20.dp)
-            ){
+            ) {
                 Image(
                     painter = rememberAsyncImagePainter(
                         model = ImageRequest.Builder(LocalContext.current)

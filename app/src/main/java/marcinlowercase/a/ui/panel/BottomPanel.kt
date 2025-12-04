@@ -96,8 +96,8 @@ import kotlin.math.abs
 
 @Composable
 fun BottomPanel(
-    setIsBottomPanelVisible : (Boolean) -> Unit,
-    setIsUrlBarVisible : (Boolean) -> Unit,
+    setIsBottomPanelVisible: (Boolean) -> Unit,
+    setIsUrlBarVisible: (Boolean) -> Unit,
     isAppsPanelVisible: MutableState<Boolean>,
     resetBottomPanelTrigger: MutableState<Boolean>,
     apps: MutableList<App>,
@@ -200,7 +200,7 @@ fun BottomPanel(
     setIsFocusOnTextField: (Boolean) -> Unit = {},
 ) {
 
-    val isPinningApp= remember { mutableStateOf(false) }
+    val isPinningApp = remember { mutableStateOf(false) }
     AnimatedVisibility(
         modifier = modifier,
         visible = isBottomPanelVisible,
@@ -253,8 +253,11 @@ fun BottomPanel(
                 browserSettings = browserSettings,
                 onAppClick = { app ->
                     webViewLoad(activeWebView, app.url, browserSettings)
-                    setIsBottomPanelVisible(false)
-                    setIsUrlBarVisible(false)
+                    if (!isBottomPanelLock.value) {
+                        setIsBottomPanelVisible(false)
+                        setIsUrlBarVisible(false)
+                    }
+
 
                 }
             )
@@ -273,9 +276,7 @@ fun BottomPanel(
                 activeWebView = activeWebView,
                 browserSettings = browserSettings,
                 activeAction = activeNavAction,
-
-                )
-
+            )
 
             DownloadPanel(
                 confirmationPopup = confirmationPopup,
@@ -498,8 +499,7 @@ fun BottomPanel(
                     state = bottomPanelPagerState,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .animateContentSize()
-                       ,
+                        .animateContentSize(),
                     contentPadding = PaddingValues(0.dp),
                     pageSpacing = browserSettings.padding.dp // Optional spacing
                 ) { pageIndex ->
@@ -515,11 +515,10 @@ fun BottomPanel(
                                     .fillMaxWidth()
                                     .padding(browserSettings.padding.dp)
                                     .clip(RoundedCornerShape(browserSettings.cornerRadiusForLayer(1).dp))
-                                    .clickable{
-                                        resetBottomPanelTrigger.value = !resetBottomPanelTrigger.value
-                                    }
-
-                                ,
+                                    .clickable {
+                                        resetBottomPanelTrigger.value =
+                                            !resetBottomPanelTrigger.value
+                                    },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
@@ -531,7 +530,7 @@ fun BottomPanel(
                         }
 
                         BottomPanelMode.SEARCH.ordinal -> {
-                            Box (modifier = Modifier){
+                            Box(modifier = Modifier) {
 
                                 TextField(
                                     modifier = Modifier
@@ -570,7 +569,7 @@ fun BottomPanel(
 //                                    textFieldState.edit { selectAll() }
                                                 textFieldState.setTextAndPlaceCursorAtEnd("")
                                             } else {
-                                                if(isPinningApp.value) isPinningApp.value = false
+                                                if (isPinningApp.value) isPinningApp.value = false
                                                 setIsUrlOverlayBoxVisible(true)
                                                 savedPanelState?.let { savedState ->
                                                     setIsOptionsPanelVisible(savedState.options)
@@ -603,7 +602,11 @@ fun BottomPanel(
                                                 browserSettings.cornerRadiusForLayer(2).dp
                                             )
                                         ),
-                                    placeholder = { if (!isPinningApp.value) Text("search / url") else Text("pin label") },
+                                    placeholder = {
+                                        if (!isPinningApp.value) Text("search / url") else Text(
+                                            "pin label"
+                                        )
+                                    },
                                     state = textFieldState,
                                     textStyle = LocalTextStyle.current.copy(
 //                            fontFamily = FontFamily.Monospace,
@@ -628,8 +631,7 @@ fun BottomPanel(
                                                     )
                                                 )
                                                 isPinningApp.value = false
-                                            }
-                                            else {
+                                            } else {
                                                 activeWebView?.reload()
                                             }
 
@@ -653,14 +655,19 @@ fun BottomPanel(
                                         }
 
                                         if (isPinningApp.value) {
-                                            apps.add(App(
-                                                label = input,
-                                                iconUrl = tabs[activeTabIndex.value].currentFaviconUrl,
-                                                url = resetUrl,
-                                            ))
+                                            apps.add(
+                                                App(
+                                                    label = input,
+                                                    iconUrl = tabs[activeTabIndex.value].currentFaviconUrl,
+                                                    url = resetUrl,
+                                                )
+                                            )
                                         } else { // search
                                             val finalUrl = if (isUrl) {
-                                                if (input.startsWith("http://") || input.startsWith("https://")) {
+                                                if (input.startsWith("http://") || input.startsWith(
+                                                        "https://"
+                                                    )
+                                                ) {
                                                     input
                                                 } else {
                                                     "https://$input"
@@ -918,7 +925,7 @@ fun BottomPanel(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    painter = painterResource(id = if (isBottomPanelLock.value)R.drawable.ic_lock else R.drawable.ic_lock_open_right),
+                                    painter = painterResource(id = if (isBottomPanelLock.value) R.drawable.ic_lock else R.drawable.ic_lock_open_right),
                                     contentDescription = "toggle bottom panel lock",
                                     tint = Color.White
                                 )
