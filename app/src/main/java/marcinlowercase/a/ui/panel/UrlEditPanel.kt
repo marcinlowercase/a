@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
@@ -29,6 +30,9 @@ fun UrlEditPanel(
     browserSettings: BrowserSettings,
     onCopyClick: () -> Unit,
     onEditClick: () -> Unit,
+    isPinningApp: MutableState<Boolean>,
+    onDismiss: () -> Unit,
+    activeWebViewTitle: String,
 ) {
     AnimatedVisibility(
         visible = isVisible,
@@ -59,9 +63,9 @@ fun UrlEditPanel(
                 .padding(browserSettings.padding.dp),
             horizontalArrangement = Arrangement.spacedBy(browserSettings.padding.dp)
         ) {
-            // Copy Button
+            // Dismiss
             IconButton(
-                onClick = onCopyClick,
+                onClick = onDismiss,
                 modifier = Modifier
                     .buttonSettingsForLayer(
                         layer = 3,
@@ -70,27 +74,64 @@ fun UrlEditPanel(
                     .weight(1f)
             ) {
                 Icon(
-                    painter = painterResource(id = R.drawable.ic_content_copy),
+                    painter = painterResource(id = R.drawable.ic_close),
                     contentDescription = "Copy URL",
                     tint = Color.Black
                 )
             }
-
-            // Edit Button (ensures keyboard is shown)
-            IconButton(
-                onClick = onEditClick,
-                modifier = Modifier
-                    .buttonSettingsForLayer(
-                        layer = 3,
-                        browserSettings,
+            if (isPinningApp.value){
+                if (activeWebViewTitle.isNotBlank()) {
+                    // Edit Button (ensures keyboard is shown)
+                    IconButton(
+                        onClick = onEditClick,
+                        modifier = Modifier
+                            .buttonSettingsForLayer(
+                                layer = 3,
+                                browserSettings,
+                            )
+                            .weight(1f)
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_edit),
+                            contentDescription = "Edit URL",
+                            tint = Color.Black
+                        )
+                    }
+                }
+            } else {
+                // Copy Button
+                IconButton(
+                    onClick = onCopyClick,
+                    modifier = Modifier
+                        .buttonSettingsForLayer(
+                            layer = 3,
+                            browserSettings,
+                        )
+                        .weight(1f)
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_content_copy),
+                        contentDescription = "Copy URL",
+                        tint = Color.Black
                     )
-                    .weight(1f)
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_edit),
-                    contentDescription = "Edit URL",
-                    tint = Color.Black
-                )
+                }
+
+                // Edit Button (ensures keyboard is shown)
+                IconButton(
+                    onClick = onEditClick,
+                    modifier = Modifier
+                        .buttonSettingsForLayer(
+                            layer = 3,
+                            browserSettings,
+                        )
+                        .weight(1f)
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_edit),
+                        contentDescription = "Edit URL",
+                        tint = Color.Black
+                    )
+                }
             }
         }
     }

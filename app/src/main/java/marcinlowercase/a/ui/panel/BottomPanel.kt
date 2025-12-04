@@ -5,6 +5,7 @@ import android.util.Log
 import android.util.Patterns
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -44,6 +45,8 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -70,6 +73,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import marcinlowercase.a.R
 import marcinlowercase.a.core.custom_class.CustomWebView
+import marcinlowercase.a.core.data_class.App
 import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.ConfirmationDialogState
 import marcinlowercase.a.core.data_class.ContextMenuData
@@ -80,6 +84,7 @@ import marcinlowercase.a.core.data_class.PanelVisibilityState
 import marcinlowercase.a.core.data_class.SiteSettings
 import marcinlowercase.a.core.data_class.Suggestion
 import marcinlowercase.a.core.data_class.Tab
+import marcinlowercase.a.core.enum_class.BottomPanelMode
 import marcinlowercase.a.core.enum_class.GestureNavAction
 import marcinlowercase.a.core.enum_class.SuggestionSource
 import marcinlowercase.a.core.function.toDomain
@@ -90,6 +95,10 @@ import kotlin.math.abs
 
 @Composable
 fun BottomPanel(
+    setIsBottomPanelVisible : (Boolean) -> Unit,
+    setIsUrlBarVisible : (Boolean) -> Unit,
+    isAppsPanelVisible: MutableState<Boolean>,
+    apps: MutableList<App>,
     isBottomPanelLock: MutableState<Boolean>,
     bottomPanelPagerState: PagerState,
     onOpenInNewTab: (String) -> Unit,
@@ -188,6 +197,8 @@ fun BottomPanel(
     setTextFieldHeightPx: (Int) -> Unit = {},
     setIsFocusOnTextField: (Boolean) -> Unit = {},
 ) {
+
+    val isPinningApp= remember { mutableStateOf(false) }
     AnimatedVisibility(
         modifier = modifier,
         visible = isBottomPanelVisible,
@@ -234,6 +245,17 @@ fun BottomPanel(
 
         ) {
 
+            AppsPanel(
+                apps = apps,
+                visibility = isAppsPanelVisible,
+                browserSettings = browserSettings,
+                onAppClick = { app ->
+                    onOpenInNewTab(app.url)
+                    setIsBottomPanelVisible(false)
+                    setIsUrlBarVisible(false)
+
+                }
+            )
             DescriptionPanel(
                 isVisible = descriptionContent.value.isNotEmpty(),
                 description = descriptionContent.value,
@@ -475,6 +497,7 @@ fun BottomPanel(
                     state = bottomPanelPagerState,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .animateContentSize()
                        ,
                     contentPadding = PaddingValues(0.dp),
                     pageSpacing = browserSettings.padding.dp // Optional spacing
@@ -482,7 +505,7 @@ fun BottomPanel(
 
                     when (pageIndex) {
                         // --- LEFT BOX (Page 0) ---
-                        0 -> {
+                        BottomPanelMode.APPS.ordinal -> {
                             Box(
                                 modifier = Modifier
                                     .height(
@@ -491,12 +514,18 @@ fun BottomPanel(
                                     .fillMaxWidth()
                                     .padding(browserSettings.padding.dp)
                                     .clip(RoundedCornerShape(browserSettings.cornerRadiusForLayer(1).dp))
+                                ,
+                                contentAlignment = Alignment.Center
                             ) {
-                                // Content for Left Swipe
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_arrow_forward),
+                                    contentDescription = "toggle app",
+                                    tint = Color.White
+                                )
                             }
                         }
 
-                        1 -> {
+                        BottomPanelMode.SEARCH.ordinal -> {
                             Box (modifier = Modifier){
 
                                 TextField(
@@ -536,6 +565,7 @@ fun BottomPanel(
 //                                    textFieldState.edit { selectAll() }
                                                 textFieldState.setTextAndPlaceCursorAtEnd("")
                                             } else {
+                                                if(isPinningApp.value) isPinningApp.value = false
                                                 setIsUrlOverlayBoxVisible(true)
                                                 savedPanelState?.let { savedState ->
                                                     setIsOptionsPanelVisible(savedState.options)
@@ -568,6 +598,7 @@ fun BottomPanel(
                                                 browserSettings.cornerRadiusForLayer(2).dp
                                             )
                                         ),
+                                    placeholder = { if (!isPinningApp.value) Text("search / url") else Text("pin label") },
                                     state = textFieldState,
                                     textStyle = LocalTextStyle.current.copy(
 //                            fontFamily = FontFamily.Monospace,
@@ -580,11 +611,24 @@ fun BottomPanel(
                                         val input = (textFieldState.text as String).trim()
                                         val resetUrl = activeWebView?.url ?: ""
 
-                                        Log.e("TextFieldState", input)
-                                        if (input.isEmpty()) {
-                                            Log.e("TextFieldState", "input empty, reload")
 
-                                            activeWebView?.reload()
+                                        if (input.isEmpty()) {
+
+                                            if (isPinningApp.value) {
+                                                apps.add(
+                                                    App(
+                                                        label = tabs[activeTabIndex.value].currentTitle,
+                                                        iconUrl = tabs[activeTabIndex.value].currentFaviconUrl,
+                                                        url = resetUrl
+                                                    )
+                                                )
+                                                isPinningApp.value = false
+                                            }
+                                            else {
+                                                activeWebView?.reload()
+                                            }
+
+
                                             textFieldState.setTextAndPlaceCursorAtEnd(resetUrl.toDomain())
                                             focusManager.clearFocus()
                                             keyboardController?.hide()
@@ -592,6 +636,8 @@ fun BottomPanel(
 
                                             return@TextField
                                         }
+
+
                                         val isUrl = try {
                                             Patterns.WEB_URL.matcher(input).matches() ||
                                                     (input.contains(".") && !input.contains(" "))
@@ -601,22 +647,31 @@ fun BottomPanel(
                                             false
                                         }
 
-                                        val finalUrl = if (isUrl) {
-                                            if (input.startsWith("http://") || input.startsWith("https://")) {
-                                                input
+                                        if (isPinningApp.value) {
+                                            apps.add(App(
+                                                label = input,
+                                                iconUrl = tabs[activeTabIndex.value].currentFaviconUrl,
+                                                url = resetUrl,
+                                            ))
+                                        } else { // search
+                                            val finalUrl = if (isUrl) {
+                                                if (input.startsWith("http://") || input.startsWith("https://")) {
+                                                    input
+                                                } else {
+                                                    "https://$input"
+                                                }
                                             } else {
-                                                "https://$input"
+                                                val encodedQuery =
+                                                    URLEncoder.encode(
+                                                        input,
+                                                        StandardCharsets.UTF_8.toString()
+                                                    )
+                                                "https://www.google.com/search?q=$encodedQuery"
                                             }
-                                        } else {
-                                            val encodedQuery =
-                                                URLEncoder.encode(
-                                                    input,
-                                                    StandardCharsets.UTF_8.toString()
-                                                )
-                                            "https://www.google.com/search?q=$encodedQuery"
+
+                                            onNewUrl(finalUrl)
                                         }
 
-                                        onNewUrl(finalUrl)
 
                                         focusManager.clearFocus()
                                         keyboardController?.hide()
@@ -779,7 +834,9 @@ fun BottomPanel(
 //                                                                    Log.e("BotHDrag", "right")
 //
 //                                                                }
-                                                                abs(horizontalDragAccumulator) > abs(verticalDragAccumulator) -> {
+                                                                abs(horizontalDragAccumulator) > abs(
+                                                                    verticalDragAccumulator
+                                                                ) -> {
                                                                     setIsUrlOverlayBoxVisible(false)
                                                                 }
 
@@ -844,7 +901,7 @@ fun BottomPanel(
                             }
                         }
 
-                        2 -> {
+                        BottomPanelMode.LOCK.ordinal -> {
                             Box(
                                 modifier = Modifier
                                     .height(
@@ -891,10 +948,15 @@ fun BottomPanel(
                 setIsCursorMode = setIsCursorMode,
                 setIsSettingsPanelVisible = setIsSettingsPanelVisible,
                 closedTabsCount = recentlyClosedTabs.size,
+                addAppToPin = {
+                    isPinningApp.value = true
+                    urlBarFocusRequester.requestFocus()
+                },
             )
 
             UrlEditPanel(
-                isVisible = isFocusOnTextField && textFieldState.text.isBlank(),
+                isPinningApp = isPinningApp,
+                isVisible = isPinningApp.value || (isFocusOnTextField && textFieldState.text.isBlank()),
                 browserSettings = browserSettings,
                 onCopyClick = {
                     val clipData = ClipData.newPlainText("url", activeWebView?.url ?: "")
@@ -903,10 +965,19 @@ fun BottomPanel(
 
                 },
                 onEditClick = {
-                    textFieldState.setTextAndPlaceCursorAtEnd(activeWebView?.url ?: "")
+                    textFieldState.setTextAndPlaceCursorAtEnd(
+                        if (isPinningApp.value) {
+                            activeWebView?.title ?: ""
+                        } else activeWebView?.url ?: ""
+                    )
                     urlBarFocusRequester.requestFocus()
                     keyboardController?.show()
-                }
+                },
+                onDismiss = {
+                    setIsFocusOnTextField(false)
+                    focusManager.clearFocus()
+                },
+                activeWebViewTitle = activeWebView?.title ?: "",
             )
         }
 

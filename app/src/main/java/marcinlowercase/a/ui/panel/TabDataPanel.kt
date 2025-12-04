@@ -142,6 +142,7 @@ fun HistoryRow(
         )
     }
 }
+
 @Composable
 fun TabDataPanel(
     webViewManager: WebViewManager,
@@ -221,7 +222,8 @@ fun TabDataPanel(
                         )
                 ) {
 
-                    val maxLazyColumnHeight = (browserSettings.heightForLayer(3).dp + browserSettings.padding.dp) * 2.5f
+                    val maxLazyColumnHeight =
+                        (browserSettings.heightForLayer(3).dp + browserSettings.padding.dp) * 2.5f
 
                     val domain =
                         SiteSettingsManager(LocalContext.current).getDomain(
@@ -250,10 +252,10 @@ fun TabDataPanel(
                                         onClick = { currentView = TabDataPanelView.HISTORY },
                                         modifier = Modifier
                                             .buttonSettingsForLayer(
-                                            3,
-                                            browserSettings,
-                                            false
-                                        )
+                                                3,
+                                                browserSettings,
+                                                false
+                                            )
                                             .fillMaxWidth()
                                             .background(Color.Transparent)
 //                                            .border(
@@ -283,10 +285,10 @@ fun TabDataPanel(
                                         onClick = { currentView = TabDataPanelView.PERMISSIONS },
                                         modifier = Modifier
                                             .buttonSettingsForLayer(
-                                            3,
-                                            browserSettings,
-                                            false
-                                        )
+                                                3,
+                                                browserSettings,
+                                                false
+                                            )
 
                                             .fillMaxWidth()
                                             .background(Color.Transparent)
@@ -368,7 +370,7 @@ fun TabDataPanel(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(
-                                           browserSettings.heightForLayer(3).dp
+                                            browserSettings.heightForLayer(3).dp
                                         )
                                         .padding(top = browserSettings.padding.dp),
                                     contentAlignment = Alignment.Center
@@ -378,59 +380,6 @@ fun TabDataPanel(
                             }
 
                         }
-
-//                        TabDataPanelView.PERMISSIONS -> {
-//                            val domain =
-//                                SiteSettingsManager(LocalContext.current).getDomain(
-//                                    webViewManager.getWebView(
-//                                        tab
-//                                    ).url ?: browserSettings.defaultUrl
-//                                )
-//                            val settings = if (domain != null) siteSettings[domain] else null
-//
-//                            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-//                                if (settings != null && settings.permissionDecisions.isNotEmpty()) {
-//                                    settings.permissionDecisions.forEach { (permission, isGranted) ->
-//                                        val permissionName = when (permission) {
-//                                            generic_location_permission -> "Location"
-//                                            Manifest.permission.CAMERA -> "Camera"
-//                                            Manifest.permission.RECORD_AUDIO -> "Microphone"
-//                                            else -> permission.substringAfterLast('.') // Fallback
-//                                        }
-//
-//                                        Row(
-//                                            modifier = Modifier
-//                                                .fillMaxWidth()
-//                                                .padding(horizontal = browserSettings.padding.dp * 3),
-//                                            verticalAlignment = Alignment.CenterVertically
-//                                        ) {
-//                                            Text(
-//                                                permissionName,
-//                                                color = Color.White,
-//                                                modifier = Modifier.weight(1f)
-//                                            )
-//                                            Switch(
-//                                                checked = isGranted,
-//                                                onCheckedChange = {
-//                                                    onPermissionToggle(
-//                                                        domain,
-//                                                        permission,
-//                                                        it
-//                                                    )
-//                                                })
-//                                        }
-//                                    }
-//                                } else {
-//                                    Box(
-//                                        modifier = Modifier.fillMaxSize()
-//                                            .padding(top = browserSettings.padding.dp),
-//                                        contentAlignment = Alignment.Center
-//                                    ) {
-//                                        Text("No permissions requested yet.", color = Color.Gray)
-//                                    }
-//                                }
-//                            }
-//                        }
 
                         TabDataPanelView.PERMISSIONS -> {
                             val domain =
@@ -465,11 +414,12 @@ fun TabDataPanel(
                                                 onPermissionToggle(domain, permission, !isGranted)
                                             },
                                             // The `white` parameter controls the background
-                                            modifier = Modifier.buttonSettingsForLayer(
-                                                layer = 3,
-                                                browserSettings,
-                                                white = isGranted
-                                            )
+                                            modifier = Modifier
+                                                .buttonSettingsForLayer(
+                                                    layer = 3,
+                                                    browserSettings,
+                                                    white = isGranted
+                                                )
                                                 .weight(1f),
                                             colors = IconButtonDefaults.iconButtonColors(
                                                 // The `contentColor` controls the icon tint
@@ -518,23 +468,27 @@ fun TabDataPanel(
                         },
                         modifier = Modifier
                             .buttonSettingsForLayer(
-                            3,
-                            browserSettings
-                        ).weight(1f)
+                                3,
+                                browserSettings,
+                                false
+                            )
+                            .weight(1f)
                     ) {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_arrow_back),
                             contentDescription = "Back",
-                            tint = Color.Black
+                            tint = Color.White
                         )
                     }
                     if (tab.state != TabState.FROZEN) {
                         IconButton(
                             onClick = onClearSiteData,
-                            modifier = Modifier.buttonSettingsForLayer(
-                                3,
-                                browserSettings
-                            ).weight(1f)
+                            modifier = Modifier
+                                .buttonSettingsForLayer(
+                                    3,
+                                    browserSettings
+                                )
+                                .weight(1f)
                         ) {
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_database_off),
@@ -546,10 +500,12 @@ fun TabDataPanel(
 
                     IconButton(
                         onClick = onCloseTab,
-                        modifier = Modifier.buttonSettingsForLayer(
-                            3,
-                            browserSettings
-                        ).weight(1f)
+                        modifier = Modifier
+                            .buttonSettingsForLayer(
+                                3,
+                                browserSettings
+                            )
+                            .weight(1f)
                     ) {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_tab_close),
@@ -558,19 +514,20 @@ fun TabDataPanel(
                         )
                     }
 
-                    IconButton(
-                        onClick = onAddToHomeScreen,
-                        modifier = Modifier.buttonSettingsForLayer(
-                            3,
-                            browserSettings
-                        ).weight(1f)
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_install_desktop),
-                            contentDescription = "Add to Home Screen",
-                            tint = Color.Black
-                        )
-                    }
+                    // TODO
+//                    IconButton(
+//                        onClick = onAddToHomeScreen,
+//                        modifier = Modifier.buttonSettingsForLayer(
+//                            3,
+//                            browserSettings
+//                        ).weight(1f)
+//                    ) {
+//                        Icon(
+//                            painter = painterResource(id = R.drawable.ic_install_desktop),
+//                            contentDescription = "Add to Home Screen",
+//                            tint = Color.Black
+//                        )
+//                    }
                 }
             }
         }

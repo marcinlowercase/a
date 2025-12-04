@@ -149,6 +149,7 @@ import marcinlowercase.a.core.data_class.PollData
 import marcinlowercase.a.core.data_class.SiteSettings
 import marcinlowercase.a.core.data_class.Suggestion
 import marcinlowercase.a.core.data_class.Tab
+import marcinlowercase.a.core.data_class.App
 import marcinlowercase.a.core.enum_class.BottomPanelMode
 import marcinlowercase.a.core.enum_class.DownloadStatus
 import marcinlowercase.a.core.enum_class.GestureNavAction
@@ -161,6 +162,7 @@ import marcinlowercase.a.core.function.webViewLoad
 import marcinlowercase.a.core.manager.BrowserDownloadManager
 import marcinlowercase.a.core.manager.SiteSettingsManager
 import marcinlowercase.a.core.manager.TabManager
+import marcinlowercase.a.core.manager.AppManager
 import marcinlowercase.a.core.manager.VisitedUrlManager
 import marcinlowercase.a.core.manager.WebViewManager
 import marcinlowercase.a.ui.panel.BottomPanel
@@ -324,6 +326,10 @@ fun BrowserScreen(
             addAll(tabManager.loadTabs(browserSettings.defaultUrl))
         }
     }
+
+    val appManager = remember { AppManager(context) }
+    val apps = remember { mutableStateListOf<App>().apply { addAll(appManager.loadApps()) } }
+
     val activeTabIndex = remember {
         mutableIntStateOf(tabs.indexOfFirst { it.state == TabState.ACTIVE }.coerceAtLeast(0))
     }
@@ -431,6 +437,8 @@ fun BrowserScreen(
     var isOptionsPanelVisible by rememberSaveable { mutableStateOf(false) }
     var isSettingsPanelVisible by remember { mutableStateOf(false) }
     val isBottomPanelLock = remember { mutableStateOf(false) }
+    val isAppsPanelVisible = remember { mutableStateOf(false) }
+
 
     val offsetY = remember { Animatable(0f) }
     var overlayHeightPx by remember { mutableFloatStateOf(0f) }
@@ -1181,10 +1189,14 @@ fun BrowserScreen(
 
     //region LaunchedEffect
 
+    LaunchedEffect(apps.size) {
+        appManager.saveApps(apps)
+    }
     LaunchedEffect(bottomPanelPagerState.settledPage, bottomPanelPagerState.currentPage, isUrlOverlayBoxVisible) {
 
         if (bottomPanelPagerState.currentPage == BottomPanelMode.SEARCH.ordinal) {
             isUrlOverlayBoxVisible = true
+            if (isAppsPanelVisible.value) isAppsPanelVisible.value = false
             if (tabsPanelLock && !isFocusOnTextField) isTabsPanelVisible = true
         } else {
             isFocusOnTextField = false
@@ -1196,6 +1208,9 @@ fun BrowserScreen(
 
             isFindInPageVisible.value = false
             keyboardController?.hide()
+            if (bottomPanelPagerState.currentPage == BottomPanelMode.APPS.ordinal) {
+                isAppsPanelVisible.value = true
+            }
 
         }
         if (bottomPanelPagerState.settledPage != BottomPanelMode.SEARCH.ordinal) {
@@ -1206,9 +1221,7 @@ fun BrowserScreen(
 
     LaunchedEffect(bottomPanelPagerState.currentPage) {
         if (bottomPanelPagerState.currentPage == BottomPanelMode.LOCK.ordinal) {
-            Log.d("BottomPanelLock", "B:  ${isBottomPanelLock.value}")
             isBottomPanelLock.value = !isBottomPanelLock.value
-            Log.d("BottomPanelLock", "A:  ${isBottomPanelLock.value}")
 
 
         }
@@ -1216,7 +1229,13 @@ fun BrowserScreen(
     LaunchedEffect(bottomPanelPagerState.settledPage) {
         if (bottomPanelPagerState.settledPage == BottomPanelMode.LOCK.ordinal) {
             bottomPanelPagerState.animateScrollToPage(BottomPanelMode.SEARCH.ordinal)
+        } else if (
+            bottomPanelPagerState.settledPage == BottomPanelMode.APPS.ordinal
+        ) {
+            if (apps.isEmpty()) {
+                bottomPanelPagerState.animateScrollToPage(BottomPanelMode.SEARCH.ordinal)
 
+            }
         }
     }
     LaunchedEffect(screenSize) {
@@ -2013,6 +2032,9 @@ fun BrowserScreen(
             isTabsPanelVisible = false
             isSettingsPanelVisible = false
             if (downloads.isEmpty()) isDownloadPanelVisible = false
+            coroutineScope.launch {
+                bottomPanelPagerState.animateScrollToPage(BottomPanelMode.SEARCH.ordinal)
+            }
         } else {
             if (tabsPanelLock && bottomPanelPagerState.currentPage == BottomPanelMode.SEARCH.ordinal) isTabsPanelVisible = true
             if (isCursorMode) isCursorMode = false
@@ -2306,6 +2328,12 @@ fun BrowserScreen(
 
 
             BottomPanel(
+
+                setIsBottomPanelVisible = {isBottomPanelVisible = it},
+                setIsUrlBarVisible = {isUrlBarVisible = it},
+                isAppsPanelVisible = isAppsPanelVisible,
+                apps = apps,
+
                 isBottomPanelLock = isBottomPanelLock,
                 bottomPanelPagerState = bottomPanelPagerState,
                 onOpenInNewTab = { url ->
@@ -3410,6 +3438,5 @@ class ShakeDetector(context: Context, private val onShake: () -> Unit) : SensorE
         }
     }
 }
-
 
 //endregion

@@ -73,6 +73,7 @@ fun OptionsPanel(
     isCursorMode: Boolean,
     setIsCursorMode: (Boolean) -> Unit,
     closedTabsCount: Int,
+    addAppToPin: () -> Unit,
 ) {
 
 
@@ -90,16 +91,16 @@ fun OptionsPanel(
 
         ) {
             listOf(
-                OptionItem(
-                    R.drawable.ic_mouse_cursor, // You'll need a download icon
-                    "cursor pad",
-                    isCursorPadVisible,
-                ) {
-                    Log.e("isCursorMode", "isCursorMode: $isCursorMode")
 
-                    setIsCursorMode(!isCursorMode)
-                    setIsOptionsPanelVisible(false)
+                OptionItem(
+                    R.drawable.ic_keep, // You'll need an icon for this
+                    "pin", // Display the number of open tabs
+                    false
+                ) {
+                    addAppToPin()
+
                 },
+
 //                OptionItem(
 //                    if (browserSettings.isDesktopMode) R.drawable.ic_mobile else R.drawable.ic_desktop,
 //                    "Desktop layout",
@@ -133,6 +134,16 @@ fun OptionsPanel(
                 ) {
                     reopenClosedTab()
                     setIsOptionsPanelVisible(false) // Close the panel after action
+                },
+                OptionItem(
+                    R.drawable.ic_mouse_cursor, // You'll need a download icon
+                    "cursor pad",
+                    isCursorPadVisible,
+                ) {
+                    Log.e("isCursorMode", "isCursorMode: $isCursorMode")
+
+                    setIsCursorMode(!isCursorMode)
+                    setIsOptionsPanelVisible(false)
                 },
                 OptionItem(
                     R.drawable.ic_find_in_page, // You'll need an icon
