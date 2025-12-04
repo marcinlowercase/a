@@ -25,7 +25,7 @@ import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.function.buttonSettingsForLayer
 
 @Composable
-fun UrlEditPanel(
+fun TextEditPanel(
     isVisible: Boolean,
     browserSettings: BrowserSettings,
     onCopyClick: () -> Unit,
@@ -70,13 +70,14 @@ fun UrlEditPanel(
                     .buttonSettingsForLayer(
                         layer = 3,
                         browserSettings,
+                        false
                     )
                     .weight(1f)
             ) {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_close),
                     contentDescription = "Copy URL",
-                    tint = Color.Black
+                    tint = Color.White
                 )
             }
             if (isPinningApp.value) {

@@ -280,7 +280,6 @@ fun BottomPanel(
 
             DownloadPanel(
                 confirmationPopup = confirmationPopup,
-                setIsDownloadPanelVisible = setIsDownloadPanelVisible,
                 isDownloadPanelVisible = isDownloadPanelVisible,
                 downloads = downloads,
                 browserSettings = browserSettings,
@@ -967,7 +966,7 @@ fun BottomPanel(
                 },
             )
 
-            UrlEditPanel(
+            TextEditPanel(
                 isPinningApp = isPinningApp,
                 isVisible = isPinningApp.value || (isFocusOnTextField && textFieldState.text.isBlank()),
                 browserSettings = browserSettings,

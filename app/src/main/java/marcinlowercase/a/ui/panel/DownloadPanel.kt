@@ -52,7 +52,6 @@ import marcinlowercase.a.core.function.formatTimeRemaining
 @Composable
 fun DownloadPanel(
     confirmationPopup: (message: String, onConfirm: () -> Unit, onCancel: () -> Unit) -> Unit,
-    setIsDownloadPanelVisible: (Boolean) -> Unit,
     isDownloadPanelVisible: Boolean,
     downloads: List<DownloadItem>,
     browserSettings: BrowserSettings,
@@ -144,8 +143,6 @@ fun DownloadPanel(
                         ),
                     reverseLayout = true,
                 ) {
-
-
                     items(downloads.size, key = { downloads[it].id }) { index ->
                         DownloadRow(
                             index = index,
@@ -173,22 +170,24 @@ fun DownloadPanel(
 //                                .padding(bottom = browserSettings.padding.dp),
             ) {
 
-                IconButton(
-                    onClick = {
-                        setIsDownloadPanelVisible(false)
-                    },
-                    modifier = Modifier.buttonSettingsForLayer(
-                        3,
-                        browserSettings
-                    ).weight(1f)
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_arrow_back),
-                        contentDescription = "Back",
-                        tint = Color.Black
-                    )
-                }
-                Spacer(modifier = Modifier.width(browserSettings.padding.dp))
+//                IconButton(
+//                    onClick = {
+//                        setIsDownloadPanelVisible(false)
+//                    },
+//                    modifier = Modifier.buttonSettingsForLayer(
+//                        3,
+//                        browserSettings
+//                    ).weight(1f)
+//                ) {
+//                    Icon(
+//                        painter = painterResource(id = R.drawable.ic_arrow_back),
+//                        contentDescription = "Back",
+//                        tint = Color.Black
+//                    )
+//                }
+//                Spacer(modifier = Modifier.width(browserSettings.padding.dp))
+
+
                 //  Show Download Folder Button
                 IconButton(
                     onClick = onOpenFolderClicked,
