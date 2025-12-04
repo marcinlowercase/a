@@ -702,7 +702,6 @@ fun BottomPanel(
                                                 savedPanelState?.let { savedState ->
                                                     if (bottomPanelPagerState.currentPage == BottomPanelMode.SEARCH.ordinal) {
                                                         setIsOptionsPanelVisible(savedState.options)
-                                                        Log.i("FHFHFH", "tas ${savedState.tabs}")
                                                         setIsTabsPanelVisible(savedState.tabs)
                                                         setIsDownloadPanelVisible(savedState.downloads)
                                                         setIsTabDataPanelVisible(savedState.tabData)
