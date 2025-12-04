@@ -50,6 +50,7 @@ import kotlin.collections.forEach
 
 @Composable
 fun OptionsPanel(
+    isPinningApp: MutableState<Boolean>,
     bottomPanelPagerState: PagerState,
     onCloseAllTabs: () -> Unit,
     activeWebView: CustomWebView?,
@@ -88,6 +89,7 @@ fun OptionsPanel(
             activeWebView,
             browserSettings.showSuggestions,
             bottomPanelPagerState,
+            isPinningApp.value
 
         ) {
             listOf(
@@ -95,7 +97,7 @@ fun OptionsPanel(
                 OptionItem(
                     R.drawable.ic_keep, // You'll need an icon for this
                     "pin", // Display the number of open tabs
-                    false
+                    isPinningApp.value
                 ) {
                     addAppToPin()
 

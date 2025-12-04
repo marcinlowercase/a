@@ -931,6 +931,7 @@ fun BottomPanel(
 
             // SETTING OPTIONS
             OptionsPanel(
+                isPinningApp = isPinningApp,
                 bottomPanelPagerState = bottomPanelPagerState,
                 onCloseAllTabs = onCloseAllTabs,
                 activeWebView = activeWebView,
