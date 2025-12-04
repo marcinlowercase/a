@@ -537,28 +537,7 @@ fun BottomPanel(
                                                 )
                                             )
                                     ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .buttonSettingsForLayer(
-                                                    2,
-                                                    browserSettings,
-                                                )
-                                                .weight(1f)
-                                                .clickable {
-                                                    apps.indexOfFirst { it.id == inspectingAppId.value }
-                                                        .takeIf { it >= 0 }
-                                                        ?.let { apps.removeAt(it) }
-                                                    inspectingAppId.value = 0L
-                                                },
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                painter = painterResource(id = R.drawable.ic_delete_forever),
-                                                contentDescription = "delete pin",
-                                                tint = Color.Black
-                                            )
-                                        }
-                                        Spacer(modifier = Modifier.width(browserSettings.padding.dp))
+
                                         val currentIndex = apps.indexOfFirst { it.id == inspectingAppId.value }
                                         Box(
                                             modifier = Modifier
@@ -584,6 +563,30 @@ fun BottomPanel(
                                                 painter = painterResource(id = R.drawable.ic_arrow_downward),
                                                 contentDescription = "edit pin",
                                                 tint = Color.Black
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(browserSettings.padding.dp))
+
+                                        Box(
+                                            modifier = Modifier
+                                                .buttonSettingsForLayer(
+                                                    2,
+                                                    browserSettings,
+                                                    false
+                                                )
+                                                .weight(1f)
+                                                .clickable {
+                                                    apps.indexOfFirst { it.id == inspectingAppId.value }
+                                                        .takeIf { it >= 0 }
+                                                        ?.let { apps.removeAt(it) }
+                                                    inspectingAppId.value = 0L
+                                                },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(id = R.drawable.ic_delete_forever),
+                                                contentDescription = "delete pin",
+                                                tint = Color.White
                                             )
                                         }
                                         Spacer(modifier = Modifier.width(browserSettings.padding.dp))
