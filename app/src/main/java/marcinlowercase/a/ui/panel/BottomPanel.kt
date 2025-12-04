@@ -87,15 +87,19 @@ import marcinlowercase.a.core.data_class.Tab
 import marcinlowercase.a.core.enum_class.BottomPanelMode
 import marcinlowercase.a.core.enum_class.GestureNavAction
 import marcinlowercase.a.core.enum_class.SuggestionSource
+import marcinlowercase.a.core.function.buttonSettingsForLayer
 import marcinlowercase.a.core.function.toDomain
 import marcinlowercase.a.core.function.webViewLoad
+import marcinlowercase.a.core.manager.AppManager
 import marcinlowercase.a.core.manager.WebViewManager
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+import kotlin.String
 import kotlin.math.abs
 
 @Composable
 fun BottomPanel(
+    appManager: AppManager,
     setIsBottomPanelVisible: (Boolean) -> Unit,
     setIsUrlBarVisible: (Boolean) -> Unit,
     isAppsPanelVisible: MutableState<Boolean>,
@@ -198,9 +202,11 @@ fun BottomPanel(
     onNewUrl: (String) -> Unit = {},
     setTextFieldHeightPx: (Int) -> Unit = {},
     setIsFocusOnTextField: (Boolean) -> Unit = {},
+    inspectingAppId: MutableState<Long>,
 ) {
 
     val isPinningApp = remember { mutableStateOf(false) }
+
     AnimatedVisibility(
         modifier = modifier,
         visible = isBottomPanelVisible,
@@ -212,7 +218,7 @@ fun BottomPanel(
         ),
         exit = slideOutVertically(
             animationSpec = tween(
-                browserSettings.animationSpeedForLayer(1)
+                browserSettings.animationSpeedForLayer(0)
             ),
             targetOffsetY = { it }
         )
@@ -247,6 +253,16 @@ fun BottomPanel(
 
         ) {
 
+
+            DescriptionPanel(
+                isVisible = descriptionContent.value.isNotEmpty(),
+                description = descriptionContent.value,
+                browserSettings = browserSettings,
+                onDismiss = {
+                    descriptionContent.value = ""
+                }
+            )
+
             AppsPanel(
                 apps = apps,
                 visibility = isAppsPanelVisible,
@@ -257,20 +273,9 @@ fun BottomPanel(
                         setIsBottomPanelVisible(false)
                         setIsUrlBarVisible(false)
                     }
-
-
-                }
+                },
+                inspectingAppId = inspectingAppId,
             )
-            DescriptionPanel(
-                isVisible = descriptionContent.value.isNotEmpty(),
-                description = descriptionContent.value,
-                browserSettings = browserSettings,
-                onDismiss = {
-                    descriptionContent.value = ""
-                }
-            )
-
-
             NavigationPanel(
                 isNavPanelVisible = isNavPanelVisible,
                 activeWebView = activeWebView,
@@ -506,7 +511,7 @@ fun BottomPanel(
                     when (pageIndex) {
                         // --- LEFT BOX (Page 0) ---
                         BottomPanelMode.APPS.ordinal -> {
-                            Box(
+                            Column(
                                 modifier = Modifier
                                     .height(
                                         browserSettings.heightForLayer(1).dp
@@ -514,18 +519,138 @@ fun BottomPanel(
                                     .fillMaxWidth()
                                     .padding(browserSettings.padding.dp)
                                     .clip(RoundedCornerShape(browserSettings.cornerRadiusForLayer(1).dp))
-                                    .clickable {
-                                        resetBottomPanelTrigger.value =
-                                            !resetBottomPanelTrigger.value
-                                    },
-                                contentAlignment = Alignment.Center
                             ) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.ic_arrow_forward),
-                                    contentDescription = "toggle app",
-                                    tint = Color.White
-                                )
+
+                                AnimatedVisibility(
+                                    visible = inspectingAppId.value > 0L,
+                                    enter = fadeIn(tween(browserSettings.animationSpeedForLayer(0))),
+                                    exit = fadeOut(tween(browserSettings.animationSpeedForLayer(0))),
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(
+                                                RoundedCornerShape(
+                                                    browserSettings.cornerRadiusForLayer(
+                                                        1
+                                                    ).dp
+                                                )
+                                            )
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .buttonSettingsForLayer(
+                                                    2,
+                                                    browserSettings,
+                                                )
+                                                .weight(1f)
+                                                .clickable {
+                                                    apps.indexOfFirst { it.id == inspectingAppId.value }
+                                                        .takeIf { it >= 0 }
+                                                        ?.let { apps.removeAt(it) }
+                                                    inspectingAppId.value = 0L
+                                                },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(id = R.drawable.ic_delete_forever),
+                                                contentDescription = "delete pin",
+                                                tint = Color.Black
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(browserSettings.padding.dp))
+                                        val currentIndex = apps.indexOfFirst { it.id == inspectingAppId.value }
+                                        Box(
+                                            modifier = Modifier
+                                                .buttonSettingsForLayer(
+                                                    2,
+                                                    browserSettings,
+                                                    currentIndex > 0
+                                                )
+                                                .weight(1f)
+                                                .clickable {
+                                                    if (currentIndex > 0) {
+                                                        // Swap with the previous item
+                                                        val previousItem = apps[currentIndex - 1]
+                                                        apps[currentIndex - 1] = apps[currentIndex].also {
+                                                            apps[currentIndex] = previousItem
+                                                        }
+                                                        appManager.saveApps(apps)
+                                                    }
+                                                },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(id = R.drawable.ic_arrow_downward),
+                                                contentDescription = "edit pin",
+                                                tint = Color.Black
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(browserSettings.padding.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .buttonSettingsForLayer(
+                                                    2,
+                                                    browserSettings,
+                                                    currentIndex < apps.lastIndex
+                                                )
+                                                .weight(1f)
+                                                .clickable {
+
+                                                    if (currentIndex < apps.lastIndex) {
+                                                        // Swap with the previous item
+                                                        val nextItem = apps[currentIndex + 1]
+                                                        apps[currentIndex + 1] = apps[currentIndex].also {
+                                                            apps[currentIndex] = nextItem
+                                                        }
+                                                        appManager.saveApps(apps)
+                                                    }
+                                                },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(id = R.drawable.ic_arrow_upward),
+                                                contentDescription = "edit pin",
+                                                tint = Color.Black
+                                            )
+                                        }
+                                    }
+                                }
+
+                                AnimatedVisibility(
+                                    visible = inspectingAppId.value == 0L,
+                                    enter = fadeIn(tween(browserSettings.animationSpeedForLayer(0))),
+                                    exit = fadeOut(tween(browserSettings.animationSpeedForLayer(0))),
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .height(
+                                                browserSettings.heightForLayer(1).dp
+                                            )
+                                            .fillMaxWidth()
+                                            .clip(
+                                                RoundedCornerShape(
+                                                    browserSettings.cornerRadiusForLayer(
+                                                        1
+                                                    ).dp
+                                                )
+                                            )
+                                            .clickable {
+                                                resetBottomPanelTrigger.value =
+                                                    !resetBottomPanelTrigger.value
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.ic_arrow_forward),
+                                            contentDescription = "toggle app",
+                                            tint = Color.White
+                                        )
+                                    }
+                                }
+
                             }
+
                         }
 
                         BottomPanelMode.SEARCH.ordinal -> {
@@ -624,6 +749,7 @@ fun BottomPanel(
                                             if (isPinningApp.value) {
                                                 apps.add(
                                                     App(
+                                                        id = System.currentTimeMillis(),
                                                         label = tabs[activeTabIndex.value].currentTitle,
                                                         iconUrl = tabs[activeTabIndex.value].currentFaviconUrl,
                                                         url = resetUrl
@@ -656,6 +782,7 @@ fun BottomPanel(
                                         if (isPinningApp.value) {
                                             apps.add(
                                                 App(
+                                                    id = System.currentTimeMillis(),
                                                     label = input,
                                                     iconUrl = tabs[activeTabIndex.value].currentFaviconUrl,
                                                     url = resetUrl,
@@ -714,7 +841,6 @@ fun BottomPanel(
                                                 browserSettings.cornerRadiusForLayer(1).dp
                                             )
                                         )
-//                                        .background(Color.Cyan)
                                         .clip(
                                             RoundedCornerShape(
                                                 browserSettings.cornerRadiusForLayer(1).dp

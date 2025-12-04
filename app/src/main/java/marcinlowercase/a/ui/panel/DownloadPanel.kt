@@ -122,7 +122,7 @@ fun DownloadPanel(
                         ),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("No downloads yet.", color = Color.White)
+                    Text("no downloads .", color = Color.White)
                 }
 
 

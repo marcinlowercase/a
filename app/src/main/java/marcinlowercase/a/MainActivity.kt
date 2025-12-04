@@ -330,6 +330,8 @@ fun BrowserScreen(
     val appManager = remember { AppManager(context) }
     val apps = remember { mutableStateListOf<App>().apply { addAll(appManager.loadApps()) } }
 
+
+
     val activeTabIndex = remember {
         mutableIntStateOf(tabs.indexOfFirst { it.state == TabState.ACTIVE }.coerceAtLeast(0))
     }
@@ -590,6 +592,8 @@ fun BrowserScreen(
     var displayContextMenuData by remember { mutableStateOf<ContextMenuData?>(null) }
 
     val bottomPanelPagerState = rememberPagerState(initialPage = 1, pageCount = { 3 })
+
+    val inspectingAppId = remember { mutableStateOf(0L) }
 
 
     //endregion
@@ -1190,9 +1194,19 @@ fun BrowserScreen(
 
     //region LaunchedEffect
 
+    LaunchedEffect(inspectingAppId.value) {
+        descriptionContent.value = apps.find { it.id == inspectingAppId.value }?.label ?: ""
+
+    }
+
     LaunchedEffect(apps.size) {
         appManager.saveApps(apps)
+        if (apps.isEmpty()){
+            resetBottomPanelTrigger.value = !resetBottomPanelTrigger.value
+        }
     }
+
+
     LaunchedEffect(
         bottomPanelPagerState.settledPage,
         bottomPanelPagerState.currentPage,
@@ -1203,6 +1217,7 @@ fun BrowserScreen(
             isUrlOverlayBoxVisible = true
             if (isAppsPanelVisible.value) isAppsPanelVisible.value = false
             if (tabsPanelLock && !isFocusOnTextField) isTabsPanelVisible = true
+            if (inspectingAppId.value != 0L) inspectingAppId.value = 0L
         } else {
             isFocusOnTextField = false
             isDownloadPanelVisible = false
@@ -1227,8 +1242,6 @@ fun BrowserScreen(
     LaunchedEffect(bottomPanelPagerState.currentPage) {
         if (bottomPanelPagerState.currentPage == BottomPanelMode.LOCK.ordinal) {
             isBottomPanelLock.value = !isBottomPanelLock.value
-
-
         }
     }
     LaunchedEffect(resetBottomPanelTrigger.value) {
@@ -2339,6 +2352,8 @@ fun BrowserScreen(
 
 
             BottomPanel(
+                appManager = appManager,
+                inspectingAppId = inspectingAppId,
                 resetBottomPanelTrigger = resetBottomPanelTrigger,
                 setIsBottomPanelVisible = { isBottomPanelVisible = it },
                 setIsUrlBarVisible = { isUrlBarVisible = it },
@@ -2441,7 +2456,7 @@ fun BrowserScreen(
                 },
                 tabsPanelLock = tabsPanelLock,
                 updateInspectingTab = { tab ->
-                    if (tab.id != 0.toLong()) inspectingTabId = tab.id else {
+                    if (tab.id != 0L) inspectingTabId = tab.id else {
                         isTabDataPanelVisible = false
                     }
 
@@ -2551,7 +2566,6 @@ fun BrowserScreen(
                 setIsFocusOnTextField = { isFocusOnTextField = it },
                 handleHistoryNavigation = handleHistoryNavigation,
                 isFindInPageVisible = isFindInPageVisible,
-
 
                 )
 
