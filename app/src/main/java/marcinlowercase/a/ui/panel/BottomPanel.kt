@@ -88,6 +88,7 @@ import marcinlowercase.a.core.enum_class.BottomPanelMode
 import marcinlowercase.a.core.enum_class.GestureNavAction
 import marcinlowercase.a.core.enum_class.SuggestionSource
 import marcinlowercase.a.core.function.toDomain
+import marcinlowercase.a.core.function.webViewLoad
 import marcinlowercase.a.core.manager.WebViewManager
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
@@ -251,7 +252,7 @@ fun BottomPanel(
                 visibility = isAppsPanelVisible,
                 browserSettings = browserSettings,
                 onAppClick = { app ->
-                    onOpenInNewTab(app.url)
+                    webViewLoad(activeWebView, app.url, browserSettings)
                     setIsBottomPanelVisible(false)
                     setIsUrlBarVisible(false)
 
@@ -264,7 +265,6 @@ fun BottomPanel(
                 onDismiss = {
                     descriptionContent.value = ""
                 }
-
             )
 
 
