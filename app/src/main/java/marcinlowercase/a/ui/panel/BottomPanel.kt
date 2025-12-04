@@ -698,12 +698,17 @@ fun BottomPanel(
                                             } else {
                                                 if (isPinningApp.value) isPinningApp.value = false
                                                 setIsUrlOverlayBoxVisible(true)
+
                                                 savedPanelState?.let { savedState ->
-                                                    setIsOptionsPanelVisible(savedState.options)
-                                                    setIsTabsPanelVisible(savedState.tabs)
-                                                    setIsDownloadPanelVisible(savedState.downloads)
-                                                    setIsTabDataPanelVisible(savedState.tabData)
-                                                    setIsNavPanelVisible(savedState.nav)
+                                                    if (bottomPanelPagerState.currentPage == BottomPanelMode.SEARCH.ordinal) {
+                                                        setIsOptionsPanelVisible(savedState.options)
+                                                        Log.i("FHFHFH", "tas ${savedState.tabs}")
+                                                        setIsTabsPanelVisible(savedState.tabs)
+                                                        setIsDownloadPanelVisible(savedState.downloads)
+                                                        setIsTabDataPanelVisible(savedState.tabData)
+                                                        setIsNavPanelVisible(savedState.nav)
+                                                    }
+
                                                     setSavedPanelState(null) // Clear the saved state
                                                 }
                                                 textFieldState.setTextAndPlaceCursorAtEnd(resetUrl.toDomain())
