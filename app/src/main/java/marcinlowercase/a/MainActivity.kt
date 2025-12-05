@@ -81,6 +81,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -592,7 +593,7 @@ fun BrowserScreen(
 
     val bottomPanelPagerState = rememberPagerState(initialPage = 1, pageCount = { 3 })
 
-    val inspectingAppId = remember { mutableStateOf(0L) }
+    val inspectingAppId = remember { mutableLongStateOf(0L) }
 
 
     //endregion
@@ -1193,8 +1194,8 @@ fun BrowserScreen(
 
     //region LaunchedEffect
 
-    LaunchedEffect(inspectingAppId.value) {
-        descriptionContent.value = apps.find { it.id == inspectingAppId.value }?.label ?: ""
+    LaunchedEffect(inspectingAppId.longValue) {
+        descriptionContent.value = apps.find { it.id == inspectingAppId.longValue }?.label ?: ""
 
     }
 
@@ -1216,7 +1217,7 @@ fun BrowserScreen(
             isUrlOverlayBoxVisible = true
             if (isAppsPanelVisible.value) isAppsPanelVisible.value = false
             if (tabsPanelLock && !isFocusOnTextField) isTabsPanelVisible = true
-            if (inspectingAppId.value != 0L) inspectingAppId.value = 0L
+            if (inspectingAppId.longValue != 0L) inspectingAppId.longValue = 0L
         } else {
             isFocusOnTextField = false
             isDownloadPanelVisible = false

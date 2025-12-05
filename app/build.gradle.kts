@@ -1,12 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
-//import java.util.Properties
-//import java.io.FileInputStream
-
-//val keystorePropertiesFile = rootProject.file("keystore.properties")
-//val keystoreProperties = Properties()
-//keystoreProperties.load(FileInputStream(keystorePropertiesFile))
-
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -18,37 +11,46 @@ android {
     namespace = "marcinlowercase.a"
     compileSdk = 36
 
+    ndkVersion = "29.0.14206865"
+
+
+
+
+
     defaultConfig {
         applicationId = "marcinlowercase.a"
         minSdk = 29
         targetSdk = 36
-        versionCode = 1
+        versionCode = 4
         versionName = "zero"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        ndk {
+            debugSymbolLevel = "FULL"
+        }
+        packaging {
+            jniLibs {
+                keepDebugSymbols.add("**/lib*.so")
+            }
+        }
+
+
     }
 
-//    signingConfigs {
-//        create("release") {
-//            keyAlias = keystoreProperties["keyAlias"] as String
-//            keyPassword = keystoreProperties["keyPassword"] as String
-//            storeFile = file(keystoreProperties["storeFile"] as String)
-//            storePassword = keystoreProperties["storePassword"] as String
-//        }
-//    }
 
     buildTypes {
         release {
-//            isMinifyEnabled = false
-            isMinifyEnabled = true // Obfuscates your code
-            isShrinkResources = true // Removes unused resources
+            // Enables code-related app optimization.
+            isMinifyEnabled = true
+            // Enables resource shrinking.
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+
             )
-//            signingConfig = signingConfigs.getByName("release")
             ndk {
-                debugSymbolLevel = "SYMBOL_TABLE"
+                debugSymbolLevel = "FULL"
             }
 
         }
