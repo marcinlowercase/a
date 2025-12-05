@@ -595,7 +595,7 @@ fun BottomPanel(
                                                 .buttonSettingsForLayer(
                                                     2,
                                                     browserSettings,
-                                                    currentIndex < apps.lastIndex
+                                                    currentIndex < apps.lastIndex && currentIndex >= 0
                                                 )
                                                 .weight(1f)
                                                 .clickable {
