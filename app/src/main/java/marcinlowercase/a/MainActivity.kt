@@ -6,6 +6,8 @@ import android.app.Activity
 import android.app.DownloadManager
 import android.app.PendingIntent
 import android.content.ActivityNotFoundException
+import androidx.compose.foundation.Image
+
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
@@ -47,6 +49,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
@@ -98,6 +101,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -329,7 +333,6 @@ fun BrowserScreen(
 
     val appManager = remember { AppManager(context) }
     val apps = remember { mutableStateListOf<App>().apply { addAll(appManager.loadApps()) } }
-
 
 
     val activeTabIndex = remember {
@@ -1201,7 +1204,7 @@ fun BrowserScreen(
 
     LaunchedEffect(apps.size) {
         appManager.saveApps(apps)
-        if (apps.isEmpty()){
+        if (apps.isEmpty()) {
             resetBottomPanelTrigger.value = !resetBottomPanelTrigger.value
         }
     }
@@ -2888,23 +2891,15 @@ fun BrowserScreen(
                                     browserSettings.cornerRadiusForLayer(1).dp
                                 )
                             )
-                            .background(Color.Black.copy(alpha = 0.4f))
-//                            .border(
-//                                2.dp,
-//                                Color.White.copy(alpha = 0.5f),
-//                                shape = RoundedCornerShape(
-//                                    cornerRadiusForLayer(
-//                                        1,
-//                                        browserSettings.deviceCornerRadius,
-//                                        browserSettings.padding
-//                                    ).dp
-//                                )
-//                            )
-                        ,
+                            .background(Color.Black.copy(alpha = 0.5f))
+                            .background(Color.White.copy(alpha = 0.5f))
+
+                           ,
                         contentAlignment = Alignment.Center
                     ) {
+
 //                        Icon(
-//                            painter = painterResource(R.drawable.ic_link),
+//                            painter = painterResource(R.drawable.ic_circle),
 //                            contentDescription = "Back",
 //                            tint = Color.White
 //                        )
