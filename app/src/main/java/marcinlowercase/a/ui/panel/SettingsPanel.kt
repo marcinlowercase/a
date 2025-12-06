@@ -440,7 +440,6 @@ fun SettingsPanel(
     confirmationPopup: (String, () -> Unit, () -> Unit) -> Unit,
     resetBrowserSettings: () -> Int,
     targetSetting: SettingPanelView = SettingPanelView.MAIN,
-    isFirstAppLoad: MutableState<Boolean> = mutableStateOf(false)
 ) {
 
     var currentView by remember { mutableStateOf(targetSetting) }
