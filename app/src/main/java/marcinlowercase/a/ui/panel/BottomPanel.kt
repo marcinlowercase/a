@@ -99,6 +99,7 @@ import kotlin.math.abs
 
 @Composable
 fun BottomPanel(
+    initialSettingPanelView: SettingPanelView = SettingPanelView.MAIN,
     appManager: AppManager,
     setIsBottomPanelVisible: (Boolean) -> Unit,
     setIsUrlBarVisible: (Boolean) -> Unit,
@@ -239,17 +240,6 @@ fun BottomPanel(
                 .background(
                     Color.Black,
                 )
-//                .border(
-//                    color = Color.White,
-//                    width = 1.dp,
-//                    shape = RoundedCornerShape(
-//                        cornerRadiusForLayer(
-//                            1,
-//                            browserSettings.deviceCornerRadius,
-//                            browserSettings.padding
-//                        ).dp
-//                    )
-//                )
 
         ) {
 
@@ -347,7 +337,8 @@ fun BottomPanel(
                 backgroundColor = backgroundColor,
                 resetBrowserSettings = resetBrowserSettings,
                 confirmationPopup = confirmationPopup,
-                setIsSettingsPanelVisible = setIsSettingsPanelVisible
+                setIsSettingsPanelVisible = setIsSettingsPanelVisible,
+                targetSetting = initialSettingPanelView,
 
             )
             TabDataPanel(

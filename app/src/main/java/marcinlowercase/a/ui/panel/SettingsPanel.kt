@@ -71,7 +71,7 @@ import kotlin.collections.chunked
 import kotlin.collections.forEach
 import kotlin.math.roundToInt
 
-private enum class SettingPanelView {
+enum class SettingPanelView {
     MAIN,
     CORNER_RADIUS,
     PADDING,
@@ -172,7 +172,7 @@ fun SliderSetting(
 
             ) {
                 Icon(
-                    painter = painterResource(id = R.drawable.ic_arrow_back),
+                    painter = painterResource(id = if(browserSettings.isFirstAppLoad) R.drawable.ic_check else R.drawable.ic_arrow_back),
                     contentDescription = "Back to Settings",
                     tint = Color.Black
                 )
@@ -439,9 +439,11 @@ fun SettingsPanel(
     updateBrowserSettings: (BrowserSettings) -> Int,
     confirmationPopup: (String, () -> Unit, () -> Unit) -> Unit,
     resetBrowserSettings: () -> Int,
+    targetSetting: SettingPanelView = SettingPanelView.MAIN,
+    isFirstAppLoad: MutableState<Boolean> = mutableStateOf(false)
 ) {
 
-    var currentView by remember { mutableStateOf(SettingPanelView.MAIN) }
+    var currentView by remember { mutableStateOf(targetSetting) }
 
     // This state will hold the current value of the slider.
 //    var sliderValue by remember { mutableStateOf(browserSettings.deviceCornerRadius) }
@@ -523,7 +525,7 @@ fun SettingsPanel(
     AnimatedVisibility(
         visible = isSettingsPanelVisible,
         enter = expandVertically(tween(browserSettings.animationSpeedForLayer(1))),
-        exit = shrinkVertically(tween(browserSettings.animationSpeedForLayer(1)))
+        exit = shrinkVertically(tween(if ( browserSettings.isFirstAppLoad) browserSettings.animationSpeedForLayer(0 )* 6 else browserSettings.animationSpeedForLayer(1)))
     ) {
         Box(
             modifier = Modifier
@@ -540,17 +542,7 @@ fun SettingsPanel(
                         browserSettings.animationSpeedForLayer(1)
                     )
                 )
-//                .border(
-//                    1.dp,
-//                    Color.White,
-//                    RoundedCornerShape(
-//                        cornerRadiusForLayer(
-//                            2,
-//                            browserSettings.deviceCornerRadius,
-//                            browserSettings.padding
-//                        ).dp
-//                    )
-//                )
+//
         ) {
 
             when (currentView) {
@@ -663,7 +655,7 @@ fun SettingsPanel(
                                 browserSettings.copy(deviceCornerRadius = newValue)
                             )
                         },
-                        onBackClick = { currentView = SettingPanelView.MAIN },
+                        onBackClick = { if (!browserSettings.isFirstAppLoad) currentView = SettingPanelView.MAIN else setIsSettingsPanelVisible(false) },
                         valueRange = 0f..60f,
                         steps = 5999,
                         currentSettingOriginalValue = browserSettings.deviceCornerRadius,
@@ -684,7 +676,7 @@ fun SettingsPanel(
                                 browserSettings.copy(animationSpeed = newValue)
                             )
                         },
-                        onBackClick = { currentView = SettingPanelView.MAIN },
+                        onBackClick = { if (!browserSettings.isFirstAppLoad) currentView = SettingPanelView.MAIN else setIsSettingsPanelVisible(false) },
                         valueRange = 0f..1000f,
                         steps = 999,
                         currentSettingOriginalValue = browserSettings.animationSpeed,
@@ -706,7 +698,7 @@ fun SettingsPanel(
                                 browserSettings.copy(padding = newValue)
                             )
                         },
-                        onBackClick = { currentView = SettingPanelView.MAIN },
+                        onBackClick = { if (!browserSettings.isFirstAppLoad) currentView = SettingPanelView.MAIN else setIsSettingsPanelVisible(false) },
                         valueRange = 3f..11f,
                         steps = 7,
                         currentSettingOriginalValue = browserSettings.padding,
@@ -729,7 +721,7 @@ fun SettingsPanel(
                                 browserSettings.copy(cursorContainerSize = newValue)
                             )
                         },
-                        onBackClick = { currentView = SettingPanelView.MAIN },
+                        onBackClick = { if (!browserSettings.isFirstAppLoad) currentView = SettingPanelView.MAIN else setIsSettingsPanelVisible(false) },
                         valueRange = 20f..70f,
                         steps = 49,
                         currentSettingOriginalValue = browserSettings.cursorContainerSize,
@@ -755,7 +747,7 @@ fun SettingsPanel(
                                 "Updated to ${browserSettings.cursorTrackingSpeed}"
                             )
                         },
-                        onBackClick = { currentView = SettingPanelView.MAIN },
+                        onBackClick = { if (!browserSettings.isFirstAppLoad) currentView = SettingPanelView.MAIN else setIsSettingsPanelVisible(false) },
                         valueRange = 0.5f..2f,
                         steps = 29,
                         currentSettingOriginalValue = browserSettings.cursorTrackingSpeed,
@@ -773,7 +765,7 @@ fun SettingsPanel(
                         updateBrowserSettingsForSpecificValue = { newValue ->
                             updateBrowserSettings(browserSettings.copy(defaultUrl = newValue))
                         },
-                        onBackClick = { currentView = SettingPanelView.MAIN },
+                        onBackClick = { if (!browserSettings.isFirstAppLoad) currentView = SettingPanelView.MAIN else setIsSettingsPanelVisible(false) },
                         iconID = R.drawable.ic_link,
                         currentSettingOriginalValue = browserSettings.defaultUrl
                     )
@@ -802,7 +794,7 @@ fun SettingsPanel(
                                 browserSettings.copy(closedTabHistorySize = newValue)
                             )
                         },
-                        onBackClick = { currentView = SettingPanelView.MAIN },
+                        onBackClick = { if (!browserSettings.isFirstAppLoad) currentView = SettingPanelView.MAIN else setIsSettingsPanelVisible(false) },
                         valueRange = 0f..30f, // A sensible range for this setting
                         steps = 29, // (30 / 1) - 1
                         currentSettingOriginalValue = browserSettings.closedTabHistorySize,
@@ -821,7 +813,7 @@ fun SettingsPanel(
                                 browserSettings.copy(backSquareIdleOpacity = newValue)
                             )
                         },
-                        onBackClick = { currentView = SettingPanelView.MAIN },
+                        onBackClick = { if (!browserSettings.isFirstAppLoad) currentView = SettingPanelView.MAIN else setIsSettingsPanelVisible(false) },
                         valueRange = 0f..1f, // 0% to 100%
                         steps = 19, // 5% increments
                         currentSettingOriginalValue = browserSettings.backSquareIdleOpacity,

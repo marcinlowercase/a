@@ -46,6 +46,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -73,6 +75,7 @@ import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -167,6 +170,8 @@ import marcinlowercase.a.core.manager.AppManager
 import marcinlowercase.a.core.manager.VisitedUrlManager
 import marcinlowercase.a.core.manager.WebViewManager
 import marcinlowercase.a.ui.panel.BottomPanel
+import marcinlowercase.a.ui.panel.SettingPanelView
+import marcinlowercase.a.ui.panel.SettingsPanel
 import marcinlowercase.a.ui.theme.Theme
 import org.json.JSONArray
 import java.io.File
@@ -175,6 +180,7 @@ import java.net.URL
 import java.net.URLDecoder
 import java.net.URLEncoder
 import java.util.regex.Pattern
+import kotlin.String
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 import kotlin.system.exitProcess
@@ -287,9 +293,10 @@ fun BrowserScreen(
     var browserSettings by remember {
         mutableStateOf(
             BrowserSettings(
+                isFirstAppLoad = sharedPrefs.getBoolean("is_first_app_load", true),
                 padding = sharedPrefs.getFloat("padding", 8f),
                 deviceCornerRadius = sharedPrefs.getFloat(
-                    "corner_radius_dp",
+                    "device_corner_radius",
                     pixel_9_corner_radius
                 ),
                 defaultUrl = sharedPrefs.getString("default_url", default_url)
@@ -320,6 +327,7 @@ fun BrowserScreen(
             )
         )
     }
+
     var savedPanelState by remember { mutableStateOf<PanelVisibilityState?>(null) }
     var initialLoadDone by rememberSaveable { mutableStateOf(false) }
     val tabs = remember {
@@ -437,7 +445,7 @@ fun BrowserScreen(
     var isTabDataPanelVisible by remember { mutableStateOf(false) }
     val hapticFeedback = LocalHapticFeedback.current
     var isOptionsPanelVisible by rememberSaveable { mutableStateOf(false) }
-    var isSettingsPanelVisible by remember { mutableStateOf(false) }
+    var isSettingsPanelVisible by remember { mutableStateOf(browserSettings.isFirstAppLoad) }
     val isBottomPanelLock = remember { mutableStateOf(false) }
     val isAppsPanelVisible = remember { mutableStateOf(false) }
     val resetBottomPanelTrigger = remember { mutableStateOf(false) }
@@ -595,6 +603,8 @@ fun BrowserScreen(
 
     val inspectingAppId = remember { mutableLongStateOf(0L) }
 
+
+    var initialSettingPanelView by remember { mutableStateOf(SettingPanelView.MAIN) }
 
     //endregion
 
@@ -1194,6 +1204,9 @@ fun BrowserScreen(
 
     //region LaunchedEffect
 
+    LaunchedEffect(isSettingsPanelVisible) {
+        if (!isSettingsPanelVisible) updateBrowserSettings(browserSettings.copy(isFirstAppLoad = false))
+    }
     LaunchedEffect(inspectingAppId.longValue) {
         descriptionContent.value = apps.find { it.id == inspectingAppId.longValue }?.label ?: ""
 
@@ -2217,8 +2230,9 @@ fun BrowserScreen(
     // The LaunchedEffect now saves the entire settings object (or individual fields)
     LaunchedEffect(browserSettings) {
         sharedPrefs.edit {
+            putBoolean("is_first_app_load", browserSettings.isFirstAppLoad)
             putFloat("padding", browserSettings.padding)
-            putFloat("corner_radius_dp", browserSettings.deviceCornerRadius)
+            putFloat("device_corner_radius", browserSettings.deviceCornerRadius)
             putString("default_url", browserSettings.defaultUrl)
             putFloat("animation_speed", browserSettings.animationSpeed)
             putFloat("single_line_height", browserSettings.singleLineHeight)
@@ -2270,396 +2284,480 @@ fun BrowserScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black)
-    ) {
-        Box(
-            modifier = modifier
-                .fillMaxSize()
-//                .padding(top = cutoutTop, bottom = cutoutBottom)
-        ) {
-            Column(
-                modifier = modifier
-                    .fillMaxSize()
-                    .padding(top = webViewTopPadding, bottom = webViewBottomPadding)
+            .background(backgroundColor.value)
 
+    ) {
+
+
+        AnimatedVisibility(
+            modifier = Modifier
+                .windowInsetsPadding(WindowInsets.ime)
+                .align(Alignment.BottomCenter),
+            visible = browserSettings.isFirstAppLoad,
+            enter = fadeIn(tween(browserSettings.animationSpeedForLayer(0))),
+            exit = slideOutVertically(
+                animationSpec = tween(browserSettings.animationSpeedForLayer(0) * 4),
+                targetOffsetY = { -it }
+            )
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(
+                        RoundedCornerShape(
+                            browserSettings.cornerRadiusForLayer(0).dp
+                        )
+                    )
+                    .background(Color.White),
+                contentAlignment = Alignment.Center
 
             ) {
 
+                Text(
+                    text = "adjust device corner radius",
+                    color = Color.Black
+                )
 
-                // Webview Container
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .clip(
-                            RoundedCornerShape(
-                                animatedCornerRadius
-                            )
+            }
+        }
+
+        AnimatedVisibility(
+            modifier = Modifier
+                .windowInsetsPadding(WindowInsets.ime)
+                .align(Alignment.BottomCenter),
+            visible = browserSettings.isFirstAppLoad,
+            enter = fadeIn(tween(browserSettings.animationSpeedForLayer(0))),
+            exit = fadeOut(animationSpec = tween(browserSettings.animationSpeedForLayer(0) * 4),)
+        ) {
+            Box(
+                modifier = Modifier
+                    .padding(browserSettings.padding.dp)
+                    .clip(
+                        RoundedCornerShape(
+                            browserSettings.cornerRadiusForLayer(1).dp
                         )
-                        .testTag("WebViewContainer")
+                    )
+                    .windowInsetsPadding(WindowInsets.ime)
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+
+                    .background(Color.Black)
+                    .padding(bottom = browserSettings.padding.dp)
+            ) {
+                SettingsPanel(
+                    descriptionContent = descriptionContent,
+                    hapticFeedback = hapticFeedback,
+                    backgroundColor = backgroundColor,
+                    isSettingsPanelVisible = isSettingsPanelVisible,
+                    setIsSettingsPanelVisible = { isSettingsPanelVisible = it },
+                    browserSettings = browserSettings,
+                    updateBrowserSettings = updateBrowserSettings,
+                    confirmationPopup = ::confirmationPopup,
+                    resetBrowserSettings = resetBrowserSettings,
+                    targetSetting = SettingPanelView.CORNER_RADIUS,
+                )
+            }
+        }
+
+        AnimatedVisibility(
+            visible = !browserSettings.isFirstAppLoad,
+            enter = slideInVertically(
+                animationSpec = tween(browserSettings.animationSpeedForLayer(0) * 4),
+                initialOffsetY = { it }
+            ),
+            exit = fadeOut(tween(browserSettings.animationSpeedForLayer(0)))
+        ) {
+
+            Box(
+                modifier = modifier
+                    .fillMaxSize()
+//                .padding(top = cutoutTop, bottom = cutoutBottom)
+            ) {
+
+                Column(
+                    modifier = modifier
+                        .fillMaxSize()
+                        .padding(top = webViewTopPadding, bottom = webViewBottomPadding)
+
 
                 ) {
+                    // Webview Container
                     Box(
                         modifier = Modifier
-                            .fillMaxSize()
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .clip(
+                                RoundedCornerShape(
+                                    animatedCornerRadius
+                                )
+                            )
+                            .testTag("WebViewContainer")
 
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+
+                        ) {
+
+
+                            @Suppress("COMPOSE_APPLIER_CALL_MISMATCH")
+                            AndroidView(
+                                // The factory now ONLY creates the container. It's simple.
+                                factory = { context ->
+                                    FrameLayout(context)
+                                },
+                                // --- THIS UPDATE BLOCK IS THE FIX ---
+                                // It's called on the initial composition AND every time
+                                // 'activeWebView' changes.
+                                update = { frameLayout ->
+                                    // Check if the correct WebView is already being shown.
+                                    // This prevents unnecessary add/remove operations.
+                                    if (frameLayout.getChildAt(0) != activeWebView) {
+                                        // 1. Safely remove the new WebView from its old parent, if any.
+                                        (activeWebView?.parent as? ViewGroup)?.removeView(
+                                            activeWebView
+                                        )
+                                        // 2. Clear out the old WebView from our container.
+                                        frameLayout.removeAllViews()
+                                        // 3. Add the new, correct WebView to our container.
+                                        frameLayout.addView(
+                                            activeWebView,
+                                            FrameLayout.LayoutParams(
+                                                FrameLayout.LayoutParams.MATCH_PARENT,
+                                                FrameLayout.LayoutParams.MATCH_PARENT
+                                            ).apply {
+                                                gravity = Gravity.CENTER
+                                            }
+                                        )
+                                    }
+                                },
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                        LoadingIndicator(isLoading = isLoading, browserSettings = browserSettings)
+                    }
+                }
+
+
+                CursorPointer(
+                    isCursorPadVisible = isCursorPadVisible,
+                    position = cursorPointerPosition.value,
+                    browserSettings = browserSettings,
+                )
+
+
+
+                BottomPanel(
+                    initialSettingPanelView = initialSettingPanelView,
+                    appManager = appManager,
+                    inspectingAppId = inspectingAppId,
+                    resetBottomPanelTrigger = resetBottomPanelTrigger,
+                    setIsBottomPanelVisible = { isBottomPanelVisible = it },
+                    setIsUrlBarVisible = { isUrlBarVisible = it },
+                    isAppsPanelVisible = isAppsPanelVisible,
+                    apps = apps,
+
+                    isBottomPanelLock = isBottomPanelLock,
+                    bottomPanelPagerState = bottomPanelPagerState,
+                    onOpenInNewTab = { url ->
+//                   createNewTab(tabs.size, url)
+                        createNewTab(activeTabIndex.intValue + 1, url)
+
+                    },
+                    onDownloadImage = { url ->
+                        // Simple generic download for images found via context menu
+                        startDownload(
+                            url,
+                            activeWebView?.settings?.userAgentString ?: "",
+                            null,
+                            "image/*"
+                        )
+                    },
+                    contextMenuData = contextMenuData,
+                    displayContextMenuData = displayContextMenuData,
+                    onDismissContextMenu = { contextMenuData = null },
+                    isFocusOnTextField = isFocusOnTextField,
+                    textFieldState = textFieldState,
+                    onCloseAllTabs = {
+                        confirmationPopup(
+                            message = "close all tabs and exit ? ",
+                            onConfirm = {
+                                closeAllTabs()
+                            },
+                            onCancel = {}
+                        )
+                    },
+                    suggestions = suggestions,
+                    onSuggestionClick = { suggestion ->
+                        webViewLoad(activeWebView, suggestion.url, browserSettings)
+                        focusManager.clearFocus()
+                        keyboardController?.hide()
+                    },
+                    onRemoveSuggestion = { suggestionToRemove ->
+                        confirmationPopup(
+                            message = "remove suggestion from history ? ",
+                            onConfirm = {
+                                removeSuggestionFromHistory(suggestionToRemove)
+                            },
+                            onCancel = {}
+                        )
+                    },
+
+                    webViewManager = webViewManager,
+                    activeWebView = activeWebView,
+
+                    findInPageResult = findInPageResult,
+                    findInPageText = findInPageText,
+                    onAddToHomeScreen = {
+                        addToHomeScreen(
+                            context = context,
+                            coroutineScope = coroutineScope,
+                            tab = currentInspectingTab,
+                            activeWebView = activeWebView,
+                        )
+                    },
+                    setIsDownloadPanelVisible = { isDownloadPanelVisible = it },
+                    descriptionContent = descriptionContent,
+                    recentlyClosedTabs = recentlyClosedTabs,
+                    reopenClosedTab = reopenClosedTab,
+                    confirmationPopup = ::confirmationPopup,
+                    resetBrowserSettings = resetBrowserSettings,
+                    backgroundColor = backgroundColor,
+                    isSettingsPanelVisible = isSettingsPanelVisible,
+                    setIsSettingsPanelVisible = { isSettingsPanelVisible = it },
+                    urlBarFocusRequester = urlBarFocusRequester,
+                    isCursorPadVisible = isCursorPadVisible,
+                    isCursorMode = isCursorMode,
+                    setIsCursorMode = {
+                        isCursorMode = it
+
+                    },
+                    setIsTabsPanelVisible = { isTabsPanelVisible = it },
+                    setIsTabDataPanelVisible = { isTabDataPanelVisible = it },
+                    savedPanelState = savedPanelState,
+                    setSavedPanelState = { savedPanelState = it },
+                    confirmationState = confirmationState,
+                    confirmationDisplayState = confirmationDisplayState,
+                    onPermissionDeny = {
+                        pendingPermissionRequest?.let { request ->
+                            // --- SAVE THE DENIAL (NEW) ---
+                            siteSettingsManager.getDomain(request.origin)?.let { domain ->
+                                val deniedPermissions =
+                                    request.permissionsToRequest.associateWith { false }
+                                savePermissionDecision(domain, deniedPermissions)
+                            }
+                            // --- END OF NEW LOGIC ---
+                            request.onResult.invoke(emptyMap())
+                        }
+                        pendingPermissionRequest = null
+                    },
+                    tabsPanelLock = tabsPanelLock,
+                    updateInspectingTab = { tab ->
+                        if (tab.id != 0L) inspectingTabId = tab.id else {
+                            isTabDataPanelVisible = false
+                        }
+
+                    },
+                    isTabDataPanelVisible = isTabDataPanelVisible,
+                    inspectingTab = currentInspectingTab,
+                    handleCloseInspectedTab = handleCloseInspectedTab,
+                    handleClearInspectedTabData = handleClearInspectedTabData,
+                    handlePermissionToggle = handlePermissionToggle,
+                    siteSettings = siteSettings,
+                    onTabDataPanelDismiss = { isTabDataPanelVisible = false },
+
+                    onTabLongPressed = { tab ->
+                        isTabDataPanelVisible = !isTabDataPanelVisible
+                        if (inspectingTabId == null) inspectingTabId = tab.id
+                    },
+                    onDownloadRowClicked = handleOpenFile,
+                    onDeleteClicked = handleDeleteFile,
+                    onOpenFolderClicked = handleOpenDownloadsFolder,
+                    onClearAllClicked = handleClearAll,
+                    downloads = downloads,
+                    isDownloadPanelVisible = isDownloadPanelVisible,
+                    isUrlOverlayBoxVisible = isUrlOverlayBoxVisible,
+                    setIsUrlOverlayBoxVisible = { isUrlOverlayBoxVisible = it },
+                    onNewTabClicked = { index ->
+                        createNewTab(index)
+                    },
+                    toggleIsTabsPanelVisible = {
+                        isTabsPanelVisible = !isTabsPanelVisible
+                        tabsPanelLock = !tabsPanelLock
+                    },
+                    isTabsPanelVisible = isTabsPanelVisible,
+                    onTabSelected = { newIndex ->
+                        if (activeTabIndex.intValue != newIndex) {
+
+                            // save old tab state
+                            val oldTab = tabs.getOrNull(activeTabIndex.intValue)
+                            // We use the webViewManager's pool to find the correct WebView instance
+                            val oldWebView = oldTab?.let { webViewManager.getWebView(it) }
+
+                            if (oldWebView != null) {
+                                val outState = Bundle()
+                                oldWebView.saveState(outState)
+                                val stateBytes = outState.getByteArray("WEBVIEW_CHROMIUM_STATE")
+                                if (stateBytes != null) {
+                                    oldTab.savedState =
+                                        Base64.encodeToString(stateBytes, Base64.DEFAULT)
+                                    Log.d("TabSwitch", "Saved state for outgoing tab ${oldTab.id}")
+                                }
+                            }
+
+
+
+
+                            tabs[activeTabIndex.intValue].state = TabState.BACKGROUND
+                            tabs[newIndex].state = TabState.ACTIVE
+
+                            activeTabIndex.intValue = newIndex
+
+                            val urlToLoad = webViewManager.getWebView(tabs[newIndex]).url
+                                ?: browserSettings.defaultUrl
+//                        activeWebView?.loadUrl(urlToLoad)
+                            textFieldState.setTextAndPlaceCursorAtEnd(urlToLoad.toDomain())
+                            saveTrigger++
+
+                            inspectingTabId = tabs[newIndex].id
+                        }
+
+                    },
+                    navigateWebView = {
+                        navigateWebView()
+                    },
+                    hapticFeedback = hapticFeedback,
+                    setIsNavPanelVisible = { isNavPanelVisible = it },
+                    setActiveNavAction = { activeNavAction = it },
+
+                    isNavPanelVisible = isNavPanelVisible,
+                    activeNavAction = activeNavAction,
+
+                    state = if (jsDialogState != null) jsDialogState!! else null,
+                    promptComponentDisplayState = if (promptComponentDisplayState != null) promptComponentDisplayState else null,
+                    onDismiss = { jsDialogState = null },
+                    isPromptPanelVisible = isPromptPanelVisible,
+
+                    isPermissionPanelVisible = isPermissionPanelVisible,
+                    permissionLauncher = permissionLauncher,
+                    pendingPermissionRequest = pendingPermissionRequest,
+                    modifier = Modifier
+                        // This aligns the panel to the bottom center of the Box
+                        .windowInsetsPadding(WindowInsets.ime)
+                        .align(Alignment.BottomCenter),
+                    activeTabIndex = activeTabIndex,
+                    tabs = tabs,
+                    isUrlBarVisible = isUrlBarVisible,
+                    isBottomPanelVisible = isBottomPanelVisible,
+                    isOptionsPanelVisible = isOptionsPanelVisible,
+                    browserSettings = browserSettings,
+                    updateBrowserSettings = updateBrowserSettings,
+//                        url = url,
+                    focusManager = focusManager,
+                    keyboardController = keyboardController,
+                    setIsOptionsPanelVisible = { isOptionsPanelVisible = it },
+                    onNewUrl = { newUrl ->
+                        webViewLoad(activeWebView, newUrl, browserSettings)
+
+                    },
+                    setIsFocusOnTextField = { isFocusOnTextField = it },
+                    handleHistoryNavigation = handleHistoryNavigation,
+                    isFindInPageVisible = isFindInPageVisible,
+
+                    )
+
+
+
+                CursorPad(
+                    urlBarFocusRequester = urlBarFocusRequester,
+                    screenSize = screenSize,
+                    isCursorPadVisible = isCursorPadVisible,
+                    setIsCursorPadVisible = { isCursorMode = it },
+                    browserSettings = browserSettings,
+                    coroutineScope = coroutineScope,
+                    activeWebView = activeWebView,
+                    cursorPointerPosition = cursorPointerPosition,
+                    webViewTopPadding = webViewTopPadding,
+                    hapticFeedback = hapticFeedback,
+                    setIsUrlBarVisible = { isUrlBarVisible = it },
+                    isLongPressDrag = isLongPressDrag,
+                    cursorPadHeight = cursorPadHeight,
+
+                    )
+
+                LaunchedEffect(screenSize) {
+                    Log.i("BackSquare", "Screen Size : $screenSize")
+
+                }
+                // BackSquare
+                AnimatedVisibility(
+                    visible = !isBottomPanelVisible,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .onSizeChanged {
+                            screenSize = it
+                            with(density) {
+                                screenSizeDp = IntSize(
+                                    it.width.toDp().value.roundToInt(),
+                                    it.height.toDp().value.roundToInt()
+                                )
+                            }
+                            Log.d(
+                                "BackSquare",
+                                "Screen Size: ${screenSize.width}x${screenSize.height} px | ${screenSizeDp.width}x${screenSizeDp.height} dp"
+                            )
+                        },
+                    enter = fadeIn(tween(browserSettings.animationSpeedForLayer(0))),
+                    exit = fadeOut(tween(browserSettings.animationSpeedForLayer(0)))
+                ) {
+
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize(),
                     ) {
 
 
-                        @Suppress("COMPOSE_APPLIER_CALL_MISMATCH")
-                        AndroidView(
-                            // The factory now ONLY creates the container. It's simple.
-                            factory = { context ->
-                                FrameLayout(context)
-                            },
-                            // --- THIS UPDATE BLOCK IS THE FIX ---
-                            // It's called on the initial composition AND every time
-                            // 'activeWebView' changes.
-                            update = { frameLayout ->
-                                // Check if the correct WebView is already being shown.
-                                // This prevents unnecessary add/remove operations.
-                                if (frameLayout.getChildAt(0) != activeWebView) {
-                                    // 1. Safely remove the new WebView from its old parent, if any.
-                                    (activeWebView?.parent as? ViewGroup)?.removeView(activeWebView)
-                                    // 2. Clear out the old WebView from our container.
-                                    frameLayout.removeAllViews()
-                                    // 3. Add the new, correct WebView to our container.
-                                    frameLayout.addView(
-                                        activeWebView,
-                                        FrameLayout.LayoutParams(
-                                            FrameLayout.LayoutParams.MATCH_PARENT,
-                                            FrameLayout.LayoutParams.MATCH_PARENT
-                                        ).apply {
-                                            gravity = Gravity.CENTER
-                                        }
+                        val squareBoxSize = browserSettings.heightForLayer(1).dp
+
+                        val squareBoxSizePx = with(density) { squareBoxSize.toPx() }
+                        val paddingPx = with(density) { browserSettings.padding.dp.toPx() }
+
+                        Box(
+                            modifier = Modifier
+//                            .align(squareAlignment)
+                                .offset {
+                                    IntOffset(
+                                        backSquareOffsetX.value.roundToInt(),
+                                        backSquareOffsetY.value.roundToInt()
                                     )
                                 }
-                            },
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                    LoadingIndicator(isLoading = isLoading, browserSettings = browserSettings)
-                }
-            }
 
-
-            CursorPointer(
-                isCursorPadVisible = isCursorPadVisible,
-                position = cursorPointerPosition.value,
-                browserSettings = browserSettings,
-            )
-
-
-
-            BottomPanel(
-                appManager = appManager,
-                inspectingAppId = inspectingAppId,
-                resetBottomPanelTrigger = resetBottomPanelTrigger,
-                setIsBottomPanelVisible = { isBottomPanelVisible = it },
-                setIsUrlBarVisible = { isUrlBarVisible = it },
-                isAppsPanelVisible = isAppsPanelVisible,
-                apps = apps,
-
-                isBottomPanelLock = isBottomPanelLock,
-                bottomPanelPagerState = bottomPanelPagerState,
-                onOpenInNewTab = { url ->
-//                   createNewTab(tabs.size, url)
-                    createNewTab(activeTabIndex.intValue + 1, url)
-
-                },
-                onDownloadImage = { url ->
-                    // Simple generic download for images found via context menu
-                    startDownload(
-                        url,
-                        activeWebView?.settings?.userAgentString ?: "",
-                        null,
-                        "image/*"
-                    )
-                },
-                contextMenuData = contextMenuData,
-                displayContextMenuData = displayContextMenuData,
-                onDismissContextMenu = { contextMenuData = null },
-                isFocusOnTextField = isFocusOnTextField,
-                textFieldState = textFieldState,
-                onCloseAllTabs = {
-                    confirmationPopup(
-                        message = "close all tabs and exit ? ",
-                        onConfirm = {
-                            closeAllTabs()
-                        },
-                        onCancel = {}
-                    )
-                },
-                suggestions = suggestions,
-                onSuggestionClick = { suggestion ->
-                    webViewLoad(activeWebView, suggestion.url, browserSettings)
-                    focusManager.clearFocus()
-                    keyboardController?.hide()
-                },
-                onRemoveSuggestion = { suggestionToRemove ->
-                    confirmationPopup(
-                        message = "remove suggestion from history ? ",
-                        onConfirm = {
-                            removeSuggestionFromHistory(suggestionToRemove)
-                        },
-                        onCancel = {}
-                    )
-                },
-
-                webViewManager = webViewManager,
-                activeWebView = activeWebView,
-
-                findInPageResult = findInPageResult,
-                findInPageText = findInPageText,
-                onAddToHomeScreen = {
-                    addToHomeScreen(
-                        context = context,
-                        coroutineScope = coroutineScope,
-                        tab = currentInspectingTab,
-                        activeWebView = activeWebView,
-                    )
-                },
-                setIsDownloadPanelVisible = { isDownloadPanelVisible = it },
-                descriptionContent = descriptionContent,
-                recentlyClosedTabs = recentlyClosedTabs,
-                reopenClosedTab = reopenClosedTab,
-                confirmationPopup = ::confirmationPopup,
-                resetBrowserSettings = resetBrowserSettings,
-                backgroundColor = backgroundColor,
-                isSettingsPanelVisible = isSettingsPanelVisible,
-                setIsSettingsPanelVisible = { isSettingsPanelVisible = it },
-                urlBarFocusRequester = urlBarFocusRequester,
-                isCursorPadVisible = isCursorPadVisible,
-                isCursorMode = isCursorMode,
-                setIsCursorMode = {
-                    isCursorMode = it
-
-                },
-                setIsTabsPanelVisible = { isTabsPanelVisible = it },
-                setIsTabDataPanelVisible = { isTabDataPanelVisible = it },
-                savedPanelState = savedPanelState,
-                setSavedPanelState = { savedPanelState = it },
-                confirmationState = confirmationState,
-                confirmationDisplayState = confirmationDisplayState,
-                onPermissionDeny = {
-                    pendingPermissionRequest?.let { request ->
-                        // --- SAVE THE DENIAL (NEW) ---
-                        siteSettingsManager.getDomain(request.origin)?.let { domain ->
-                            val deniedPermissions =
-                                request.permissionsToRequest.associateWith { false }
-                            savePermissionDecision(domain, deniedPermissions)
-                        }
-                        // --- END OF NEW LOGIC ---
-                        request.onResult.invoke(emptyMap())
-                    }
-                    pendingPermissionRequest = null
-                },
-                tabsPanelLock = tabsPanelLock,
-                updateInspectingTab = { tab ->
-                    if (tab.id != 0L) inspectingTabId = tab.id else {
-                        isTabDataPanelVisible = false
-                    }
-
-                },
-                isTabDataPanelVisible = isTabDataPanelVisible,
-                inspectingTab = currentInspectingTab,
-                handleCloseInspectedTab = handleCloseInspectedTab,
-                handleClearInspectedTabData = handleClearInspectedTabData,
-                handlePermissionToggle = handlePermissionToggle,
-                siteSettings = siteSettings,
-                onTabDataPanelDismiss = { isTabDataPanelVisible = false },
-
-                onTabLongPressed = { tab ->
-                    isTabDataPanelVisible = !isTabDataPanelVisible
-                    if (inspectingTabId == null) inspectingTabId = tab.id
-                },
-                onDownloadRowClicked = handleOpenFile,
-                onDeleteClicked = handleDeleteFile,
-                onOpenFolderClicked = handleOpenDownloadsFolder,
-                onClearAllClicked = handleClearAll,
-                downloads = downloads,
-                isDownloadPanelVisible = isDownloadPanelVisible,
-                isUrlOverlayBoxVisible = isUrlOverlayBoxVisible,
-                setIsUrlOverlayBoxVisible = { isUrlOverlayBoxVisible = it },
-                onNewTabClicked = { index ->
-                    createNewTab(index)
-                },
-                toggleIsTabsPanelVisible = {
-                    isTabsPanelVisible = !isTabsPanelVisible
-                    tabsPanelLock = !tabsPanelLock
-                },
-                isTabsPanelVisible = isTabsPanelVisible,
-                onTabSelected = { newIndex ->
-                    if (activeTabIndex.intValue != newIndex) {
-
-                        // save old tab state
-                        val oldTab = tabs.getOrNull(activeTabIndex.intValue)
-                        // We use the webViewManager's pool to find the correct WebView instance
-                        val oldWebView = oldTab?.let { webViewManager.getWebView(it) }
-
-                        if (oldWebView != null) {
-                            val outState = Bundle()
-                            oldWebView.saveState(outState)
-                            val stateBytes = outState.getByteArray("WEBVIEW_CHROMIUM_STATE")
-                            if (stateBytes != null) {
-                                oldTab.savedState =
-                                    Base64.encodeToString(stateBytes, Base64.DEFAULT)
-                                Log.d("TabSwitch", "Saved state for outgoing tab ${oldTab.id}")
-                            }
-                        }
-
-
-
-
-                        tabs[activeTabIndex.intValue].state = TabState.BACKGROUND
-                        tabs[newIndex].state = TabState.ACTIVE
-
-                        activeTabIndex.intValue = newIndex
-
-                        val urlToLoad = webViewManager.getWebView(tabs[newIndex]).url
-                            ?: browserSettings.defaultUrl
-//                        activeWebView?.loadUrl(urlToLoad)
-                        textFieldState.setTextAndPlaceCursorAtEnd(urlToLoad.toDomain())
-                        saveTrigger++
-
-                        inspectingTabId = tabs[newIndex].id
-                    }
-
-                },
-                navigateWebView = {
-                    navigateWebView()
-                },
-                hapticFeedback = hapticFeedback,
-                setIsNavPanelVisible = { isNavPanelVisible = it },
-                setActiveNavAction = { activeNavAction = it },
-
-                isNavPanelVisible = isNavPanelVisible,
-                activeNavAction = activeNavAction,
-
-                state = if (jsDialogState != null) jsDialogState!! else null,
-                promptComponentDisplayState = if (promptComponentDisplayState != null) promptComponentDisplayState else null,
-                onDismiss = { jsDialogState = null },
-                isPromptPanelVisible = isPromptPanelVisible,
-
-                isPermissionPanelVisible = isPermissionPanelVisible,
-                permissionLauncher = permissionLauncher,
-                pendingPermissionRequest = pendingPermissionRequest,
-                modifier = Modifier
-                    // This aligns the panel to the bottom center of the Box
-                    .windowInsetsPadding(WindowInsets.ime)
-                    .align(Alignment.BottomCenter),
-                activeTabIndex = activeTabIndex,
-                tabs = tabs,
-                isUrlBarVisible = isUrlBarVisible,
-                isBottomPanelVisible = isBottomPanelVisible,
-                isOptionsPanelVisible = isOptionsPanelVisible,
-                browserSettings = browserSettings,
-                updateBrowserSettings = updateBrowserSettings,
-//                        url = url,
-                focusManager = focusManager,
-                keyboardController = keyboardController,
-                setIsOptionsPanelVisible = { isOptionsPanelVisible = it },
-                onNewUrl = { newUrl ->
-                    webViewLoad(activeWebView, newUrl, browserSettings)
-
-                },
-                setIsFocusOnTextField = { isFocusOnTextField = it },
-                handleHistoryNavigation = handleHistoryNavigation,
-                isFindInPageVisible = isFindInPageVisible,
-
-                )
-
-
-
-            CursorPad(
-                urlBarFocusRequester = urlBarFocusRequester,
-                screenSize = screenSize,
-                isCursorPadVisible = isCursorPadVisible,
-                setIsCursorPadVisible = { isCursorMode = it },
-                browserSettings = browserSettings,
-                coroutineScope = coroutineScope,
-                activeWebView = activeWebView,
-                cursorPointerPosition = cursorPointerPosition,
-                webViewTopPadding = webViewTopPadding,
-                hapticFeedback = hapticFeedback,
-                setIsUrlBarVisible = { isUrlBarVisible = it },
-                isLongPressDrag = isLongPressDrag,
-                cursorPadHeight = cursorPadHeight,
-
-                )
-
-            LaunchedEffect(screenSize) {
-                Log.i("BackSquare", "Screen Size : $screenSize")
-
-            }
-            // BackSquare
-            AnimatedVisibility(
-                visible = !isBottomPanelVisible,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .onSizeChanged {
-                        screenSize = it
-                        with(density) {
-                            screenSizeDp = IntSize(
-                                it.width.toDp().value.roundToInt(),
-                                it.height.toDp().value.roundToInt()
-                            )
-                        }
-                        Log.d(
-                            "BackSquare",
-                            "Screen Size: ${screenSize.width}x${screenSize.height} px | ${screenSizeDp.width}x${screenSizeDp.height} dp"
-                        )
-                    },
-                enter = fadeIn(tween(browserSettings.animationSpeedForLayer(0))),
-                exit = fadeOut(tween(browserSettings.animationSpeedForLayer(0)))
-            ) {
-
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize(),
-                ) {
-
-
-                    val squareBoxSize = browserSettings.heightForLayer(1).dp
-
-                    val squareBoxSizePx = with(density) { squareBoxSize.toPx() }
-                    val paddingPx = with(density) { browserSettings.padding.dp.toPx() }
-
-                    Box(
-                        modifier = Modifier
-//                            .align(squareAlignment)
-                            .offset {
-                                IntOffset(
-                                    backSquareOffsetX.value.roundToInt(),
-                                    backSquareOffsetY.value.roundToInt()
+                                .animateContentSize(
+                                    tween(
+                                        browserSettings.animationSpeedForLayer(1)
+                                    )
                                 )
-                            }
-
-                            .animateContentSize(
-                                tween(
-                                    browserSettings.animationSpeedForLayer(1)
-                                )
-                            )
-                            .size(squareBoxSize)
+                                .size(squareBoxSize)
 //                            .height(squareBoxSmallHeight)
 //                            .width(screenSizeDp.width.dp * 0.45f)
-                            .graphicsLayer {
-                                alpha = squareAlpha.value
-                            }
-                            .pointerInput(Unit, isCursorMode) {
+                                .graphicsLayer {
+                                    alpha = squareAlpha.value
+                                }
+                                .pointerInput(Unit, isCursorMode) {
 
-                                if (!isCursorMode) awaitEachGesture {
-                                    val down = awaitFirstDown(requireUnconsumed = false)
-                                    coroutineScope.launch {
-                                        squareAlpha.animateTo(1f)
-                                    }
+                                    if (!isCursorMode) awaitEachGesture {
+                                        val down = awaitFirstDown(requireUnconsumed = false)
+                                        coroutineScope.launch {
+                                            squareAlpha.animateTo(1f)
+                                        }
 
-                                    val longPressJob = coroutineScope.launch {
-                                        delay(viewConfiguration.longPressTimeoutMillis)
-                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        isCursorPadVisible = true
-                                        squareAlpha.snapTo(0f)
+                                        val longPressJob = coroutineScope.launch {
+                                            delay(viewConfiguration.longPressTimeoutMillis)
+                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            isCursorPadVisible = true
+                                            squareAlpha.snapTo(0f)
 
 //
 //                                        val initialCursorX =
@@ -2669,38 +2767,39 @@ fun BrowserScreen(
 //                                            else browserSettings.padding.dp.toPx() + down.position.x
 
 
-                                        val initialCursorX =
-                                            backSquareOffsetX.value + browserSettings.padding + down.position.x
+                                            val initialCursorX =
+                                                backSquareOffsetX.value + browserSettings.padding + down.position.x
 
 //                                        val initialCursorY = screenSize.height - (squareBoxSmallHeight.toPx() - browserSettings.padding.dp.toPx()) + down.position.y - ((screenSize.height - cutoutTop.toPx()) / 2)
-                                        val initialCursorY =
-                                            ((screenSize.height - cutoutTop.toPx()) / 2) - (screenSize.height - backSquareOffsetY.value) + down.position.y + cutoutTop.toPx()
+                                            val initialCursorY =
+                                                ((screenSize.height - cutoutTop.toPx()) / 2) - (screenSize.height - backSquareOffsetY.value) + down.position.y + cutoutTop.toPx()
 
 
-                                        cursorPointerPosition.value =
-                                            Offset(initialCursorX, initialCursorY)
+                                            cursorPointerPosition.value =
+                                                Offset(initialCursorX, initialCursorY)
 
 
-                                    }
-
-                                    val drag = awaitTouchSlopOrCancellation(down.id) { change, _ ->
-                                        if (longPressJob.isActive) {
-                                            longPressJob.cancel()
                                         }
-                                        change.consume()
-                                    }
 
-                                    if (longPressJob.isCompleted && !longPressJob.isCancelled) {
-                                        // --- LONG-PRESS PATH ---
-                                        if (drag != null) {
-                                            drag(drag.id) { change ->
+                                        val drag =
+                                            awaitTouchSlopOrCancellation(down.id) { change, _ ->
+                                                if (longPressJob.isActive) {
+                                                    longPressJob.cancel()
+                                                }
                                                 change.consume()
+                                            }
+
+                                        if (longPressJob.isCompleted && !longPressJob.isCancelled) {
+                                            // --- LONG-PRESS PATH ---
+                                            if (drag != null) {
+                                                drag(drag.id) { change ->
+                                                    change.consume()
 
 
-                                                val changeSpaceX =
-                                                    (change.position.x - change.previousPosition.x) * browserSettings.cursorTrackingSpeed
-                                                val changeSpaceY =
-                                                    (change.position.y - change.previousPosition.y) * browserSettings.cursorTrackingSpeed
+                                                    val changeSpaceX =
+                                                        (change.position.x - change.previousPosition.x) * browserSettings.cursorTrackingSpeed
+                                                    val changeSpaceY =
+                                                        (change.position.y - change.previousPosition.y) * browserSettings.cursorTrackingSpeed
 
 //                                                val newCursorX =
 //                                                    cursorPointerPosition.value.x + changeSpaceX
@@ -2709,70 +2808,70 @@ fun BrowserScreen(
 //                                                    (cursorPointerPosition.value.y + changeSpaceY)
 //                                                cursorPointerPosition.value =
 //                                                    Offset(newCursorX, newCursorY)
-                                                var newX =
-                                                    cursorPointerPosition.value.x + changeSpaceX
-                                                var newY =
-                                                    cursorPointerPosition.value.y + changeSpaceY
-                                                if (newX < 0) newX = 0f
-                                                if (newX > screenSize.width) newX =
-                                                    screenSize.width.toFloat()
-                                                if (newY < 0) newY = 0f
-                                                if (newY > screenSize.height) newY =
-                                                    screenSize.height.toFloat()
-                                                cursorPointerPosition.value = Offset(newX, newY)
+                                                    var newX =
+                                                        cursorPointerPosition.value.x + changeSpaceX
+                                                    var newY =
+                                                        cursorPointerPosition.value.y + changeSpaceY
+                                                    if (newX < 0) newX = 0f
+                                                    if (newX > screenSize.width) newX =
+                                                        screenSize.width.toFloat()
+                                                    if (newY < 0) newY = 0f
+                                                    if (newY > screenSize.height) newY =
+                                                        screenSize.height.toFloat()
+                                                    cursorPointerPosition.value = Offset(newX, newY)
 
-                                            }
-                                        }
-                                        // This code now ONLY runs after a long-press-drag has finished.
-                                        isCursorPadVisible = false
-
-                                        // --- SIMULATE CLICK AT CURSOR POSITION ---
-
-
-                                        activeWebView?.let { webView ->
-                                            Log.i(
-                                                "BackSquare",
-                                                "Click at cursor position: $cursorPointerPosition"
-                                            )
-                                            val downTime = System.currentTimeMillis()
-                                            val downEvent = MotionEvent.obtain(
-                                                downTime,
-                                                downTime,
-                                                MotionEvent.ACTION_DOWN,
-                                                cursorPointerPosition.value.x,
-                                                cursorPointerPosition.value.y - webViewTopPadding.toPx(),
-                                                0
-                                            )
-                                            val upEvent = MotionEvent.obtain(
-                                                downTime,
-                                                downTime + 10,
-                                                MotionEvent.ACTION_UP,
-                                                cursorPointerPosition.value.x,
-                                                cursorPointerPosition.value.y - webViewTopPadding.toPx(),
-                                                0
-                                            )
-                                            webView.dispatchTouchEvent(downEvent)
-                                            webView.dispatchTouchEvent(upEvent)
-                                        }
-
-                                        coroutineScope.launch {
-                                            squareAlpha.animateTo(browserSettings.backSquareIdleOpacity)
-                                        }
-                                    } else {
-                                        // --- TAP OR SHORT-DRAG PATH ---
-                                        if (drag != null) {
-                                            // SHORT-DRAG
-                                            drag(drag.id) { change ->
-                                                change.consume()
-                                                val newX =
-                                                    backSquareOffsetX.value + change.position.x - change.previousPosition.x
-                                                val newY =
-                                                    backSquareOffsetY.value + change.position.y - change.previousPosition.y
-
-                                                coroutineScope.launch {
-                                                    backSquareOffsetX.snapTo(newX)
-                                                    backSquareOffsetY.snapTo(newY)
                                                 }
+                                            }
+                                            // This code now ONLY runs after a long-press-drag has finished.
+                                            isCursorPadVisible = false
+
+                                            // --- SIMULATE CLICK AT CURSOR POSITION ---
+
+
+                                            activeWebView?.let { webView ->
+                                                Log.i(
+                                                    "BackSquare",
+                                                    "Click at cursor position: $cursorPointerPosition"
+                                                )
+                                                val downTime = System.currentTimeMillis()
+                                                val downEvent = MotionEvent.obtain(
+                                                    downTime,
+                                                    downTime,
+                                                    MotionEvent.ACTION_DOWN,
+                                                    cursorPointerPosition.value.x,
+                                                    cursorPointerPosition.value.y - webViewTopPadding.toPx(),
+                                                    0
+                                                )
+                                                val upEvent = MotionEvent.obtain(
+                                                    downTime,
+                                                    downTime + 10,
+                                                    MotionEvent.ACTION_UP,
+                                                    cursorPointerPosition.value.x,
+                                                    cursorPointerPosition.value.y - webViewTopPadding.toPx(),
+                                                    0
+                                                )
+                                                webView.dispatchTouchEvent(downEvent)
+                                                webView.dispatchTouchEvent(upEvent)
+                                            }
+
+                                            coroutineScope.launch {
+                                                squareAlpha.animateTo(browserSettings.backSquareIdleOpacity)
+                                            }
+                                        } else {
+                                            // --- TAP OR SHORT-DRAG PATH ---
+                                            if (drag != null) {
+                                                // SHORT-DRAG
+                                                drag(drag.id) { change ->
+                                                    change.consume()
+                                                    val newX =
+                                                        backSquareOffsetX.value + change.position.x - change.previousPosition.x
+                                                    val newY =
+                                                        backSquareOffsetY.value + change.position.y - change.previousPosition.y
+
+                                                    coroutineScope.launch {
+                                                        backSquareOffsetX.snapTo(newX)
+                                                        backSquareOffsetY.snapTo(newY)
+                                                    }
 
 
 //                                                horizontalDragAccumulator += change.position.x - change.previousPosition.x
@@ -2789,76 +2888,77 @@ fun BrowserScreen(
 //                                                        isUrlBarVisible = true
 //                                                    }
 //                                                }
-                                            }
-
-                                            // --- SNAP LOGIC (Release) ---
-                                            val screenWidth = screenSize.width.toFloat()
-                                            val currentX = backSquareOffsetX.value
-
-                                            // Determine snap target (Left or Right edge)
-                                            val targetX =
-                                                if (currentX + (squareBoxSizePx / 2) < screenWidth / 2) {
-                                                    paddingPx // Snap Left
-                                                } else {
-                                                    screenWidth - squareBoxSizePx - paddingPx // Snap Right
                                                 }
 
-                                            // Clamp Y to screen bounds
-                                            val targetY = backSquareOffsetY.value.coerceIn(
-                                                paddingPx,
-                                                screenSize.height.toFloat() - squareBoxSizePx - paddingPx
-                                            )
+                                                // --- SNAP LOGIC (Release) ---
+                                                val screenWidth = screenSize.width.toFloat()
+                                                val currentX = backSquareOffsetX.value
 
-                                            coroutineScope.launch {
-                                                // Animate snapping
-                                                launch {
-                                                    backSquareOffsetX.animateTo(
-                                                        targetX,
-                                                        spring()
-                                                    )
-                                                }
-                                                launch {
-                                                    backSquareOffsetY.animateTo(
-                                                        targetY,
-                                                        spring()
-                                                    )
-                                                }
+                                                // Determine snap target (Left or Right edge)
+                                                val targetX =
+                                                    if (currentX + (squareBoxSizePx / 2) < screenWidth / 2) {
+                                                        paddingPx // Snap Left
+                                                    } else {
+                                                        screenWidth - squareBoxSizePx - paddingPx // Snap Right
+                                                    }
 
-                                                updateBrowserSettings(
-                                                    browserSettings.copy(
-                                                        backSquareOffsetX = targetX,
-                                                        backSquareOffsetY = targetY
-                                                    )
+                                                // Clamp Y to screen bounds
+                                                val targetY = backSquareOffsetY.value.coerceIn(
+                                                    paddingPx,
+                                                    screenSize.height.toFloat() - squareBoxSizePx - paddingPx
                                                 )
-                                                // Fade out after snap
-                                                hideBackSquare(false)
-                                            }
-                                        } else {
-                                            // TAP
-                                            if (longPressJob.isActive) {
-                                                longPressJob.cancel()
+
                                                 coroutineScope.launch {
-                                                    if (!isUrlBarVisible) isUrlBarVisible = true
+                                                    // Animate snapping
+                                                    launch {
+                                                        backSquareOffsetX.animateTo(
+                                                            targetX,
+                                                            spring()
+                                                        )
+                                                    }
+                                                    launch {
+                                                        backSquareOffsetY.animateTo(
+                                                            targetY,
+                                                            spring()
+                                                        )
+                                                    }
+
+                                                    updateBrowserSettings(
+                                                        browserSettings.copy(
+                                                            backSquareOffsetX = targetX,
+                                                            backSquareOffsetY = targetY
+                                                        )
+                                                    )
+                                                    // Fade out after snap
+                                                    hideBackSquare(false)
+                                                }
+                                            } else {
+                                                // TAP
+                                                if (longPressJob.isActive) {
+                                                    longPressJob.cancel()
+                                                    coroutineScope.launch {
+                                                        if (!isUrlBarVisible) isUrlBarVisible = true
+                                                    }
                                                 }
                                             }
                                         }
                                     }
-                                }
-                                else awaitEachGesture {
-                                    val down = awaitFirstDown(requireUnconsumed = false)
-                                    coroutineScope.launch {
-                                        squareAlpha.animateTo(1f)
-                                    }
+                                    else awaitEachGesture {
+                                        val down = awaitFirstDown(requireUnconsumed = false)
+                                        coroutineScope.launch {
+                                            squareAlpha.animateTo(1f)
+                                        }
 
-                                    val drag = awaitTouchSlopOrCancellation(down.id) { change, _ ->
+                                        val drag =
+                                            awaitTouchSlopOrCancellation(down.id) { change, _ ->
 
-                                        change.consume()
-                                    }
+                                                change.consume()
+                                            }
 
-                                    if (drag != null) {
-                                        // SHORT-DRAG
-                                        drag(drag.id) { change ->
-                                            change.consume()
+                                        if (drag != null) {
+                                            // SHORT-DRAG
+                                            drag(drag.id) { change ->
+                                                change.consume()
 //                                            horizontalDragAccumulator += change.position.x - change.previousPosition.x
 //                                            verticalDragAccumulator += change.position.y - change.previousPosition.y
 //
@@ -2873,54 +2973,54 @@ fun BrowserScreen(
 //                                                    isUrlBarVisible = true
 //                                                }
 //                                            }
-                                        }
-                                    } else {
-                                        // TAP
-                                        coroutineScope.launch {
-                                            if (!isUrlBarVisible) isUrlBarVisible = true
+                                            }
+                                        } else {
+                                            // TAP
+                                            coroutineScope.launch {
+                                                if (!isUrlBarVisible) isUrlBarVisible = true
+                                            }
                                         }
                                     }
                                 }
-                            }
 
-                            .clip(
-                                RoundedCornerShape(
-                                    browserSettings.cornerRadiusForLayer(1).dp
+                                .clip(
+                                    RoundedCornerShape(
+                                        browserSettings.cornerRadiusForLayer(1).dp
+                                    )
                                 )
-                            )
-                            .background(Color.Black.copy(alpha = 0.5f))
-                            .background(Color.White.copy(alpha = 0.5f))
-
-                           ,
-                        contentAlignment = Alignment.Center
-                    ) {
+                                .background(Color.Black.copy(alpha = 0.5f))
+                                .background(Color.White.copy(alpha = 0.5f)),
+                            contentAlignment = Alignment.Center
+                        ) {
 
 //                        Icon(
 //                            painter = painterResource(R.drawable.ic_circle),
 //                            contentDescription = "Back",
 //                            tint = Color.White
 //                        )
+                        }
                     }
                 }
+
+
             }
-
-
         }
+    }
 
-        // This appears on top of everything when customView is not null.
-        if (customView != null) {
-            @Suppress("COMPOSE_APPLIER_CALL_MISMATCH")
-            AndroidView(
-                factory = { customView!! as ViewGroup },
-                // This onRelease block is the KEY to preventing the crash.
-                // When this view is removed from composition (because customView becomes null),
-                // it guarantees the view is detached from its parent.
-                onRelease = { view ->
-                    (view.parent as? ViewGroup)?.removeView(view)
-                },
-                modifier = Modifier.fillMaxSize()
-            )
-        }
+
+    // This appears on top of everything when customView is not null.
+    if (customView != null) {
+        @Suppress("COMPOSE_APPLIER_CALL_MISMATCH")
+        AndroidView(
+            factory = { customView!! as ViewGroup },
+            // This onRelease block is the KEY to preventing the crash.
+            // When this view is removed from composition (because customView becomes null),
+            // it guarantees the view is detached from its parent.
+            onRelease = { view ->
+                (view.parent as? ViewGroup)?.removeView(view)
+            },
+            modifier = Modifier.fillMaxSize()
+        )
     }
 
 

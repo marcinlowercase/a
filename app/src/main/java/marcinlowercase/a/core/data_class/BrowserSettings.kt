@@ -3,6 +3,7 @@ package marcinlowercase.a.core.data_class
 import kotlin.math.roundToInt
 
 data class BrowserSettings(
+    val isFirstAppLoad: Boolean,
     val padding: Float,
     val deviceCornerRadius: Float,
     val defaultUrl: String,
