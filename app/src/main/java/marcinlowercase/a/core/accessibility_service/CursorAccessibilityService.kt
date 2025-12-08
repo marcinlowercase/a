@@ -18,7 +18,6 @@ class CursorAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
-        Log.d("Accessibility", "Cursor Accessibility Service Connected")
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -32,11 +31,9 @@ class CursorAccessibilityService : AccessibilityService() {
     override fun onDestroy() {
         super.onDestroy()
         instance = null
-        Log.d("Accessibility", "Cursor Accessibility Service Destroyed")
     }
 
     fun performClick(x: Float, y: Float) {
-        Log.d("Accessibility", "Dispatching click at ($x, $y)")
         val path = Path().apply {
             moveTo(x, y)
         }

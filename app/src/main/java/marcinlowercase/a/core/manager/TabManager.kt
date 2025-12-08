@@ -25,7 +25,6 @@ class TabManager(context: Context) {
             putInt(activeTabIndexKey, activeTabIndex)
         }
 
-        Log.d("TabManager", "Tabs saved.")
     }
 
     // New function to freeze all tabs on exit
@@ -43,7 +42,6 @@ class TabManager(context: Context) {
             }
 
             saveTabs(tabs, activeIndex)
-            Log.d("TabManager", "All tabs have been frozen.")
         }
     }
 
@@ -59,15 +57,12 @@ class TabManager(context: Context) {
     fun loadTabs(defaultUrl: String): MutableList<Tab> {
         val jsonString = prefs.getString(tabsKey, null)
 
-        Log.i("TabManager", "Loading tabs with url: $defaultUrl")
-        Log.i("TabManager", "Loading tabs with json: $jsonString")
         return if (jsonString != null) {
             try {
                 val loadedTabs = json.decodeFromString<MutableList<Tab>>(jsonString)
 
 
                 if (loadedTabs.isEmpty()) {
-                    Log.w("TabManager", "Loaded tab list was empty. Creating default.")
                     return createDefaultTabs(defaultUrl)
                 }
                 val activeIndex = prefs.getInt(activeTabIndexKey, 0)
@@ -78,7 +73,6 @@ class TabManager(context: Context) {
                 return loadedTabs
 
             } catch (e: Exception) {
-                Log.e("TabManager", "Failed to decode tabs, creating default.", e)
                 createDefaultTabs(defaultUrl)
             }
         } else {
@@ -89,7 +83,6 @@ class TabManager(context: Context) {
 
     private fun createDefaultTabs(defaultUrl: String): MutableList<Tab> {
 
-        Log.i("TabManager", "Creating default tabs with url: $defaultUrl")
         return mutableListOf(
             Tab(
                 state = TabState.ACTIVE,

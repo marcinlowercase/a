@@ -33,7 +33,6 @@ class VisitedUrlManager(context: Context) {
             try {
                 json.decodeFromString<Map<String, String>>(jsonString)
             } catch (e: Exception) {
-                Log.e("VisitedUrlManager", "Failed to decode history map", e)
                 emptyMap()
             }
         } else {

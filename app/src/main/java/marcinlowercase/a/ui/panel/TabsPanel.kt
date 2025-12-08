@@ -148,7 +148,6 @@ fun TabItem(
                     val imageSizePx = with(LocalDensity.current) {
                         (24.dp * 3).roundToPx()
                     }
-                    Log.i("Favicon", "24dp * 3 -> ${imageSizePx}px")
 
                     // 1. Build the same robust ImageRequest as before.
                     val imageRequest = ImageRequest.Builder(LocalContext.current)
@@ -213,7 +212,6 @@ fun TabsPanel(
 
 
     LaunchedEffect(pagerState.currentPage) {
-        Log.e("UpdateTab", "Current Page ${pagerState.currentPage}")
         if (pagerState.currentPage in 1..tabs.size) updateInspectingTab(tabs[pagerState.currentPage - 1])
         else {
             updateInspectingTab(Tab.createEmpty())
@@ -297,7 +295,6 @@ fun TabsPanel(
                             },
                             onLongClick = {
                                 onTabLongPressed(tab)
-                                Log.e("UpdateTab", "$tabIndex")
                             }
                         )
                     }

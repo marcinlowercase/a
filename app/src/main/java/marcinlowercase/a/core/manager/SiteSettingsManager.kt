@@ -24,7 +24,6 @@ class SiteSettingsManager(context: Context) {
             try {
                 json.decodeFromString(jsonString)
             } catch (e: Exception) {
-                Log.e("SiteSettingsManager", "Failed to decode site settings", e)
                 mutableMapOf()
             }
         } else {

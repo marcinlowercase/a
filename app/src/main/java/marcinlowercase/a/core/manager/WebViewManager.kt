@@ -252,7 +252,6 @@ class WebViewManager(private val context: Context) {
 //                val decision = siteSettings[domain]?.permissionDecisions?.get(locationPermission)
 
                 if (decision != null) {
-                    Log.d("PermissionCheck", "Found saved location decision for $domain: $decision")
                     // Invoke the callback immediately and skip the UI prompt
                     callback.invoke(origin, decision, false)
                     return // Stop further processing
@@ -285,10 +284,6 @@ class WebViewManager(private val context: Context) {
 
 
             override fun onPermissionRequest(request: PermissionRequest) {
-                Log.d(
-                    "WebViewPermission",
-                    "onPermissionRequest called for: ${request.resources.joinToString(", ")} from origin: ${request.origin}"
-                )
 
                 val requestedAndroidPermissions = mutableListOf<String>()
                 var title = "Permission Required" // Default title
@@ -319,26 +314,14 @@ class WebViewManager(private val context: Context) {
                 // Add other permission mappings if needed
                 if (request.resources.contains(PermissionRequest.RESOURCE_PROTECTED_MEDIA_ID)) {
                     // Handle protected media if needed
-                    Log.d(
-                        "WebViewPermission",
-                        "Protected media ID requested - typically not mapped to runtime permissions"
-                    )
                     // If no other Android permissions were added, you might want to deny or handle appropriately.
                     if (requestedAndroidPermissions.isEmpty()) {
-                        Log.d(
-                            "WebViewPermission",
-                            "Protected media ID requested with no other mappable Android permissions; denying request."
-                        )
                         request.deny()
                         return
                     }
                 }
 
                 if (requestedAndroidPermissions.isEmpty()) {
-                    Log.d(
-                        "WebViewPermission",
-                        "No mappable Android permissions for the requested WebView resources; denying request."
-                    )
                     request.deny()
                     return
                 }
@@ -354,10 +337,6 @@ class WebViewManager(private val context: Context) {
 
                 if (hasAllPermissions) {
                     // If we already have permissions, grant them immediately
-                    Log.d(
-                        "WebViewPermission",
-                        "Permissions already granted, granting to WebView"
-                    )
                     request.grant(request.resources)
                     return
                 }
@@ -370,14 +349,9 @@ class WebViewManager(private val context: Context) {
                     val decision = siteSettings[domain]?.permissionDecisions?.get(firstPermission)
 
                     if (decision == true) {
-                        Log.d(
-                            "PermissionCheck",
-                            "Found saved ALLOW decision for $domain, granting."
-                        )
                         request.grant(request.resources)
                         return // Stop further processing
                     } else if (decision == false) {
-                        Log.d("PermissionCheck", "Found saved DENY decision for $domain, denying.")
                         request.deny()
                         return // Stop further processing
                     }
@@ -412,16 +386,8 @@ class WebViewManager(private val context: Context) {
                             }
 
                             if (resourcesToGrant.isNotEmpty()) {
-                                Log.d(
-                                    "WebViewPermission",
-                                    "Granting resources: ${resourcesToGrant.joinToString()}"
-                                )
                                 request.grant(resourcesToGrant.toTypedArray())
                             } else {
-                                Log.d(
-                                    "WebViewPermission",
-                                    "No permissions granted; denying all resources."
-                                )
                                 request.deny()
                             }
                         }
@@ -546,10 +512,6 @@ class WebViewManager(private val context: Context) {
 
             override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
                 consoleMessage?.let {
-                    Log.d(
-                        "WebViewConsole",
-                        "${it.message()} -- From line ${it.lineNumber()} of ${it.sourceId()}"
-                    )
                 }
                 return true
             }
@@ -571,8 +533,6 @@ class WebViewManager(private val context: Context) {
 
 
                 if (view != null) {
-                    Log.e("Favicon", "onPageFinished")
-                    Log.d("Favicon", "evaluate the jsFaviconDiscovery")
                     view.evaluateJavascript(favicon_discovery, null)
 
                     onPageFinishedFun(view, currentUrlString)
@@ -601,19 +561,9 @@ class WebViewManager(private val context: Context) {
                         val intent = Intent.parseUri(urlString, Intent.URI_INTENT_SCHEME)
                         view?.context?.startActivity(intent)
                     } catch (e: Exception) {
-                        Log.w(
-                            "shouldOverrideUrlLoading",
-                            "Could not handle intent, trying fallback",
-                            e
-                        )
                         val packageName = try {
                             Intent.parseUri(urlString, Intent.URI_INTENT_SCHEME).`package`
                         } catch (parseEx: URISyntaxException) {
-                            Log.e(
-                                "shouldOverrideUrlLoading",
-                                "Could not get package name from intent",
-                                parseEx
-                            )
                             null
                         }
 
@@ -626,11 +576,6 @@ class WebViewManager(private val context: Context) {
                                 view?.context?.startActivity(marketIntent)
                                 view?.goBack()
                             } catch (marketError: Exception) {
-                                Log.e(
-                                    "shouldOverrideUrlLoading",
-                                    "Could not open Play Store for package: $packageName",
-                                    marketError
-                                )
                             }
                         }
                     }
@@ -646,7 +591,6 @@ class WebViewManager(private val context: Context) {
                     // Immediately go back to the previous page
                     view?.goBack()
                 } catch (e: Exception) {
-                    Log.w("WebView", "No app found to handle URL: $urlString", e)
                 }
                 return true
             }
@@ -673,9 +617,6 @@ class WebViewManager(private val context: Context) {
         webView.setOnLongClickListener { v ->
             val result = (v as WebView).hitTestResult
 //            val heref = (v as WebView).requestFocusNodeHref(null)
-//            Log.d("WebViewLongClick", "heref  $heref")
-            Log.d("WebViewLongClick", "extra  ${result.extra}")
-            Log.d("WebViewLongClick", "type  ${result.type}")
 
             val type = result.type
 

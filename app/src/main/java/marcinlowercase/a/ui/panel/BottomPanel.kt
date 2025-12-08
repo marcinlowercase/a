@@ -1,7 +1,6 @@
 package marcinlowercase.a.ui.panel
 
 import android.content.ClipData
-import android.util.Log
 import android.util.Patterns
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.compose.animation.AnimatedVisibility
@@ -129,7 +128,7 @@ fun BottomPanel(
     recentlyClosedTabs: SnapshotStateList<Tab>,
     reopenClosedTab: () -> Unit,
     confirmationPopup: (message: String, onConfirm: () -> Unit, onCancel: () -> Unit) -> Unit,
-    resetBrowserSettings: () -> Int,
+    resetBrowserSettings: () -> Unit,
     backgroundColor: MutableState<Color>,
     setIsSettingsPanelVisible: (Boolean) -> Unit,
     isSettingsPanelVisible: Boolean,
@@ -194,7 +193,7 @@ fun BottomPanel(
     isBottomPanelVisible: Boolean,
     isOptionsPanelVisible: Boolean,
     browserSettings: BrowserSettings,
-    updateBrowserSettings: (BrowserSettings) -> Int,
+    updateBrowserSettings: (BrowserSettings) -> Unit,
 //    url: String,
     focusManager: FocusManager,
     keyboardController: SoftwareKeyboardController?,
@@ -681,7 +680,6 @@ fun BottomPanel(
                                                 )
                                                 setIsOptionsPanelVisible(false)
                                                 setIsTabsPanelVisible(false)
-                                                Log.i("SETT", "SET")
                                                 setIsDownloadPanelVisible(false)
                                                 setIsTabDataPanelVisible(false)
                                                 setIsNavPanelVisible(false)
@@ -955,22 +953,12 @@ fun BottomPanel(
 //                                                                bottomPanelPagerState.scrollBy(change.position.x)
 //                                                            }
 
-                                                            Log.i(
-                                                                "DragTest",
-                                                                "horizontalDragAccumulator : $horizontalDragAccumulator"
-                                                            )
-                                                            Log.i(
-                                                                "DragTest",
-                                                                "verticalDragAccumulator : $verticalDragAccumulator"
-                                                            )
                                                             when {
 //                                                                horizontalDragAccumulator < -horizontalDragThreshold -> { // left
-//                                                                    Log.e("BotHDrag", "left")
 //
 //                                                                }
 //
 //                                                                horizontalDragAccumulator > horizontalDragThreshold -> { // right
-//                                                                    Log.e("BotHDrag", "right")
 //
 //                                                                }
                                                                 abs(horizontalDragAccumulator) > abs(
@@ -980,12 +968,10 @@ fun BottomPanel(
                                                                 }
 
                                                                 verticalDragAccumulator < verticalCancelThreshold -> { // up
-                                                                    Log.e("BotVDrag", "up")
                                                                     setIsOptionsPanelVisible(true)
                                                                 }
 
                                                                 verticalDragAccumulator > verticalCancelThreshold -> { // down
-                                                                    Log.e("BotVDrag", "down")
 
                                                                     setIsOptionsPanelVisible(false)
                                                                 }

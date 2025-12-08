@@ -20,7 +20,6 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.util.Base64
-import android.util.Log
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
@@ -244,7 +243,6 @@ class MainActivity : ComponentActivity() {
     private fun handleIntent(intent: Intent?) {
         if (intent?.action == Intent.ACTION_VIEW) {
             intent.dataString?.let { urlFromIntent ->
-                Log.d("MainActivity", "Handling VIEW intent for URL: $urlFromIntent")
                 // Instead of creating the tab here, we just emit the URL.
                 // The Composable will react to this emission.
                 newUrlFromIntent.update { urlFromIntent }
@@ -254,7 +252,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onStop() {
         super.onStop()
-        Log.d("MainActivity", "onStop called. Freezing all tabs.")
 
 
         val activeWebView = webViewManager.activeWebView
@@ -270,7 +267,6 @@ class MainActivity : ComponentActivity() {
                 // Encode the byte array to a Base64 string for storage
                 val encodedState = Base64.encodeToString(stateBytes, Base64.DEFAULT)
                 tabs[activeIndex].savedState = encodedState
-                Log.d("MainActivity", "Saved WebView state for active tab.")
                 // Now save the modified tabs list back
                 tabManager.saveTabs(tabs, activeIndex)
             }
@@ -354,7 +350,6 @@ fun BrowserScreen(
     }
     val textFieldState =
         rememberTextFieldState(webViewManager.getWebView(tabs[activeTabIndex.intValue]).url ?: "")
-    Log.i("TextFieldState", textFieldState.text as String)
     val recentlyClosedTabs = remember { mutableStateListOf<Tab>() }
     val activeTab = tabs.getOrNull(activeTabIndex.intValue)
     val activeWebView = activeTab?.let { tab ->
@@ -372,31 +367,16 @@ fun BrowserScreen(
                         restoreBundle.putByteArray("WEBVIEW_CHROMIUM_STATE", stateBytes)
                         // 3. Restore the state into the WebView
                         this.restoreState(restoreBundle)
-                        Log.d(
-                            "WebViewState",
-                            "Successfully restored WebView state for tab ${tab.id}"
-                        )
-                        Log.d("WebViewState", "Current Tab URL ${this.url}")
                         val history = this.copyBackForwardList()
                         for (i in 0 until history.size) {
                             val item = history.getItemAtIndex(i)
                             val isCurrent =
                                 if (i == history.currentIndex) " <-- CURRENT" else ""
-                            Log.d(
-                                "WebViewState",
-                                "[$i] Title: '${item.title}', URL: '${item.url}', Original URL: '${item.originalUrl}'$isCurrent"
-                            )
                             val favicon = item.favicon
                             if (favicon != null) {
-                                Log.d(
-                                    "WebViewState",
-                                    "  -> Favicon: Yes, ${favicon.width}x${favicon.height}px"
-                                )
                             } else {
-                                Log.d("WebViewState", "  -> Favicon: No")
                             }
                         }
-                        Log.d("WebViewState", "canGoBack ${this.canGoBack()}")
 
 
                         initialLoadDone = true
@@ -412,7 +392,6 @@ fun BrowserScreen(
                         saveTrigger++ // Trigger a save to persist the cleared state
 
                     } catch (e: Exception) {
-                        Log.e("WebViewState", "Failed to restore WebView state", e)
                         // Fallback to loading the URL if restore fails
 //                        webViewLoad(this, browserSettings.defaultUrl, browserSettings)
                         val urlToLoad =
@@ -421,10 +400,6 @@ fun BrowserScreen(
                     }
                 } else {
                     // No saved state, just load the URL normally
-                    Log.d(
-                        "WebViewState",
-                        "Loading URL for frozen tab: ${browserSettings.defaultUrl}"
-                    )
                     webViewLoad(this, browserSettings.defaultUrl, browserSettings)
                 }
             }
@@ -520,7 +495,6 @@ fun BrowserScreen(
         val newSettings = currentSettings.copy(permissionDecisions = updatedDecisions)
         siteSettings[domain] = newSettings // Trigger state update
         siteSettingsManager.saveSettings(siteSettings)
-        Log.d("PermissionSave", "Saved consolidated decisions for $domain: $updatedDecisions")
     }
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions(),
@@ -691,7 +665,6 @@ fun BrowserScreen(
         { tabToNavigate: Tab, historyIndex: Int, webViewManager: WebViewManager ->
             val tabIndexInMainList = tabs.indexOf(tabToNavigate)
 
-//            Log.d("HistoryNavigation", "tabIndexInMainList: ${tabIndexInMainList}")
             // --- Use a positive case check ---
             if (tabIndexInMainList != -1) {
 
@@ -704,14 +677,10 @@ fun BrowserScreen(
                 val stepsToNavigate =
                     -1 * (webViewToNavigate.copyBackForwardList().currentIndex - historyIndex)
 
-//                Log.d("HistoryNavigation", "currentIndex: ${webViewToNavigate.copyBackForwardList().currentIndex}")
-//                Log.d("HistoryNavigation", "historyIndex: ${historyIndex}")
-//                Log.d("HistoryNavigation", "Step: ${stepsToNavigate}")
 
                 if (stepsToNavigate != 0 && webViewToNavigate.canGoBackOrForward(stepsToNavigate)) {
 
                     // --- All checks passed, proceed with the logic ---
-//                    Log.d("HistoryNavigation", "All checks passed, proceed with the logic")
 
                     // 1. Update the history state of the target tab
 
@@ -741,7 +710,6 @@ fun BrowserScreen(
 
     val handlePermissionToggle = { domain: String?, permission: String, isGranted: Boolean ->
 
-        Log.i("PermissionToggle", "$domain $permission $isGranted")
 
         if (domain != null) {
             // 1. Get the current settings for the domain, or create a new one if it doesn't exist.
@@ -786,7 +754,6 @@ fun BrowserScreen(
                 message = "close tab ?",
                 onConfirm = {
                     val indexToClose = tabs.indexOf(tabToClose)
-                    Log.i("CloseTab", "$indexToClose")
 
                     if (tabs.size > 1) {
 
@@ -861,7 +828,6 @@ fun BrowserScreen(
                         siteSettings.remove(domain)
                         // 2. Save the updated map to persistent storage
                         siteSettingsManager.saveSettings(siteSettings)
-                        Log.d("ClearData", "Cleared all saved permissions for domain: $domain")
                     }
 
                     if (inspectingTab.state != TabState.FROZEN) {
@@ -892,7 +858,6 @@ fun BrowserScreen(
                         // Decode the filename in case it's URL-encoded
                         return URLDecoder.decode(filename, "UTF-8")
                     } catch (e: Exception) {
-                        Log.e("BrowserDownloadManager", "Failed to decode filename", e)
                     }
                 }
             }
@@ -908,7 +873,6 @@ fun BrowserScreen(
                 }
             }
         } catch (e: Exception) {
-            Log.e("BrowserDownloadManager", "Failed to parse URL for filename", e)
         }
 
 
@@ -922,7 +886,6 @@ fun BrowserScreen(
      */
     fun generateUniqueFilename(initialName: String, existingDownloads: List<DownloadItem>): String {
         val existingFilenames = existingDownloads.map { it.filename }.toSet()
-        Log.i("BrowserDownloadManager", "initialName: $initialName")
 
         if (!existingFilenames.contains(initialName)) {
             return initialName // The original name is already unique
@@ -977,7 +940,6 @@ fun BrowserScreen(
     // This function will be our single, safe way to update settings.
     val updateBrowserSettings = { newSettings: BrowserSettings ->
         browserSettings = newSettings
-        Log.e("updateBrowserSettings", browserSettings.toString())
     }
 
     val resetBrowserSettings = {
@@ -1130,9 +1092,7 @@ fun BrowserScreen(
                 if (file.delete()) {
                     // Also notify the MediaStore that the file is gone.
                     MediaScannerConnection.scanFile(context, arrayOf(file.absolutePath), null, null)
-                    Log.d("DeleteFile", "Blob file deleted successfully.")
                 } else {
-                    Log.w("DeleteFile", "Failed to delete blob file.")
                 }
             }
         } else {
@@ -1301,9 +1261,6 @@ fun BrowserScreen(
 
     LaunchedEffect(textFieldState.text, isFocusOnTextField) {
 
-        Log.w("TextFieldState", "${textFieldState.text}")
-        Log.w("TextFieldState", "${textFieldState.text.isBlank()}")
-        Log.w("TextFieldState", "${textFieldState.text.isNotEmpty()}")
         if (!browserSettings.showSuggestions || (textFieldState.text as String) == activeWebView?.url || textFieldState.text.isBlank()) {
             suggestions.clear()
             return@LaunchedEffect
@@ -1395,7 +1352,6 @@ fun BrowserScreen(
             } catch (e: Exception) {
                 if (e is kotlin.coroutines.cancellation.CancellationException) throw e
 
-                Log.e("SuggestionFetch", "Failed to fetch Google suggestions", e)
             }
 
             // C. Update the UI state
@@ -1461,10 +1417,6 @@ fun BrowserScreen(
                                 cursor.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES)
 
                             if (statusIndex == -1 || downloadedBytesIndex == -1 || totalBytesIndex == -1) {
-                                Log.e(
-                                    "DownloadPolling",
-                                    "A required DownloadManager column is missing."
-                                )
                                 return@use
                             }
 
@@ -1520,9 +1472,6 @@ fun BrowserScreen(
                             val progress =
                                 if (totalBytes > 0) ((downloadedBytes * 100) / totalBytes).toInt() else 0
                             val itemIndex = downloads.indexOfFirst { it.id == item.id }
-                            Log.i("DownloadPolling", "Item index: $itemIndex")
-                            Log.i("DownloadPolling", "speedBps: $speedBps")
-                            Log.i("DownloadPolling", "etrMs: $etrMs")
 
                             if (itemIndex != -1) {
                                 val updatedItem = downloads[itemIndex].copy(
@@ -1585,19 +1534,11 @@ fun BrowserScreen(
 
                     // Check if an update is even needed to prevent unnecessary recompositions.
                     if (faviconUrl.isNotBlank()) {
-                        Log.d(
-                            "Favicon",
-                            "Update new favicon for ${activeTab.currentURL} to $faviconUrl"
-                        )
 
 
                         tabs[tabIndex] = targetTab.copy(currentFaviconUrl = faviconUrl)
                         saveTrigger++
                     } else {
-                        Log.d(
-                            "FaviconUpdate",
-                            "Skipping favicon update for ${activeTab.currentURL}. The new icon is invalid."
-                        )
                     }
                 },
                 onJsAlert = { message -> jsDialogState = JsAlert(message) },
@@ -1629,10 +1570,6 @@ fun BrowserScreen(
 
                         if (newHost != requestHost) {
                             // The user is navigating away, so clear the old permission request.
-                            Log.d(
-                                "Permission Panel",
-                                "Navigating away from permission origin. Clearing request."
-                            )
                             pendingPermissionRequest = null
                         }
                     }
@@ -1652,10 +1589,6 @@ fun BrowserScreen(
                         browserSettings.deviceCornerRadius.toString()
                     )
                     view.evaluateJavascript(jsInjectCornerRadius, null)
-                    Log.d(
-                        "JSEnvironment",
-                        "Injected corner radius: ${browserSettings.deviceCornerRadius}"
-                    )
 
 
                     if (currentUrlString != null) {
@@ -1671,10 +1604,6 @@ fun BrowserScreen(
 
                 },
                 onDoUpdateVisitedHistoryFun = { view, url, _ ->
-//                    Log.i("doUpdateVisitedHistory", "<<<<<<<<<<<<<<<<")
-//                    Log.i("doUpdateVisitedHistory", "<<<<<<<<<<<<<<<<")
-//                    Log.i("doUpdateVisitedHistory", "URL updated: $url")
-//                    Log.i("doUpdateVisitedHistory", "isReload: $isReload")
                     if (!isFocusOnTextField) view.url?.let {
                         textFieldState.setTextAndPlaceCursorAtEnd(it.toDomain())
                     }
@@ -1682,180 +1611,11 @@ fun BrowserScreen(
                         tabs[activeTabIndex.intValue] =
                             tabs[activeTabIndex.intValue].copy(currentURL = url)
                     }
-//
-//                    if (url == null) return@setWebViewClients
-//
-//
-//                    tabs[activeTabIndex.intValue].let { tab ->
-//
-//                        var databaseHistory = tabs[activeTabIndex.intValue].historyState
-//
-//                        if (databaseHistory == null) {
-//                            val items =
-//                                List(1) { SerializableHistoryItem(browserSettings.defaultUrl, "") }
-//                            databaseHistory = SerializableBackForwardList(
-//                                items = items,
-//                                currentIndex = 0
-//                            )
-//                        }
-//                        var updatedIndex: Int = databaseHistory.currentIndex
-//
-//
-//                        val realtimeHistory = view.copyBackForwardList()
-//
-//                        if (realtimeHistory.size <= 1 && databaseHistory.items.size == 1 &&
-//                            (realtimeHistory.currentItem?.url == null || realtimeHistory.currentItem?.url == "about:blank")
-//                        ) {
-//                            Log.d(
-//                                "doUpdateVisitedHistory",
-//                                "Ignoring initial empty history update."
-//                            )
-//                            return@let
-//                        }
-//
-//
-//                        // LOG
-//                        Log.w("doUpdateVisitedHistory", "Realtime History:")
-//                        Log.i(
-//                            "doUpdateVisitedHistory",
-//                            "Current Index ${realtimeHistory.currentIndex}"
-//                        )
-//                        for (i in 0 until realtimeHistory.size) {
-//                            val item = realtimeHistory.getItemAtIndex(i)
-//                            val marker =
-//                                if (realtimeHistory.currentIndex == i) " << Current" else " "
-//                            Log.i(
-//                                "doUpdateVisitedHistory",
-//                                "$i. URL: ${item.url} << ${item.title} >> $marker"
-//                            )
-//                        }
-//
-//                        Log.w("doUpdateVisitedHistory", "Database History:")
-//                        Log.i(
-//                            "doUpdateVisitedHistory",
-//                            "Current Index ${databaseHistory.currentIndex}"
-//                        )
-//
-//                        for (i in 0 until databaseHistory.items.size) {
-//                            val item = databaseHistory.items[i]
-//                            val marker =
-//                                if (databaseHistory.currentIndex == i) " << Current" else " "
-//                            Log.i("doUpdateVisitedHistory", "$i. URL: ${item.url} $marker")
-//                        }
-//                        Log.i("doUpdateVisitedHistory", "")
-//
-//                        val databaseCurrentItemUrl =
-//                            databaseHistory.items[databaseHistory.currentIndex].url
-//                        val realtimeCurrentItemUrl =
-//                            realtimeHistory.getItemAtIndex(realtimeHistory.currentIndex).url
-//
-//                        var updatedHistoryItems = databaseHistory.items.toMutableList()
-//
-//                        if (databaseCurrentItemUrl == realtimeCurrentItemUrl) {
-//                            Log.e("doUpdateVisitedHistory", "Same URl - Do Nothing")
-//                            isNavigateInProgress = false
-//                            return@let
-//                        } else {
-//                            var realtimePreviousItemUrl = " marcinlowercase "
-//
-//                            if (realtimeHistory.currentIndex != 0) {
-//                                realtimePreviousItemUrl =
-//                                    realtimeHistory.getItemAtIndex(realtimeHistory.currentIndex - 1).url
-//                            }
-//
-//                            if (databaseCurrentItemUrl == realtimePreviousItemUrl) {
-//                                Log.e("doUpdateVisitedHistory", "Add new url to database")
-//                                if (databaseHistory.currentIndex < databaseHistory.items.lastIndex) {
-//                                    updatedHistoryItems = databaseHistory.items.subList(
-//                                        0,
-//                                        databaseHistory.currentIndex + 1
-//                                    ).toMutableList()
-//                                }
-//                                Log.e(
-//                                    "doUpdateVisitedHistory",
-//                                    "Title ${realtimeHistory.currentItem?.title}"
-//                                )
-//                                updatedHistoryItems.add(
-//                                    SerializableHistoryItem(
-//                                        url = realtimeCurrentItemUrl,
-//                                        title = realtimeHistory.currentItem?.title ?: "oo"
-//                                    )
-//                                )
-//                                updatedIndex++
-//                                databaseCurrentIndexHolder = updatedIndex
-//
-//                            } else {
-//
-//                                Log.e(
-//                                    "doUpdateVisitedHistory",
-//                                    "realTimePreviousItemUrl: $realtimePreviousIndexHolder"
-//                                )
-//                                Log.e(
-//                                    "doUpdateVisitedHistory",
-//                                    "databaseCurrentItemUrl: ${realtimeHistory.currentIndex}"
-//                                )
-//                                if (realtimePreviousIndexHolder > realtimeHistory.currentIndex) {
-//                                    Log.e("doUpdateVisitedHistory", "Back by Webview")
-//
-//                                    updatedIndex--
-//                                } else {
-//                                    Log.e(
-//                                        "doUpdateVisitedHistory",
-//                                        "Update existing url in database"
-//                                    )
-//                                    updatedHistoryItems[updatedIndex] = SerializableHistoryItem(
-//                                        url = realtimeCurrentItemUrl,
-//                                        title = realtimeHistory.currentItem?.title ?: "oo"
-//                                    )
-//                                }
-//
-//
-//                            }
-//                            val updatedHistoryState = SerializableBackForwardList(
-//                                items = updatedHistoryItems,
-//                                currentIndex = updatedIndex
-//                            )
-//                            if (databaseHistory != updatedHistoryState) {
-//
-//                                tabs[activeTabIndex.intValue] =
-//                                    tab.copy(historyState = updatedHistoryState)
-//                                saveTrigger++
-//
-//
-//                                val newDatabaseHistory = tabs[activeTabIndex.intValue].historyState
-//                                if (newDatabaseHistory == null) {
-//                                    return@let
-//                                }
-//                                Log.w("doUpdateVisitedHistory", "NEW Database History:")
-//                                Log.i(
-//                                    "doUpdateVisitedHistory",
-//                                    "Current Index ${newDatabaseHistory.currentIndex}"
-//                                )
-//
-//                                for (i in 0 until newDatabaseHistory.items.size) {
-//                                    val item = newDatabaseHistory.items[i]
-//                                    val marker =
-//                                        if (newDatabaseHistory.currentIndex == i) " << Current" else " "
-//                                    Log.i("doUpdateVisitedHistory", "$i. URL: ${item.url} $marker")
-//                                }
-//                                Log.i("doUpdateVisitedHistory", "")
-//
-//                            }
-//                        }
-//
-//
-//                        Log.i("doUpdateVisitedHistory", ">>>>>>>>>>>>>>>")
-//                        Log.i("doUpdateVisitedHistory", "")
-//                        Log.i("doUpdateVisitedHistory", "")
-//
-//                        realtimePreviousIndexHolder = realtimeHistory.currentIndex
-//                    }
                 },
                 onTitleReceived = { view, url, title ->
                     val tabIndex = tabs.indexOfFirst { it.id == activeTab.id }
                     if (tabIndex == -1) return@setWebViewClients
 
-                    Log.d("TabContent", title)
                     val oldTab = tabs[tabIndex]
                     if (oldTab.currentTitle != title || oldTab.currentURL != url) {
                         // Create a new Tab instance and replace the old one
@@ -1975,7 +1735,6 @@ fun BrowserScreen(
                             .show()
 
                     } catch (e: Exception) {
-                        Log.e("BlobDownloader", "Failed to save blob file from callback", e)
                         Toast.makeText(context, "Download failed", Toast.LENGTH_LONG).show()
                     }
                 },
@@ -2099,7 +1858,6 @@ fun BrowserScreen(
     ) {
         isBottomPanelVisible =
             isUrlBarVisible || isPermissionPanelVisible || isPromptPanelVisible || (confirmationState != null || (contextMenuData != null))
-//        Log.i("VisibleState", "isBottomPanelVisible: $isBottomPanelVisible")
     }
     LaunchedEffect(isTabsPanelVisible) {
         if (!isTabsPanelVisible) {
@@ -2150,7 +1908,6 @@ fun BrowserScreen(
         }
     }
     LaunchedEffect(pendingPermissionRequest) {
-        Log.i("Permission Panel", "pendingPermissionRequest: $pendingPermissionRequest")
         isPermissionPanelVisible = pendingPermissionRequest != null
     }
     // This effect will re-launch whenever isBottomPanelVisible changes.
@@ -2213,7 +1970,6 @@ fun BrowserScreen(
     LaunchedEffect(Unit) {
         newUrlFlow.collect { url ->
             if (url != null) {
-                Log.d("BrowserScreen", "New URL collected from flow: $url")
 
                 // When a new URL arrives, create a new tab for it.
                 // We'll insert it right after the current active tab.
@@ -2643,7 +2399,6 @@ fun BrowserScreen(
                                 if (stateBytes != null) {
                                     oldTab.savedState =
                                         Base64.encodeToString(stateBytes, Base64.DEFAULT)
-                                    Log.d("TabSwitch", "Saved state for outgoing tab ${oldTab.id}")
                                 }
                             }
 
@@ -2727,7 +2482,6 @@ fun BrowserScreen(
                     )
 
                 LaunchedEffect(screenSize) {
-                    Log.i("BackSquare", "Screen Size : $screenSize")
 
                 }
                 // BackSquare
@@ -2743,10 +2497,6 @@ fun BrowserScreen(
                                     it.height.toDp().value.roundToInt()
                                 )
                             }
-                            Log.d(
-                                "BackSquare",
-                                "Screen Size: ${screenSize.width}x${screenSize.height} px | ${screenSizeDp.width}x${screenSizeDp.height} dp"
-                            )
                         },
                     enter = fadeIn(tween(browserSettings.animationSpeedForLayer(0))),
                     exit = fadeOut(tween(browserSettings.animationSpeedForLayer(0)))
@@ -2869,10 +2619,6 @@ fun BrowserScreen(
 
 
                                             activeWebView?.let { webView ->
-                                                Log.i(
-                                                    "BackSquare",
-                                                    "Click at cursor position: $cursorPointerPosition"
-                                                )
                                                 val downTime = System.currentTimeMillis()
                                                 val downEvent = MotionEvent.obtain(
                                                     downTime,
@@ -3221,7 +2967,6 @@ fun CursorPad(
 
                             if (longPressJob.isCompleted && !longPressJob.isCancelled) {
 
-                                Log.i("CursorLongPress", "Activated")
 
                                 activeWebView?.let { webView ->
 //                                    longPressDownTime = System.currentTimeMillis()
@@ -3234,11 +2979,9 @@ fun CursorPad(
                                         0
                                     )
                                     webView.dispatchTouchEvent(longPressDownEvent)
-                                    Log.i("CursorLongPress", "Down")
 
                                 }
                                 if (drag != null) {
-                                    Log.i("CursorPad", "LONG PRESS Drag")
 
                                     drag(drag.id) { change ->
                                         change.consume()
@@ -3248,7 +2991,6 @@ fun CursorPad(
                                         val event = currentEvent // Get the current pointer event
 
 
-//                                        Log.e("CursorPad", "Event changes size : ${event.changes.size}")
                                         when (event.changes.size) {
                                             1 -> {
                                                 // This is a single-finger drag, move the cursor
@@ -3259,11 +3001,6 @@ fun CursorPad(
                                                 val changeSpaceY =
                                                     changeDelta.y * browserSettings.cursorTrackingSpeed
 
-//
-//
-//                                                Log.i("CursorPad", "changeSpaceX  $changeSpaceX")
-//
-//                                                Log.i("CursorPad", "changeSpaceY  $changeSpaceY")
 
                                                 var newX =
                                                     cursorPointerPosition.value.x + changeSpaceX
@@ -3289,7 +3026,6 @@ fun CursorPad(
                                                         0
                                                     )
                                                     webView.dispatchTouchEvent(moveEvent)
-                                                    Log.i("CursorLongPress", "Move")
 
                                                 }
 
@@ -3300,7 +3036,6 @@ fun CursorPad(
                                             }
 
 //                                            2 -> {
-//                                                Log.i("CursorPad", "Two fingers detected during drag")
 //
 //                                                val changeDelta =
 //                                                    change.position - change.previousPosition
@@ -3313,7 +3048,6 @@ fun CursorPad(
 //                                                        0f
 //                                                    if (!activeWebView.canScrollVertically(-1) && changeSpaceY > 0) changeSpaceY =
 //                                                        0f
-//                                                    Log.i("CursorPad", "changeSpaceY  $changeSpaceY")
 //
 //                                                    // We negate the value for "natural" scrolling (fingers down -> content up).
 //                                                    activeWebView.scrollBy(
@@ -3328,7 +3062,6 @@ fun CursorPad(
 //                                            }
 //
 //                                            3 -> {
-//                                                Log.i("CursorPad", "3 fingers detected during drag")
 //                                                val changeDelta =
 //                                                    change.position - change.previousPosition
 //                                                val changeSpaceY = changeDelta.y
@@ -3354,13 +3087,11 @@ fun CursorPad(
                                         0
                                     )
                                     webView.dispatchTouchEvent(upEvent)
-                                    Log.i("CursorLongPress", "Up")
 
                                 }
 
                             } else {
 
-                                Log.e("CursorPad", "TOUCH DETECTED")
                                 if (drag != null) {
                                     // This is the high-level function that consumes the rest of the drag gesture.
                                     // It will finish when the user lifts their finger.
@@ -3371,7 +3102,6 @@ fun CursorPad(
                                         val event = currentEvent // Get the current pointer event
 
 
-//                                        Log.e("CursorPad", "Event changes size : ${event.changes.size}")
                                         when (event.changes.size) {
                                             1 -> {
                                                 // This is a single-finger drag, move the cursor
@@ -3384,9 +3114,7 @@ fun CursorPad(
 
 
 
-                                                Log.i("CursorPad", "changeSpaceX  $changeSpaceX")
 
-                                                Log.i("CursorPad", "changeSpaceY  $changeSpaceY")
 
                                                 var newX =
                                                     cursorPointerPosition.value.x + changeSpaceX
@@ -3411,10 +3139,6 @@ fun CursorPad(
                                             }
 
                                             2 -> {
-                                                Log.i(
-                                                    "CursorPad",
-                                                    "Two fingers detected during drag"
-                                                )
 
                                                 val changeDelta =
                                                     change.position - change.previousPosition
@@ -3427,10 +3151,6 @@ fun CursorPad(
                                                         0f
                                                     if (!activeWebView.canScrollVertically(-1) && changeSpaceY > 0) changeSpaceY =
                                                         0f
-                                                    Log.i(
-                                                        "CursorPad",
-                                                        "changeSpaceY  $changeSpaceY"
-                                                    )
 
                                                     // We negate the value for "natural" scrolling (fingers down -> content up).
                                                     activeWebView.scrollBy(
@@ -3445,7 +3165,6 @@ fun CursorPad(
                                             }
 
                                             3 -> {
-                                                Log.i("CursorPad", "3 fingers detected during drag")
                                                 val changeDelta =
                                                     change.position - change.previousPosition
                                                 val changeSpaceY = changeDelta.y
@@ -3462,7 +3181,6 @@ fun CursorPad(
                                         }
                                     }
                                 } else {
-                                    Log.i("CursorPad", "TAP")
 
 //                                 Work but cannot click under the cursor pad
                                     // -> use for 2 finger capture?
@@ -3472,10 +3190,6 @@ fun CursorPad(
 //                                            )
 
                                     activeWebView?.let { webView ->
-                                        Log.i(
-                                            "BackSquare",
-                                            "Click at cursor position: $cursorPointerPosition"
-                                        )
                                         val downTime = System.currentTimeMillis()
                                         val downEvent = MotionEvent.obtain(
                                             downTime,

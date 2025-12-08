@@ -50,7 +50,6 @@ fun PermissionPanel(
     LaunchedEffect(request) {
         if (request != null) {
             // If there's a new request, update immediately.
-            Log.i("Permission Panel", "New request received")
             requestToShow = request
         }
     }

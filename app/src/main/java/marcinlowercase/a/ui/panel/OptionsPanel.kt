@@ -50,7 +50,7 @@ fun OptionsPanel(
     isOptionsPanelVisible: Boolean = false,
     setIsOptionsPanelVisible: (Boolean) -> Unit = {},
     toggleIsTabsPanelVisible: () -> Unit,
-    updateBrowserSettings: (BrowserSettings) -> Int,
+    updateBrowserSettings: (BrowserSettings) -> Unit,
     browserSettings: BrowserSettings,
     tabsPanelLock: Boolean,
     isDownloadPanelVisible: Boolean,
@@ -126,7 +126,6 @@ fun OptionsPanel(
                     "cursor pad",
                     isCursorPadVisible,
                 ) {
-                    Log.e("isCursorMode", "isCursorMode: $isCursorMode")
 
                     setIsCursorMode(!isCursorMode)
                     setIsOptionsPanelVisible(false)
@@ -183,48 +182,26 @@ fun OptionsPanel(
 
 
 //                OptionItem(R.drawable.ic_bug, "debug", false) {
-//                    Log.e("BROWSER SETTINGS", browserSettings.toString())
-//                    Log.e("Tabs List", tabs.toString())
 //                    activeWebView?.let { webView ->
 //                        val outState = Bundle()
 //                        val history = webView.saveState(outState)
 //                        if (history != null) {
-//                            Log.d("WebViewSaveState", "State saved. Bundle content: $outState")
 //                            for (key in outState.keySet()) {
-//                                Log.d(
-//                                    "WebViewSaveState",
-//                                    "-> Key: $key, Value: ${outState.keySet()}"
-//                                )
-//                            }
 //
 //                            // --- DETAILED HISTORY LOGGING ---
-//                            Log.d("WebViewSaveState", "--- History Details ---")
-//                            Log.d("WebViewSaveState", "History Size: ${history.size}")
-//                            Log.d("WebViewSaveState", "Current Index: ${history.currentIndex}")
 //
 //                            for (i in 0 until history.size) {
 //                                val item = history.getItemAtIndex(i)
 //                                val isCurrent =
 //                                    if (i == history.currentIndex) " <-- CURRENT" else ""
-//                                Log.d(
-//                                    "WebViewSaveState",
-//                                    "[$i] Title: '${item.title}', URL: '${item.url}', Original URL: '${item.originalUrl}'$isCurrent"
-//                                )
 //                                val favicon = item.favicon
 //                                if (favicon != null) {
-//                                    Log.d(
-//                                        "WebViewSaveState",
-//                                        "  -> Favicon: Yes, ${favicon.width}x${favicon.height}px"
-//                                    )
 //                                } else {
-//                                    Log.d("WebViewSaveState", "  -> Favicon: No")
 //                                }
 //                            }
-//                            Log.d("WebViewSaveState", "--- End History Details ---")
 //                            // --- END OF NEW LOGGING ---
 //
 //                        } else {
-//                            Log.e("WebViewSaveState", "Failed to save WebView state.")
 //                        }
 //                    }
 //                },

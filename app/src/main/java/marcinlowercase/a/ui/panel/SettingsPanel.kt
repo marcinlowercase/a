@@ -1,6 +1,5 @@
 package marcinlowercase.a.ui.panel
 
-import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
@@ -430,9 +429,9 @@ fun SettingsPanel(
     isSettingsPanelVisible: Boolean,
     setIsSettingsPanelVisible: (Boolean) -> Unit,
     browserSettings: BrowserSettings,
-    updateBrowserSettings: (BrowserSettings) -> Int,
+    updateBrowserSettings: (BrowserSettings) -> Unit,
     confirmationPopup: (String, () -> Unit, () -> Unit) -> Unit,
-    resetBrowserSettings: () -> Int,
+    resetBrowserSettings: () -> Unit,
     targetSetting: SettingPanelView = SettingPanelView.MAIN,
 ) {
 
@@ -678,10 +677,6 @@ fun SettingsPanel(
 
                             updateBrowserSettings(
                                 browserSettings.copy(cursorTrackingSpeed = newValue)
-                            )
-                            Log.e(
-                                "CursorSpeed",
-                                "Updated to ${browserSettings.cursorTrackingSpeed}"
                             )
                         },
                         onBackClick = { if (!browserSettings.isFirstAppLoad) currentView = SettingPanelView.MAIN else setIsSettingsPanelVisible(false) },

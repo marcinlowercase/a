@@ -14,7 +14,6 @@ class BrowserDownloadManager(context: Context) {
     fun saveDownloads(downloads: List<DownloadItem>) {
         val jsonString = json.encodeToString(downloads)
         prefs.edit { putString(downloadsKey, jsonString) }
-        Log.d("DownloadManager", "${downloads.size} downloads saved.")
     }
 
     fun loadDownloads(): MutableList<DownloadItem> {
@@ -23,7 +22,6 @@ class BrowserDownloadManager(context: Context) {
             try {
                 json.decodeFromString(jsonString)
             } catch (e: Exception) {
-                Log.e("DownloadManager", "Failed to decode downloads", e)
                 mutableListOf()
             }
         } else {
