@@ -1,7 +1,6 @@
 package marcinlowercase.a.core.manager
 
 import android.content.Context
-import android.util.Log
 import androidx.core.content.edit
 import kotlinx.serialization.json.Json
 import marcinlowercase.a.core.data_class.DownloadItem
@@ -21,7 +20,7 @@ class BrowserDownloadManager(context: Context) {
         return if (jsonString != null) {
             try {
                 json.decodeFromString(jsonString)
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 mutableListOf()
             }
         } else {
