@@ -37,6 +37,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
@@ -123,6 +124,7 @@ import androidx.core.net.toUri
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -167,9 +169,11 @@ import marcinlowercase.a.core.manager.TabManager
 import marcinlowercase.a.core.manager.AppManager
 import marcinlowercase.a.core.manager.VisitedUrlManager
 import marcinlowercase.a.core.manager.WebViewManager
+import marcinlowercase.a.core.view_model.AppViewModel
 import marcinlowercase.a.ui.panel.BottomPanel
 import marcinlowercase.a.ui.panel.SettingPanelView
 import marcinlowercase.a.ui.panel.SettingsPanel
+import marcinlowercase.a.ui.screen.NoInternetScreen
 import marcinlowercase.a.ui.theme.Theme
 import org.json.JSONArray
 import java.io.File
@@ -196,6 +200,9 @@ class MainActivity : ComponentActivity() {
     private val webViewManager by lazy { WebViewManager(this) }
     val newUrlFromIntent = MutableStateFlow<String?>(null)
 
+    private val appViewModel: AppViewModel by viewModels()
+
+
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -203,9 +210,11 @@ class MainActivity : ComponentActivity() {
 
         createNotificationChannel(this) // Call it here
         setContent {
+            val isOnline by appViewModel.isOnline.collectAsStateWithLifecycle()
             Theme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     BrowserScreen(
+                        isOnline = isOnline,
                         newUrlFlow = newUrlFromIntent,
                         tabManager = tabManager,
                         webViewManager = webViewManager
@@ -276,6 +285,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun BrowserScreen(
+    isOnline: Boolean,
     newUrlFlow: StateFlow<String?>,
     tabManager: TabManager,
     webViewManager: WebViewManager,
@@ -2257,6 +2267,9 @@ fun BrowserScreen(
         focusManager.clearFocus()
     }
 
+    LaunchedEffect(isOnline) {
+        activeWebView?.reload()
+    }
     //endregion
     BackHandler(enabled = !isBottomPanelVisible || activeWebView?.canGoBack() ?: false) {
         when {
@@ -2288,13 +2301,38 @@ fun BrowserScreen(
 
     ) {
 
+        // No Internet Screen
+        AnimatedVisibility(
+            modifier = Modifier
+                .windowInsetsPadding(WindowInsets.ime)
+                .align(Alignment.BottomCenter),
+            visible =  !browserSettings.isFirstAppLoad &&!isOnline,
+            enter = slideInVertically (
+                animationSpec = tween(browserSettings.animationSpeedForLayer(0) * 4),
+                initialOffsetY = { it }
+            ),
+            exit = slideOutVertically(
+                animationSpec = tween(browserSettings.animationSpeedForLayer(0) * 4),
+                targetOffsetY = { -it }
+            ),
+        ) {
+            NoInternetScreen(
+                webViewTopPadding = webViewTopPadding,
+                webViewBottomPadding = webViewBottomPadding,
+                browserSettings = browserSettings,
+            )
+        }
 
+        // Adjust Device Corner Radius Screen
         AnimatedVisibility(
             modifier = Modifier
                 .windowInsetsPadding(WindowInsets.ime)
                 .align(Alignment.BottomCenter),
             visible = browserSettings.isFirstAppLoad,
-            enter = fadeIn(tween(browserSettings.animationSpeedForLayer(0))),
+            enter = slideInVertically (
+                animationSpec = tween(browserSettings.animationSpeedForLayer(0) * 4),
+                initialOffsetY = { it }
+            ),
             exit = slideOutVertically(
                 animationSpec = tween(browserSettings.animationSpeedForLayer(0) * 4),
                 targetOffsetY = { -it }
@@ -2358,13 +2396,17 @@ fun BrowserScreen(
             }
         }
 
+        // WebView
         AnimatedVisibility(
-            visible = !browserSettings.isFirstAppLoad,
-            enter = slideInVertically(
+            visible = !browserSettings.isFirstAppLoad && isOnline,
+            enter = slideInVertically (
                 animationSpec = tween(browserSettings.animationSpeedForLayer(0) * 4),
                 initialOffsetY = { it }
             ),
-            exit = fadeOut(tween(browserSettings.animationSpeedForLayer(0)))
+            exit = slideOutVertically(
+                animationSpec = tween(browserSettings.animationSpeedForLayer(0) * 4),
+                targetOffsetY = { -it }
+            )
         ) {
 
             Box(
