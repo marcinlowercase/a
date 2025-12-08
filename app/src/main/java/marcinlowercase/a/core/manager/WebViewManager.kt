@@ -559,10 +559,10 @@ class WebViewManager(private val context: Context) {
                     try {
                         val intent = Intent.parseUri(urlString, Intent.URI_INTENT_SCHEME)
                         view?.context?.startActivity(intent)
-                    } catch (e: Exception) {
+                    } catch (_: Exception) {
                         val packageName = try {
                             Intent.parseUri(urlString, Intent.URI_INTENT_SCHEME).`package`
-                        } catch (parseEx: URISyntaxException) {
+                        } catch (_: URISyntaxException) {
                             null
                         }
 
@@ -574,7 +574,7 @@ class WebViewManager(private val context: Context) {
                                 )
                                 view?.context?.startActivity(marketIntent)
                                 view?.goBack()
-                            } catch (marketError: Exception) {
+                            } catch (_: Exception) {
                             }
                         }
                     }
@@ -589,7 +589,7 @@ class WebViewManager(private val context: Context) {
 
                     // Immediately go back to the previous page
                     view?.goBack()
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                 }
                 return true
             }

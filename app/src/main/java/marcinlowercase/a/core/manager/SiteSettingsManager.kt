@@ -22,7 +22,7 @@ class SiteSettingsManager(context: Context) {
         return if (jsonString != null) {
             try {
                 json.decodeFromString(jsonString)
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 mutableMapOf()
             }
         } else {

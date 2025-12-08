@@ -31,7 +31,7 @@ class VisitedUrlManager(context: Context) {
         return if (jsonString != null) {
             try {
                 json.decodeFromString<Map<String, String>>(jsonString)
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 emptyMap()
             }
         } else {
