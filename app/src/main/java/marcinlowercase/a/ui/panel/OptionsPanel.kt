@@ -89,7 +89,8 @@ fun OptionsPanel(
             activeWebView,
             browserSettings.showSuggestions,
             bottomPanelPagerState,
-            isPinningApp.value
+            isPinningApp.value,
+            isFindInPageVisible.value
 
         ) {
             listOf(
@@ -149,7 +150,8 @@ fun OptionsPanel(
                 },
                 OptionItem(
                     R.drawable.ic_find_in_page, // You'll need an icon
-                    "find in page"
+                    "find in page",
+                    isFindInPageVisible.value
                 ) {
                     isFindInPageVisible.value = !isFindInPageVisible.value
                     setIsOptionsPanelVisible(false)
