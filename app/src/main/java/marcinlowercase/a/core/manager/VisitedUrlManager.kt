@@ -1,7 +1,6 @@
 package marcinlowercase.a.core.manager
 
 import android.content.Context
-import android.util.Log
 import android.util.Patterns
 import androidx.core.content.edit
 import kotlinx.serialization.json.Json

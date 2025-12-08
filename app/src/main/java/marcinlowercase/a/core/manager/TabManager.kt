@@ -1,10 +1,8 @@
 package marcinlowercase.a.core.manager
 
 import android.content.Context
-import android.util.Log
 import androidx.core.content.edit
 import kotlinx.serialization.json.Json
-import marcinlowercase.a.core.constant.default_url
 import marcinlowercase.a.core.data_class.Tab
 import marcinlowercase.a.core.enum_class.TabState
 import kotlin.collections.forEach
@@ -29,7 +27,7 @@ class TabManager(context: Context) {
 
     // New function to freeze all tabs on exit
     fun freezeAllTabs() {
-        val tabs = loadTabs(default_url) // Load the current state
+        val tabs = loadTabs() // Load the current state
         if (tabs.isNotEmpty()) {
             val activeIndex = prefs.getInt(activeTabIndexKey, 0)
 
@@ -54,7 +52,7 @@ class TabManager(context: Context) {
 
     }
 
-    fun loadTabs(defaultUrl: String): MutableList<Tab> {
+    fun loadTabs(): MutableList<Tab> {
         val jsonString = prefs.getString(tabsKey, null)
 
         return if (jsonString != null) {
@@ -63,7 +61,7 @@ class TabManager(context: Context) {
 
 
                 if (loadedTabs.isEmpty()) {
-                    return createDefaultTabs(defaultUrl)
+                    return createDefaultTabs()
                 }
                 val activeIndex = prefs.getInt(activeTabIndexKey, 0)
                 loadedTabs.forEachIndexed { index, tab ->
@@ -72,16 +70,16 @@ class TabManager(context: Context) {
 
                 return loadedTabs
 
-            } catch (e: Exception) {
-                createDefaultTabs(defaultUrl)
+            } catch (_: Exception) {
+                createDefaultTabs()
             }
         } else {
             // If no saved data, create a default tab list
-            createDefaultTabs(defaultUrl)
+            createDefaultTabs()
         }
     }
 
-    private fun createDefaultTabs(defaultUrl: String): MutableList<Tab> {
+    private fun createDefaultTabs(): MutableList<Tab> {
 
         return mutableListOf(
             Tab(

@@ -4,9 +4,9 @@ import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
 import android.annotation.SuppressLint
 import android.graphics.Path
-import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 
+@Suppress("unused")
 @SuppressLint("AccessibilityPolicy")
 class CursorAccessibilityService : AccessibilityService() {
 

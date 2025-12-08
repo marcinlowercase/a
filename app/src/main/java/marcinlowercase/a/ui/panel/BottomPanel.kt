@@ -123,7 +123,7 @@ fun BottomPanel(
     findInPageText: MutableState<String>,
     findInPageResult: MutableState<Pair<Int, Int>>,
 
-    onAddToHomeScreen: () -> Unit,
+//    onAddToHomeScreen: () -> Unit,
     descriptionContent: MutableState<String>,
     recentlyClosedTabs: SnapshotStateList<Tab>,
     reopenClosedTab: () -> Unit,
@@ -342,7 +342,7 @@ fun BottomPanel(
             )
             TabDataPanel(
                 descriptionContent = descriptionContent,
-                onAddToHomeScreen = onAddToHomeScreen,
+//                onAddToHomeScreen = onAddToHomeScreen,
                 isTabDataPanelVisible = isTabDataPanelVisible,
                 inspectingTab = inspectingTab,
                 onDismiss = onTabDataPanelDismiss,

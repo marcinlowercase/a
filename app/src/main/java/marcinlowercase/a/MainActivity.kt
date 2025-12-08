@@ -158,7 +158,6 @@ import marcinlowercase.a.core.enum_class.DownloadStatus
 import marcinlowercase.a.core.enum_class.GestureNavAction
 import marcinlowercase.a.core.enum_class.SuggestionSource
 import marcinlowercase.a.core.enum_class.TabState
-import marcinlowercase.a.core.function.addToHomeScreen
 import marcinlowercase.a.core.function.createNotificationChannel
 import marcinlowercase.a.core.function.toDomain
 import marcinlowercase.a.core.function.webViewLoad
@@ -255,7 +254,7 @@ class MainActivity : ComponentActivity() {
 
 
         val activeWebView = webViewManager.activeWebView
-        val tabs = tabManager.loadTabs(default_url) // Load current tabs to modify them
+        val tabs = tabManager.loadTabs() // Load current tabs to modify them
         val activeIndex = tabs.indexOfFirst { it.state == TabState.ACTIVE }
 
         if (activeWebView != null && activeIndex != -1) {
@@ -337,7 +336,7 @@ fun BrowserScreen(
     var initialLoadDone by rememberSaveable { mutableStateOf(false) }
     val tabs = remember {
         mutableStateListOf<Tab>().apply {
-            addAll(tabManager.loadTabs(browserSettings.defaultUrl))
+            addAll(tabManager.loadTabs())
         }
     }
 
@@ -367,16 +366,7 @@ fun BrowserScreen(
                         restoreBundle.putByteArray("WEBVIEW_CHROMIUM_STATE", stateBytes)
                         // 3. Restore the state into the WebView
                         this.restoreState(restoreBundle)
-                        val history = this.copyBackForwardList()
-                        for (i in 0 until history.size) {
-                            val item = history.getItemAtIndex(i)
-                            val isCurrent =
-                                if (i == history.currentIndex) " <-- CURRENT" else ""
-                            val favicon = item.favicon
-                            if (favicon != null) {
-                            } else {
-                            }
-                        }
+
 
 
                         initialLoadDone = true
@@ -391,7 +381,7 @@ fun BrowserScreen(
                         tab.savedState = null
                         saveTrigger++ // Trigger a save to persist the cleared state
 
-                    } catch (e: Exception) {
+                    } catch (_: Exception) {
                         // Fallback to loading the URL if restore fails
 //                        webViewLoad(this, browserSettings.defaultUrl, browserSettings)
                         val urlToLoad =
@@ -857,7 +847,7 @@ fun BrowserScreen(
                     try {
                         // Decode the filename in case it's URL-encoded
                         return URLDecoder.decode(filename, "UTF-8")
-                    } catch (e: Exception) {
+                    } catch (_: Exception) {
                     }
                 }
             }
@@ -872,7 +862,7 @@ fun BrowserScreen(
                     return lastSegment
                 }
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
         }
 
 
@@ -1092,7 +1082,6 @@ fun BrowserScreen(
                 if (file.delete()) {
                     // Also notify the MediaStore that the file is gone.
                     MediaScannerConnection.scanFile(context, arrayOf(file.absolutePath), null, null)
-                } else {
                 }
             }
         } else {
@@ -1534,11 +1523,8 @@ fun BrowserScreen(
 
                     // Check if an update is even needed to prevent unnecessary recompositions.
                     if (faviconUrl.isNotBlank()) {
-
-
                         tabs[tabIndex] = targetTab.copy(currentFaviconUrl = faviconUrl)
                         saveTrigger++
-                    } else {
                     }
                 },
                 onJsAlert = { message -> jsDialogState = JsAlert(message) },
@@ -1734,7 +1720,7 @@ fun BrowserScreen(
                         Toast.makeText(context, "Downloaded: $finalFilename", Toast.LENGTH_LONG)
                             .show()
 
-                    } catch (e: Exception) {
+                    } catch (_: Exception) {
                         Toast.makeText(context, "Download failed", Toast.LENGTH_LONG).show()
                     }
                 },
@@ -2306,14 +2292,15 @@ fun BrowserScreen(
 
                     findInPageResult = findInPageResult,
                     findInPageText = findInPageText,
-                    onAddToHomeScreen = {
-                        addToHomeScreen(
-                            context = context,
-                            coroutineScope = coroutineScope,
-                            tab = currentInspectingTab,
-                            activeWebView = activeWebView,
-                        )
-                    },
+//                    onAddToHomeScreen = {
+//                        addToHomeScreen(
+//                            context = context,
+//                            coroutineScope = coroutineScope,
+//                            tab = currentInspectingTab,
+//                            activeWebView = activeWebView,
+//                        )
+//                    }
+//                    ,
                     setIsDownloadPanelVisible = { isDownloadPanelVisible = it },
                     descriptionContent = descriptionContent,
                     recentlyClosedTabs = recentlyClosedTabs,
@@ -2492,6 +2479,7 @@ fun BrowserScreen(
                         .onSizeChanged {
                             screenSize = it
                             with(density) {
+                                @Suppress("AssignedValueIsNeverRead")
                                 screenSizeDp = IntSize(
                                     it.width.toDp().value.roundToInt(),
                                     it.height.toDp().value.roundToInt()

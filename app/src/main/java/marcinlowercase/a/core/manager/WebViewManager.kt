@@ -10,7 +10,6 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.os.Build
-import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.ConsoleMessage
@@ -616,7 +615,6 @@ class WebViewManager(private val context: Context) {
         }
         webView.setOnLongClickListener { v ->
             val result = (v as WebView).hitTestResult
-//            val heref = (v as WebView).requestFocusNodeHref(null)
 
             val type = result.type
 

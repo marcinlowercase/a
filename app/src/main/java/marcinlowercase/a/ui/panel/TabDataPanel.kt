@@ -152,7 +152,7 @@ fun TabDataPanel(
     onPermissionToggle: (domain: String?, permission: String, isGranted: Boolean) -> Unit,
     onClearSiteData: () -> Unit,
     onCloseTab: () -> Unit,
-    onAddToHomeScreen: () -> Unit,
+//    onAddToHomeScreen: () -> Unit,
     onHistoryItemClicked: (tab: Tab, index: Int, webViewManager: WebViewManager) -> Unit
 ) {
 

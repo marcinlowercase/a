@@ -1,6 +1,5 @@
 package marcinlowercase.a.core.js_interface
 
-import android.util.Log
 import android.webkit.JavascriptInterface
 
 class FaviconJavascriptInterface(

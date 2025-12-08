@@ -6,6 +6,7 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import androidx.lifecycle.LiveData
 
+@Suppress("unused")
 class NetworkLiveData(private val context: Context) : LiveData<Boolean>() {
 
     private val connectivityManager =
