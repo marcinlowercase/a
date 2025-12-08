@@ -46,7 +46,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -99,7 +98,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
@@ -2346,7 +2344,6 @@ fun BrowserScreen(
             ) {
                 SettingsPanel(
                     descriptionContent = descriptionContent,
-                    hapticFeedback = hapticFeedback,
                     backgroundColor = backgroundColor,
                     isSettingsPanelVisible = isSettingsPanelVisible,
                     setIsSettingsPanelVisible = { isSettingsPanelVisible = it },
@@ -2679,7 +2676,6 @@ fun BrowserScreen(
                     activeWebView = activeWebView,
                     cursorPointerPosition = cursorPointerPosition,
                     webViewTopPadding = webViewTopPadding,
-                    hapticFeedback = hapticFeedback,
                     setIsUrlBarVisible = { isUrlBarVisible = it },
                     isLongPressDrag = isLongPressDrag,
                     cursorPadHeight = cursorPadHeight,
@@ -3117,7 +3113,6 @@ fun CursorPad(
     activeWebView: CustomWebView?,
     cursorPointerPosition: MutableState<Offset>,
     webViewTopPadding: Dp,
-    hapticFeedback: HapticFeedback,
     setIsUrlBarVisible: (Boolean) -> Unit,
     cursorPadHeight: Dp,
 
@@ -3134,6 +3129,7 @@ fun CursorPad(
         exit = fadeOut(tween(browserSettings.animationSpeed.roundToInt()))
     ) {
 
+        val hapticFeedback = LocalHapticFeedback.current
 
         Box(
             modifier =

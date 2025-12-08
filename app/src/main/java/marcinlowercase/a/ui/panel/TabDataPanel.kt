@@ -27,12 +27,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,7 +41,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -56,10 +53,10 @@ import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.SiteSettings
 import marcinlowercase.a.core.data_class.Tab
 import marcinlowercase.a.core.enum_class.TabState
-import marcinlowercase.a.core.function.buttonSettingsForLayer
 import marcinlowercase.a.core.function.getFaviconUrlFromGoogleServer
 import marcinlowercase.a.core.manager.SiteSettingsManager
 import marcinlowercase.a.core.manager.WebViewManager
+import marcinlowercase.a.ui.component.CustomIconButton
 import kotlin.collections.component1
 import kotlin.collections.component2
 import kotlin.math.roundToInt
@@ -145,6 +142,7 @@ fun HistoryRow(
 
 @Composable
 fun TabDataPanel(
+    descriptionContent: MutableState<String>,
     webViewManager: WebViewManager,
     isTabDataPanelVisible: Boolean,
     inspectingTab: Tab?,
@@ -248,68 +246,32 @@ fun TabDataPanel(
                             ) {
                                 // History Button
                                 if (history.size > 0)
-                                    IconButton(
-                                        onClick = { currentView = TabDataPanelView.HISTORY },
-                                        modifier = Modifier
-                                            .buttonSettingsForLayer(
-                                                3,
-                                                browserSettings,
-                                                false
-                                            )
-                                            .fillMaxWidth()
-                                            .background(Color.Transparent)
-//                                            .border(
-//                                                width = 1.dp,
-//                                                color = Color.White,
-//                                                shape = RoundedCornerShape(
-//                                                    cornerRadiusForLayer(
-//                                                        3,
-//                                                        browserSettings.deviceCornerRadius,
-//                                                        browserSettings.padding
-//                                                    ).dp
-//                                                )
-//                                            )
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(id = R.drawable.ic_history),
-                                            contentDescription = "History",
-                                            tint = Color.White
+                                    CustomIconButton(
+                                        layer = 3,
+                                        browserSettings = browserSettings,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        onTap = { currentView = TabDataPanelView.HISTORY },
+                                        descriptionContent = descriptionContent,
+                                        buttonDescription = "history list",
+                                        painterId = R.drawable.ic_history,
+                                        isWhite = false,
                                         )
-                                    }
+
 
 
                                 // Permissions Button
 
                                 if (settings != null && settings.permissionDecisions.isNotEmpty()) {
-                                    IconButton(
-                                        onClick = { currentView = TabDataPanelView.PERMISSIONS },
-                                        modifier = Modifier
-                                            .buttonSettingsForLayer(
-                                                3,
-                                                browserSettings,
-                                                false
-                                            )
-
-                                            .fillMaxWidth()
-                                            .background(Color.Transparent)
-//                                            .border(
-//                                                width = 1.dp,
-//                                                color = Color.White,
-//                                                shape = RoundedCornerShape(
-//                                                    cornerRadiusForLayer(
-//                                                        3,
-//                                                        browserSettings.deviceCornerRadius,
-//                                                        browserSettings.padding
-//                                                    ).dp
-//                                                )
-//                                            )
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(id = R.drawable.ic_shield_toggle),
-                                            contentDescription = "Permissions",
-                                            tint = Color.White
-                                        )
-                                    }
+                                    CustomIconButton(
+                                        layer = 3,
+                                        browserSettings = browserSettings,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        onTap = { currentView = TabDataPanelView.PERMISSIONS },
+                                        descriptionContent = descriptionContent,
+                                        buttonDescription = "permission list",
+                                        painterId = R.drawable.ic_shield_toggle,
+                                        isWhite = false,
+                                    )
                                 }
 
                             }
@@ -401,36 +363,23 @@ fun TabDataPanel(
                                     settings.permissionDecisions.forEach { (permission, isGranted) ->
                                         // Determine the correct icon and name for the button
                                         val (iconRes, name) = when (permission) {
-                                            generic_location_permission -> R.drawable.ic_location_on to "Location"
-                                            Manifest.permission.CAMERA -> R.drawable.ic_camera_on to "Camera"
-                                            Manifest.permission.RECORD_AUDIO -> R.drawable.ic_mic_on to "Microphone"
-                                            else -> R.drawable.ic_bug to "Unknown" // Fallback
+                                            generic_location_permission -> R.drawable.ic_location_on to "location"
+                                            Manifest.permission.CAMERA -> R.drawable.ic_camera_on to "camera"
+                                            Manifest.permission.RECORD_AUDIO -> R.drawable.ic_mic_on to "microphone"
+                                            else -> R.drawable.ic_bug to "unknown"
                                         }
 
-                                        // Create the toggleable IconButton
-                                        IconButton(
-                                            onClick = {
-                                                // Toggle the permission state when clicked
-                                                onPermissionToggle(domain, permission, !isGranted)
-                                            },
-                                            // The `white` parameter controls the background
-                                            modifier = Modifier
-                                                .buttonSettingsForLayer(
-                                                    layer = 3,
-                                                    browserSettings,
-                                                    white = isGranted
-                                                )
-                                                .weight(1f),
-                                            colors = IconButtonDefaults.iconButtonColors(
-                                                // The `contentColor` controls the icon tint
-                                                contentColor = if (isGranted) Color.Black else Color.White
-                                            )
-                                        ) {
-                                            Icon(
-                                                painter = painterResource(id = iconRes),
-                                                contentDescription = name
-                                            )
-                                        }
+                                        CustomIconButton(
+                                            layer = 3,
+                                            browserSettings = browserSettings,
+                                            modifier = Modifier.weight(1f),
+                                            onTap = { onPermissionToggle(domain, permission, !isGranted)},
+                                            descriptionContent = descriptionContent,
+                                            buttonDescription = name,
+                                            painterId = iconRes,
+                                            isWhite = isGranted,
+                                        )
+//
                                     }
                                 }
                             } else {
@@ -451,68 +400,53 @@ fun TabDataPanel(
                     }
                 }
 
-                // This Row contains the action buttons at the bottom
+                // action buttons
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(browserSettings.padding.dp),
                     horizontalArrangement = Arrangement.spacedBy(browserSettings.padding.dp)
                 ) {
-                    IconButton(
-                        onClick = {
+                    CustomIconButton(
+                        layer = 3,
+                        browserSettings = browserSettings,
+                        modifier = Modifier.weight(1f),
+                        onTap = {
                             if (currentView == TabDataPanelView.MAIN) {
                                 onDismiss()
                             } else {
                                 currentView = TabDataPanelView.MAIN
                             }
                         },
-                        modifier = Modifier
-                            .buttonSettingsForLayer(
-                                3,
-                                browserSettings,
-                                false
-                            )
-                            .weight(1f)
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_arrow_back),
-                            contentDescription = "Back",
-                            tint = Color.White
-                        )
-                    }
+                        descriptionContent = descriptionContent,
+                        buttonDescription = "back",
+                        painterId = R.drawable.ic_arrow_back,
+                        isWhite = false
+                    )
+
+
                     if (tab.state != TabState.FROZEN) {
-                        IconButton(
-                            onClick = onClearSiteData,
-                            modifier = Modifier
-                                .buttonSettingsForLayer(
-                                    3,
-                                    browserSettings
-                                )
-                                .weight(1f)
-                        ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_database_off),
-                                contentDescription = "Clear Site Data",
-                                tint = Color.Black
-                            )
-                        }
+                        CustomIconButton(
+                            layer = 3,
+                            browserSettings = browserSettings,
+                            modifier = Modifier.weight(1f),
+                            onTap = onClearSiteData,
+                            descriptionContent = descriptionContent,
+                            buttonDescription = "clear site data",
+                            painterId = R.drawable.ic_database_off
+                        )
+
                     }
 
-                    IconButton(
-                        onClick = onCloseTab,
-                        modifier = Modifier
-                            .buttonSettingsForLayer(
-                                3,
-                                browserSettings
-                            )
-                            .weight(1f)
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_tab_close),
-                            contentDescription = "Close Tab",
-                            tint = Color.Black
-                        )
-                    }
+                    CustomIconButton(
+                        layer = 3,
+                        browserSettings = browserSettings,
+                        modifier = Modifier.weight(1f),
+                        onTap = onCloseTab,
+                        descriptionContent = descriptionContent,
+                        buttonDescription = "close tab",
+                        painterId = R.drawable.ic_tab_close
+                    )
 
                     // TODO
 //                    IconButton(

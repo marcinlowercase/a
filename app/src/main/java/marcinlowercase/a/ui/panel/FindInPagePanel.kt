@@ -16,23 +16,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import marcinlowercase.a.R
 import marcinlowercase.a.core.data_class.BrowserSettings
-import marcinlowercase.a.core.function.buttonSettingsForLayer
+import marcinlowercase.a.ui.component.CustomIconButton
 
 @Composable
 fun FindInPagePanel(
@@ -44,6 +42,7 @@ fun FindInPagePanel(
     onFindPrevious: () -> Unit,
     onClose: () -> Unit,
     browserSettings: BrowserSettings,
+    descriptionContent: MutableState<String>
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
     AnimatedVisibility(
@@ -121,38 +120,29 @@ fun FindInPagePanel(
                 horizontalArrangement = Arrangement.spacedBy(browserSettings.padding.dp)
             ) {
 
-                IconButton(
-                    onClick = onClose,
-                    modifier = Modifier.buttonSettingsForLayer(
-                        2,
-                        browserSettings,
-                        false,
-                    )
-                        .weight(1f)
-                ) {
-                    Icon(
-                        painterResource(id = R.drawable.ic_arrow_back),
-                        contentDescription = "Close",
-                        tint = Color.White
+                CustomIconButton(
+                     layer = 2,
+                    browserSettings = browserSettings,
+                    modifier = Modifier.weight(1f),
+                    onTap = onClose,
+                    descriptionContent = descriptionContent,
+                    buttonDescription = "cancel",
+                    painterId = R.drawable.ic_arrow_back,
+                    isWhite = false,
+                )
+                CustomIconButton(
+                    layer = 2,
+                    browserSettings = browserSettings,
+                    modifier = Modifier.weight(1f),
+                    onTap = onFindNext,
+                    descriptionContent = descriptionContent,
+                    buttonDescription = "next",
+                    painterId = R.drawable.ic_arrow_downward,
+                    isWhite = searchResult.second > 0,
+                )
 
-                    )
-                }
-                IconButton(
-                    onClick = onFindPrevious,
-                    enabled = searchResult.second > 0,
-                    modifier = Modifier.buttonSettingsForLayer(
-                        2,
-                        browserSettings,
-                        searchResult.second > 0
-                    ).weight(1f)
-                ) {
-                    Icon(
-                        painterResource(id = R.drawable.ic_arrow_upward),
-                        contentDescription = "Previous",
-                        tint = if (searchResult.second > 0) Color.Black else Color.White
 
-                    )
-                }
+
                 Box(
                     modifier = Modifier.weight(1f),
                     contentAlignment = Alignment.Center
@@ -163,24 +153,16 @@ fun FindInPagePanel(
 
                         )
                 }
-                IconButton(
-                    onClick = onFindNext, enabled = searchResult.second > 0,
-                    modifier = Modifier
-                        .buttonSettingsForLayer(
-                        2,
-                        browserSettings,
-                        searchResult.second > 0
-
-                    )
-                        .weight(1f)
-                ) {
-                    Icon(
-                        painterResource(id = R.drawable.ic_arrow_downward),
-                        contentDescription = "Next",
-                        tint = if (searchResult.second > 0) Color.Black else Color.White
-                    )
-                }
-
+                CustomIconButton(
+                    layer = 2,
+                    browserSettings = browserSettings,
+                    modifier = Modifier.weight(1f),
+                    onTap = onFindPrevious,
+                    descriptionContent = descriptionContent,
+                    buttonDescription = "previous",
+                    painterId = R.drawable.ic_arrow_upward,
+                    isWhite = searchResult.second > 0,
+                )
             }
         }
     }

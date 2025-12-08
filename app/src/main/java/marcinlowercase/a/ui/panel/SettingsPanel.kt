@@ -44,7 +44,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
@@ -59,7 +58,7 @@ import kotlinx.coroutines.delay
 import marcinlowercase.a.R
 import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.OptionItem
-import marcinlowercase.a.core.function.buttonPointerInput
+import marcinlowercase.a.ui.component.CustomIconButton
 import kotlin.collections.chunked
 import kotlin.collections.forEach
 import kotlin.math.roundToInt
@@ -148,6 +147,7 @@ fun SliderSetting(
         ) {
 
             // Back button to return to the main settings view
+
             IconButton(
                 onClick = onBackClick,
                 modifier = Modifier
@@ -261,6 +261,7 @@ fun SliderSetting(
                 )
             }
         }
+
         Slider(
             value = sliderValue,
             onValueChange = { newSliderValue ->
@@ -424,7 +425,6 @@ fun TextSetting(
 @Composable
 fun SettingsPanel(
     descriptionContent: MutableState<String>,
-    hapticFeedback: HapticFeedback,
     backgroundColor: MutableState<Color>,
     isSettingsPanelVisible: Boolean,
     setIsSettingsPanelVisible: (Boolean) -> Unit,
@@ -559,39 +559,18 @@ fun SettingsPanel(
                         ) {
                             val pageOptions = optionPages[pageIndex]
                             pageOptions.forEach { option ->
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clip(
-                                            RoundedCornerShape(
-                                                browserSettings.cornerRadiusForLayer(2).dp
-                                            )
-                                        )
-                                        .height(
-                                            browserSettings.heightForLayer(2).dp
-                                        )
-                                        .background(
-                                            if (option.enabled) Color.White else Color.Black,
-                                            shape = RoundedCornerShape(
-                                                browserSettings.cornerRadiusForLayer(2).dp
-                                            )
-                                        )
-                                        .buttonPointerInput(
-                                            onTap = option.onClick,
-                                            hapticFeedback = hapticFeedback,
-                                            buttonDescription = option.contentDescription,
-                                            descriptionContent = descriptionContent,
 
-                                        )
-                                    ,
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        painter = painterResource(id = option.iconRes),
-                                        contentDescription = option.contentDescription,
-                                        tint = if (option.enabled) Color.Black else Color.White
-                                    )
-                                }
+                                CustomIconButton(
+                                    layer = 2,
+                                    browserSettings = browserSettings,
+                                    modifier = Modifier.weight(1f),
+                                    onTap = option.onClick,
+                                    descriptionContent = descriptionContent,
+                                    buttonDescription = option.contentDescription,
+                                    painterId = option.iconRes,
+                                    isWhite = option.enabled,
+                                )
+
                             }
 //                            repeat(4 - pageOptions.size) {
 //                                Spacer(modifier = Modifier.weight(1f))

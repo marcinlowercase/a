@@ -10,6 +10,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -26,9 +27,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,9 +46,9 @@ import marcinlowercase.a.R
 import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.DownloadItem
 import marcinlowercase.a.core.enum_class.DownloadStatus
-import marcinlowercase.a.core.function.buttonSettingsForLayer
 import marcinlowercase.a.core.function.formatSpeed
 import marcinlowercase.a.core.function.formatTimeRemaining
+import marcinlowercase.a.ui.component.CustomIconButton
 
 @Composable
 fun DownloadPanel(
@@ -55,10 +56,11 @@ fun DownloadPanel(
     isDownloadPanelVisible: Boolean,
     downloads: List<DownloadItem>,
     browserSettings: BrowserSettings,
-    onDownloadRowClicked: (DownloadItem) -> Unit, // Renamed for clarity
-    onDeleteClicked: (DownloadItem) -> Unit,      // New callback for single delete
-    onOpenFolderClicked: () -> Unit,              // New callback for folder button
-    onClearAllClicked: () -> Unit                 // New callback for clear all button
+    onDownloadRowClicked: (DownloadItem) -> Unit,
+    onDeleteClicked: (DownloadItem) -> Unit,
+    onOpenFolderClicked: () -> Unit,
+    onClearAllClicked: () -> Unit,
+    descriptionContent: MutableState<String>
 ) {
     AnimatedVisibility(
         visible = isDownloadPanelVisible,
@@ -93,17 +95,6 @@ fun DownloadPanel(
                         browserSettings.cornerRadiusForLayer(2).dp
                     )
                 )
-//                .border(
-//                    width = 1.dp,
-//                    color = Color.White,
-//                    shape = RoundedCornerShape(
-//                        cornerRadiusForLayer(
-//                            2,
-//                            browserSettings.deviceCornerRadius,
-//                            browserSettings.padding
-//                        ).dp
-//                    )
-//                )
         ) {
             if (downloads.isEmpty()) {
                 Box(
@@ -138,7 +129,7 @@ fun DownloadPanel(
 
                         .clip(
                             RoundedCornerShape(
-                               browserSettings.cornerRadiusForLayer(3).dp
+                                browserSettings.cornerRadiusForLayer(3).dp
                             )
                         ),
                     reverseLayout = true,
@@ -165,70 +156,40 @@ fun DownloadPanel(
                         )
                     )
                     .height(
-                       browserSettings.heightForLayer(3).dp
-                    )
-//                                .padding(bottom = browserSettings.padding.dp),
+                        browserSettings.heightForLayer(3).dp
+                    ),
+                horizontalArrangement = Arrangement.spacedBy(browserSettings.padding.dp)
             ) {
-
-//                IconButton(
-//                    onClick = {
-//                        setIsDownloadPanelVisible(false)
-//                    },
-//                    modifier = Modifier.buttonSettingsForLayer(
-//                        3,
-//                        browserSettings
-//                    ).weight(1f)
-//                ) {
-//                    Icon(
-//                        painter = painterResource(id = R.drawable.ic_arrow_back),
-//                        contentDescription = "Back",
-//                        tint = Color.Black
-//                    )
-//                }
-//                Spacer(modifier = Modifier.width(browserSettings.padding.dp))
-
-
                 //  Show Download Folder Button
-                IconButton(
-                    onClick = onOpenFolderClicked,
-                    modifier = Modifier
-                        .buttonSettingsForLayer(
-                        3,
-                        browserSettings
+                CustomIconButton(
+                    layer = 3,
+                    browserSettings = browserSettings,
+                    modifier = Modifier.weight(1f),
+                    onTap = onOpenFolderClicked,
+                    descriptionContent = descriptionContent,
+                    buttonDescription = "download folder",
+                    painterId = R.drawable.ic_folder,
+                )
+                if (downloads.isNotEmpty())
+                    CustomIconButton(
+                        layer = 3,
+                        browserSettings = browserSettings,
+                        modifier = Modifier.weight(1f),
+                        onTap = {
+                            confirmationPopup(
+                                "clear download list ?",
+                                {
+                                    onClearAllClicked()
 
-                    ).weight(1f)
+                                },
+                                {}
+                            )
+                        },
+                        descriptionContent = descriptionContent,
+                        buttonDescription = "clear download list",
+                        painterId = R.drawable.ic_clear_all,
 
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_folder), // You can make this icon generic too
-                        contentDescription = "Download Folder",
-                        tint = Color.Black
                     )
-                }
-                if (downloads.isNotEmpty()) Spacer(modifier = Modifier.width(browserSettings.padding.dp))
-                if (downloads.isNotEmpty()) IconButton(
-                    onClick = {
-                        confirmationPopup(
-                            "clear download list ?",
-                            {
-                                onClearAllClicked()
-
-                            },
-                            {}
-                        )
-                    },
-                    modifier = Modifier.buttonSettingsForLayer(
-                        3,
-                        browserSettings
-                    ).weight(1f)
-
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_clear_all), // You can make this icon generic too
-                        contentDescription = "Download Folder",
-                        tint = Color.Black
-                    )
-                }
             }
 
         }

@@ -1,6 +1,5 @@
 package marcinlowercase.a.ui.panel
 
-import android.os.Bundle
 import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -14,30 +13,24 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import marcinlowercase.a.R
 import marcinlowercase.a.core.custom_class.CustomWebView
 import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.OptionItem
-import marcinlowercase.a.core.data_class.Tab
-import marcinlowercase.a.core.function.buttonPointerInput
+import marcinlowercase.a.ui.component.CustomIconButton
 import kotlin.collections.chunked
 import kotlin.collections.forEach
 
@@ -49,7 +42,6 @@ fun OptionsPanel(
     activeWebView: CustomWebView?,
     isFindInPageVisible: MutableState<Boolean>,
     descriptionContent: MutableState<String>,
-    hapticFeedback: HapticFeedback,
     reopenClosedTab: () -> Unit,
     setIsSettingsPanelVisible: (Boolean) -> Unit,
     isSettingsPanelVisible: Boolean,
@@ -60,7 +52,6 @@ fun OptionsPanel(
     toggleIsTabsPanelVisible: () -> Unit,
     updateBrowserSettings: (BrowserSettings) -> Int,
     browserSettings: BrowserSettings,
-    tabs: List<Tab>,
     tabsPanelLock: Boolean,
     isDownloadPanelVisible: Boolean,
     isCursorPadVisible: Boolean,
@@ -69,7 +60,6 @@ fun OptionsPanel(
     closedTabsCount: Int,
     addAppToPin: () -> Unit,
 ) {
-
 
     // This remains the same
     val allOptions =
@@ -192,52 +182,52 @@ fun OptionsPanel(
                 },
 
 
-                OptionItem(R.drawable.ic_bug, "debug", false) {
-                    Log.e("BROWSER SETTINGS", browserSettings.toString())
-                    Log.e("Tabs List", tabs.toString())
-                    activeWebView?.let { webView ->
-                        val outState = Bundle()
-                        val history = webView.saveState(outState)
-                        if (history != null) {
-                            Log.d("WebViewSaveState", "State saved. Bundle content: $outState")
-                            for (key in outState.keySet()) {
-                                Log.d(
-                                    "WebViewSaveState",
-                                    "-> Key: $key, Value: ${outState.keySet()}"
-                                )
-                            }
-
-                            // --- DETAILED HISTORY LOGGING ---
-                            Log.d("WebViewSaveState", "--- History Details ---")
-                            Log.d("WebViewSaveState", "History Size: ${history.size}")
-                            Log.d("WebViewSaveState", "Current Index: ${history.currentIndex}")
-
-                            for (i in 0 until history.size) {
-                                val item = history.getItemAtIndex(i)
-                                val isCurrent =
-                                    if (i == history.currentIndex) " <-- CURRENT" else ""
-                                Log.d(
-                                    "WebViewSaveState",
-                                    "[$i] Title: '${item.title}', URL: '${item.url}', Original URL: '${item.originalUrl}'$isCurrent"
-                                )
-                                val favicon = item.favicon
-                                if (favicon != null) {
-                                    Log.d(
-                                        "WebViewSaveState",
-                                        "  -> Favicon: Yes, ${favicon.width}x${favicon.height}px"
-                                    )
-                                } else {
-                                    Log.d("WebViewSaveState", "  -> Favicon: No")
-                                }
-                            }
-                            Log.d("WebViewSaveState", "--- End History Details ---")
-                            // --- END OF NEW LOGGING ---
-
-                        } else {
-                            Log.e("WebViewSaveState", "Failed to save WebView state.")
-                        }
-                    }
-                },
+//                OptionItem(R.drawable.ic_bug, "debug", false) {
+//                    Log.e("BROWSER SETTINGS", browserSettings.toString())
+//                    Log.e("Tabs List", tabs.toString())
+//                    activeWebView?.let { webView ->
+//                        val outState = Bundle()
+//                        val history = webView.saveState(outState)
+//                        if (history != null) {
+//                            Log.d("WebViewSaveState", "State saved. Bundle content: $outState")
+//                            for (key in outState.keySet()) {
+//                                Log.d(
+//                                    "WebViewSaveState",
+//                                    "-> Key: $key, Value: ${outState.keySet()}"
+//                                )
+//                            }
+//
+//                            // --- DETAILED HISTORY LOGGING ---
+//                            Log.d("WebViewSaveState", "--- History Details ---")
+//                            Log.d("WebViewSaveState", "History Size: ${history.size}")
+//                            Log.d("WebViewSaveState", "Current Index: ${history.currentIndex}")
+//
+//                            for (i in 0 until history.size) {
+//                                val item = history.getItemAtIndex(i)
+//                                val isCurrent =
+//                                    if (i == history.currentIndex) " <-- CURRENT" else ""
+//                                Log.d(
+//                                    "WebViewSaveState",
+//                                    "[$i] Title: '${item.title}', URL: '${item.url}', Original URL: '${item.originalUrl}'$isCurrent"
+//                                )
+//                                val favicon = item.favicon
+//                                if (favicon != null) {
+//                                    Log.d(
+//                                        "WebViewSaveState",
+//                                        "  -> Favicon: Yes, ${favicon.width}x${favicon.height}px"
+//                                    )
+//                                } else {
+//                                    Log.d("WebViewSaveState", "  -> Favicon: No")
+//                                }
+//                            }
+//                            Log.d("WebViewSaveState", "--- End History Details ---")
+//                            // --- END OF NEW LOGGING ---
+//
+//                        } else {
+//                            Log.e("WebViewSaveState", "Failed to save WebView state.")
+//                        }
+//                    }
+//                },
 //                OptionItem(R.drawable.ic_fullscreen, "Button 4", false) { /* ... */ },
 //                OptionItem(R.drawable.ic_fullscreen, "Button 5", false) { /* ... */ },
 //                OptionItem(R.drawable.ic_fullscreen, "Button 6", false) { /* ... */ },
@@ -327,36 +317,18 @@ fun OptionsPanel(
 
                     // Create an IconButton for each option on the page
                     pageOptions.forEach { option ->
-                        Box(
-                            // Use weight to make the buttons share space equally
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(
-                                    browserSettings.heightForLayer(2).dp
-                                )
-                                .background(
-                                    if (option.enabled) Color.White else Color.Black,
-                                    shape = RoundedCornerShape(
-                                        browserSettings.cornerRadiusForLayer(2).dp
-                                    )
-                                )
-                                .buttonPointerInput(
-                                    onTap = option.onClick,
-                                    hapticFeedback = hapticFeedback,
-                                    descriptionContent = descriptionContent,
-                                    buttonDescription = option.contentDescription
-                                )
-                            ,
-                            contentAlignment = Alignment.Center
+                        CustomIconButton(
+                            layer = 2,
+                            browserSettings = browserSettings,
+                            modifier = Modifier.weight(1f),
+                            onTap = option.onClick,
+                            descriptionContent = descriptionContent,
+                            buttonDescription = option.contentDescription,
+                            painterId = option.iconRes,
+                            isWhite = option.enabled
 
+                        )
 
-                        ) {
-                            Icon(
-                                painter = painterResource(id = option.iconRes),
-                                contentDescription = option.contentDescription,
-                                tint = if (option.enabled) Color.Black else Color.White
-                            )
-                        }
                     }
 
 //                    // If a page has fewer than 4 items, we add spacers to keep the layout consistent.

@@ -32,7 +32,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -94,8 +93,8 @@ fun TabItem(
     browserSettings: BrowserSettings,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
-    hapticFeedback: HapticFeedback = LocalHapticFeedback.current
 ) {
+    val hapticFeedback  = LocalHapticFeedback.current
     Box(
 
         modifier = Modifier
@@ -199,7 +198,6 @@ fun TabsPanel(
     onNewTabClicked: (Int) -> Unit,
     onTabLongPressed: (Tab) -> Unit,
     updateInspectingTab: (Tab) -> Unit,
-    hapticFeedback: HapticFeedback = LocalHapticFeedback.current
 ) {
     if (tabs.isEmpty()) return
 
@@ -297,7 +295,6 @@ fun TabsPanel(
 
                                 onTabSelected(tabIndex)
                             },
-                            hapticFeedback = hapticFeedback,
                             onLongClick = {
                                 onTabLongPressed(tab)
                                 Log.e("UpdateTab", "$tabIndex")

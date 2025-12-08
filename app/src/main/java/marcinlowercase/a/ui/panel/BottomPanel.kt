@@ -281,7 +281,8 @@ fun BottomPanel(
                 onDownloadRowClicked = onDownloadRowClicked,
                 onDeleteClicked = onDeleteClicked,
                 onOpenFolderClicked = onOpenFolderClicked,
-                onClearAllClicked = onClearAllClicked
+                onClearAllClicked = onClearAllClicked,
+                descriptionContent = descriptionContent,
             )
 
             ContextMenuPanel(
@@ -297,7 +298,6 @@ fun BottomPanel(
                     onDismissContextMenu()
                 },
                 onDownloadImage = onDownloadImage,
-                hapticFeedback = hapticFeedback,
             )
 
             FindInPagePanel(
@@ -316,6 +316,7 @@ fun BottomPanel(
                     activeWebView?.clearMatches()
                 },
                 browserSettings = browserSettings,
+                descriptionContent = descriptionContent,
             )
             PromptPanel(
                 isUrlBarVisible = isUrlBarVisible,
@@ -330,7 +331,6 @@ fun BottomPanel(
                 )
             SettingsPanel(
                 descriptionContent = descriptionContent,
-                hapticFeedback = hapticFeedback,
                 isSettingsPanelVisible = isSettingsPanelVisible,
                 browserSettings = browserSettings,
                 updateBrowserSettings = updateBrowserSettings,
@@ -342,6 +342,7 @@ fun BottomPanel(
 
             )
             TabDataPanel(
+                descriptionContent = descriptionContent,
                 onAddToHomeScreen = onAddToHomeScreen,
                 isTabDataPanelVisible = isTabDataPanelVisible,
                 inspectingTab = inspectingTab,
@@ -362,7 +363,6 @@ fun BottomPanel(
                 browserSettings = browserSettings,
                 onTabSelected = onTabSelected,
                 onNewTabClicked = onNewTabClicked,
-                hapticFeedback = hapticFeedback,
                 onTabLongPressed = onTabLongPressed,
                 updateInspectingTab = updateInspectingTab,
             )
@@ -1067,7 +1067,6 @@ fun BottomPanel(
                 activeWebView = activeWebView,
                 isFindInPageVisible = isFindInPageVisible,
                 descriptionContent = descriptionContent,
-                hapticFeedback = hapticFeedback,
                 reopenClosedTab = reopenClosedTab,
                 isSettingsPanelVisible = isSettingsPanelVisible,
                 isOptionsPanelVisible = isOptionsPanelVisible,
@@ -1075,7 +1074,6 @@ fun BottomPanel(
                 updateBrowserSettings = updateBrowserSettings,
                 browserSettings = browserSettings,
                 toggleIsTabsPanelVisible = toggleIsTabsPanelVisible,
-                tabs = tabs,
                 tabsPanelLock = tabsPanelLock,
                 isDownloadPanelVisible = isDownloadPanelVisible,
                 setIsDownloadPanelVisible = setIsDownloadPanelVisible,
@@ -1114,6 +1112,7 @@ fun BottomPanel(
                     focusManager.clearFocus()
                 },
                 activeWebViewTitle = activeWebView?.title ?: "",
+                descriptionContent = descriptionContent,
             )
         }
 

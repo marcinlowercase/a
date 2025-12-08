@@ -12,17 +12,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import marcinlowercase.a.R
 import marcinlowercase.a.core.data_class.BrowserSettings
-import marcinlowercase.a.core.function.buttonSettingsForLayer
+import marcinlowercase.a.ui.component.CustomIconButton
 
 @Composable
 fun TextEditPanel(
@@ -33,6 +30,7 @@ fun TextEditPanel(
     isPinningApp: MutableState<Boolean>,
     onDismiss: () -> Unit,
     activeWebViewTitle: String,
+    descriptionContent: MutableState<String>,
 ) {
     AnimatedVisibility(
         visible = isVisible,
@@ -64,75 +62,54 @@ fun TextEditPanel(
             horizontalArrangement = Arrangement.spacedBy(browserSettings.padding.dp)
         ) {
             // Dismiss
-            IconButton(
-                onClick = onDismiss,
-                modifier = Modifier
-                    .buttonSettingsForLayer(
-                        layer = 3,
-                        browserSettings,
-                        false
-                    )
-                    .weight(1f)
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_close),
-                    contentDescription = "Copy URL",
-                    tint = Color.White
-                )
-            }
+            CustomIconButton(
+                layer = 3,
+                browserSettings = browserSettings,
+                modifier = Modifier.weight(1f),
+                onTap = onDismiss,
+                descriptionContent = descriptionContent,
+                buttonDescription = "cancel",
+                painterId = R.drawable.ic_arrow_back,
+                isWhite = false,
+            )
+
             if (isPinningApp.value) {
                 if (activeWebViewTitle.isNotBlank()) {
                     // Edit Button (ensures keyboard is shown)
-                    IconButton(
-                        onClick = onEditClick,
-                        modifier = Modifier
-                            .buttonSettingsForLayer(
-                                layer = 3,
-                                browserSettings,
-                            )
-                            .weight(1f)
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_edit),
-                            contentDescription = "Edit URL",
-                            tint = Color.Black
-                        )
-                    }
+                    CustomIconButton(
+                        layer = 3,
+                        browserSettings = browserSettings,
+                        modifier = Modifier.weight(1f),
+                        onTap = onEditClick,
+                        descriptionContent = descriptionContent,
+                        buttonDescription = "edit",
+                        painterId = R.drawable.ic_edit,
+
+                    )
                 }
             } else {
                 // Copy Button
-                IconButton(
-                    onClick = onCopyClick,
-                    modifier = Modifier
-                        .buttonSettingsForLayer(
-                            layer = 3,
-                            browserSettings,
-                        )
-                        .weight(1f)
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_content_copy),
-                        contentDescription = "Copy URL",
-                        tint = Color.Black
-                    )
-                }
+                CustomIconButton(
+                    layer = 3,
+                    browserSettings = browserSettings,
+                    modifier = Modifier.weight(1f),
+                    onTap = onCopyClick,
+                    descriptionContent = descriptionContent,
+                    buttonDescription = "copy",
+                    painterId = R.drawable.ic_content_copy,
+                )
+
 
                 // Edit Button (ensures keyboard is shown)
-                IconButton(
-                    onClick = onEditClick,
-                    modifier = Modifier
-                        .buttonSettingsForLayer(
-                            layer = 3,
-                            browserSettings,
-                        )
-                        .weight(1f)
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_edit),
-                        contentDescription = "Edit URL",
-                        tint = Color.Black
-                    )
-                }
+                CustomIconButton(
+                    layer = 3,
+                    browserSettings = browserSettings,
+                    modifier = Modifier.weight(1f),
+                    onTap = onEditClick,
+                    descriptionContent = descriptionContent,
+                    buttonDescription = "edit",
+                    painterId = R.drawable.ic_edit,
+                )
             }
         }
     }
