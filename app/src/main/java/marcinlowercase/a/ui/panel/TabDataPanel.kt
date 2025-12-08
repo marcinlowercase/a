@@ -220,9 +220,6 @@ fun TabDataPanel(
                         )
                 ) {
 
-                    val maxLazyColumnHeight =
-                        (browserSettings.heightForLayer(3).dp + browserSettings.padding.dp) * 2.5f
-
                     val domain =
                         SiteSettingsManager(LocalContext.current).getDomain(
                             webViewManager.getWebView(
@@ -284,7 +281,8 @@ fun TabDataPanel(
                                     state = lazyListState,
                                     modifier = Modifier
                                         .heightIn(
-                                            max = maxLazyColumnHeight
+//                                            max = maxLazyColumnHeight
+                                            max = browserSettings.maxContainerSizeForLayer(3).dp
                                         )
                                         .padding(
                                             top = browserSettings.padding.dp,

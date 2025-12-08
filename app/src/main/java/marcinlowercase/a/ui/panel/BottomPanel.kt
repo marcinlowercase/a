@@ -397,18 +397,8 @@ fun BottomPanel(
                                 browserSettings.cornerRadiusForLayer(2).dp
                             )
                         )
-//                        .border(
-//                            1.dp,
-//                            Color.White,
-//                            RoundedCornerShape(
-//                                cornerRadiusForLayer(
-//                                    2,
-//                                    browserSettings.deviceCornerRadius,
-//                                    browserSettings.padding
-//                                ).dp
-//                            )
-//                        )
-                        .heightIn(max = 250.dp), // Prevent the list from being too tall
+                        .heightIn(max = browserSettings.maxContainerSizeForLayer(3).dp )
+                        , // Prevent the list from being too tall
                     reverseLayout = true,
                 ) {
 
@@ -420,8 +410,22 @@ fun BottomPanel(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .padding(horizontal = browserSettings.padding.dp)
+                                .padding(
+                                    top = browserSettings.padding.dp,
+                                    bottom = if (suggestions.indexOf(suggestion) == 0) browserSettings.padding.dp else 0.dp
+                                )
+                                .height(browserSettings.heightForLayer(3).dp)
+                                .clip(
+                                    RoundedCornerShape(
+                                        browserSettings.cornerRadiusForLayer(3).dp
+                                    )
+                                )
                                 .clickable { onSuggestionClick(suggestion) }
-                                .padding(browserSettings.padding.dp * 2),
+
+                                .padding(browserSettings.padding.dp)
+
+                            ,
                             verticalAlignment = Alignment.CenterVertically // Align icon and text vertically
                         ) {
                             // 2. Add the search Icon

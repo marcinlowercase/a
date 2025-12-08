@@ -82,7 +82,7 @@ fun TextEditPanel(
                         modifier = Modifier.weight(1f),
                         onTap = onEditClick,
                         descriptionContent = descriptionContent,
-                        buttonDescription = "edit",
+                        buttonDescription = "edit pin name",
                         painterId = R.drawable.ic_edit,
 
                     )
@@ -95,7 +95,7 @@ fun TextEditPanel(
                     modifier = Modifier.weight(1f),
                     onTap = onCopyClick,
                     descriptionContent = descriptionContent,
-                    buttonDescription = "copy",
+                    buttonDescription = "copy current url",
                     painterId = R.drawable.ic_content_copy,
                 )
 
@@ -107,7 +107,7 @@ fun TextEditPanel(
                     modifier = Modifier.weight(1f),
                     onTap = onEditClick,
                     descriptionContent = descriptionContent,
-                    buttonDescription = "edit",
+                    buttonDescription = "edit current url",
                     painterId = R.drawable.ic_edit,
                 )
             }

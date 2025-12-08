@@ -23,7 +23,8 @@ data class BrowserSettings(
     val backSquareOffsetX: Float = 0f,
     val backSquareOffsetY: Float = 0f,
     val backSquareIdleOpacity: Float = 0.2f,
-    ) {
+    val maxListHeight: Float = 2.5f,
+) {
     fun cornerRadiusForLayer(layer: Int): Float {
         if (layer == 0) return deviceCornerRadius
         return (cornerRadiusForLayer(layer - 1) - padding).coerceAtLeast(0f)
@@ -46,4 +47,9 @@ data class BrowserSettings(
         val adjusted = animationSpeed - 50f * layer
         return adjusted.coerceAtLeast(0f).roundToInt()
     }
+
+    fun maxContainerSizeForLayer(layer: Int): Float {
+        return (heightForLayer(layer) * maxListHeight) + (padding * (maxListHeight.toInt()  + 1))
+    }
+
 }

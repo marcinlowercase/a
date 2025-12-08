@@ -118,11 +118,9 @@ fun DownloadPanel(
 
 
             } else {
-                val itemHeight = browserSettings.heightForLayer(3).dp + browserSettings.padding.dp
                 LazyColumn(
                     modifier = Modifier
-//                        .weight(1f)
-                        .heightIn(max = itemHeight * 2.5f)
+                        .heightIn(max = browserSettings.maxContainerSizeForLayer(3).dp)
 
                         .padding(top = browserSettings.padding.dp)
                         .padding(horizontal = browserSettings.padding.dp)

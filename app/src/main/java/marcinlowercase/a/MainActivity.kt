@@ -322,6 +322,7 @@ fun BrowserScreen(
                 ), // Use -1f as a flag for "not set"
                 backSquareOffsetY = sharedPrefs.getFloat("back_square_offset_y", -1f),
                 backSquareIdleOpacity = sharedPrefs.getFloat("back_square_idle_opacity", 0.2f),
+                maxListHeight = sharedPrefs.getFloat("max_list_height", 2.5f),
             )
         )
     }
@@ -2246,6 +2247,7 @@ fun BrowserScreen(
             putFloat("back_square_offset_x", browserSettings.backSquareOffsetX)
             putFloat("back_square_offset_y", browserSettings.backSquareOffsetY)
             putFloat("back_square_idle_opacity", browserSettings.backSquareIdleOpacity)
+            putFloat("max_list_height", browserSettings.maxListHeight)
 
 
         }
@@ -2325,7 +2327,7 @@ fun BrowserScreen(
                 .align(Alignment.BottomCenter),
             visible = browserSettings.isFirstAppLoad,
             enter = fadeIn(tween(browserSettings.animationSpeedForLayer(0))),
-            exit = fadeOut(animationSpec = tween(browserSettings.animationSpeedForLayer(0) * 4),)
+            exit = fadeOut(animationSpec = tween(browserSettings.animationSpeedForLayer(0) * 4))
         ) {
             Box(
                 modifier = Modifier

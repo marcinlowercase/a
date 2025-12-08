@@ -74,6 +74,7 @@ enum class SettingPanelView {
     DEFAULT_URL,
     INFO,
     CLOSED_TAB_HISTORY_SIZE,
+    MAX_LIST_HEIGHT,
 
 }
 
@@ -490,6 +491,9 @@ fun SettingsPanel(
             OptionItem(R.drawable.ic_opacity, "back square idle opacity") {
                 currentView = SettingPanelView.BACK_SQUARE_OPACITY
             },
+            OptionItem(R.drawable.ic_expand, "max list height") {
+                currentView = SettingPanelView.MAX_LIST_HEIGHT
+            },
 
             OptionItem(R.drawable.ic_reset_settings, "reset settings", false) {
 
@@ -751,19 +755,32 @@ fun SettingsPanel(
                         steps = 19, // 5% increments
                         currentSettingOriginalValue = browserSettings.backSquareIdleOpacity,
 
-                        // You might need to tweak how SliderSetting handles the text conversion
-                        // For simplicity, here is how to adapt the existing one:
-                        // Since your SliderSetting expects digits for the internal string,
-                        // we pass 0-100 to the logic but save 0.0-1.0
-
-                        // NOTE: Your SliderSetting is quite specific about digits.
-                        // It might be easier to just use the existing logic which assumes 2 decimal places:
-                        // e.g. 0.20
                         textFieldValueFun = { src ->
                             // src is "0020" -> "0.20"
                             src[1] + "." + src.substring(2, 4)
                         },
                         iconID = R.drawable.ic_opacity,
+                        digitCount = 4,
+                        afterDecimal = true
+                    )
+                }
+                SettingPanelView.MAX_LIST_HEIGHT -> {
+                    SliderSetting(
+                        browserSettings = browserSettings,
+                        updateBrowserSettingsForSpecificValue = { newValue ->
+                            updateBrowserSettings(
+                                browserSettings.copy(maxListHeight = newValue)
+                            )
+                        },
+                        onBackClick = {  currentView = SettingPanelView.MAIN },
+                        valueRange = 0f..10f,
+                        steps = 99,
+                        currentSettingOriginalValue = browserSettings.maxListHeight,
+
+                        textFieldValueFun = { src ->
+                            src.take(2) + "." + src.substring(2, 4)
+                        },
+                        iconID = R.drawable.ic_expand,
                         digitCount = 4,
                         afterDecimal = true
                     )
