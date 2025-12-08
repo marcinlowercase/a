@@ -9,9 +9,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,19 +29,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedback
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import marcinlowercase.a.R
 import marcinlowercase.a.core.custom_class.CustomWebView
 import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.OptionItem
 import marcinlowercase.a.core.data_class.Tab
+import marcinlowercase.a.core.function.buttonPointerInput
 import kotlin.collections.chunked
 import kotlin.collections.forEach
 
@@ -347,50 +340,13 @@ fun OptionsPanel(
                                         browserSettings.cornerRadiusForLayer(2).dp
                                     )
                                 )
-                                .pointerInput(Unit) {
-                                    // 1. CAPTURE the CoroutineScope provided by pointerInput
-                                    val coroutineScope = CoroutineScope(currentCoroutineContext())
-                                    awaitEachGesture {
-                                        val down = awaitFirstDown(requireUnconsumed = false)
-
-                                        // 2. USE the captured scope to launch the long press job
-                                        val longPressJob = coroutineScope.launch {
-                                            delay(viewConfiguration.longPressTimeoutMillis)
-
-                                            // LONG PRESS CONFIRMED
-                                            hapticFeedback.performHapticFeedback(
-                                                HapticFeedbackType.LongPress
-                                            )
-                                            descriptionContent.value =
-                                                option.contentDescription
-
-
-                                        }
-                                        val drag =
-                                            awaitTouchSlopOrCancellation(down.id) { change, _ ->
-                                                if (longPressJob.isActive) {
-                                                    longPressJob.cancel()
-                                                }
-                                                change.consume()
-                                            }
-
-
-
-                                        if (!(longPressJob.isCompleted && !longPressJob.isCancelled)) {
-                                            if (drag == null) {
-                                                if (longPressJob.isActive) {
-                                                    longPressJob.cancel()
-                                                    // This was a tap
-                                                    option.onClick()
-
-                                                }
-                                            }
-                                        }
-
-
-                                        descriptionContent.value = ""
-                                    }
-                                },
+                                .buttonPointerInput(
+                                    onTap = option.onClick,
+                                    hapticFeedback = hapticFeedback,
+                                    descriptionContent = descriptionContent,
+                                    buttonDescription = option.contentDescription
+                                )
+                            ,
                             contentAlignment = Alignment.Center
 
 

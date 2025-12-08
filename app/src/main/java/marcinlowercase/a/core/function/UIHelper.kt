@@ -1,13 +1,27 @@
 package marcinlowercase.a.core.function
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import marcinlowercase.a.core.data_class.BrowserSettings
 
 import java.net.URL
@@ -25,6 +39,61 @@ fun Modifier.buttonSettingsForLayer(
         )
         .height(browserSettings.heightForLayer(layer).dp)
         .background(if (white) Color.White else Color.Transparent)
+)
+
+fun Modifier.buttonPointerInput(
+    onTap: (() -> Unit),
+    hapticFeedback: HapticFeedback,
+    descriptionContent: MutableState<String>,
+    buttonDescription: String,
+    ): Modifier = this.then(
+    Modifier
+        .pointerInput(Unit) {
+            // 1. CAPTURE the CoroutineScope provided by pointerInput
+            val coroutineScope = CoroutineScope(
+                currentCoroutineContext()
+            )
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false)
+
+                // 2. USE the captured scope to launch the long press job
+                val longPressJob = coroutineScope.launch {
+                    delay(viewConfiguration.longPressTimeoutMillis)
+
+                    // LONG PRESS CONFIRMED
+                    hapticFeedback.performHapticFeedback(
+                        HapticFeedbackType.LongPress
+                    )
+                    descriptionContent.value =
+                        buttonDescription
+
+
+                }
+                val drag =
+                    awaitTouchSlopOrCancellation(down.id) { change, _ ->
+                        if (longPressJob.isActive) {
+                            longPressJob.cancel()
+                        }
+                        change.consume()
+                    }
+
+
+
+                if (!(longPressJob.isCompleted && !longPressJob.isCancelled)) {
+                    if (drag == null) {
+                        if (longPressJob.isActive) {
+                            longPressJob.cancel()
+                            // This was a tap
+                            onTap()
+
+                        }
+                    }
+                }
+
+
+                descriptionContent.value = ""
+            }
+        }
 )
 
 fun formatTimeRemaining(millis: Long): String {

@@ -7,9 +7,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -48,11 +45,9 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.hapticfeedback.HapticFeedback
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
@@ -60,13 +55,11 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import marcinlowercase.a.R
 import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.OptionItem
+import marcinlowercase.a.core.function.buttonPointerInput
 import kotlin.collections.chunked
 import kotlin.collections.forEach
 import kotlin.math.roundToInt
@@ -583,52 +576,14 @@ fun SettingsPanel(
                                                 browserSettings.cornerRadiusForLayer(2).dp
                                             )
                                         )
-                                        .pointerInput(Unit) {
-                                            // 1. CAPTURE the CoroutineScope provided by pointerInput
-                                            val coroutineScope = CoroutineScope(
-                                                currentCoroutineContext()
-                                            )
-                                            awaitEachGesture {
-                                                val down = awaitFirstDown(requireUnconsumed = false)
+                                        .buttonPointerInput(
+                                            onTap = option.onClick,
+                                            hapticFeedback = hapticFeedback,
+                                            buttonDescription = option.contentDescription,
+                                            descriptionContent = descriptionContent,
 
-                                                // 2. USE the captured scope to launch the long press job
-                                                val longPressJob = coroutineScope.launch {
-                                                    delay(viewConfiguration.longPressTimeoutMillis)
-
-                                                    // LONG PRESS CONFIRMED
-                                                    hapticFeedback.performHapticFeedback(
-                                                        HapticFeedbackType.LongPress
-                                                    )
-                                                    descriptionContent.value =
-                                                        option.contentDescription
-
-
-                                                }
-                                                val drag =
-                                                    awaitTouchSlopOrCancellation(down.id) { change, _ ->
-                                                        if (longPressJob.isActive) {
-                                                            longPressJob.cancel()
-                                                        }
-                                                        change.consume()
-                                                    }
-
-
-
-                                                if (!(longPressJob.isCompleted && !longPressJob.isCancelled)) {
-                                                    if (drag == null) {
-                                                        if (longPressJob.isActive) {
-                                                            longPressJob.cancel()
-                                                            // This was a tap
-                                                            option.onClick()
-
-                                                        }
-                                                    }
-                                                }
-
-
-                                                descriptionContent.value = ""
-                                            }
-                                        },
+                                        )
+                                    ,
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
