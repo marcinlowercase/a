@@ -257,7 +257,7 @@ fun TabsPanel(
                 modifier = modifier
                     .fillMaxWidth(),
                 // We use a smaller content padding so the active tab is larger
-                contentPadding = PaddingValues(horizontal = 32.dp),
+                contentPadding = PaddingValues(horizontal = browserSettings.padding.dp * 4),
                 pageSpacing = browserSettings.padding.dp / 2
             ) { pageIndex ->
 
