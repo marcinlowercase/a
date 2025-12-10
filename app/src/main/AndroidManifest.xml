@@ -36,7 +36,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.A"
-        android:usesCleartextTraffic="true"
+        android:usesCleartextTraffic="false"
         >
         <activity
             android:name=".MainActivity"
