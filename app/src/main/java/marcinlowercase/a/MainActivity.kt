@@ -1311,7 +1311,7 @@ fun BrowserScreen(
                 withContext(Dispatchers.IO) {
                     val encodedQuery = URLEncoder.encode(query, "UTF-8")
                     val url =
-                        "http://suggestqueries.google.com/complete/search?client=chrome&ie=UTF-8&oe=UTF-8&q=$encodedQuery"
+                        "https://suggestqueries.google.com/complete/search?client=chrome&ie=UTF-8&oe=UTF-8&q=$encodedQuery"
                     val result = URL(url).readText(Charsets.UTF_8)
 
                     val jsonArray = JSONArray(result)
