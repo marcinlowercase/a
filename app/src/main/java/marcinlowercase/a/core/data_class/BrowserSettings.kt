@@ -1,5 +1,6 @@
 package marcinlowercase.a.core.data_class
 
+import marcinlowercase.a.core.enum_class.SearchEngine
 import kotlin.math.roundToInt
 
 data class BrowserSettings(
@@ -24,6 +25,7 @@ data class BrowserSettings(
     val backSquareOffsetY: Float = 0f,
     val backSquareIdleOpacity: Float = 0.2f,
     val maxListHeight: Float = 2.5f,
+    val searchEngine: Int = 0,
 ) {
     fun cornerRadiusForLayer(layer: Int): Float {
         if (layer == 0) return deviceCornerRadius

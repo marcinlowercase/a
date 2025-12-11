@@ -36,7 +36,7 @@ class CustomApplication : Application() {
             .build()
 
         val imageLoader = ImageLoader.Builder(this)
-            .okHttpClient(okHttpClient)
+//            .okHttpClient(okHttpClient)
             .components {
                 add(SvgDecoder.Factory())
                 add(BitmapFactoryDecoder.Factory())

@@ -85,6 +85,7 @@ import marcinlowercase.a.core.data_class.Suggestion
 import marcinlowercase.a.core.data_class.Tab
 import marcinlowercase.a.core.enum_class.BottomPanelMode
 import marcinlowercase.a.core.enum_class.GestureNavAction
+import marcinlowercase.a.core.enum_class.SearchEngine
 import marcinlowercase.a.core.enum_class.SuggestionSource
 import marcinlowercase.a.core.function.buttonSettingsForLayer
 import marcinlowercase.a.core.function.toDomain
@@ -709,17 +710,7 @@ fun BottomPanel(
                                                 setIsUrlOverlayBoxVisible(true)
                                             }
                                         }
-//                                        .pointerInput(Unit) {
-//                                            detectHorizontalDragGestures { _, dragAmount ->
-//                                                if (dragAmount > 0) {
-//                                                    val resetUrl =
-//                                                        activeWebView?.url ?: ""
-//                                                    textFieldState.setTextAndPlaceCursorAtEnd(
-//                                                        resetUrl.toDomain()
-//                                                    )
-//                                                }
-//                                            }
-//                                        }
+//
 
                                         .clip(
                                             RoundedCornerShape(
@@ -759,11 +750,11 @@ fun BottomPanel(
                                             } else {
                                                 activeWebView?.reload()
                                             }
-
-
-                                            textFieldState.setTextAndPlaceCursorAtEnd(resetUrl.toDomain())
                                             focusManager.clearFocus()
                                             keyboardController?.hide()
+
+                                            textFieldState.setTextAndPlaceCursorAtEnd(resetUrl.toDomain())
+
                                             setIsFocusOnTextField(false)
 
                                             return@TextField
@@ -804,7 +795,10 @@ fun BottomPanel(
                                                         input,
                                                         StandardCharsets.UTF_8.toString()
                                                     )
-                                                "https://www.google.com/search?q=$encodedQuery"
+//                                                "https://www.google.com/search?q=$encodedQuery"
+//                                                "https://duckduckgo.com/?q=$encodedQuery"
+//                                                "https://www.bing.com/search?q=$encodedQuery"
+                                                SearchEngine.entries[browserSettings.searchEngine].getSearchUrl(encodedQuery)
                                             }
 
                                             onNewUrl(finalUrl)
@@ -979,8 +973,12 @@ fun BottomPanel(
                                                         if (longPressJob.isActive) {
                                                             longPressJob.cancel()
                                                             // This was a tap
-                                                            urlBarFocusRequester.requestFocus()
-                                                            if (urlBarFocusRequester.captureFocus()) keyboardController?.show()
+
+                                                            if (urlBarFocusRequester.requestFocus()) {
+                                                                keyboardController?.show()
+                                                            } else {
+                                                                urlBarFocusRequester.requestFocus()
+                                                            }
                                                             setIsUrlOverlayBoxVisible(false)
                                                         }
                                                     }

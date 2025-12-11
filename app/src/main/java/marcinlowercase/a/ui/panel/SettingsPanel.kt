@@ -1,5 +1,6 @@
 package marcinlowercase.a.ui.panel
 
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
@@ -57,6 +58,7 @@ import kotlinx.coroutines.delay
 import marcinlowercase.a.R
 import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.OptionItem
+import marcinlowercase.a.core.enum_class.SearchEngine
 import marcinlowercase.a.ui.component.CustomIconButton
 import kotlin.collections.chunked
 import kotlin.collections.forEach
@@ -74,6 +76,7 @@ enum class SettingPanelView {
     INFO,
     CLOSED_TAB_HISTORY_SIZE,
     MAX_LIST_HEIGHT,
+    SEARCH_ENGINE,
 
 }
 
@@ -85,6 +88,9 @@ fun SliderSetting(
     steps: Int,
     onBackClick: () -> Unit,
     textFieldValueFun: (String) -> String,
+    storeValueFun: (String) -> Float = {digits ->
+        textFieldValueFun(digits).toFloatOrNull() ?: 0f
+    },
     afterDecimal: Boolean = true,
     iconID: Int,
     digitCount: Int = 4,
@@ -103,6 +109,8 @@ fun SliderSetting(
         )
     }
 
+    Log.e("chungtacuahientai", "SliderSetting: $digits")
+
     // 1. The raw digits are the single source of truth.
     // Initialize it from the global browserSettings.
 
@@ -111,7 +119,7 @@ fun SliderSetting(
 
 
     val commitTextFieldValue = {
-        val parsedValue = (textFieldValueFun(digits).toFloatOrNull() ?: 0f)
+        val parsedValue = storeValueFun(digits)
         val coercedValue = parsedValue.coerceIn(valueRange)
 
         // Update the global settings with the coerced value.
@@ -478,6 +486,9 @@ fun SettingsPanel(
             OptionItem(R.drawable.ic_padding, "padding") {
                 currentView = SettingPanelView.PADDING
             },
+            OptionItem(R.drawable.ic_search, "search engine") {
+                currentView = SettingPanelView.SEARCH_ENGINE
+            },
             OptionItem(R.drawable.ic_cursor_size, "cursor size") {
                 currentView = SettingPanelView.CURSOR_CONTAINER_SIZE
             },
@@ -686,6 +697,7 @@ fun SettingsPanel(
                         textFieldValueFun = { src ->
                             src[1] + "." + src.substring(2, 4)
                         },
+                        afterDecimal = true,
                         iconID = R.drawable.ic_cursor_speed,
                         digitCount = 4,
                     )
@@ -780,6 +792,32 @@ fun SettingsPanel(
                         afterDecimal = true
                     )
                 }
+                SettingPanelView.SEARCH_ENGINE -> {
+                    SliderSetting(
+                        browserSettings = browserSettings,
+                        updateBrowserSettingsForSpecificValue = { newValue ->
+                            updateBrowserSettings(
+                                browserSettings.copy(searchEngine = newValue.toInt())
+                            )
+                        },
+                        onBackClick = {  currentView = SettingPanelView.MAIN },
+                        valueRange = 0f..SearchEngine.entries.lastIndex.toFloat(),
+                        steps = SearchEngine.entries.lastIndex - 1,
+                        currentSettingOriginalValue = browserSettings.searchEngine.toFloat(),
+
+                        textFieldValueFun = { src ->
+//                            src.take(2) + "." + src.substring(2, 4)
+                            SearchEngine.entries[src[1].digitToInt()].title
+                        },
+                        storeValueFun = { src ->
+                            src[1].digitToInt().toFloat()
+                        },
+                        iconID = R.drawable.ic_search,
+                        digitCount = 4,
+                        afterDecimal = true
+                    )
+                }
+
             }
 
         }

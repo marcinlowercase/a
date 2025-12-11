@@ -156,6 +156,7 @@ import marcinlowercase.a.core.data_class.App
 import marcinlowercase.a.core.enum_class.BottomPanelMode
 import marcinlowercase.a.core.enum_class.DownloadStatus
 import marcinlowercase.a.core.enum_class.GestureNavAction
+import marcinlowercase.a.core.enum_class.SearchEngine
 import marcinlowercase.a.core.enum_class.SuggestionSource
 import marcinlowercase.a.core.enum_class.TabState
 import marcinlowercase.a.core.function.createNotificationChannel
@@ -328,6 +329,7 @@ fun BrowserScreen(
                 backSquareOffsetY = sharedPrefs.getFloat("back_square_offset_y", -1f),
                 backSquareIdleOpacity = sharedPrefs.getFloat("back_square_idle_opacity", 0.2f),
                 maxListHeight = sharedPrefs.getFloat("max_list_height", 2.5f),
+                searchEngine = sharedPrefs.getInt("search_engine", SearchEngine.GOOGLE.ordinal),
             )
         )
     }
@@ -578,6 +580,10 @@ fun BrowserScreen(
 
 
     var initialSettingPanelView by remember { mutableStateOf(SettingPanelView.MAIN) }
+
+
+//    val currentSearchEngine = remember { mutableStateOf(SearchEngine.GOOGLE) }
+
 
     //endregion
 
@@ -1310,8 +1316,11 @@ fun BrowserScreen(
             try {
                 withContext(Dispatchers.IO) {
                     val encodedQuery = URLEncoder.encode(query, "UTF-8")
-                    val url =
-                        "https://suggestqueries.google.com/complete/search?client=chrome&ie=UTF-8&oe=UTF-8&q=$encodedQuery"
+//                    val url = currentSearchEngine.value.getSuggestionUrl(encodedQuery)
+                    val url = SearchEngine.entries[browserSettings.searchEngine].getSuggestionUrl(encodedQuery)
+//                        "https://suggestqueries.google.com/complete/search?client=chrome&ie=UTF-8&oe=UTF-8&q=$encodedQuery"
+//                        "https://duckduckgo.com/ac/?type=list&q=$encodedQuery"
+//                        "https://api.bing.com/osjson.aspx?query=$encodedQuery"
                     val result = URL(url).readText(Charsets.UTF_8)
 
                     val jsonArray = JSONArray(result)
@@ -1322,12 +1331,21 @@ fun BrowserScreen(
                     googleSuggestions.forEach { suggestionText ->
                         // Add Google suggestion only if it's not already in our history list
                         if (!addedHistoryUrls.contains(suggestionText)) {
-                            val searchUrl = "https://www.google.com/search?q=${
+//                            val searchUrl = "https://www.google.com/search?q=${
+//                            val searchUrl = "https://duckduckgo.com/?q=${
+//                            val searchUrl = "https://www.bing.com/search?q=${
+//                            val searchUrl = "https://www.bing.com/search?q=${
+//                                URLEncoder.encode(
+//                                    suggestionText,
+//                                    "UTF-8"
+//                                )
+//                            }"
+                            val searchUrl = SearchEngine.entries[browserSettings.searchEngine].getSearchUrl(
                                 URLEncoder.encode(
-                                    suggestionText,
-                                    "UTF-8"
+                                suggestionText,
+                                "UTF-8"
                                 )
-                            }"
+                            )
                             finalSuggestions.add(
                                 Suggestion(
                                     text = suggestionText,
@@ -2000,6 +2018,7 @@ fun BrowserScreen(
             putFloat("back_square_offset_y", browserSettings.backSquareOffsetY)
             putFloat("back_square_idle_opacity", browserSettings.backSquareIdleOpacity)
             putFloat("max_list_height", browserSettings.maxListHeight)
+            putInt("search_engine", browserSettings.searchEngine)
 
 
         }
@@ -2232,6 +2251,7 @@ fun BrowserScreen(
 
 
                 BottomPanel(
+
                     initialSettingPanelView = initialSettingPanelView,
                     appManager = appManager,
                     inspectingAppId = inspectingAppId,
