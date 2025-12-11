@@ -1,6 +1,5 @@
 package marcinlowercase.a.core.data_class
 
-import marcinlowercase.a.core.enum_class.SearchEngine
 import kotlin.math.roundToInt
 
 data class BrowserSettings(
