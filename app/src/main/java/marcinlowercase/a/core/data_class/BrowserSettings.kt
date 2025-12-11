@@ -32,17 +32,21 @@ data class BrowserSettings(
     }
 
     fun heightForLayer(layer: Int): Float {
-        return if (deviceCornerRadius > singleLineHeight) {
+
+        return if ((cornerRadiusForLayer(layer) * 2f) > minHeightForLayer(layer)) {
             cornerRadiusForLayer(layer) * 2f
         } else {
-            cornerRadiusForLayer(layer, maxRadius = 50f) * 2f
+            minHeightForLayer(layer)
         }
     }
-
-    private fun cornerRadiusForLayer(layer: Int, maxRadius: Float): Float {
-        if (layer == 0) return maxRadius
-        return (cornerRadiusForLayer(layer - 1, maxRadius) - padding).coerceAtLeast(0f)
+    fun minHeightForLayer(layer: Int) : Float {
+        return singleLineHeight - (padding * layer* 2)
     }
+
+//    private fun cornerRadiusForLayer(layer: Int, maxRadius: Float): Float {
+//        if (layer == 0) return maxRadius
+//        return (cornerRadiusForLayer(layer - 1, maxRadius) - padding).coerceAtLeast(0f)
+//    }
 
     fun animationSpeedForLayer(layer: Int): Int {
         val adjusted = animationSpeed - 50f * layer

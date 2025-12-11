@@ -1,6 +1,5 @@
 package marcinlowercase.a.ui.panel
 
-import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
@@ -77,6 +76,7 @@ enum class SettingPanelView {
     CLOSED_TAB_HISTORY_SIZE,
     MAX_LIST_HEIGHT,
     SEARCH_ENGINE,
+    SINGLE_LINE_HEIGHT
 
 }
 
@@ -109,7 +109,6 @@ fun SliderSetting(
         )
     }
 
-    Log.e("chungtacuahientai", "SliderSetting: $digits")
 
     // 1. The raw digits are the single source of truth.
     // Initialize it from the global browserSettings.
@@ -479,15 +478,20 @@ fun SettingsPanel(
             OptionItem(R.drawable.ic_link, "default url") {
                 currentView = SettingPanelView.DEFAULT_URL
             },
-            OptionItem(R.drawable.ic_animation, "animation speed") {
-                currentView = SettingPanelView.ANIMATION_SPEED
 
-            },
             OptionItem(R.drawable.ic_padding, "padding") {
                 currentView = SettingPanelView.PADDING
             },
             OptionItem(R.drawable.ic_search, "search engine") {
                 currentView = SettingPanelView.SEARCH_ENGINE
+            },
+            OptionItem(R.drawable.ic_expand, "min height") {
+                currentView = SettingPanelView.SINGLE_LINE_HEIGHT
+
+            },
+            OptionItem(R.drawable.ic_animation, "animation speed") {
+                currentView = SettingPanelView.ANIMATION_SPEED
+
             },
             OptionItem(R.drawable.ic_cursor_size, "cursor size") {
                 currentView = SettingPanelView.CURSOR_CONTAINER_SIZE
@@ -501,7 +505,7 @@ fun SettingsPanel(
             OptionItem(R.drawable.ic_opacity, "back square idle opacity") {
                 currentView = SettingPanelView.BACK_SQUARE_OPACITY
             },
-            OptionItem(R.drawable.ic_expand, "max list height") {
+            OptionItem(R.drawable.ic_max_list_height, "max list height") {
                 currentView = SettingPanelView.MAX_LIST_HEIGHT
             },
 
@@ -632,6 +636,27 @@ fun SettingsPanel(
                         },
                         afterDecimal = false,
                         iconID = R.drawable.ic_animation
+                    )
+                }
+                SettingPanelView.SINGLE_LINE_HEIGHT -> {
+
+                    SliderSetting(
+                        browserSettings = browserSettings,
+                        updateBrowserSettingsForSpecificValue = { newValue ->
+
+                            updateBrowserSettings(
+                                browserSettings.copy(singleLineHeight = newValue)
+                            )
+                        },
+                        onBackClick = { if (!browserSettings.isFirstAppLoad) currentView = SettingPanelView.MAIN else setIsSettingsPanelVisible(false) },
+                        valueRange = 65f..140f,
+                        steps = 74,
+                        currentSettingOriginalValue = browserSettings.singleLineHeight,
+                        textFieldValueFun = { src ->
+                            src
+                        },
+                        afterDecimal = false,
+                        iconID = R.drawable.ic_expand
                     )
                 }
 
@@ -787,7 +812,7 @@ fun SettingsPanel(
                         textFieldValueFun = { src ->
                             src.take(2) + "." + src.substring(2, 4)
                         },
-                        iconID = R.drawable.ic_expand,
+                        iconID = R.drawable.ic_max_list_height,
                         digitCount = 4,
                         afterDecimal = true
                     )
