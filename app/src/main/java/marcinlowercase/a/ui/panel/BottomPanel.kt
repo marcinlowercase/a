@@ -1,7 +1,6 @@
 package marcinlowercase.a.ui.panel
 
 import android.content.ClipData
-import android.util.Log
 import android.util.Patterns
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.compose.animation.AnimatedVisibility
