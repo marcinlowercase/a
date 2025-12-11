@@ -1,6 +1,7 @@
 package marcinlowercase.a.ui.panel
 
 import android.content.ClipData
+import android.util.Log
 import android.util.Patterns
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.compose.animation.AnimatedVisibility
@@ -948,19 +949,7 @@ fun BottomPanel(
                                                             horizontalDragAccumulator += change.position.x - change.previousPosition.x
                                                             verticalDragAccumulator += change.position.y - change.previousPosition.y
 
-
-//                                                            coroutineScope.launch {
-//                                                                bottomPanelPagerState.scrollBy(change.position.x)
-//                                                            }
-
                                                             when {
-//                                                                horizontalDragAccumulator < -horizontalDragThreshold -> { // left
-//
-//                                                                }
-//
-//                                                                horizontalDragAccumulator > horizontalDragThreshold -> { // right
-//
-//                                                                }
                                                                 abs(horizontalDragAccumulator) > abs(
                                                                     verticalDragAccumulator
                                                                 ) -> {
@@ -983,16 +972,6 @@ fun BottomPanel(
                                                                 else -> {// nothing
                                                                 }
                                                             }
-
-
-//                                                if (newAction != previousAction) {
-//                                                    hapticFeedback.performHapticFeedback(
-//                                                        HapticFeedbackType.TextHandleMove
-//                                                    )
-//                                                    previousAction = newAction
-//                                                }
-//                                                //                                                    activeNavAction = newAction
-//                                                setActiveNavAction(newAction)
                                                         }
 
 
@@ -1002,6 +981,7 @@ fun BottomPanel(
                                                             longPressJob.cancel()
                                                             // This was a tap
                                                             urlBarFocusRequester.requestFocus()
+                                                            if (urlBarFocusRequester.captureFocus()) keyboardController?.show()
                                                             setIsUrlOverlayBoxVisible(false)
                                                         }
                                                     }
