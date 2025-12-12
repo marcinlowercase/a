@@ -16,8 +16,8 @@ android {
         applicationId = "marcinlowercase.a"
         minSdk = 29
         targetSdk = 36
-        versionCode = 12
-        versionName = "zero[12]"
+        versionCode = 13
+        versionName = "zero[13]"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
