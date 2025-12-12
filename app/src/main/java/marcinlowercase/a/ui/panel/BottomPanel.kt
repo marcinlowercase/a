@@ -44,8 +44,6 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -204,9 +202,9 @@ fun BottomPanel(
     setTextFieldHeightPx: (Int) -> Unit = {},
     setIsFocusOnTextField: (Boolean) -> Unit = {},
     inspectingAppId: MutableState<Long>,
+    isPinningApp: MutableState<Boolean>,
 ) {
 
-    val isPinningApp = remember { mutableStateOf(false) }
 
     AnimatedVisibility(
         modifier = modifier,

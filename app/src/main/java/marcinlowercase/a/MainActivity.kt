@@ -583,6 +583,7 @@ fun BrowserScreen(
 
 
 //    val currentSearchEngine = remember { mutableStateOf(SearchEngine.GOOGLE) }
+    val isPinningApp = remember { mutableStateOf(false) }
 
 
     //endregion
@@ -1256,7 +1257,7 @@ fun BrowserScreen(
 
     LaunchedEffect(textFieldState.text, isFocusOnTextField) {
 
-        if (!browserSettings.showSuggestions || (textFieldState.text as String) == activeWebView?.url || textFieldState.text.isBlank()) {
+        if (!browserSettings.showSuggestions || (textFieldState.text as String ) == activeWebView?.url || textFieldState.text.isBlank() || isPinningApp.value) {
             suggestions.clear()
             return@LaunchedEffect
         }
@@ -2251,6 +2252,7 @@ fun BrowserScreen(
 
 
                 BottomPanel(
+                    isPinningApp = isPinningApp,
 
                     initialSettingPanelView = initialSettingPanelView,
                     appManager = appManager,
