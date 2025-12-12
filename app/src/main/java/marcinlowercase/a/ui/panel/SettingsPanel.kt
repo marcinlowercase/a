@@ -451,7 +451,7 @@ fun SettingsPanel(
         if (currentView == SettingPanelView.CORNER_RADIUS) {
             backgroundColor.value = Color.Red
         } else {
-            backgroundColor.value = Color.Transparent
+            backgroundColor.value = Color.Black
         }
 
     }

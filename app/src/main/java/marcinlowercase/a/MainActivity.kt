@@ -1158,7 +1158,7 @@ fun BrowserScreen(
 
 
     val lastPollData = remember { mutableMapOf<Long, PollData>() }
-    val backgroundColor = remember { mutableStateOf(Color.Transparent) }
+    val backgroundColor = remember { mutableStateOf(Color.Black) }
 
 
     //endregion
@@ -1379,7 +1379,7 @@ fun BrowserScreen(
 
     LaunchedEffect(isSettingsPanelVisible) {
         if (!isSettingsPanelVisible) {
-            backgroundColor.value = Color.Transparent
+            backgroundColor.value = Color.Black
         }
     }
 
@@ -2856,7 +2856,7 @@ fun LoadingIndicator(
                     .size(browserSettings.heightForLayer(1).dp),
                 // Use a contrasting color that works well on the dark scrim.
                 color = Color.White,
-                strokeWidth = browserSettings.heightForLayer(1).dp / 8
+                strokeWidth = browserSettings.padding.dp
             )
         }
     }
