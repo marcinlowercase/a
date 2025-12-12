@@ -813,7 +813,7 @@ fun BrowserScreen(
 
     val handleClearInspectedTabData = {
         confirmationPopup(
-            message = "clear tab data ?",
+            message = "clear site data ?",
             onConfirm = {
                 val inspectingTab = currentInspectingTab
                 val inspectingWebView =
@@ -831,7 +831,7 @@ fun BrowserScreen(
                         val webView = webViewManager.getWebView(inspectingTab)
                         CookieManager.getInstance().removeAllCookies(null)
                         CookieManager.getInstance().flush()
-                        WebStorage.getInstance().deleteAllData()
+                        WebStorage.getInstance().deleteOrigin(webView.url)
                         webView.clearCache(true)
                         webView.reload()
                     }
