@@ -306,7 +306,7 @@ fun BrowserScreen(
                 defaultUrl = sharedPrefs.getString("default_url", default_url)
                     ?: default_url,
                 animationSpeed = sharedPrefs.getFloat("animation_speed", 300f),
-                singleLineHeight = sharedPrefs.getFloat("single_line_height", 50f),
+                singleLineHeight = sharedPrefs.getFloat("single_line_height", 100f),
 //                isDesktopMode = sharedPrefs.getBoolean("is_desktop_mode", false),
 //                desktopModeWidth = sharedPrefs.getInt("desktop_mode_width", 820),
                 isSharpMode = sharedPrefs.getBoolean("is_sharp_mode", false),
@@ -946,7 +946,7 @@ fun BrowserScreen(
                 deviceCornerRadius = pixel_9_corner_radius,
                 defaultUrl = default_url,
                 animationSpeed = 300f,
-                singleLineHeight = 50f,
+                singleLineHeight = 100f,
                 isSharpMode = false,
                 cursorContainerSize = 50f,
                 cursorPointerSize = 5f,
