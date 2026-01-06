@@ -24,7 +24,7 @@ import marcinlowercase.a.ui.component.CustomIconButton
 @Composable
 fun TextEditPanel(
     isVisible: Boolean,
-    browserSettings: BrowserSettings,
+    browserSettings: MutableState<BrowserSettings>,
     onCopyClick: () -> Unit,
     onEditClick: () -> Unit,
     isPinningApp: MutableState<Boolean>,
@@ -36,30 +36,30 @@ fun TextEditPanel(
         visible = isVisible,
         enter = expandVertically(
             animationSpec = tween(
-                browserSettings.animationSpeedForLayer(2)
+                browserSettings.value.animationSpeedForLayer(2)
             )
         ) +
-                fadeIn(tween(browserSettings.animationSpeedForLayer(2))),
+                fadeIn(tween(browserSettings.value.animationSpeedForLayer(2))),
         exit = shrinkVertically(
             animationSpec = tween(
-                browserSettings.animationSpeedForLayer(2)
+                browserSettings.value.animationSpeedForLayer(2)
             )
         ) +
-                fadeOut(tween(browserSettings.animationSpeedForLayer(2)))
+                fadeOut(tween(browserSettings.value.animationSpeedForLayer(2)))
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = browserSettings.padding.dp)
-                .padding(bottom = browserSettings.padding.dp)
+                .padding(horizontal = browserSettings.value.padding.dp)
+                .padding(bottom = browserSettings.value.padding.dp)
                 .background(
                     color = Color.Black,
                     shape = RoundedCornerShape(
-                        browserSettings.cornerRadiusForLayer(3).dp
+                        browserSettings.value.cornerRadiusForLayer(3).dp
                     )
                 )
-                .padding(browserSettings.padding.dp),
-            horizontalArrangement = Arrangement.spacedBy(browserSettings.padding.dp)
+                .padding(browserSettings.value.padding.dp),
+            horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
         ) {
             // Dismiss
             CustomIconButton(

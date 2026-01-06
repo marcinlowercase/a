@@ -1,13 +1,8 @@
 package marcinlowercase.a.ui.panel
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
+import android.annotation.SuppressLint
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.AnchoredDraggableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -22,19 +17,26 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Job
 import marcinlowercase.a.R
 import marcinlowercase.a.core.custom_class.CustomWebView
 import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.OptionItem
+import marcinlowercase.a.core.enum_class.RevealState
 import marcinlowercase.a.ui.component.CustomIconButton
 import kotlin.collections.chunked
 import kotlin.collections.forEach
+import kotlin.math.roundToInt
 
+@SuppressLint("SuspiciousIndentation")
 @Composable
 fun OptionsPanel(
+    draggableState: AnchoredDraggableState<RevealState>,
+
     isPinningApp: MutableState<Boolean>,
     bottomPanelPagerState: PagerState,
     onCloseAllTabs: () -> Unit,
@@ -42,17 +44,13 @@ fun OptionsPanel(
     isFindInPageVisible: MutableState<Boolean>,
     descriptionContent: MutableState<String>,
     reopenClosedTab: () -> Unit,
-    setIsSettingsPanelVisible: (Boolean) -> Unit,
-    isSettingsPanelVisible: Boolean,
-    setIsDownloadPanelVisible: (Boolean) -> Unit,
-
-    isOptionsPanelVisible: Boolean = false,
-    setIsOptionsPanelVisible: (Boolean) -> Unit = {},
+    isSettingsPanelVisible: MutableState<Boolean>,
+    setIsOptionsPanelVisible: (Boolean) -> Job,
     toggleIsTabsPanelVisible: () -> Unit,
     updateBrowserSettings: (BrowserSettings) -> Unit,
-    browserSettings: BrowserSettings,
+    browserSettings: MutableState<BrowserSettings>,
     tabsPanelLock: Boolean,
-    isDownloadPanelVisible: Boolean,
+    isDownloadPanelVisible: MutableState<Boolean>,
     isCursorPadVisible: Boolean,
     isCursorMode: Boolean,
     setIsCursorMode: (Boolean) -> Unit,
@@ -63,16 +61,16 @@ fun OptionsPanel(
     // This remains the same
     val allOptions =
         remember(
-            browserSettings,
+            browserSettings.value,
             tabsPanelLock,
             isDownloadPanelVisible,
             isCursorPadVisible,
             isSettingsPanelVisible,
             activeWebView,
-            browserSettings.showSuggestions,
             bottomPanelPagerState,
             isPinningApp.value,
-            isFindInPageVisible.value
+            isFindInPageVisible.value,
+            draggableState.currentValue
 
         ) {
             listOf(
@@ -87,11 +85,11 @@ fun OptionsPanel(
                 },
 
 //                OptionItem(
-//                    if (browserSettings.isDesktopMode) R.drawable.ic_mobile else R.drawable.ic_desktop,
+//                    if (browserSettings.value.isDesktopMode) R.drawable.ic_mobile else R.drawable.ic_desktop,
 //                    "Desktop layout",
-//                    browserSettings.isDesktopMode
+//                    browserSettings.value.isDesktopMode
 //                ) {
-//                    updateBrowserSettings(browserSettings.copy(isDesktopMode = !browserSettings.isDesktopMode))
+//                    updateBrowserSettings(browserSettings.value.copy(isDesktopMode = !browserSettings.value.isDesktopMode))
 //                },
                 OptionItem(
                     R.drawable.ic_tabs, // You'll need an icon for this
@@ -103,11 +101,11 @@ fun OptionsPanel(
 
                 },
                 OptionItem(
-                    if (browserSettings.isSharpMode) R.drawable.ic_rounded_corner else R.drawable.ic_sharp_corner,
+                    if (browserSettings.value.isSharpMode) R.drawable.ic_rounded_corner else R.drawable.ic_sharp_corner,
                     "sharp mode",
-                    browserSettings.isSharpMode,
+                    browserSettings.value.isSharpMode,
                 ) {
-                    updateBrowserSettings(browserSettings.copy(isSharpMode = !browserSettings.isSharpMode))
+                    browserSettings.value = browserSettings.value.copy(isSharpMode = !browserSettings.value.isSharpMode)
                     setIsOptionsPanelVisible(false)
 
                 },
@@ -141,20 +139,20 @@ fun OptionsPanel(
                 OptionItem(
                     R.drawable.ic_download, // You'll need a download icon
                     "download panel",
-                    isDownloadPanelVisible
+                    isDownloadPanelVisible.value
                 ) {
-                    setIsDownloadPanelVisible(!isDownloadPanelVisible)
+                    isDownloadPanelVisible.value = !isDownloadPanelVisible.value
                     setIsOptionsPanelVisible(false)
                 },
 
                 OptionItem(
                     iconRes = R.drawable.ic_lightbulb, // Or a more specific icon like ic_manage_search
                     contentDescription = "suggestions",
-                    enabled = browserSettings.showSuggestions // The button is "active" when suggestions are on
+                    enabled = browserSettings.value.showSuggestions // The button is "active" when suggestions are on
                 ) {
                     // When clicked, create a new settings object with the toggled value
                     updateBrowserSettings(
-                        browserSettings.copy(showSuggestions = !browserSettings.showSuggestions)
+                        browserSettings.value.copy(showSuggestions = !browserSettings.value.showSuggestions)
                     )
                     setIsOptionsPanelVisible(false)
 
@@ -172,10 +170,11 @@ fun OptionsPanel(
                 OptionItem(
                     R.drawable.ic_settings, // You'll need a settings icon
                     "settings",
-                    isSettingsPanelVisible,
+                    isSettingsPanelVisible.value,
                 ) {
                     // When clicked, show the settings panel and hide this one.
-                    setIsSettingsPanelVisible(!isSettingsPanelVisible)
+                    isSettingsPanelVisible.value = !isSettingsPanelVisible.value
+
                     setIsOptionsPanelVisible(false)
                 },
 
@@ -221,51 +220,51 @@ fun OptionsPanel(
     // The pagerState remembers the current page and handles scroll animations.
     val pagerState = rememberPagerState(pageCount = { optionPages.size })
 
-    AnimatedVisibility(
-        visible = isOptionsPanelVisible,
-        enter = expandVertically(
-            tween(
-                browserSettings.animationSpeedForLayer( 1)
-            )
-        ) + fadeIn(
-            tween(
-                browserSettings.animationSpeedForLayer(1)
-            )
-        ),
-        exit = shrinkVertically(
-            tween(
-                browserSettings.animationSpeedForLayer( 1)
-            )
-        ) + fadeOut(
-            tween(
-                browserSettings.animationSpeedForLayer(1)
-            )
-        )
-    ) {
+//    AnimatedVisibility(
+//        visible = isOptionsPanelVisible,
+//        enter = expandVertically(
+//            tween(
+//                browserSettings.value.animationSpeedForLayer( 1)
+//            )
+//        ) + fadeIn(
+//            tween(
+//                browserSettings.value.animationSpeedForLayer(1)
+//            )
+//        ),
+//        exit = shrinkVertically(
+//            tween(
+//                browserSettings.value.animationSpeedForLayer( 1)
+//            )
+//        ) + fadeOut(
+//            tween(
+//                browserSettings.value.animationSpeedForLayer(1)
+//            )
+//        )
+//    ) {
         Box(
             modifier = Modifier
-                .padding(horizontal = browserSettings.padding.dp)
-                .padding(bottom = browserSettings.padding.dp)
+                .padding(horizontal = browserSettings.value.padding.dp)
+                .padding(bottom = browserSettings.value.padding.dp)
                 .fillMaxWidth()
                 .clip(
                     RoundedCornerShape(
-                        browserSettings.cornerRadiusForLayer(2).dp
+                        browserSettings.value.cornerRadiusForLayer(2).dp
                     )
                 )
-                .pointerInput(Unit) {
-                    detectVerticalDragGestures(
-                        onVerticalDrag = { _, dragAmount ->
-                            // dragAmount is the change in the Y-axis.
-                            // A negative value means the finger has moved UP.
-                            if (dragAmount < 0) {
-                                setIsOptionsPanelVisible(true)
-                            }
-                            // A positive value means the finger has moved DOWN.
-                            else if (dragAmount > 0) {
-                                setIsOptionsPanelVisible(false)
-                            }
-                        })
-                }
+//                .pointerInput(Unit) {
+//                    detectVerticalDragGestures(
+//                        onVerticalDrag = { _, dragAmount ->
+//                            // dragAmount is the change in the Y-axis.
+//                            // A negative value means the finger has moved UP.
+//                            if (dragAmount < 0) {
+//                                setIsOptionsPanelVisible(true)
+//                            }
+//                            // A positive value means the finger has moved DOWN.
+//                            else if (dragAmount > 0) {
+//                                setIsOptionsPanelVisible(false)
+//                            }
+//                        })
+//                }
 
         ) {
 
@@ -282,11 +281,11 @@ fun OptionsPanel(
                         .background(
                             Color.Black.copy(alpha = 0.3f),
                             shape = RoundedCornerShape(
-                                browserSettings.cornerRadiusForLayer(2).dp
+                                browserSettings.value.cornerRadiusForLayer(2).dp
                             )
                         ),
 
-                    horizontalArrangement = Arrangement.spacedBy(browserSettings.padding.dp)
+                    horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
                 ) {
                     // Get the options for the current page
                     val pageOptions = optionPages[pageIndex]
@@ -314,6 +313,29 @@ fun OptionsPanel(
                 }
             }
 
+        }
+//    }
+}
+
+
+@Composable
+fun OptionsPanelWrapper(
+    maxHeight: Float,
+    dragOffset: Float,
+    content: @Composable () -> Unit
+) {
+    val safeOffset = if (dragOffset.isNaN()) 0f else dragOffset
+    val animatedHeight = -safeOffset.coerceIn(-maxHeight, 0f)
+
+    Layout(
+        content = content,
+        modifier = Modifier.clipToBounds()
+    ) { measurables, constraints ->
+        val placeable = measurables.first().measure(constraints)
+        val currentHeight = animatedHeight.roundToInt()
+
+        layout(placeable.width, currentHeight) {
+            placeable.place(0, 0)
         }
     }
 }

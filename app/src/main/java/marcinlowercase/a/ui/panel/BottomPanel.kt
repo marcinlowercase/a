@@ -1,5 +1,6 @@
 package marcinlowercase.a.ui.panel
 
+import android.annotation.SuppressLint
 import android.content.ClipData
 import android.util.Patterns
 import androidx.activity.compose.ManagedActivityResultLauncher
@@ -12,6 +13,10 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.AnchoredDraggableState
+import androidx.compose.foundation.gestures.FlingBehavior
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.anchoredDraggable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
@@ -43,6 +48,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
@@ -63,8 +69,10 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -83,6 +91,7 @@ import marcinlowercase.a.core.data_class.Suggestion
 import marcinlowercase.a.core.data_class.Tab
 import marcinlowercase.a.core.enum_class.BottomPanelMode
 import marcinlowercase.a.core.enum_class.GestureNavAction
+import marcinlowercase.a.core.enum_class.RevealState
 import marcinlowercase.a.core.enum_class.SearchEngine
 import marcinlowercase.a.core.enum_class.SuggestionSource
 import marcinlowercase.a.core.function.buttonSettingsForLayer
@@ -95,8 +104,13 @@ import java.nio.charset.StandardCharsets
 import kotlin.String
 import kotlin.math.abs
 
+@SuppressLint("FrequentlyChangingValue")
 @Composable
 fun BottomPanel(
+    floatingPanelBottomPadding: Dp,
+    optionsPanelHeightPx: Float,
+    draggableState: AnchoredDraggableState<RevealState>,
+    flingBehavior: FlingBehavior,
     initialSettingPanelView: SettingPanelView = SettingPanelView.MAIN,
     appManager: AppManager,
     setIsBottomPanelVisible: (Boolean) -> Unit,
@@ -130,14 +144,13 @@ fun BottomPanel(
     resetBrowserSettings: () -> Unit,
     backgroundColor: MutableState<Color>,
     setIsSettingsPanelVisible: (Boolean) -> Unit,
-    isSettingsPanelVisible: Boolean,
+    isSettingsPanelVisible: MutableState<Boolean>,
 //    setIsSettingsPanelVisible: (Boolean) -> Unit,
     urlBarFocusRequester: FocusRequester,
     isCursorPadVisible: Boolean,
     isCursorMode: Boolean,
     setIsCursorMode: (Boolean) -> Unit,
     setIsTabsPanelVisible: (Boolean) -> Unit,
-    setIsDownloadPanelVisible: (Boolean) -> Unit,
     setIsTabDataPanelVisible: (Boolean) -> Unit,
     savedPanelState: PanelVisibilityState?,
     setSavedPanelState: (PanelVisibilityState?) -> Unit,
@@ -161,7 +174,7 @@ fun BottomPanel(
     onDeleteClicked: (DownloadItem) -> Unit,
     onOpenFolderClicked: () -> Unit,
     onClearAllClicked: () -> Unit,
-    isDownloadPanelVisible: Boolean,
+    isDownloadPanelVisible: MutableState<Boolean>,
     downloads: List<DownloadItem>,
 
     activeWebView: CustomWebView?,
@@ -191,12 +204,12 @@ fun BottomPanel(
     isUrlBarVisible: Boolean,
     isBottomPanelVisible: Boolean,
     isOptionsPanelVisible: Boolean,
-    browserSettings: BrowserSettings,
+    browserSettings: MutableState<BrowserSettings>,
     updateBrowserSettings: (BrowserSettings) -> Unit,
 //    url: String,
     focusManager: FocusManager,
     keyboardController: SoftwareKeyboardController?,
-    setIsOptionsPanelVisible: (Boolean) -> Unit = {},
+    setIsOptionsPanelVisible: (Boolean) -> Job,
     toggleIsTabsPanelVisible: () -> Unit = {},
     onNewUrl: (String) -> Unit = {},
     setTextFieldHeightPx: (Int) -> Unit = {},
@@ -211,13 +224,13 @@ fun BottomPanel(
         visible = isBottomPanelVisible,
         enter = slideInVertically(
             animationSpec = tween(
-                browserSettings.animationSpeedForLayer(0)
+                browserSettings.value.animationSpeedForLayer(0)
             ),
             initialOffsetY = { it }
         ),
         exit = slideOutVertically(
             animationSpec = tween(
-                browserSettings.animationSpeedForLayer(0)
+                browserSettings.value.animationSpeedForLayer(0)
             ),
             targetOffsetY = { it }
         )
@@ -226,17 +239,23 @@ fun BottomPanel(
 
         Column(
             modifier = Modifier
-                .padding(browserSettings.padding.dp)
+                .padding(browserSettings.value.padding.dp)
+                .padding(bottom = floatingPanelBottomPadding)
 
 
                 .clip(
                     RoundedCornerShape(
-                        browserSettings.cornerRadiusForLayer(1).dp
+                        browserSettings.value.cornerRadiusForLayer(1).dp
                     )
                 )
 
                 .background(
                     Color.Black,
+                )
+                .anchoredDraggable(
+                    state = draggableState,
+                    orientation = Orientation.Vertical,
+                    flingBehavior = flingBehavior
                 )
 
         ) {
@@ -256,7 +275,7 @@ fun BottomPanel(
                 visibility = isAppsPanelVisible,
                 browserSettings = browserSettings,
                 onAppClick = { app ->
-                    webViewLoad(activeWebView, app.url, browserSettings)
+                    webViewLoad(activeWebView, app.url, browserSettings.value)
                     if (!isBottomPanelLock.value) {
                         setIsBottomPanelVisible(false)
                         setIsUrlBarVisible(false)
@@ -335,10 +354,9 @@ fun BottomPanel(
                 backgroundColor = backgroundColor,
                 resetBrowserSettings = resetBrowserSettings,
                 confirmationPopup = confirmationPopup,
-                setIsSettingsPanelVisible = setIsSettingsPanelVisible,
                 targetSetting = initialSettingPanelView,
 
-            )
+                )
             TabDataPanel(
                 descriptionContent = descriptionContent,
 //                onAddToHomeScreen = onAddToHomeScreen,
@@ -388,15 +406,14 @@ fun BottomPanel(
             AnimatedVisibility(visible = suggestions.isNotEmpty()) {
                 LazyColumn(
                     modifier = Modifier
-                        .padding(horizontal = browserSettings.padding.dp)
-                        .padding(top = browserSettings.padding.dp)
+                        .padding(horizontal = browserSettings.value.padding.dp)
+                        .padding(top = browserSettings.value.padding.dp)
                         .clip(
                             RoundedCornerShape(
-                                browserSettings.cornerRadiusForLayer(2).dp
+                                browserSettings.value.cornerRadiusForLayer(2).dp
                             )
                         )
-                        .heightIn(max = browserSettings.maxContainerSizeForLayer(3).dp )
-                        , // Prevent the list from being too tall
+                        .heightIn(max = browserSettings.value.maxContainerSizeForLayer(3).dp), // Prevent the list from being too tall
                     reverseLayout = true,
                 ) {
 
@@ -408,22 +425,20 @@ fun BottomPanel(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = browserSettings.padding.dp)
+                                .padding(horizontal = browserSettings.value.padding.dp)
                                 .padding(
-                                    top = browserSettings.padding.dp,
-                                    bottom = if (suggestions.indexOf(suggestion) == 0) browserSettings.padding.dp else 0.dp
+                                    top = browserSettings.value.padding.dp,
+                                    bottom = if (suggestions.indexOf(suggestion) == 0) browserSettings.value.padding.dp else 0.dp
                                 )
-                                .height(browserSettings.heightForLayer(3).dp)
+                                .height(browserSettings.value.heightForLayer(3).dp)
                                 .clip(
                                     RoundedCornerShape(
-                                        browserSettings.cornerRadiusForLayer(3).dp
+                                        browserSettings.value.cornerRadiusForLayer(3).dp
                                     )
                                 )
                                 .clickable { onSuggestionClick(suggestion) }
 
-                                .padding(browserSettings.padding.dp)
-
-                            ,
+                                .padding(browserSettings.value.padding.dp),
                             verticalAlignment = Alignment.CenterVertically // Align icon and text vertically
                         ) {
                             // 2. Add the search Icon
@@ -435,7 +450,7 @@ fun BottomPanel(
                             )
 
                             // 3. Add a Spacer for visual separation
-                            Spacer(modifier = Modifier.width(browserSettings.padding.dp))
+                            Spacer(modifier = Modifier.width(browserSettings.value.padding.dp))
 
                             // 4. Add the Text, which now takes the remaining space
                             Text(
@@ -482,12 +497,12 @@ fun BottomPanel(
                 visible = isUrlBarVisible,
                 enter = fadeIn(
                     tween(
-                        browserSettings.animationSpeedForLayer(1)
+                        browserSettings.value.animationSpeedForLayer(1)
                     )
                 ),
                 exit = fadeOut(
                     tween(
-                        browserSettings.animationSpeedForLayer(1)
+                        browserSettings.value.animationSpeedForLayer(1)
                     )
                 )
             ) {
@@ -498,45 +513,73 @@ fun BottomPanel(
                         .fillMaxWidth()
                         .animateContentSize(),
                     contentPadding = PaddingValues(0.dp),
-                    pageSpacing = browserSettings.padding.dp // Optional spacing
+                    pageSpacing = browserSettings.value.padding.dp // Optional spacing
                 ) { pageIndex ->
 
+                    LaunchedEffect(pageIndex) {
+                        if (pageIndex != BottomPanelMode.SEARCH.ordinal) {
+                            setIsOptionsPanelVisible(false)
+                        }
+                    }
                     when (pageIndex) {
                         // --- LEFT BOX (Page 0) ---
                         BottomPanelMode.APPS.ordinal -> {
                             Column(
                                 modifier = Modifier
                                     .height(
-                                        browserSettings.heightForLayer(1).dp
+                                        browserSettings.value.heightForLayer(1).dp
                                     )
                                     .fillMaxWidth()
-                                    .padding(browserSettings.padding.dp)
-                                    .clip(RoundedCornerShape(browserSettings.cornerRadiusForLayer(1).dp))
+                                    .padding(browserSettings.value.padding.dp)
+                                    .clip(RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(1).dp))
+                                    .pointerInput(Unit) {
+                                        awaitEachGesture {
+                                            val down = awaitFirstDown(requireUnconsumed = false)
+                                            val drag = awaitTouchSlopOrCancellation(down.id) { change, _ ->
+                                                change.consume()
+                                            }
+                                            if (drag != null) {
+                                                var horizontalDragAccumulator = 0f
+                                                var verticalDragAccumulator = 0f
+
+                                                drag(drag.id) { change ->
+
+                                                    horizontalDragAccumulator += change.position.x - change.previousPosition.x
+                                                    verticalDragAccumulator += change.position.y - change.previousPosition.y
+
+                                                    val isVerticalDrag = abs(verticalDragAccumulator) > abs(horizontalDragAccumulator)
+
+                                                    if (isVerticalDrag) change.consume()
+                                                }
+                                            }
+                                        }
+                                    }
                             ) {
 
                                 AnimatedVisibility(
                                     visible = inspectingAppId.value > 0L,
-                                    enter = fadeIn(tween(browserSettings.animationSpeedForLayer(0))),
-                                    exit = fadeOut(tween(browserSettings.animationSpeedForLayer(0))),
+                                    enter = fadeIn(tween(browserSettings.value.animationSpeedForLayer(0))),
+                                    exit = fadeOut(tween(browserSettings.value.animationSpeedForLayer(0))),
                                 ) {
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .clip(
                                                 RoundedCornerShape(
-                                                    browserSettings.cornerRadiusForLayer(
+                                                    browserSettings.value.cornerRadiusForLayer(
                                                         1
                                                     ).dp
                                                 )
                                             )
                                     ) {
 
-                                        val currentIndex = apps.indexOfFirst { it.id == inspectingAppId.value }
+                                        val currentIndex =
+                                            apps.indexOfFirst { it.id == inspectingAppId.value }
                                         Box(
                                             modifier = Modifier
                                                 .buttonSettingsForLayer(
                                                     2,
-                                                    browserSettings,
+                                                    browserSettings.value,
                                                     currentIndex > 0
                                                 )
                                                 .weight(1f)
@@ -544,9 +587,10 @@ fun BottomPanel(
                                                     if (currentIndex > 0) {
                                                         // Swap with the previous item
                                                         val previousItem = apps[currentIndex - 1]
-                                                        apps[currentIndex - 1] = apps[currentIndex].also {
-                                                            apps[currentIndex] = previousItem
-                                                        }
+                                                        apps[currentIndex - 1] =
+                                                            apps[currentIndex].also {
+                                                                apps[currentIndex] = previousItem
+                                                            }
                                                         appManager.saveApps(apps)
                                                     }
                                                 },
@@ -558,13 +602,13 @@ fun BottomPanel(
                                                 tint = Color.Black
                                             )
                                         }
-                                        Spacer(modifier = Modifier.width(browserSettings.padding.dp))
+                                        Spacer(modifier = Modifier.width(browserSettings.value.padding.dp))
 
                                         Box(
                                             modifier = Modifier
                                                 .buttonSettingsForLayer(
                                                     2,
-                                                    browserSettings,
+                                                    browserSettings.value,
                                                     false
                                                 )
                                                 .weight(1f)
@@ -582,12 +626,12 @@ fun BottomPanel(
                                                 tint = Color.White
                                             )
                                         }
-                                        Spacer(modifier = Modifier.width(browserSettings.padding.dp))
+                                        Spacer(modifier = Modifier.width(browserSettings.value.padding.dp))
                                         Box(
                                             modifier = Modifier
                                                 .buttonSettingsForLayer(
                                                     2,
-                                                    browserSettings,
+                                                    browserSettings.value,
                                                     currentIndex < apps.lastIndex && currentIndex >= 0
                                                 )
                                                 .weight(1f)
@@ -596,9 +640,10 @@ fun BottomPanel(
                                                     if (currentIndex < apps.lastIndex) {
                                                         // Swap with the previous item
                                                         val nextItem = apps[currentIndex + 1]
-                                                        apps[currentIndex + 1] = apps[currentIndex].also {
-                                                            apps[currentIndex] = nextItem
-                                                        }
+                                                        apps[currentIndex + 1] =
+                                                            apps[currentIndex].also {
+                                                                apps[currentIndex] = nextItem
+                                                            }
                                                         appManager.saveApps(apps)
                                                     }
                                                 },
@@ -615,18 +660,18 @@ fun BottomPanel(
 
                                 AnimatedVisibility(
                                     visible = inspectingAppId.value == 0L,
-                                    enter = fadeIn(tween(browserSettings.animationSpeedForLayer(0))),
-                                    exit = fadeOut(tween(browserSettings.animationSpeedForLayer(0))),
+                                    enter = fadeIn(tween(browserSettings.value.animationSpeedForLayer(0))),
+                                    exit = fadeOut(tween(browserSettings.value.animationSpeedForLayer(0))),
                                 ) {
                                     Box(
                                         modifier = Modifier
                                             .height(
-                                                browserSettings.heightForLayer(1).dp
+                                                browserSettings.value.heightForLayer(1).dp
                                             )
                                             .fillMaxWidth()
                                             .clip(
                                                 RoundedCornerShape(
-                                                    browserSettings.cornerRadiusForLayer(
+                                                    browserSettings.value.cornerRadiusForLayer(
                                                         1
                                                     ).dp
                                                 )
@@ -655,15 +700,15 @@ fun BottomPanel(
                                 TextField(
                                     modifier = Modifier
                                         .height(
-                                            browserSettings.heightForLayer(1).dp
+                                            browserSettings.value.heightForLayer(1).dp
                                         )
-                                        .padding(browserSettings.padding.dp)
+                                        .padding(browserSettings.value.padding.dp)
                                         .onSizeChanged { size ->
                                             setTextFieldHeightPx(size.height)
                                         }
                                         .fillMaxWidth()
                                         .focusRequester(urlBarFocusRequester)
-                                        //                            .padding(horizontal = browserSettings.padding.dp, vertical = browserSettings.padding.dp / 2)
+                                        //                            .padding(horizontal = browserSettings.value.padding.dp, vertical = browserSettings.value.padding.dp / 2)
                                         .onFocusChanged {
                                             val resetUrl = activeWebView?.url ?: ""
                                             setIsFocusOnTextField(it.isFocused)
@@ -672,14 +717,14 @@ fun BottomPanel(
                                                     PanelVisibilityState(
                                                         options = isOptionsPanelVisible,
                                                         tabs = isTabsPanelVisible,
-                                                        downloads = isDownloadPanelVisible,
+                                                        downloads = isDownloadPanelVisible.value,
                                                         tabData = isTabDataPanelVisible,
                                                         nav = isNavPanelVisible
                                                     )
                                                 )
                                                 setIsOptionsPanelVisible(false)
                                                 setIsTabsPanelVisible(false)
-                                                setIsDownloadPanelVisible(false)
+                                                isDownloadPanelVisible.value = false
                                                 setIsTabDataPanelVisible(false)
                                                 setIsNavPanelVisible(false)
                                                 setIsSettingsPanelVisible(false)
@@ -695,7 +740,7 @@ fun BottomPanel(
                                                     if (bottomPanelPagerState.currentPage == BottomPanelMode.SEARCH.ordinal) {
                                                         setIsOptionsPanelVisible(savedState.options)
                                                         setIsTabsPanelVisible(savedState.tabs)
-                                                        setIsDownloadPanelVisible(savedState.downloads)
+                                                       isDownloadPanelVisible.value = savedState.downloads
                                                         setIsTabDataPanelVisible(savedState.tabData)
                                                         setIsNavPanelVisible(savedState.nav)
                                                     }
@@ -712,7 +757,7 @@ fun BottomPanel(
 
                                         .clip(
                                             RoundedCornerShape(
-                                                browserSettings.cornerRadiusForLayer(2).dp
+                                                browserSettings.value.cornerRadiusForLayer(2).dp
                                             )
                                         ),
                                     placeholder = {
@@ -796,7 +841,9 @@ fun BottomPanel(
 //                                                "https://www.google.com/search?q=$encodedQuery"
 //                                                "https://duckduckgo.com/?q=$encodedQuery"
 //                                                "https://www.bing.com/search?q=$encodedQuery"
-                                                SearchEngine.entries[browserSettings.searchEngine].getSearchUrl(encodedQuery)
+                                                SearchEngine.entries[browserSettings.value.searchEngine].getSearchUrl(
+                                                    encodedQuery
+                                                )
                                             }
 
                                             onNewUrl(finalUrl)
@@ -809,7 +856,7 @@ fun BottomPanel(
                                         setIsFocusOnTextField(false)
                                     },
                                     shape = RoundedCornerShape(
-                                        browserSettings.cornerRadiusForLayer(2).dp
+                                        browserSettings.value.cornerRadiusForLayer(2).dp
                                     ),
                                     colors = TextFieldDefaults.colors(
                                         focusedContainerColor = Color.Black,
@@ -830,14 +877,15 @@ fun BottomPanel(
                                     modifier = Modifier
                                         .background(
                                             Color.Transparent, shape = RoundedCornerShape(
-                                                browserSettings.cornerRadiusForLayer(1).dp
+                                                browserSettings.value.cornerRadiusForLayer(1).dp
                                             )
                                         )
                                         .clip(
                                             RoundedCornerShape(
-                                                browserSettings.cornerRadiusForLayer(1).dp
+                                                browserSettings.value.cornerRadiusForLayer(1).dp
                                             )
                                         )
+
                                         .matchParentSize()
                                         .pointerInput(
                                             Unit,
@@ -930,39 +978,27 @@ fun BottomPanel(
                                                         var verticalDragAccumulator = 0f
 //                                                        val horizontalDragThreshold =
 //                                                            40.dp.toPx()
-
-                                                        val verticalCancelThreshold =
-                                                            -40.dp.toPx()
+//
+//                                                        val verticalCancelThreshold =
+//                                                            -40.dp.toPx()
 
 
                                                         drag(drag.id) { change ->
-                                                            change.consume()
                                                             horizontalDragAccumulator += change.position.x - change.previousPosition.x
                                                             verticalDragAccumulator += change.position.y - change.previousPosition.y
 
-                                                            when {
-                                                                abs(horizontalDragAccumulator) > abs(
+                                                            if ( abs(horizontalDragAccumulator) > abs(
                                                                     verticalDragAccumulator
-                                                                ) -> {
-                                                                    setIsUrlOverlayBoxVisible(false)
-                                                                }
+                                                                )  )
+                                                            {
+//                                                                change.consume()
 
-                                                                verticalDragAccumulator < verticalCancelThreshold -> { // up
-                                                                    setIsOptionsPanelVisible(true)
-                                                                }
+                                                                setIsUrlOverlayBoxVisible(false)
 
-                                                                verticalDragAccumulator > verticalCancelThreshold -> { // down
-
-                                                                    setIsOptionsPanelVisible(false)
-                                                                }
-
-//                                                                abs(horizontalDragAccumulator) > 0 -> {
-//                                                                    setIsUrlOverlayBoxVisible(false)
-//                                                                }
-
-                                                                else -> {// nothing
-                                                                }
                                                             }
+
+
+
                                                         }
 
 
@@ -1005,11 +1041,11 @@ fun BottomPanel(
                             Box(
                                 modifier = Modifier
                                     .height(
-                                        browserSettings.heightForLayer(1).dp
+                                        browserSettings.value.heightForLayer(1).dp
                                     )
                                     .fillMaxWidth()
-                                    .padding(browserSettings.padding.dp)
-                                    .clip(RoundedCornerShape(browserSettings.cornerRadiusForLayer(1).dp)),
+                                    .padding(browserSettings.value.padding.dp)
+                                    .clip(RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(1).dp)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
@@ -1025,33 +1061,50 @@ fun BottomPanel(
 
 
             // SETTING OPTIONS
-            OptionsPanel(
-                isPinningApp = isPinningApp,
-                bottomPanelPagerState = bottomPanelPagerState,
-                onCloseAllTabs = onCloseAllTabs,
-                activeWebView = activeWebView,
-                isFindInPageVisible = isFindInPageVisible,
-                descriptionContent = descriptionContent,
-                reopenClosedTab = reopenClosedTab,
-                isSettingsPanelVisible = isSettingsPanelVisible,
-                isOptionsPanelVisible = isOptionsPanelVisible,
-                setIsOptionsPanelVisible = setIsOptionsPanelVisible,
-                updateBrowserSettings = updateBrowserSettings,
-                browserSettings = browserSettings,
-                toggleIsTabsPanelVisible = toggleIsTabsPanelVisible,
-                tabsPanelLock = tabsPanelLock,
-                isDownloadPanelVisible = isDownloadPanelVisible,
-                setIsDownloadPanelVisible = setIsDownloadPanelVisible,
-                isCursorPadVisible = isCursorPadVisible,
-                isCursorMode = isCursorMode,
-                setIsCursorMode = setIsCursorMode,
-                setIsSettingsPanelVisible = setIsSettingsPanelVisible,
-                closedTabsCount = recentlyClosedTabs.size,
-                addAppToPin = {
-                    isPinningApp.value = true
-                    urlBarFocusRequester.requestFocus()
-                },
-            )
+
+
+            OptionsPanelWrapper(
+                maxHeight = optionsPanelHeightPx,
+                dragOffset = draggableState.offset
+            ) {
+                OptionsPanel(
+                    draggableState = draggableState,
+                    isPinningApp = isPinningApp,
+                    bottomPanelPagerState = bottomPanelPagerState,
+                    onCloseAllTabs = onCloseAllTabs,
+                    activeWebView = activeWebView,
+                    isFindInPageVisible = isFindInPageVisible,
+                    descriptionContent = descriptionContent,
+                    reopenClosedTab = reopenClosedTab,
+                    isSettingsPanelVisible = isSettingsPanelVisible,
+                    setIsOptionsPanelVisible = setIsOptionsPanelVisible,
+                    updateBrowserSettings = updateBrowserSettings,
+                    browserSettings = browserSettings,
+                    toggleIsTabsPanelVisible = toggleIsTabsPanelVisible,
+                    tabsPanelLock = tabsPanelLock,
+                    isDownloadPanelVisible = isDownloadPanelVisible,
+                    isCursorPadVisible = isCursorPadVisible,
+                    isCursorMode = isCursorMode,
+                    setIsCursorMode = setIsCursorMode,
+                    closedTabsCount = recentlyClosedTabs.size,
+                    addAppToPin = {
+                        isPinningApp.value = true
+                        urlBarFocusRequester.requestFocus()
+                    },
+                )
+//                Box(
+//                    modifier = Modifier
+//                        .fillMaxWidth()
+//                        .height(browserSettings.value.heightForLayer(1).dp)
+//                        .background(Color(0xFFB00020)), // Red
+//                    contentAlignment = Alignment.Center
+//                ) {
+//                    Text(
+//                        text = "Component C\n(Revealed)",
+//                        color = Color.White
+//                    )
+//                }
+            }
 
             TextEditPanel(
                 isPinningApp = isPinningApp,

@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -26,27 +27,27 @@ import marcinlowercase.a.core.data_class.BrowserSettings
 fun DescriptionPanel(
     isVisible: Boolean,
     description: String,
-    browserSettings: BrowserSettings,
+    browserSettings: MutableState<BrowserSettings>,
     onDismiss: () -> Unit
 ) {
     AnimatedVisibility(
         visible = isVisible,
         enter = expandVertically(
             tween(
-                browserSettings.animationSpeedForLayer(2)
+                browserSettings.value.animationSpeedForLayer(2)
             )
         ) + fadeIn(
             tween(
-                browserSettings.animationSpeedForLayer(2)
+                browserSettings.value.animationSpeedForLayer(2)
             )
         ),
         exit = shrinkVertically(
             tween(
-                browserSettings.animationSpeedForLayer(2)
+                browserSettings.value.animationSpeedForLayer(2)
             )
         ) + fadeOut(
             tween(
-                browserSettings.animationSpeedForLayer(2)
+                browserSettings.value.animationSpeedForLayer(2)
             )
         )
     ) {
@@ -54,7 +55,7 @@ fun DescriptionPanel(
             modifier = Modifier
 
                 .fillMaxWidth()
-                .padding(horizontal = browserSettings.padding.dp * 4)
+                .padding(horizontal = browserSettings.value.padding.dp * 4)
                 .clickable(onClick = onDismiss),
             contentAlignment = Alignment.Center
         ) {
@@ -65,8 +66,8 @@ fun DescriptionPanel(
                 maxLines = 1,
                 overflow = TextOverflow.Visible,
                 modifier = Modifier
-                    .padding(horizontal = browserSettings.padding.dp)
-                    .padding(top = browserSettings.padding.dp)
+                    .padding(horizontal = browserSettings.value.padding.dp)
+                    .padding(top = browserSettings.value.padding.dp)
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState())
             )

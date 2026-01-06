@@ -27,6 +27,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -50,26 +51,26 @@ import marcinlowercase.a.core.function.getFaviconUrlFromGoogleServer
 @Composable
 fun NewTabButton(
     modifier: Modifier = Modifier,
-    browserSettings: BrowserSettings,
+    browserSettings: MutableState<BrowserSettings>,
     onClick: () -> Unit
 ) {
     Box(
-        modifier = modifier.padding(browserSettings.padding.dp)
+        modifier = modifier.padding(browserSettings.value.padding.dp)
     )
     {
         Box(
             modifier = modifier
 
-                .padding(horizontal = browserSettings.padding.dp)
+                .padding(horizontal = browserSettings.value.padding.dp)
                 .clip(
                     RoundedCornerShape(
-                        browserSettings.cornerRadiusForLayer(3).dp
+                        browserSettings.value.cornerRadiusForLayer(3).dp
                     )
                 )
                 .clickable(onClick = onClick)
                 .background(Color.Black.copy(alpha = 0.2f))
                 .height(
-                    browserSettings.heightForLayer(3).dp
+                    browserSettings.value.heightForLayer(3).dp
                 )
                 .fillMaxWidth(),
             contentAlignment = Alignment.Center
@@ -89,7 +90,7 @@ fun TabItem(
     faviconUrl: String,
     title: String,
     isActive: Boolean,
-    browserSettings: BrowserSettings,
+    browserSettings: MutableState<BrowserSettings>,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
@@ -97,10 +98,10 @@ fun TabItem(
     Box(
 
         modifier = Modifier
-            .padding(browserSettings.padding.dp)
+            .padding(browserSettings.value.padding.dp)
             .clip(
                 RoundedCornerShape(
-                    browserSettings.cornerRadiusForLayer(3).dp
+                    browserSettings.value.cornerRadiusForLayer(3).dp
                 )
             )
     ) {
@@ -118,20 +119,20 @@ fun TabItem(
                     )
                 }
                 .height(
-                    browserSettings.heightForLayer(3).dp
+                    browserSettings.value.heightForLayer(3).dp
                 )
                 .clip(
                     RoundedCornerShape(
-                        browserSettings.cornerRadiusForLayer(3).dp
+                        browserSettings.value.cornerRadiusForLayer(3).dp
                     )
                 )
                 .background(if (isActive) Color.White else Color.White.copy(alpha = 0.5f)) // Different background for inactive
-                .padding(horizontal = browserSettings.padding.dp),
+                .padding(horizontal = browserSettings.value.padding.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(
                 modifier = Modifier
-                    .padding(browserSettings.padding.dp)
+                    .padding(browserSettings.value.padding.dp)
 
             ) {
 
@@ -139,7 +140,7 @@ fun TabItem(
                     modifier = Modifier
                         .size(24.dp),
 
-//                        .clip(RoundedCornerShape(browserSettings.padding.dp / 2)),
+//                        .clip(RoundedCornerShape(browserSettings.value.padding.dp / 2)),
 //                        .background(Color.White.copy(alpha = 0.2f)),
 //                        .background(if (isActive) Color.White else Color.White.copy(alpha = 0.7f)),
                     contentAlignment = Alignment.Center
@@ -170,7 +171,7 @@ fun TabItem(
                     )
                 }
 
-                Spacer(Modifier.width(browserSettings.padding.dp))
+                Spacer(Modifier.width(browserSettings.value.padding.dp))
                 Text(
                     text = title,
                     color = if (isActive) Color.Black else Color.Black.copy(alpha = 0.7f), // Dim the text for inactive
@@ -191,7 +192,7 @@ fun TabsPanel(
     modifier: Modifier = Modifier,
     tabs: List<Tab>,
     activeTabIndex: Int,
-    browserSettings: BrowserSettings,
+    browserSettings: MutableState<BrowserSettings>,
     onTabSelected: (Int) -> Unit,
     onNewTabClicked: (Int) -> Unit,
     onTabLongPressed: (Tab) -> Unit,
@@ -222,20 +223,20 @@ fun TabsPanel(
         visible = isTabsPanelVisible,
         enter = expandVertically(
             tween(
-                browserSettings.animationSpeedForLayer(1)
+                browserSettings.value.animationSpeedForLayer(1)
             )
         ) + fadeIn(
             tween(
-                browserSettings.animationSpeedForLayer(1)
+                browserSettings.value.animationSpeedForLayer(1)
             )
         ),
         exit = shrinkVertically(
             tween(
-                browserSettings.animationSpeedForLayer(1)
+                browserSettings.value.animationSpeedForLayer(1)
             )
         ) + fadeOut(
             tween(
-                browserSettings.animationSpeedForLayer(1)
+                browserSettings.value.animationSpeedForLayer(1)
             )
         )
 
@@ -243,12 +244,12 @@ fun TabsPanel(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = browserSettings.padding.dp)
-                .padding(horizontal = browserSettings.padding.dp)
+                .padding(top = browserSettings.value.padding.dp)
+                .padding(horizontal = browserSettings.value.padding.dp)
 
                 .clip(
                     RoundedCornerShape(
-                        browserSettings.cornerRadiusForLayer(2).dp
+                        browserSettings.value.cornerRadiusForLayer(2).dp
                     )
                 )
         ) {
@@ -257,8 +258,8 @@ fun TabsPanel(
                 modifier = modifier
                     .fillMaxWidth(),
                 // We use a smaller content padding so the active tab is larger
-                contentPadding = PaddingValues(horizontal = browserSettings.padding.dp * 4),
-                pageSpacing = browserSettings.padding.dp / 2
+                contentPadding = PaddingValues(horizontal = browserSettings.value.padding.dp * 4),
+                pageSpacing = browserSettings.value.padding.dp / 2
             ) { pageIndex ->
 
                 when (pageIndex) {

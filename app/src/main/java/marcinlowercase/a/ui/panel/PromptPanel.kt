@@ -27,6 +27,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,7 +53,7 @@ import marcinlowercase.a.core.function.buttonSettingsForLayer
 fun PromptPanel(
     isUrlBarVisible: Boolean,
     activeWebView: CustomWebView?,
-    browserSettings: BrowserSettings,
+    browserSettings: MutableState<BrowserSettings>,
     isPromptPanelVisible: Boolean,
     state: JsDialogState?,
     promptComponentDisplayState: JsDialogState?,
@@ -61,14 +62,14 @@ fun PromptPanel(
     AnimatedVisibility(
 //        modifier = modifier,
         visible = isPromptPanelVisible,
-        enter = fadeIn(tween(browserSettings.animationSpeedForLayer(1))),
+        enter = fadeIn(tween(browserSettings.value.animationSpeedForLayer(1))),
         exit = shrinkVertically(
             tween(
-                browserSettings.animationSpeedForLayer(1)
+                browserSettings.value.animationSpeedForLayer(1)
             )
         ) + fadeOut(
             tween(
-                browserSettings.animationSpeedForLayer(1)
+                browserSettings.value.animationSpeedForLayer(1)
             )
         )
     ) {
@@ -78,21 +79,21 @@ fun PromptPanel(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = browserSettings.padding.dp)
+                .padding(horizontal = browserSettings.value.padding.dp)
                 .padding(
-                    top = browserSettings.padding.dp,
-                    bottom = if (isUrlBarVisible) 0.dp else browserSettings.padding.dp
+                    top = browserSettings.value.padding.dp,
+                    bottom = if (isUrlBarVisible) 0.dp else browserSettings.value.padding.dp
                 )
         ) {
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = browserSettings.padding.dp)
-                    .padding(horizontal = browserSettings.padding.dp * 3)
+                    .padding(bottom = browserSettings.value.padding.dp)
+                    .padding(horizontal = browserSettings.value.padding.dp * 3)
                     .clip(
                         RoundedCornerShape(
-                            browserSettings.cornerRadiusForLayer(2).dp
+                            browserSettings.value.cornerRadiusForLayer(2).dp
                         )
                     )
                     .background(
@@ -104,8 +105,8 @@ fun PromptPanel(
 //                        shape = RoundedCornerShape(
 //                            cornerRadiusForLayer(
 //                                2,
-//                                browserSettings.deviceCornerRadius,
-//                                browserSettings.padding
+//                                browserSettings.value.deviceCornerRadius,
+//                                browserSettings.value.padding
 //                            ).dp
 //                        )
 //                    )
@@ -116,7 +117,7 @@ fun PromptPanel(
                 // "from" Text - Fixed Size
                 Row(
                     modifier = Modifier
-                        .padding(browserSettings.padding.dp)
+                        .padding(browserSettings.value.padding.dp)
                 ) {
                     Text(
                         text = "from ", // Added a space for better readability
@@ -148,7 +149,7 @@ fun PromptPanel(
                     .background(
                         Color.Black,
                         shape = RoundedCornerShape(
-                            browserSettings.cornerRadiusForLayer(2).dp
+                            browserSettings.value.cornerRadiusForLayer(2).dp
                         )
                     )
 //                    .border(
@@ -157,8 +158,8 @@ fun PromptPanel(
 //                        shape = RoundedCornerShape(
 //                            cornerRadiusForLayer(
 //                                2,
-//                                browserSettings.deviceCornerRadius,
-//                                browserSettings.padding
+//                                browserSettings.value.deviceCornerRadius,
+//                                browserSettings.value.padding
 //                            ).dp
 //                        )
 //                    )
@@ -166,14 +167,14 @@ fun PromptPanel(
             {
 
                 val textModifier = Modifier
-                    .padding(browserSettings.padding.dp)
+                    .padding(browserSettings.value.padding.dp)
                 Column(
                     modifier = Modifier
-                        .padding(browserSettings.padding.dp)
+                        .padding(browserSettings.value.padding.dp)
                         .background(
                             color = Color.Transparent,
                             shape = RoundedCornerShape(
-                                browserSettings.cornerRadiusForLayer(3).dp
+                                browserSettings.value.cornerRadiusForLayer(3).dp
                             )
                         )
                 ) {
@@ -193,7 +194,7 @@ fun PromptPanel(
                                 text = promptComponentDisplayState.message,
                                 modifier = textModifier
                             )
-                            Spacer(Modifier.height(browserSettings.padding.dp))
+                            Spacer(Modifier.height(browserSettings.value.padding.dp))
                             OutlinedTextField(
                                 value = textInput,
                                 onValueChange = { textInput = it },
@@ -210,7 +211,7 @@ fun PromptPanel(
                                     }
                                 ),
                                 shape = RoundedCornerShape(
-                                    browserSettings.cornerRadiusForLayer(3).dp
+                                    browserSettings.value.cornerRadiusForLayer(3).dp
                                 ),
                                 colors = TextFieldDefaults.colors(
                                     focusedContainerColor = Color.Black.copy(0.95f), // Background when focused
@@ -238,9 +239,9 @@ fun PromptPanel(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(browserSettings.padding.dp),
+                        .padding(browserSettings.value.padding.dp),
                     horizontalArrangement = Arrangement.spacedBy(
-                        browserSettings.padding.dp
+                        browserSettings.value.padding.dp
                     ),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -251,7 +252,7 @@ fun PromptPanel(
                             modifier = Modifier
                                 .buttonSettingsForLayer(
                                     3,
-                                    browserSettings,
+                                    browserSettings.value,
                                     false
                                 )
                                 .weight(1f),
@@ -259,8 +260,8 @@ fun PromptPanel(
 //                                    1.dp, Color.White, shape = RoundedCornerShape(
 //                                        cornerRadiusForLayer(
 //                                            3,
-//                                            browserSettings.deviceCornerRadius,
-//                                            browserSettings.padding,
+//                                            browserSettings.value.deviceCornerRadius,
+//                                            browserSettings.value.padding,
 //                                        ).dp
 //                                    )
 //                                )
@@ -268,7 +269,7 @@ fun PromptPanel(
                                 containerColor = Color.Black
                             ),
                             shape = RoundedCornerShape(
-                                browserSettings.cornerRadiusForLayer(
+                                browserSettings.value.cornerRadiusForLayer(
                                     3
                                 ).dp
                             ),
@@ -298,16 +299,16 @@ fun PromptPanel(
                         modifier = Modifier
                             .buttonSettingsForLayer(
                                 3,
-                                browserSettings
+                                browserSettings.value
                             )
                             .weight(1f)
                             .background(
                                 Color.White, shape = RoundedCornerShape(
-                                    browserSettings.cornerRadiusForLayer(3).dp
+                                    browserSettings.value.cornerRadiusForLayer(3).dp
                                 )
                             ),
                         shape = RoundedCornerShape(
-                            browserSettings.cornerRadiusForLayer(2).dp
+                            browserSettings.value.cornerRadiusForLayer(2).dp
                         ),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color.White

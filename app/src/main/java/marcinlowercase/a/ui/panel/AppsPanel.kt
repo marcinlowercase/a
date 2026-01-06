@@ -35,7 +35,7 @@ import marcinlowercase.a.core.data_class.BrowserSettings
 
 @Composable
 fun AppsPanel(
-    browserSettings: BrowserSettings,
+    browserSettings: MutableState<BrowserSettings>,
     visibility: MutableState<Boolean>,
     apps: MutableList<App>,
     onAppClick: (App) -> Unit = {},
@@ -45,7 +45,7 @@ fun AppsPanel(
 
 
     val maxPanelHeight =
-        (browserSettings.heightForLayer(2).dp * 2.5f) + (browserSettings.padding.dp * 2)
+        (browserSettings.value.heightForLayer(2).dp * 2.5f) + (browserSettings.value.padding.dp * 2)
 
     AnimatedVisibility(
         visible = visibility.value,
@@ -56,8 +56,8 @@ fun AppsPanel(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(browserSettings.heightForLayer(2).dp)
-                    .clip(RoundedCornerShape(browserSettings.cornerRadiusForLayer(2).dp)),
+                    .height(browserSettings.value.heightForLayer(2).dp)
+                    .clip(RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(2).dp)),
                 contentAlignment = Alignment.Center
 
 
@@ -71,19 +71,19 @@ fun AppsPanel(
                     .fillMaxWidth()
                     // This ensures it grows up to 3 rows, then becomes scrollable
                     .heightIn(
-                        min = browserSettings.heightForLayer(2).dp,
+                        min = browserSettings.value.heightForLayer(2).dp,
                         max = maxPanelHeight
                     )
-                    .padding(top = if (apps.isNotEmpty()) browserSettings.padding.dp else 0.dp)
-                    .padding(horizontal = browserSettings.padding.dp)
-                    .clip(RoundedCornerShape(browserSettings.cornerRadiusForLayer(2).dp))
+                    .padding(top = if (apps.isNotEmpty()) browserSettings.value.padding.dp else 0.dp)
+                    .padding(horizontal = browserSettings.value.padding.dp)
+                    .clip(RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(2).dp))
 
 //                .background(Color.Magenta)
 
                 ,
-//            contentPadding = PaddingValues(browserSettings.padding.dp),
-                horizontalArrangement = Arrangement.spacedBy(browserSettings.padding.dp),
-                verticalArrangement = Arrangement.spacedBy(browserSettings.padding.dp),
+//            contentPadding = PaddingValues(browserSettings.value.padding.dp),
+                horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp),
+                verticalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp),
                 reverseLayout = true
             ) {
 
@@ -124,7 +124,7 @@ fun AppsPanel(
 fun AppIcon(
     inspectingAppId: MutableState<Long>,
     app: App,
-    browserSettings: BrowserSettings,
+    browserSettings: MutableState<BrowserSettings>,
     onClick: () -> Unit,
     onDoubleClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -132,8 +132,8 @@ fun AppIcon(
 ) {
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(browserSettings.cornerRadiusForLayer(2).dp))
-            .height(browserSettings.heightForLayer(2).dp)
+            .clip(RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(2).dp))
+            .height(browserSettings.value.heightForLayer(2).dp)
             .background(Color.White)
             .padding(2.dp)
             .fillMaxWidth()
@@ -146,7 +146,7 @@ fun AppIcon(
             .border(
                 width = 2.dp,
                 color = if (inspectingAppId.value == app.id) Color.Red else Color.Transparent,
-                shape = RoundedCornerShape(browserSettings.cornerRadiusForLayer(2).dp)
+                shape = RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(2).dp)
             ),
         contentAlignment = Alignment.Center
 

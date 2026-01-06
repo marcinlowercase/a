@@ -82,7 +82,7 @@ enum class SettingPanelView {
 
 @Composable
 fun SliderSetting(
-    browserSettings: BrowserSettings,
+    browserSettings: MutableState<BrowserSettings>,
     updateBrowserSettingsForSpecificValue: (Float) -> Unit,
     valueRange: ClosedFloatingPointRange<Float>,
     steps: Int,
@@ -111,7 +111,7 @@ fun SliderSetting(
 
 
     // 1. The raw digits are the single source of truth.
-    // Initialize it from the global browserSettings.
+    // Initialize it from the global browserSettings.value.
 
 
     val sliderValue = (digits.toIntOrNull() ?: 0) / if (afterDecimal) 100f else 1f
@@ -137,10 +137,10 @@ fun SliderSetting(
             .background(
                 Color.Black.copy(alpha = 0.3f),
                 shape = RoundedCornerShape(
-                    browserSettings.cornerRadiusForLayer(2).dp
+                    browserSettings.value.cornerRadiusForLayer(2).dp
                 )
             )
-            .padding(browserSettings.padding.dp),
+            .padding(browserSettings.value.padding.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
 
@@ -148,7 +148,7 @@ fun SliderSetting(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(
-                    browserSettings.heightForLayer( 3).dp
+                    browserSettings.value.heightForLayer( 3).dp
                 ),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -160,19 +160,19 @@ fun SliderSetting(
                 modifier = Modifier
                     .clip(
                         RoundedCornerShape(
-                            browserSettings.cornerRadiusForLayer(3).dp
+                            browserSettings.value.cornerRadiusForLayer(3).dp
                         )
                     )
                     .fillMaxHeight()
                     .background(Color.White)
                     .defaultMinSize(
-                        minWidth = browserSettings.heightForLayer(3).dp
+                        minWidth = browserSettings.value.heightForLayer(3).dp
                     )
 
 
             ) {
                 Icon(
-                    painter = painterResource(id = if(browserSettings.isFirstAppLoad) R.drawable.ic_check else R.drawable.ic_arrow_back),
+                    painter = painterResource(id = if(browserSettings.value.isFirstAppLoad) R.drawable.ic_check else R.drawable.ic_arrow_back),
                     contentDescription = "Back to Settings",
                     tint = Color.Black
                 )
@@ -251,12 +251,12 @@ fun SliderSetting(
                 modifier = Modifier
                     .clip(
                         RoundedCornerShape(
-                            browserSettings.cornerRadiusForLayer(3).dp
+                            browserSettings.value.cornerRadiusForLayer(3).dp
                         )
                     )
                     .fillMaxHeight()
                     .defaultMinSize(
-                        minWidth = browserSettings.heightForLayer(3).dp
+                        minWidth = browserSettings.value.heightForLayer(3).dp
                     )
 
 
@@ -288,11 +288,11 @@ fun SliderSetting(
 
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = browserSettings.padding.dp)
+                .padding(top = browserSettings.value.padding.dp)
                 .height(
-                    browserSettings.heightForLayer(3).dp
+                    browserSettings.value.heightForLayer(3).dp
                 )
-                .padding(browserSettings.padding.dp),
+                .padding(browserSettings.value.padding.dp),
             colors = SliderDefaults.colors(
                 thumbColor = Color.White,
                 activeTrackColor = Color.White,
@@ -308,7 +308,7 @@ fun SliderSetting(
 }
 @Composable
 fun TextSetting(
-    browserSettings: BrowserSettings,
+    browserSettings: MutableState<BrowserSettings>,
     updateBrowserSettingsForSpecificValue: (String) -> Unit, // Takes a String now
     onBackClick: () -> Unit,
     iconID: Int,
@@ -326,10 +326,10 @@ fun TextSetting(
             .background(
                 Color.Black.copy(alpha = 0.3f),
                 shape = RoundedCornerShape(
-                    browserSettings.cornerRadiusForLayer(2).dp
+                    browserSettings.value.cornerRadiusForLayer(2).dp
                 )
             )
-            .padding(browserSettings.padding.dp),
+            .padding(browserSettings.value.padding.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // --- TOP ROW ---
@@ -337,7 +337,7 @@ fun TextSetting(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(
-                    browserSettings.heightForLayer(3).dp
+                    browserSettings.value.heightForLayer(3).dp
                 ),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -347,13 +347,13 @@ fun TextSetting(
                 modifier = Modifier
                     .clip(
                         RoundedCornerShape(
-                            browserSettings.cornerRadiusForLayer(3).dp
+                            browserSettings.value.cornerRadiusForLayer(3).dp
                         )
                     )
                     .fillMaxHeight()
                     .background(Color.White)
                     .defaultMinSize(
-                        minWidth = browserSettings.heightForLayer(3).dp
+                        minWidth = browserSettings.value.heightForLayer(3).dp
                     )
             ) {
                 Icon(
@@ -372,12 +372,12 @@ fun TextSetting(
                 modifier = Modifier
                     .clip(
                         RoundedCornerShape(
-                            browserSettings.cornerRadiusForLayer(3).dp
+                            browserSettings.value.cornerRadiusForLayer(3).dp
                         )
                     )
                     .fillMaxHeight()
                     .defaultMinSize(
-                        minWidth = browserSettings.heightForLayer(3).dp
+                        minWidth = browserSettings.value.heightForLayer(3).dp
                     )
             ) {
                 Icon(
@@ -394,12 +394,12 @@ fun TextSetting(
             onValueChange = { textValue = it },
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = browserSettings.padding.dp)
+                .padding(top = browserSettings.value.padding.dp)
                 .height(
-                    browserSettings.heightForLayer(3).dp
+                    browserSettings.value.heightForLayer(3).dp
                 ),
             shape = RoundedCornerShape(
-                browserSettings.cornerRadiusForLayer(3).dp
+                browserSettings.value.cornerRadiusForLayer(3).dp
             ),
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = Color.Black,
@@ -433,9 +433,8 @@ fun TextSetting(
 fun SettingsPanel(
     descriptionContent: MutableState<String>,
     backgroundColor: MutableState<Color>,
-    isSettingsPanelVisible: Boolean,
-    setIsSettingsPanelVisible: (Boolean) -> Unit,
-    browserSettings: BrowserSettings,
+    isSettingsPanelVisible: MutableState<Boolean>,
+    browserSettings: MutableState<BrowserSettings>,
     updateBrowserSettings: (BrowserSettings) -> Unit,
     confirmationPopup: (String, () -> Unit, () -> Unit) -> Unit,
     resetBrowserSettings: () -> Unit,
@@ -445,7 +444,7 @@ fun SettingsPanel(
     var currentView by remember { mutableStateOf(targetSetting) }
 
     // This state will hold the current value of the slider.
-//    var sliderValue by remember { mutableStateOf(browserSettings.deviceCornerRadius) }
+//    var sliderValue by remember { mutableStateOf(browserSettings.value.deviceCornerRadius) }
 
     LaunchedEffect(currentView) {
         if (currentView == SettingPanelView.CORNER_RADIUS) {
@@ -457,15 +456,15 @@ fun SettingsPanel(
     }
 
     // Effect to reset the view and slider value when the panel is hidden
-    LaunchedEffect(isSettingsPanelVisible) {
-        if (!isSettingsPanelVisible) {
-            delay(browserSettings.animationSpeed.toLong()) // Wait for exit animation
+    LaunchedEffect(isSettingsPanelVisible.value) {
+        if (!isSettingsPanelVisible.value) {
+            delay(browserSettings.value.animationSpeed.toLong()) // Wait for exit animation
             currentView = SettingPanelView.MAIN
         }
     }
 
     // Placeholder options for the settings panel
-    val allSettingsOptions = remember(browserSettings) {
+    val allSettingsOptions = remember(browserSettings.value) {
         listOf(
             OptionItem(
                 R.drawable.ic_adjust_corner_radius,
@@ -515,7 +514,7 @@ fun SettingsPanel(
                     "reset all settings?",
                     {
                         resetBrowserSettings()
-                        setIsSettingsPanelVisible(false)
+                        isSettingsPanelVisible.value = false
                     },
                     {}
                 )
@@ -533,23 +532,23 @@ fun SettingsPanel(
     val pagerState = rememberPagerState(pageCount = { optionPages.size })
 
     AnimatedVisibility(
-        visible = isSettingsPanelVisible,
-        enter = expandVertically(tween(browserSettings.animationSpeedForLayer(1))),
-        exit = shrinkVertically(tween(if ( browserSettings.isFirstAppLoad) browserSettings.animationSpeedForLayer(0 )* 6 else browserSettings.animationSpeedForLayer(1)))
+        visible = isSettingsPanelVisible.value,
+        enter = expandVertically(tween(browserSettings.value.animationSpeedForLayer(1))),
+        exit = shrinkVertically(tween(if ( browserSettings.value.isFirstAppLoad) browserSettings.value.animationSpeedForLayer(0 )* 6 else browserSettings.value.animationSpeedForLayer(1)))
     ) {
         Box(
             modifier = Modifier
-                .padding(horizontal = browserSettings.padding.dp)
-                .padding(top = browserSettings.padding.dp)
+                .padding(horizontal = browserSettings.value.padding.dp)
+                .padding(top = browserSettings.value.padding.dp)
                 .fillMaxWidth()
                 .clip(
                     RoundedCornerShape(
-                        browserSettings.cornerRadiusForLayer(2).dp
+                        browserSettings.value.cornerRadiusForLayer(2).dp
                     )
                 )
                 .animateContentSize(
                     tween(
-                        browserSettings.animationSpeedForLayer(1)
+                        browserSettings.value.animationSpeedForLayer(1)
                     )
                 )
 //
@@ -568,12 +567,12 @@ fun SettingsPanel(
                                 .background(
                                     Color.Black.copy(alpha = 0.3f),
                                     shape = RoundedCornerShape(
-                                        browserSettings.cornerRadiusForLayer(2).dp
+                                        browserSettings.value.cornerRadiusForLayer(2).dp
                                     )
                                 )
-//                                .padding(horizontal = browserSettings.padding.dp /2)
+//                                .padding(horizontal = browserSettings.value.padding.dp /2)
                             ,
-                            horizontalArrangement = Arrangement.spacedBy(browserSettings.padding.dp)
+                            horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
                         ) {
                             val pageOptions = optionPages[pageIndex]
                             pageOptions.forEach { option ->
@@ -603,13 +602,13 @@ fun SettingsPanel(
                         browserSettings = browserSettings,
                         updateBrowserSettingsForSpecificValue = { newValue ->
                             updateBrowserSettings(
-                                browserSettings.copy(deviceCornerRadius = newValue)
+                                browserSettings.value.copy(deviceCornerRadius = newValue)
                             )
                         },
-                        onBackClick = { if (!browserSettings.isFirstAppLoad) currentView = SettingPanelView.MAIN else setIsSettingsPanelVisible(false) },
+                        onBackClick = { if (!browserSettings.value.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
                         valueRange = 0f..60f,
                         steps = 5999,
-                        currentSettingOriginalValue = browserSettings.deviceCornerRadius,
+                        currentSettingOriginalValue = browserSettings.value.deviceCornerRadius,
                         textFieldValueFun = { src ->
                             src.take(2) + "." + src.substring(2, 4)
                         },
@@ -624,13 +623,13 @@ fun SettingsPanel(
                         updateBrowserSettingsForSpecificValue = { newValue ->
 
                             updateBrowserSettings(
-                                browserSettings.copy(animationSpeed = newValue)
+                                browserSettings.value.copy(animationSpeed = newValue)
                             )
                         },
-                        onBackClick = { if (!browserSettings.isFirstAppLoad) currentView = SettingPanelView.MAIN else setIsSettingsPanelVisible(false) },
+                        onBackClick = { if (!browserSettings.value.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
                         valueRange = 0f..1000f,
                         steps = 999,
-                        currentSettingOriginalValue = browserSettings.animationSpeed,
+                        currentSettingOriginalValue = browserSettings.value.animationSpeed,
                         textFieldValueFun = { src ->
                             src
                         },
@@ -645,13 +644,13 @@ fun SettingsPanel(
                         updateBrowserSettingsForSpecificValue = { newValue ->
 
                             updateBrowserSettings(
-                                browserSettings.copy(singleLineHeight = newValue)
+                                browserSettings.value.copy(singleLineHeight = newValue)
                             )
                         },
-                        onBackClick = { if (!browserSettings.isFirstAppLoad) currentView = SettingPanelView.MAIN else setIsSettingsPanelVisible(false) },
+                        onBackClick = { if (!browserSettings.value.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
                         valueRange = 65f..140f,
                         steps = 74,
-                        currentSettingOriginalValue = browserSettings.singleLineHeight,
+                        currentSettingOriginalValue = browserSettings.value.singleLineHeight,
                         textFieldValueFun = { src ->
                             src
                         },
@@ -667,13 +666,13 @@ fun SettingsPanel(
                         updateBrowserSettingsForSpecificValue = { newValue ->
 
                             updateBrowserSettings(
-                                browserSettings.copy(padding = newValue)
+                                browserSettings.value.copy(padding = newValue)
                             )
                         },
-                        onBackClick = { if (!browserSettings.isFirstAppLoad) currentView = SettingPanelView.MAIN else setIsSettingsPanelVisible(false) },
+                        onBackClick = { if (!browserSettings.value.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
                         valueRange = 3f..11f,
                         steps = 7,
-                        currentSettingOriginalValue = browserSettings.padding,
+                        currentSettingOriginalValue = browserSettings.value.padding,
                         textFieldValueFun = { src ->
                             src
                         },
@@ -690,13 +689,13 @@ fun SettingsPanel(
                         updateBrowserSettingsForSpecificValue = { newValue ->
 
                             updateBrowserSettings(
-                                browserSettings.copy(cursorContainerSize = newValue)
+                                browserSettings.value.copy(cursorContainerSize = newValue)
                             )
                         },
-                        onBackClick = { if (!browserSettings.isFirstAppLoad) currentView = SettingPanelView.MAIN else setIsSettingsPanelVisible(false) },
+                        onBackClick = { if (!browserSettings.value.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
                         valueRange = 20f..70f,
                         steps = 49,
-                        currentSettingOriginalValue = browserSettings.cursorContainerSize,
+                        currentSettingOriginalValue = browserSettings.value.cursorContainerSize,
                         textFieldValueFun = { src ->
                             src
                         },
@@ -712,13 +711,13 @@ fun SettingsPanel(
                         updateBrowserSettingsForSpecificValue = { newValue ->
 
                             updateBrowserSettings(
-                                browserSettings.copy(cursorTrackingSpeed = newValue)
+                                browserSettings.value.copy(cursorTrackingSpeed = newValue)
                             )
                         },
-                        onBackClick = { if (!browserSettings.isFirstAppLoad) currentView = SettingPanelView.MAIN else setIsSettingsPanelVisible(false) },
+                        onBackClick = { if (!browserSettings.value.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
                         valueRange = 0.5f..2f,
                         steps = 29,
-                        currentSettingOriginalValue = browserSettings.cursorTrackingSpeed,
+                        currentSettingOriginalValue = browserSettings.value.cursorTrackingSpeed,
                         textFieldValueFun = { src ->
                             src[1] + "." + src.substring(2, 4)
                         },
@@ -732,11 +731,11 @@ fun SettingsPanel(
                     TextSetting(
                         browserSettings = browserSettings,
                         updateBrowserSettingsForSpecificValue = { newValue ->
-                            updateBrowserSettings(browserSettings.copy(defaultUrl = newValue))
+                            updateBrowserSettings(browserSettings.value.copy(defaultUrl = newValue))
                         },
-                        onBackClick = { if (!browserSettings.isFirstAppLoad) currentView = SettingPanelView.MAIN else setIsSettingsPanelVisible(false) },
+                        onBackClick = { if (!browserSettings.value.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
                         iconID = R.drawable.ic_link,
-                        currentSettingOriginalValue = browserSettings.defaultUrl
+                        currentSettingOriginalValue = browserSettings.value.defaultUrl
                     )
                 }
 
@@ -746,7 +745,7 @@ fun SettingsPanel(
                             Modifier
                                 .fillMaxWidth()
                                 .height(
-                                    browserSettings.heightForLayer(2).dp
+                                    browserSettings.value.heightForLayer(2).dp
                                 ),
                         contentAlignment = Alignment.Center
                     ) {
@@ -760,13 +759,13 @@ fun SettingsPanel(
                         browserSettings = browserSettings,
                         updateBrowserSettingsForSpecificValue = { newValue ->
                             updateBrowserSettings(
-                                browserSettings.copy(closedTabHistorySize = newValue)
+                                browserSettings.value.copy(closedTabHistorySize = newValue)
                             )
                         },
-                        onBackClick = { if (!browserSettings.isFirstAppLoad) currentView = SettingPanelView.MAIN else setIsSettingsPanelVisible(false) },
+                        onBackClick = { if (!browserSettings.value.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
                         valueRange = 0f..30f, // A sensible range for this setting
                         steps = 29, // (30 / 1) - 1
-                        currentSettingOriginalValue = browserSettings.closedTabHistorySize,
+                        currentSettingOriginalValue = browserSettings.value.closedTabHistorySize,
                         textFieldValueFun = { src -> src },
                         afterDecimal = false, // We are dealing with whole numbers
                         iconID = R.drawable.ic_history,
@@ -779,13 +778,13 @@ fun SettingsPanel(
                         browserSettings = browserSettings,
                         updateBrowserSettingsForSpecificValue = { newValue ->
                             updateBrowserSettings(
-                                browserSettings.copy(backSquareIdleOpacity = newValue)
+                                browserSettings.value.copy(backSquareIdleOpacity = newValue)
                             )
                         },
-                        onBackClick = { if (!browserSettings.isFirstAppLoad) currentView = SettingPanelView.MAIN else setIsSettingsPanelVisible(false) },
+                        onBackClick = { if (!browserSettings.value.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
                         valueRange = 0f..1f, // 0% to 100%
                         steps = 19, // 5% increments
-                        currentSettingOriginalValue = browserSettings.backSquareIdleOpacity,
+                        currentSettingOriginalValue = browserSettings.value.backSquareIdleOpacity,
 
                         textFieldValueFun = { src ->
                             // src is "0020" -> "0.20"
@@ -801,13 +800,13 @@ fun SettingsPanel(
                         browserSettings = browserSettings,
                         updateBrowserSettingsForSpecificValue = { newValue ->
                             updateBrowserSettings(
-                                browserSettings.copy(maxListHeight = newValue)
+                                browserSettings.value.copy(maxListHeight = newValue)
                             )
                         },
                         onBackClick = {  currentView = SettingPanelView.MAIN },
                         valueRange = 0f..10f,
                         steps = 99,
-                        currentSettingOriginalValue = browserSettings.maxListHeight,
+                        currentSettingOriginalValue = browserSettings.value.maxListHeight,
 
                         textFieldValueFun = { src ->
                             src.take(2) + "." + src.substring(2, 4)
@@ -822,13 +821,13 @@ fun SettingsPanel(
                         browserSettings = browserSettings,
                         updateBrowserSettingsForSpecificValue = { newValue ->
                             updateBrowserSettings(
-                                browserSettings.copy(searchEngine = newValue.toInt())
+                                browserSettings.value.copy(searchEngine = newValue.toInt())
                             )
                         },
                         onBackClick = {  currentView = SettingPanelView.MAIN },
                         valueRange = 0f..SearchEngine.entries.lastIndex.toFloat(),
                         steps = SearchEngine.entries.lastIndex - 1,
-                        currentSettingOriginalValue = browserSettings.searchEngine.toFloat(),
+                        currentSettingOriginalValue = browserSettings.value.searchEngine.toFloat(),
 
                         textFieldValueFun = { src ->
 //                            src.take(2) + "." + src.substring(2, 4)

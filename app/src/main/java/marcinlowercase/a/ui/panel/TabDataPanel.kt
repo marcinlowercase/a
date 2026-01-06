@@ -72,19 +72,19 @@ fun HistoryRow(
     item: WebHistoryItem,
     isLast: Boolean,
     isCurrent: Boolean,
-    browserSettings: BrowserSettings,
+    browserSettings: MutableState<BrowserSettings>,
     onClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = if (!isLast) browserSettings.padding.dp else 0.dp)
+            .padding(bottom = if (!isLast) browserSettings.value.padding.dp else 0.dp)
             .height(
-                browserSettings.heightForLayer(3).dp
+                browserSettings.value.heightForLayer(3).dp
             )
             .clip(
                 RoundedCornerShape(
-                    browserSettings.cornerRadiusForLayer(3).dp
+                    browserSettings.value.cornerRadiusForLayer(3).dp
                 )
             )
             .background(if (isCurrent) Color.White else Color.Transparent)
@@ -94,13 +94,13 @@ fun HistoryRow(
 //                shape = RoundedCornerShape(
 //                    cornerRadiusForLayer(
 //                        3,
-//                        browserSettings.deviceCornerRadius,
-//                        browserSettings.padding
+//                        browserSettings.value.deviceCornerRadius,
+//                        browserSettings.value.padding
 //                    ).dp
 //                )
 //            )
             .clickable(onClick = onClick)
-            .padding(horizontal = browserSettings.padding.dp * 2),
+            .padding(horizontal = browserSettings.value.padding.dp * 2),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // --- Favicon ---
@@ -126,7 +126,7 @@ fun HistoryRow(
             )
         }
 
-        Spacer(Modifier.width(browserSettings.padding.dp))
+        Spacer(Modifier.width(browserSettings.value.padding.dp))
 
         // --- Title ---
         Text(
@@ -147,7 +147,7 @@ fun TabDataPanel(
     isTabDataPanelVisible: Boolean,
     inspectingTab: Tab?,
     onDismiss: () -> Unit,
-    browserSettings: BrowserSettings,
+    browserSettings: MutableState<BrowserSettings>,
     siteSettings: Map<String, SiteSettings>,
     onPermissionToggle: (domain: String?, permission: String, isGranted: Boolean) -> Unit,
     onClearSiteData: () -> Unit,
@@ -175,15 +175,15 @@ fun TabDataPanel(
     // This AnimatedVisibility controls the entire panel's appearance
     AnimatedVisibility(
         visible = isTabDataPanelVisible,
-        enter = fadeIn(tween(browserSettings.animationSpeed.roundToInt())) + expandVertically(
+        enter = fadeIn(tween(browserSettings.value.animationSpeed.roundToInt())) + expandVertically(
             expandFrom = Alignment.Bottom
         ),
         exit = shrinkVertically(
             tween(
-                browserSettings.animationSpeedForLayer(1)
+                browserSettings.value.animationSpeedForLayer(1)
             )
         ) + fadeOut(
-            tween(browserSettings.animationSpeedForLayer(1))
+            tween(browserSettings.value.animationSpeedForLayer(1))
         )
 
     ) {
@@ -197,13 +197,13 @@ fun TabDataPanel(
             Column(
                 modifier = Modifier
                     .clickable(enabled = false, onClick = {}) // Block clicks
-                    .padding(top = browserSettings.padding.dp)
-                    .padding(horizontal = browserSettings.padding.dp)
+                    .padding(top = browserSettings.value.padding.dp)
+                    .padding(horizontal = browserSettings.value.padding.dp)
                     .fillMaxWidth()
                     .heightIn(max = 450.dp)
                     .clip(
                         RoundedCornerShape(
-                            browserSettings.cornerRadiusForLayer(2).dp
+                            browserSettings.value.cornerRadiusForLayer(2).dp
                         )
                     )
                     .background(Color.Black)
@@ -215,7 +215,7 @@ fun TabDataPanel(
                         .fillMaxWidth()
                         .animateContentSize(
                             tween(
-                                browserSettings.animationSpeedForLayer(1)
+                                browserSettings.value.animationSpeedForLayer(1)
                             )
                         )
                 ) {
@@ -224,7 +224,7 @@ fun TabDataPanel(
                         SiteSettingsManager(LocalContext.current).getDomain(
                             webViewManager.getWebView(
                                 tab
-                            ).url ?: browserSettings.defaultUrl
+                            ).url ?: browserSettings.value.defaultUrl
                         )
                     val settings = if (domain != null) siteSettings[domain] else null
                     val history = webViewManager.getWebView(tab).copyBackForwardList()
@@ -236,9 +236,9 @@ fun TabDataPanel(
                         TabDataPanelView.MAIN -> {
                             Column(
                                 modifier = Modifier
-                                    .padding(horizontal = browserSettings.padding.dp)
-                                    .padding(top = if (isStillHaveOptions) browserSettings.padding.dp else 0.dp),
-                                verticalArrangement = Arrangement.spacedBy(browserSettings.padding.dp),
+                                    .padding(horizontal = browserSettings.value.padding.dp)
+                                    .padding(top = if (isStillHaveOptions) browserSettings.value.padding.dp else 0.dp),
+                                verticalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 // History Button
@@ -282,16 +282,16 @@ fun TabDataPanel(
                                     modifier = Modifier
                                         .heightIn(
 //                                            max = maxLazyColumnHeight
-                                            max = browserSettings.maxContainerSizeForLayer(3).dp
+                                            max = browserSettings.value.maxContainerSizeForLayer(3).dp
                                         )
                                         .padding(
-                                            top = browserSettings.padding.dp,
-                                            start = browserSettings.padding.dp,
-                                            end = browserSettings.padding.dp
+                                            top = browserSettings.value.padding.dp,
+                                            start = browserSettings.value.padding.dp,
+                                            end = browserSettings.value.padding.dp
                                         )
                                         .clip(
                                             RoundedCornerShape(
-                                                browserSettings.cornerRadiusForLayer(3).dp
+                                                browserSettings.value.cornerRadiusForLayer(3).dp
                                             )
                                         )
                                 ) {
@@ -330,9 +330,9 @@ fun TabDataPanel(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(
-                                            browserSettings.heightForLayer(3).dp
+                                            browserSettings.value.heightForLayer(3).dp
                                         )
-                                        .padding(top = browserSettings.padding.dp),
+                                        .padding(top = browserSettings.value.padding.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text("This tab is not active", color = Color.Gray)
@@ -344,7 +344,7 @@ fun TabDataPanel(
                         TabDataPanelView.PERMISSIONS -> {
                             val domain =
                                 SiteSettingsManager(LocalContext.current).getDomain(
-                                    webViewManager.getWebView(tab).url ?: browserSettings.defaultUrl
+                                    webViewManager.getWebView(tab).url ?: browserSettings.value.defaultUrl
                                 )
                             val settings = if (domain != null) siteSettings[domain] else null
 
@@ -354,9 +354,9 @@ fun TabDataPanel(
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(horizontal = browserSettings.padding.dp)
-                                        .padding(top = browserSettings.padding.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(browserSettings.padding.dp)
+                                        .padding(horizontal = browserSettings.value.padding.dp)
+                                        .padding(top = browserSettings.value.padding.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
                                 ) {
                                     settings.permissionDecisions.forEach { (permission, isGranted) ->
                                         // Determine the correct icon and name for the button
@@ -386,9 +386,9 @@ fun TabDataPanel(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(
-                                            browserSettings.heightForLayer(3).dp
+                                            browserSettings.value.heightForLayer(3).dp
                                         )
-                                        .padding(top = browserSettings.padding.dp),
+                                        .padding(top = browserSettings.value.padding.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text("No permissions requested yet.", color = Color.Gray)
@@ -402,8 +402,8 @@ fun TabDataPanel(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(browserSettings.padding.dp),
-                    horizontalArrangement = Arrangement.spacedBy(browserSettings.padding.dp)
+                        .padding(browserSettings.value.padding.dp),
+                    horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
                 ) {
                     CustomIconButton(
                         layer = 3,
@@ -451,7 +451,7 @@ fun TabDataPanel(
 //                        onClick = onAddToHomeScreen,
 //                        modifier = Modifier.buttonSettingsForLayer(
 //                            3,
-//                            browserSettings
+//                            browserSettings.value
 //                        ).weight(1f)
 //                    ) {
 //                        Icon(

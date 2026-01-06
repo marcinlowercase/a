@@ -41,7 +41,7 @@ fun FindInPagePanel(
     onFindNext: () -> Unit,
     onFindPrevious: () -> Unit,
     onClose: () -> Unit,
-    browserSettings: BrowserSettings,
+    browserSettings: MutableState<BrowserSettings>,
     descriptionContent: MutableState<String>
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -49,20 +49,20 @@ fun FindInPagePanel(
         visible = isVisible,
         enter = expandVertically(
             tween(
-                browserSettings.animationSpeedForLayer(1)
+                browserSettings.value.animationSpeedForLayer(1)
             )
         ) + fadeIn(
             tween(
-                browserSettings.animationSpeedForLayer(1)
+                browserSettings.value.animationSpeedForLayer(1)
             )
         ),
         exit = shrinkVertically(
             tween(
-                browserSettings.animationSpeedForLayer(1)
+                browserSettings.value.animationSpeedForLayer(1)
             )
         ) + fadeOut(
             tween(
-                browserSettings.animationSpeedForLayer(1)
+                browserSettings.value.animationSpeedForLayer(1)
             )
         )
     ) {
@@ -71,11 +71,11 @@ fun FindInPagePanel(
             modifier = Modifier
                 .clip(
                     RoundedCornerShape(
-                        browserSettings.cornerRadiusForLayer(1).dp
+                        browserSettings.value.cornerRadiusForLayer(1).dp
                     )
                 )
-                .padding(horizontal = browserSettings.padding.dp)
-                .padding(top = browserSettings.padding.dp)
+                .padding(horizontal = browserSettings.value.padding.dp)
+                .padding(top = browserSettings.value.padding.dp)
 
         ) {
             TextField(
@@ -85,14 +85,14 @@ fun FindInPagePanel(
                     .fillMaxWidth()
                     .clip(
                         RoundedCornerShape(
-                            browserSettings.cornerRadiusForLayer(2).dp
+                            browserSettings.value.cornerRadiusForLayer(2).dp
                         )
                     )
                     .height(
-                        browserSettings.heightForLayer(2).dp
+                        browserSettings.value.heightForLayer(2).dp
                     ),
                 shape = RoundedCornerShape(
-                    browserSettings.cornerRadiusForLayer(2).dp
+                    browserSettings.value.cornerRadiusForLayer(2).dp
                 ),
                 placeholder = { Text("find in page") },
                 singleLine = true,
@@ -115,9 +115,9 @@ fun FindInPagePanel(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = browserSettings.padding.dp),
+                    .padding(top = browserSettings.value.padding.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(browserSettings.padding.dp)
+                horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
             ) {
 
                 CustomIconButton(

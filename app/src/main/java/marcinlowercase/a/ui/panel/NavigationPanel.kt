@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,7 +37,7 @@ fun NavigationPanel(
     activeWebView: CustomWebView?,
     isNavPanelVisible: Boolean,
     modifier: Modifier = Modifier,
-    browserSettings: BrowserSettings,
+    browserSettings: MutableState<BrowserSettings>,
     activeAction: GestureNavAction,
 
     ) {
@@ -44,34 +45,34 @@ fun NavigationPanel(
         visible = isNavPanelVisible,
         enter = expandVertically(
             tween(
-                browserSettings.animationSpeedForLayer(1)
+                browserSettings.value.animationSpeedForLayer(1)
             )
         ) + fadeIn(
             tween(
-                browserSettings.animationSpeedForLayer(1)
+                browserSettings.value.animationSpeedForLayer(1)
             )
         ),
         exit = shrinkVertically(
             tween(
-                browserSettings.animationSpeedForLayer(1)
+                browserSettings.value.animationSpeedForLayer(1)
             )
         ) + fadeOut(
             tween(
-                browserSettings.animationSpeedForLayer(1)
+                browserSettings.value.animationSpeedForLayer(1)
             )
         )
     ) {
         Box(
             modifier = Modifier
-                .padding(horizontal = browserSettings.padding.dp)
-                .padding(top = browserSettings.padding.dp)
+                .padding(horizontal = browserSettings.value.padding.dp)
+                .padding(top = browserSettings.value.padding.dp)
         ) {
             Column(
                 modifier = modifier
 
                     .clip(
                         RoundedCornerShape(
-                            browserSettings.cornerRadiusForLayer(2).dp
+                            browserSettings.value.cornerRadiusForLayer(2).dp
                         )
                     )
                     .background(Color.Black.copy(0.3f)),
@@ -80,8 +81,8 @@ fun NavigationPanel(
                 Row(
                     modifier = modifier
                         .fillMaxWidth()
-                        .padding(top = browserSettings.padding.dp)
-                        .padding(horizontal = browserSettings.padding.dp),
+                        .padding(top = browserSettings.value.padding.dp)
+                        .padding(horizontal = browserSettings.value.padding.dp),
 
 
                     horizontalArrangement = Arrangement.SpaceEvenly,
@@ -118,8 +119,8 @@ fun NavigationPanel(
                     modifier = modifier
                         .fillMaxWidth()
 
-                        .padding(browserSettings.padding.dp),
-                    horizontalArrangement = Arrangement.spacedBy(browserSettings.padding.dp),
+                        .padding(browserSettings.value.padding.dp),
+                    horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Back Icon
@@ -165,18 +166,18 @@ fun NavigationItem(
     gestureNavAction: GestureNavAction,
     actionIcon: Painter,
     visibility: Boolean = true,
-    browserSettings: BrowserSettings
+    browserSettings: MutableState<BrowserSettings>
 ) {
     // Cancel Icon
     val refreshColor by animateColorAsState(if (activeAction == gestureNavAction) Color.White else Color.Transparent)
     Box(
         modifier = modifier
             .height(
-                browserSettings.heightForLayer(3).dp
+                browserSettings.value.heightForLayer(3).dp
             )
             .clip(
                 RoundedCornerShape(
-                    browserSettings.cornerRadiusForLayer(3).dp
+                    browserSettings.value.cornerRadiusForLayer(3).dp
                 )
             )
             .background(refreshColor)

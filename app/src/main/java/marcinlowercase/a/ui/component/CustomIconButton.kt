@@ -18,7 +18,7 @@ import marcinlowercase.a.core.function.buttonSettingsForLayer
 @Composable
 fun CustomIconButton(
     layer: Int,
-    browserSettings: BrowserSettings,
+    browserSettings: MutableState<BrowserSettings>,
     modifier: Modifier = Modifier,
     onTap: (() -> Unit),
     descriptionContent: MutableState<String>,
@@ -32,11 +32,11 @@ fun CustomIconButton(
     Box(
         modifier = modifier
             .height(
-                browserSettings.heightForLayer(layer).dp
+                browserSettings.value.heightForLayer(layer).dp
             )
             .buttonSettingsForLayer(
                 layer,
-                browserSettings,
+                browserSettings.value,
                 isWhite
             )
 

@@ -16,6 +16,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
@@ -30,29 +31,29 @@ import marcinlowercase.a.core.function.buttonSettingsForLayer
 fun ConfirmationPanel(
     isConfirmationPanelVisible: Boolean,
     isUrlBarVisible: Boolean,
-    browserSettings: BrowserSettings,
+    browserSettings: MutableState<BrowserSettings>,
     state: ConfirmationDialogState?,
 ) {
     AnimatedVisibility(
         visible = isConfirmationPanelVisible,
-        enter = expandVertically(tween(browserSettings.animationSpeedForLayer(1))),
-        exit = shrinkVertically(tween(browserSettings.animationSpeedForLayer(1))) +
-                fadeOut(tween(browserSettings.animationSpeedForLayer(1)))
+        enter = expandVertically(tween(browserSettings.value.animationSpeedForLayer(1))),
+        exit = shrinkVertically(tween(browserSettings.value.animationSpeedForLayer(1))) +
+                fadeOut(tween(browserSettings.value.animationSpeedForLayer(1)))
     ) {
 
         if (state == null) return@AnimatedVisibility
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = browserSettings.padding.dp)
+                .padding(horizontal = browserSettings.value.padding.dp)
                 .padding(
-                    top = browserSettings.padding.dp,
-                    bottom = if (isUrlBarVisible) 0.dp else browserSettings.padding.dp
+                    top = browserSettings.value.padding.dp,
+                    bottom = if (isUrlBarVisible) 0.dp else browserSettings.value.padding.dp
                 )
                 .background(
                     Color.Black,
                     shape = RoundedCornerShape(
-                       browserSettings.cornerRadiusForLayer(2).dp
+                       browserSettings.value.cornerRadiusForLayer(2).dp
                     )
                 )
 //                .border(
@@ -61,8 +62,8 @@ fun ConfirmationPanel(
 //                    shape = RoundedCornerShape(
 //                        cornerRadiusForLayer(
 //                            2,
-//                            browserSettings.deviceCornerRadius,
-//                            browserSettings.padding
+//                            browserSettings.value.deviceCornerRadius,
+//                            browserSettings.value.padding
 //                        ).dp
 //                    )
 //                )
@@ -72,7 +73,7 @@ fun ConfirmationPanel(
                 text = state.message,
                 color = Color.Yellow,
                 modifier = Modifier
-                    .padding(browserSettings.padding.dp)
+                    .padding(browserSettings.value.padding.dp)
                     .fillMaxWidth(),
                 textAlign = TextAlign.Center
             )
@@ -80,21 +81,21 @@ fun ConfirmationPanel(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(browserSettings.padding.dp),
-                horizontalArrangement = Arrangement.spacedBy(browserSettings.padding.dp)
+                    .padding(browserSettings.value.padding.dp),
+                horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
             ) {
                 // Cancel Button
                 IconButton(
                     modifier = Modifier
                         .buttonSettingsForLayer(
                         3,
-                       browserSettings,
+                       browserSettings.value,
                         false
                     )
                         .weight(1f)
                     ,
                     shape = RoundedCornerShape(
-                        browserSettings.cornerRadiusForLayer(3).dp
+                        browserSettings.value.cornerRadiusForLayer(3).dp
                     ),
                     onClick = state.onCancel
                 ) {
@@ -110,11 +111,11 @@ fun ConfirmationPanel(
                     modifier = Modifier
                         .buttonSettingsForLayer(
                         3,
-                        browserSettings,
+                        browserSettings.value,
                     )
                         .weight(1f),
                     shape = RoundedCornerShape(
-                        browserSettings.cornerRadiusForLayer(2).dp
+                        browserSettings.value.cornerRadiusForLayer(2).dp
                     ),
                     onClick = state.onConfirm
                 ) {

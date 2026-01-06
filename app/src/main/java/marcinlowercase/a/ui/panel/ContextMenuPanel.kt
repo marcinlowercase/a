@@ -54,7 +54,7 @@ fun ContextMenuPanel(
     descriptionContent: MutableState<String>,
     isVisible: Boolean,
     data: ContextMenuData?,
-    browserSettings: BrowserSettings,
+    browserSettings: MutableState<BrowserSettings>,
     onDismiss: () -> Unit,
     onOpenInNewTab: (String) -> Unit,
     onDownloadImage: (String) -> Unit,
@@ -66,8 +66,8 @@ fun ContextMenuPanel(
 
     AnimatedVisibility(
         visible = isVisible,
-        enter = expandVertically(tween(browserSettings.animationSpeed.roundToInt())) + fadeIn(),
-        exit = shrinkVertically(tween(browserSettings.animationSpeed.roundToInt())) + fadeOut()
+        enter = expandVertically(tween(browserSettings.value.animationSpeed.roundToInt())) + fadeIn(),
+        exit = shrinkVertically(tween(browserSettings.value.animationSpeed.roundToInt())) + fadeOut()
     ) {
 
 
@@ -80,21 +80,21 @@ fun ContextMenuPanel(
 
         Column(
             modifier = Modifier
-                .padding(horizontal = browserSettings.padding.dp)
-                .padding(top = browserSettings.padding.dp)
+                .padding(horizontal = browserSettings.value.padding.dp)
+                .padding(top = browserSettings.value.padding.dp)
                 .fillMaxWidth()
         ) {
             // 1. Header (URL or "Image")
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = browserSettings.padding.dp)
+                    .padding(bottom = browserSettings.value.padding.dp)
                     .clip(
                         RoundedCornerShape(
-                            browserSettings.cornerRadiusForLayer(2).dp
+                            browserSettings.value.cornerRadiusForLayer(2).dp
                         )
                     )
-                    .padding(browserSettings.padding.dp * 2)
+                    .padding(browserSettings.value.padding.dp * 2)
 
                 ,
                 verticalAlignment = Alignment.CenterVertically
@@ -105,7 +105,7 @@ fun ContextMenuPanel(
                     tint = Color.White,
                     modifier = Modifier.size(20.dp)
                 )
-                Spacer(Modifier.width(browserSettings.padding.dp))
+                Spacer(Modifier.width(browserSettings.value.padding.dp))
                 Text(
                     text = data.url,
                     color = Color.White,
@@ -155,22 +155,22 @@ fun ContextMenuPanel(
                     .fillMaxWidth()
                     .clip(
                         RoundedCornerShape(
-                            browserSettings.cornerRadiusForLayer(2).dp
+                            browserSettings.value.cornerRadiusForLayer(2).dp
                         )
                     )
-                    .padding(bottom = browserSettings.padding.dp),
-                horizontalArrangement = Arrangement.spacedBy(browserSettings.padding.dp)
+                    .padding(bottom = browserSettings.value.padding.dp),
+                horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
             ) {
                 actions.forEach { (icon, desc, action) ->
                     Box(
                         modifier = Modifier
                             .weight(1f)
                             .height(
-                                browserSettings.heightForLayer(2).dp
+                                browserSettings.value.heightForLayer(2).dp
                             )
                             .clip(
                                 RoundedCornerShape(
-                                    browserSettings.cornerRadiusForLayer(2).dp
+                                    browserSettings.value.cornerRadiusForLayer(2).dp
                                 )
                             )
                             .background(Color.White)
