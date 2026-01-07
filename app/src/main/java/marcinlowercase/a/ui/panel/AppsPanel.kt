@@ -62,7 +62,10 @@ fun AppsPanel(
 
 
             ) {
-                Text("no app pinned .")
+                Text(
+                    text ="no app pinned .",
+                    color = Color.White
+                    )
             }
         } else {
             LazyVerticalGrid(

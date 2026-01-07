@@ -2130,7 +2130,7 @@ fun BrowserScreen(
     }
 
     // The LaunchedEffect now saves the entire settings object (or individual fields)
-    LaunchedEffect(browserSettings) {
+    LaunchedEffect(browserSettings.value) {
         sharedPrefs.edit {
             putBoolean("is_first_app_load", browserSettings.value.isFirstAppLoad)
             putFloat("padding", browserSettings.value.padding)
@@ -2200,6 +2200,7 @@ fun BrowserScreen(
         AnimatedVisibility(
             modifier = Modifier
                 .windowInsetsPadding(WindowInsets.ime)
+                .padding(innerPadding)
                 .align(Alignment.BottomCenter),
             visible = !browserSettings.value.isFirstAppLoad && !isOnline,
             enter = slideInVertically(
@@ -2265,6 +2266,7 @@ fun BrowserScreen(
             Box(
                 modifier = Modifier
                     .padding(browserSettings.value.padding.dp)
+                    .padding(innerPadding)
                     .clip(
                         RoundedCornerShape(
                             browserSettings.value.cornerRadiusForLayer(1).dp
@@ -2616,6 +2618,7 @@ fun BrowserScreen(
 
 
                 CursorPad(
+                    innerPadding = innerPadding,
                     urlBarFocusRequester = urlBarFocusRequester,
                     screenSize = screenSize,
                     isCursorPadVisible = isCursorPadVisible,
@@ -2639,6 +2642,7 @@ fun BrowserScreen(
                     visible = !isBottomPanelVisible,
                     modifier = Modifier
                         .fillMaxSize()
+                        .padding(innerPadding)
                         .onSizeChanged {
                             screenSize = it
                             with(density) {
@@ -2776,7 +2780,8 @@ fun BrowserScreen(
                                                     downTime,
                                                     MotionEvent.ACTION_DOWN,
                                                     cursorPointerPosition.value.x,
-                                                    cursorPointerPosition.value.y - webViewTopPadding.toPx(),
+//                                                    cursorPointerPosition.value.y - webViewTopPadding.toPx(),
+                                                    cursorPointerPosition.value.y - innerPadding.calculateTopPadding().toPx(),
                                                     0
                                                 )
                                                 val upEvent = MotionEvent.obtain(
@@ -2784,7 +2789,7 @@ fun BrowserScreen(
                                                     downTime + 10,
                                                     MotionEvent.ACTION_UP,
                                                     cursorPointerPosition.value.x,
-                                                    cursorPointerPosition.value.y - webViewTopPadding.toPx(),
+                                                    cursorPointerPosition.value.y - innerPadding.calculateTopPadding().toPx(),
                                                     0
                                                 )
                                                 webView.dispatchTouchEvent(downEvent)
@@ -3044,6 +3049,7 @@ fun CursorPointer(
 
 @Composable
 fun CursorPad(
+    innerPadding: PaddingValues,
     urlBarFocusRequester: FocusRequester,
     isLongPressDrag: MutableState<Boolean>,
     isCursorPadVisible: Boolean,
@@ -3076,6 +3082,7 @@ fun CursorPad(
             modifier =
                 Modifier
                     .fillMaxSize()
+                    .padding(innerPadding)
                     .windowInsetsPadding(WindowInsets.ime)
 
 
