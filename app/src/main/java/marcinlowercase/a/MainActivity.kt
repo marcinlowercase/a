@@ -2475,6 +2475,7 @@ fun BrowserScreen(
                                     animatedCornerRadius
                                 )
                             )
+                            .background(color = Color.White)
                             .testTag("WebViewContainer")
 
 
