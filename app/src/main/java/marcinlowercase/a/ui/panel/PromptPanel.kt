@@ -168,6 +168,8 @@ fun PromptPanel(
 
                 val textModifier = Modifier
                     .padding(browserSettings.value.padding.dp)
+
+
                 Column(
                     modifier = Modifier
                         .padding(browserSettings.value.padding.dp)
@@ -181,17 +183,20 @@ fun PromptPanel(
                     when (promptComponentDisplayState) {
                         is JsAlert -> Text(
                             text = promptComponentDisplayState.message,
+                            color = Color.White,
                             modifier = textModifier
                         )
 
                         is JsConfirm -> Text(
                             text = promptComponentDisplayState.message,
+                            color = Color.White,
                             modifier = textModifier
                         )
 
                         is JsPrompt -> {
                             Text(
                                 text = promptComponentDisplayState.message,
+                                color = Color.White,
                                 modifier = textModifier
                             )
                             Spacer(Modifier.height(browserSettings.value.padding.dp))
@@ -331,6 +336,7 @@ fun PromptPanel(
                         Icon(
                             painter = painterResource(id = R.drawable.ic_check),
                             contentDescription = "Confirm",
+                            tint = Color.Black
                         )
                     }
                 }
