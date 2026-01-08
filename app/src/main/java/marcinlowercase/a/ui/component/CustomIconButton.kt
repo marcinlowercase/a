@@ -31,6 +31,7 @@ fun CustomIconButton(
     val  hapticFeedback = LocalHapticFeedback.current
     Box(
         modifier = modifier
+
             .height(
                 browserSettings.value.heightForLayer(layer).dp
             )

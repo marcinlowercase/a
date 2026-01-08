@@ -53,9 +53,9 @@ fun TextEditPanel(
                 .padding(horizontal = browserSettings.value.padding.dp)
                 .padding(bottom = browserSettings.value.padding.dp)
                 .background(
-                    color = Color.Black,
+                    color = Color.Cyan,
                     shape = RoundedCornerShape(
-                        browserSettings.value.cornerRadiusForLayer(3).dp
+                        browserSettings.value.cornerRadiusForLayer(2).dp
                     )
                 )
                 .padding(browserSettings.value.padding.dp),

@@ -93,11 +93,13 @@ import marcinlowercase.a.core.data_class.SiteSettings
 import marcinlowercase.a.core.data_class.Suggestion
 import marcinlowercase.a.core.data_class.Tab
 import marcinlowercase.a.core.enum_class.BottomPanelMode
+import marcinlowercase.a.core.enum_class.DragDirection
 import marcinlowercase.a.core.enum_class.GestureNavAction
 import marcinlowercase.a.core.enum_class.RevealState
 import marcinlowercase.a.core.enum_class.SearchEngine
 import marcinlowercase.a.core.enum_class.SuggestionSource
 import marcinlowercase.a.core.function.buttonSettingsForLayer
+import marcinlowercase.a.core.function.consumeChangePointerInput
 import marcinlowercase.a.core.function.toDomain
 import marcinlowercase.a.core.function.webViewLoad
 import marcinlowercase.a.core.manager.AppManager
@@ -260,7 +262,8 @@ fun BottomPanel(
                 .anchoredDraggable(
                     state = draggableState,
                     orientation = Orientation.Vertical,
-                    flingBehavior = flingBehavior
+                    flingBehavior = flingBehavior,
+                    enabled = !isFocusOnTextField
                 )
 
         ) {
@@ -538,35 +541,32 @@ fun BottomPanel(
                                     )
                                     .fillMaxWidth()
                                     .padding(browserSettings.value.padding.dp)
-                                    .clip(RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(1).dp))
-                                    .pointerInput(Unit) {
-                                        awaitEachGesture {
-                                            val down = awaitFirstDown(requireUnconsumed = false)
-                                            val drag = awaitTouchSlopOrCancellation(down.id) { change, _ ->
-                                                change.consume()
-                                            }
-                                            if (drag != null) {
-                                                var horizontalDragAccumulator = 0f
-                                                var verticalDragAccumulator = 0f
-
-                                                drag(drag.id) { change ->
-
-                                                    horizontalDragAccumulator += change.position.x - change.previousPosition.x
-                                                    verticalDragAccumulator += change.position.y - change.previousPosition.y
-
-                                                    val isVerticalDrag = abs(verticalDragAccumulator) > abs(horizontalDragAccumulator)
-
-                                                    if (isVerticalDrag) change.consume()
-                                                }
-                                            }
-                                        }
-                                    }
+                                    .clip(
+                                        RoundedCornerShape(
+                                            browserSettings.value.cornerRadiusForLayer(
+                                                1
+                                            ).dp
+                                        )
+                                    )
+                                    .consumeChangePointerInput(dragDirection = DragDirection.Vertical)
                             ) {
 
                                 AnimatedVisibility(
                                     visible = inspectingAppId.value > 0L,
-                                    enter = fadeIn(tween(browserSettings.value.animationSpeedForLayer(0))),
-                                    exit = fadeOut(tween(browserSettings.value.animationSpeedForLayer(0))),
+                                    enter = fadeIn(
+                                        tween(
+                                            browserSettings.value.animationSpeedForLayer(
+                                                0
+                                            )
+                                        )
+                                    ),
+                                    exit = fadeOut(
+                                        tween(
+                                            browserSettings.value.animationSpeedForLayer(
+                                                0
+                                            )
+                                        )
+                                    ),
                                 ) {
                                     Row(
                                         modifier = Modifier
@@ -667,8 +667,20 @@ fun BottomPanel(
 
                                 AnimatedVisibility(
                                     visible = inspectingAppId.value == 0L,
-                                    enter = fadeIn(tween(browserSettings.value.animationSpeedForLayer(0))),
-                                    exit = fadeOut(tween(browserSettings.value.animationSpeedForLayer(0))),
+                                    enter = fadeIn(
+                                        tween(
+                                            browserSettings.value.animationSpeedForLayer(
+                                                0
+                                            )
+                                        )
+                                    ),
+                                    exit = fadeOut(
+                                        tween(
+                                            browserSettings.value.animationSpeedForLayer(
+                                                0
+                                            )
+                                        )
+                                    ),
                                 ) {
                                     Box(
                                         modifier = Modifier
@@ -747,7 +759,8 @@ fun BottomPanel(
                                                     if (bottomPanelPagerState.currentPage == BottomPanelMode.SEARCH.ordinal) {
                                                         setIsOptionsPanelVisible(savedState.options)
                                                         setIsTabsPanelVisible(savedState.tabs)
-                                                       isDownloadPanelVisible.value = savedState.downloads
+                                                        isDownloadPanelVisible.value =
+                                                            savedState.downloads
                                                         setIsTabDataPanelVisible(savedState.tabData)
                                                         setIsNavPanelVisible(savedState.nav)
                                                     }
@@ -994,16 +1007,15 @@ fun BottomPanel(
                                                             horizontalDragAccumulator += change.position.x - change.previousPosition.x
                                                             verticalDragAccumulator += change.position.y - change.previousPosition.y
 
-                                                            if ( abs(horizontalDragAccumulator) > abs(
+                                                            if (isFocusOnTextField) change.consume()
+                                                            if (abs(horizontalDragAccumulator) > abs(
                                                                     verticalDragAccumulator
-                                                                )  )
-                                                            {
+                                                                )
+                                                            ) {
 //                                                                change.consume()
-
                                                                 setIsUrlOverlayBoxVisible(false)
 
                                                             }
-
 
 
                                                         }
@@ -1052,7 +1064,13 @@ fun BottomPanel(
                                     )
                                     .fillMaxWidth()
                                     .padding(browserSettings.value.padding.dp)
-                                    .clip(RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(1).dp)),
+                                    .clip(
+                                        RoundedCornerShape(
+                                            browserSettings.value.cornerRadiusForLayer(
+                                                1
+                                            ).dp
+                                        )
+                                    ),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(

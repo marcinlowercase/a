@@ -2148,6 +2148,7 @@ fun BrowserScreen(
             && backSquareOffsetY.value > screenSize.height.toFloat() - squareBoxSizePx - paddingPx
         ) {
             // Auto Fit
+            Log.d("AUTOFIT", "AUTO FIT")
 
             // Clamp Y to screen bounds
             val targetY = backSquareOffsetY.value.coerceIn(
@@ -2983,6 +2984,7 @@ fun BrowserScreen(
 
                                                 coroutineScope.launch {
                                                     // Animate snapping
+                                                    Log.i("AUTOFIT", "bound")
                                                     launch {
                                                         backSquareOffsetX.animateTo(
                                                             targetX,
