@@ -20,11 +20,12 @@ data class BrowserSettings(
     val showSuggestions: Boolean,
     val closedTabHistorySize: Float,
 
-    val backSquareOffsetX: Float = 0f,
+    val backSquareOffsetX: Float = -1f,
     val backSquareOffsetY: Float = 0f,
     val backSquareIdleOpacity: Float = 0.2f,
     val maxListHeight: Float = 2.5f,
     val searchEngine: Int = 0,
+    val isFullscreenMode: Boolean,
 ) {
     fun cornerRadiusForLayer(layer: Int): Float {
         if (layer == 0) return deviceCornerRadius

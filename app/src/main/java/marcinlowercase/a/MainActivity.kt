@@ -20,6 +20,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.util.Base64
+import android.util.Log
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
@@ -126,6 +127,7 @@ import androidx.core.content.edit
 import androidx.core.net.toUri
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -229,9 +231,7 @@ class MainActivity : ComponentActivity() {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     BrowserScreen(
                         innerPadding = innerPadding,
-                        modifier = Modifier
-//                            .padding(innerPadding)
-                        ,
+                        modifier = Modifier,
 
                         isOnline = isOnline,
                         newUrlFlow = newUrlFromIntent,
@@ -392,6 +392,7 @@ fun BrowserScreen(
                 backSquareIdleOpacity = sharedPrefs.getFloat("back_square_idle_opacity", 0.2f),
                 maxListHeight = sharedPrefs.getFloat("max_list_height", 2.5f),
                 searchEngine = sharedPrefs.getInt("search_engine", SearchEngine.GOOGLE.ordinal),
+                isFullscreenMode = sharedPrefs.getBoolean("is_fullscreen_mode", false),
             )
         )
     }
@@ -482,7 +483,7 @@ fun BrowserScreen(
     var activeNavAction by remember { mutableStateOf(GestureNavAction.REFRESH) }
     var isTabDataPanelVisible by remember { mutableStateOf(false) }
     val hapticFeedback = LocalHapticFeedback.current
-    var isOptionsPanelVisible by rememberSaveable { mutableStateOf(false) }
+//    var isOptionsPanelVisible by rememberSaveable { mutableStateOf(false) }
     val isSettingsPanelVisible = remember { mutableStateOf(browserSettings.value.isFirstAppLoad) }
     val isBottomPanelLock = remember { mutableStateOf(false) }
     val isAppsPanelVisible = remember { mutableStateOf(false) }
@@ -498,32 +499,85 @@ fun BrowserScreen(
     // Get the raw cutout padding values.
     val cutoutPaddingValues = WindowInsets.displayCutout.asPaddingValues()
     val cutoutTop = cutoutPaddingValues.calculateTopPadding()
+    val cutoutBottom = cutoutPaddingValues.calculateBottomPadding()
     cutoutPaddingValues.calculateBottomPadding()
-//    val webViewTopPadding by animateDpAsState(
+//    val webViewTopPaddingFullscreen by animateDpAsState(
 //        targetValue = if (browserSettings.value.isSharpMode) (
 //                if (cutoutTop >= browserSettings.value.deviceCornerRadius.dp) cutoutTop else browserSettings.value.deviceCornerRadius.dp
 //                ) else cutoutTop,
 //        label = "WebView Top Padding Animation"
 //    )
+//    val webViewTopPaddingRegular by animateDpAsState(
+//        targetValue = if (browserSettings.value.isSharpMode) (
+//                browserSettings.value.deviceCornerRadius.dp
+//                ) else 0.dp,
+//        label = "WebView Top Padding Animation"
+//    )
+
+    val targetWebViewTopPadding = if (browserSettings.value.isFullscreenMode) {
+        if (browserSettings.value.isSharpMode) {
+            maxOf(cutoutTop, browserSettings.value.deviceCornerRadius.dp)
+        } else {
+            cutoutTop
+        }
+    } else {
+        if (browserSettings.value.isSharpMode) {
+//            browserSettings.value.deviceCornerRadius.dp
+            maxOf(
+                maxOf(cutoutTop, browserSettings.value.deviceCornerRadius.dp),
+                innerPadding.calculateTopPadding()
+            )
+
+        } else {
+            innerPadding.calculateTopPadding()
+        }
+    }
+    val targetWebViewBottomPadding = if (browserSettings.value.isFullscreenMode) {
+        if (browserSettings.value.isSharpMode) {
+            maxOf(cutoutBottom, browserSettings.value.deviceCornerRadius.dp)
+        } else {
+            cutoutBottom
+        }
+    } else {
+        if (browserSettings.value.isSharpMode) {
+            maxOf(
+                maxOf(cutoutBottom, browserSettings.value.deviceCornerRadius.dp),
+                innerPadding.calculateBottomPadding()
+            )
+        } else {
+            innerPadding.calculateBottomPadding()
+
+        }
+    }
+
+
     val webViewTopPadding by animateDpAsState(
-        targetValue = if (browserSettings.value.isSharpMode) (
-                browserSettings.value.deviceCornerRadius.dp
-                ) else 0.dp,
-        label = "WebView Top Padding Animation"
+        targetValue = targetWebViewTopPadding,
     )
-//    val webViewBottomPadding by animateDpAsState(
+
+
+//    val webViewBottomPaddingFullscreen by animateDpAsState(
 //        targetValue = if (browserSettings.value.isSharpMode) (
 //                if (cutoutBottom >= browserSettings.value.deviceCornerRadius.dp) cutoutBottom else browserSettings.value.deviceCornerRadius.dp
 //
 //                ) else cutoutBottom,
 //        label = "WebView Top Padding Animation"
 //    )
+//    val webViewBottomPaddingRegular by animateDpAsState(
+//        targetValue = if (browserSettings.value.isSharpMode) (
+//                browserSettings.value.deviceCornerRadius.dp
+//
+//                ) else 0.dp,
+//        label = "WebView Top Padding Animation"
+//    )
     val webViewBottomPadding by animateDpAsState(
-        targetValue = if (browserSettings.value.isSharpMode) (
-                browserSettings.value.deviceCornerRadius.dp
-
-                ) else 0.dp,
-        label = "WebView Top Padding Animation"
+        targetValue = targetWebViewBottomPadding,
+    )
+    val webViewPaddingValue = PaddingValues(
+        start = 0.dp,
+        top = webViewTopPadding,
+        end = 0.dp,
+        bottom = webViewBottomPadding
     )
     val imeInsets = WindowInsets.ime.asPaddingValues()
     val keyboardHeight = imeInsets.calculateBottomPadding()
@@ -531,11 +585,11 @@ fun BrowserScreen(
     val floatingPanelBottomPadding by animateDpAsState(
         targetValue = if (isKeyboardVisible) (
                 0.dp
-
-                ) else (innerPadding.calculateBottomPadding()),
+                ) else (webViewBottomPadding),
         animationSpec = tween(browserSettings.value.animationSpeedForLayer(1)),
         label = "Floating Panel Padding Animation"
     )
+
 
     var pendingPermissionRequest by remember {
         mutableStateOf<CustomPermissionRequest?>(null)
@@ -630,7 +684,7 @@ fun BrowserScreen(
             }
         }
     )
-   
+
     val cursorPadHeight by animateDpAsState(
         targetValue = if (isKeyboardVisible) ((screenSizeDp.height.dp - webViewTopPadding) / 8
                 ) else (screenSizeDp.height.dp - webViewTopPadding) / 2,
@@ -669,7 +723,8 @@ fun BrowserScreen(
     val isPinningApp = remember { mutableStateOf(false) }
 
 
-    val optionsPanelHeight = (browserSettings.value.heightForLayer(2)+ browserSettings.value.padding).dp
+    val optionsPanelHeight =
+        (browserSettings.value.heightForLayer(2) + browserSettings.value.padding).dp
     val optionsPanelHeightPx = with(density) { optionsPanelHeight.toPx() }
 
     // 2. Define Anchors
@@ -689,12 +744,12 @@ fun BrowserScreen(
         state = draggableState,
         positionalThreshold = { distance -> distance * 0.5f },
 
-    )
+        )
 
     //endregion
 
     //region Functions
-    val setIsOptionsPanelVisible = { setToVisible : Boolean ->
+    val setIsOptionsPanelVisible = { setToVisible: Boolean ->
 
         coroutineScope.launch {
             if (setToVisible) {
@@ -708,7 +763,8 @@ fun BrowserScreen(
                 draggableState.animateTo(
                     targetValue = RevealState.Hidden,
                     animationSpec = tween(
-                        durationMillis = browserSettings.value.animationSpeedForLayer(1),)
+                        durationMillis = browserSettings.value.animationSpeedForLayer(1),
+                    )
                 )
             }
             delay((browserSettings.value.animationSpeedForLayer(1) * 2).toLong())
@@ -1297,7 +1353,11 @@ fun BrowserScreen(
     //region LaunchedEffect
 
     LaunchedEffect(isSettingsPanelVisible.value) {
-        if (!isSettingsPanelVisible.value) updateBrowserSettings(browserSettings.value.copy(isFirstAppLoad = false))
+        if (!isSettingsPanelVisible.value) updateBrowserSettings(
+            browserSettings.value.copy(
+                isFirstAppLoad = false
+            )
+        )
     }
     LaunchedEffect(inspectingAppId.longValue) {
         descriptionContent.value = apps.find { it.id == inspectingAppId.longValue }?.label ?: ""
@@ -1328,7 +1388,7 @@ fun BrowserScreen(
             isDownloadPanelVisible.value = false
             isNavPanelVisible = false
             isTabsPanelVisible = false
-            isOptionsPanelVisible = false
+            setIsOptionsPanelVisible(false)
             isSettingsPanelVisible.value = false
 
             isFindInPageVisible.value = false
@@ -1344,9 +1404,18 @@ fun BrowserScreen(
 
     }
 
+    val insetsController = activity?.let {
+        WindowCompat.getInsetsController(
+            it.window,
+            it.window.decorView
+        )
+    }
+
     LaunchedEffect(bottomPanelPagerState.currentPage) {
         if (bottomPanelPagerState.currentPage == BottomPanelMode.LOCK.ordinal) {
-            isBottomPanelLock.value = !isBottomPanelLock.value
+//            isBottomPanelLock.value = !isBottomPanelLock.value
+            browserSettings.value =
+                browserSettings.value.copy(isFullscreenMode = !browserSettings.value.isFullscreenMode)
         }
     }
     LaunchedEffect(resetBottomPanelTrigger.value) {
@@ -1445,9 +1514,10 @@ fun BrowserScreen(
                 withContext(Dispatchers.IO) {
                     val encodedQuery = URLEncoder.encode(query, "UTF-8")
 //                    val url = currentSearchEngine.value.getSuggestionUrl(encodedQuery)
-                    val url = SearchEngine.entries[browserSettings.value.searchEngine].getSuggestionUrl(
-                        encodedQuery
-                    )
+                    val url =
+                        SearchEngine.entries[browserSettings.value.searchEngine].getSuggestionUrl(
+                            encodedQuery
+                        )
 //                        "https://suggestqueries.google.com/complete/search?client=chrome&ie=UTF-8&oe=UTF-8&q=$encodedQuery"
 //                        "https://duckduckgo.com/ac/?type=list&q=$encodedQuery"
 //                        "https://api.bing.com/osjson.aspx?query=$encodedQuery"
@@ -1965,7 +2035,7 @@ fun BrowserScreen(
     }
     LaunchedEffect(isUrlBarVisible) {
         if (!isUrlBarVisible) {
-            isOptionsPanelVisible = false
+            setIsOptionsPanelVisible(false)
             isTabDataPanelVisible = false
             isTabsPanelVisible = false
             isSettingsPanelVisible.value = false
@@ -2024,6 +2094,64 @@ fun BrowserScreen(
 
     }
 
+
+    LaunchedEffect(browserSettings.value.isFullscreenMode) {
+        Log.d("FULLSCRFEEN", "isFullscreenMode: ${browserSettings.value.isFullscreenMode}")
+//        Log.d("FULLSCRFEEN", "isSharpMode: ${browserSettings.value.isSharpMode}")
+//        Log.d("FULLSCRFEEN", "topPadding: ${webViewTopPadding}")
+//        Log.d("FULLSCRFEEN", "botPadding: ${webViewBottomPadding}")
+        if (browserSettings.value.isFullscreenMode) {
+            insetsController?.hide(WindowInsetsCompat.Type.systemBars())
+            insetsController?.systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        } else {
+            insetsController?.show(WindowInsetsCompat.Type.systemBars())
+            insetsController?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
+        }
+
+
+    }
+
+    LaunchedEffect(screenSize) {
+        val squareBoxSize = browserSettings.value.heightForLayer(1).dp
+
+        val squareBoxSizePx = with(density) { squareBoxSize.toPx() }
+        val paddingPx = with(density) { browserSettings.value.padding.dp.toPx() }
+
+
+        Log.d("FULLSCRFEEN", "currentY: ${backSquareOffsetY.value}")
+        Log.d("FULLSCRFEEN", "maxy: ${screenSize.height.toFloat() - squareBoxSizePx - paddingPx}")
+
+
+        if (screenSize.height.toFloat() > (squareBoxSizePx - paddingPx)
+            && backSquareOffsetY.value > screenSize.height.toFloat() - squareBoxSizePx - paddingPx
+        ) {
+            // Auto Fit
+
+            // Clamp Y to screen bounds
+            val targetY = backSquareOffsetY.value.coerceIn(
+                paddingPx,
+                screenSize.height.toFloat() - squareBoxSizePx - paddingPx
+            )
+            coroutineScope.launch {
+
+                launch {
+                    backSquareOffsetY.animateTo(
+                        targetY,
+                        spring()
+                    )
+                }
+
+                updateBrowserSettings(
+                    browserSettings.value.copy(
+                        backSquareOffsetY = targetY
+                    )
+                )
+                hideBackSquare(false)
+            }
+        }
+
+    }
     DisposableEffect(Unit) {
         val shakeDetector = ShakeDetector(context) {
             // This code runs when a shake is detected
@@ -2152,8 +2280,7 @@ fun BrowserScreen(
             putFloat("back_square_idle_opacity", browserSettings.value.backSquareIdleOpacity)
             putFloat("max_list_height", browserSettings.value.maxListHeight)
             putInt("search_engine", browserSettings.value.searchEngine)
-
-
+            putBoolean("is_fullscreen_mode", browserSettings.value.isFullscreenMode)
         }
     }
 
@@ -2192,7 +2319,6 @@ fun BrowserScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(backgroundColor.value)
-//            .padding(if (!isKeyboardVisible) innerPadding else PaddingValues(0.dp))
 
     ) {
 
@@ -2200,7 +2326,8 @@ fun BrowserScreen(
         AnimatedVisibility(
             modifier = Modifier
                 .windowInsetsPadding(WindowInsets.ime)
-                .padding(innerPadding)
+                .padding(webViewPaddingValue)
+
                 .align(Alignment.BottomCenter),
             visible = !browserSettings.value.isFirstAppLoad && !isOnline,
             enter = slideInVertically(
@@ -2266,7 +2393,7 @@ fun BrowserScreen(
             Box(
                 modifier = Modifier
                     .padding(browserSettings.value.padding.dp)
-                    .padding(innerPadding)
+                    .padding(webViewPaddingValue)
                     .clip(
                         RoundedCornerShape(
                             browserSettings.value.cornerRadiusForLayer(1).dp
@@ -2315,9 +2442,7 @@ fun BrowserScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(top = webViewTopPadding, bottom = webViewBottomPadding)
-                        .padding(innerPadding),
-
+                        .padding(webViewPaddingValue),
 
 
                     ) {
@@ -2334,7 +2459,7 @@ fun BrowserScreen(
                             .testTag("WebViewContainer")
 
 
-                        ) {
+                    ) {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -2592,13 +2717,11 @@ fun BrowserScreen(
                         // This aligns the panel to the bottom center of the Box
 
                         .windowInsetsPadding(WindowInsets.ime)
-                        .align(Alignment.BottomCenter)
-                       ,
+                        .align(Alignment.BottomCenter),
                     activeTabIndex = activeTabIndex,
                     tabs = tabs,
                     isUrlBarVisible = isUrlBarVisible,
                     isBottomPanelVisible = isBottomPanelVisible,
-                    isOptionsPanelVisible = isOptionsPanelVisible,
                     browserSettings = browserSettings,
                     updateBrowserSettings = updateBrowserSettings,
 //                        url = url,
@@ -2618,7 +2741,6 @@ fun BrowserScreen(
 
 
                 CursorPad(
-                    innerPadding = innerPadding,
                     urlBarFocusRequester = urlBarFocusRequester,
                     screenSize = screenSize,
                     isCursorPadVisible = isCursorPadVisible,
@@ -2627,7 +2749,7 @@ fun BrowserScreen(
                     coroutineScope = coroutineScope,
                     activeWebView = activeWebView,
                     cursorPointerPosition = cursorPointerPosition,
-                    webViewTopPadding = webViewTopPadding,
+                    webViewPaddingValue = webViewPaddingValue,
                     setIsUrlBarVisible = { isUrlBarVisible = it },
                     isLongPressDrag = isLongPressDrag,
                     cursorPadHeight = cursorPadHeight,
@@ -2642,7 +2764,7 @@ fun BrowserScreen(
                     visible = !isBottomPanelVisible,
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(innerPadding)
+                        .padding(webViewPaddingValue)
                         .onSizeChanged {
                             screenSize = it
                             with(density) {
@@ -2781,7 +2903,8 @@ fun BrowserScreen(
                                                     MotionEvent.ACTION_DOWN,
                                                     cursorPointerPosition.value.x,
 //                                                    cursorPointerPosition.value.y - webViewTopPadding.toPx(),
-                                                    cursorPointerPosition.value.y - innerPadding.calculateTopPadding().toPx(),
+                                                    cursorPointerPosition.value.y - innerPadding.calculateTopPadding()
+                                                        .toPx(),
                                                     0
                                                 )
                                                 val upEvent = MotionEvent.obtain(
@@ -2789,7 +2912,8 @@ fun BrowserScreen(
                                                     downTime + 10,
                                                     MotionEvent.ACTION_UP,
                                                     cursorPointerPosition.value.x,
-                                                    cursorPointerPosition.value.y - innerPadding.calculateTopPadding().toPx(),
+                                                    cursorPointerPosition.value.y - innerPadding.calculateTopPadding()
+                                                        .toPx(),
                                                     0
                                                 )
                                                 webView.dispatchTouchEvent(downEvent)
@@ -3049,7 +3173,6 @@ fun CursorPointer(
 
 @Composable
 fun CursorPad(
-    innerPadding: PaddingValues,
     urlBarFocusRequester: FocusRequester,
     isLongPressDrag: MutableState<Boolean>,
     isCursorPadVisible: Boolean,
@@ -3059,7 +3182,7 @@ fun CursorPad(
     coroutineScope: CoroutineScope,
     activeWebView: CustomWebView?,
     cursorPointerPosition: MutableState<Offset>,
-    webViewTopPadding: Dp,
+    webViewPaddingValue: PaddingValues,
     setIsUrlBarVisible: (Boolean) -> Unit,
     cursorPadHeight: Dp,
 
@@ -3082,7 +3205,7 @@ fun CursorPad(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .padding(innerPadding)
+                    .padding(webViewPaddingValue)
                     .windowInsetsPadding(WindowInsets.ime)
 
 
@@ -3133,7 +3256,8 @@ fun CursorPad(
                                         longPressDownTime,
                                         MotionEvent.ACTION_DOWN,
                                         cursorPointerPosition.value.x,
-                                        cursorPointerPosition.value.y - webViewTopPadding.toPx(),
+                                        cursorPointerPosition.value.y - webViewPaddingValue.calculateTopPadding()
+                                            .toPx(),
                                         0
                                     )
                                     webView.dispatchTouchEvent(longPressDownEvent)
@@ -3180,7 +3304,8 @@ fun CursorPad(
                                                         System.currentTimeMillis(),
                                                         MotionEvent.ACTION_MOVE,
                                                         cursorPointerPosition.value.x,
-                                                        cursorPointerPosition.value.y - webViewTopPadding.toPx(),
+                                                        cursorPointerPosition.value.y - webViewPaddingValue.calculateTopPadding()
+                                                            .toPx(),
                                                         0
                                                     )
                                                     webView.dispatchTouchEvent(moveEvent)
@@ -3241,7 +3366,8 @@ fun CursorPad(
                                         System.currentTimeMillis(),
                                         MotionEvent.ACTION_UP,
                                         cursorPointerPosition.value.x,
-                                        cursorPointerPosition.value.y - webViewTopPadding.toPx(),
+                                        cursorPointerPosition.value.y - webViewPaddingValue.calculateTopPadding()
+                                            .toPx(),
                                         0
                                     )
                                     webView.dispatchTouchEvent(upEvent)
@@ -3351,7 +3477,8 @@ fun CursorPad(
                                             downTime,
                                             MotionEvent.ACTION_DOWN,
                                             cursorPointerPosition.value.x,
-                                            cursorPointerPosition.value.y - webViewTopPadding.toPx(),
+                                            cursorPointerPosition.value.y - webViewPaddingValue.calculateTopPadding()
+                                                .toPx(),
                                             0
                                         )
                                         val upEvent = MotionEvent.obtain(
@@ -3359,7 +3486,8 @@ fun CursorPad(
                                             downTime + 10,
                                             MotionEvent.ACTION_UP,
                                             cursorPointerPosition.value.x,
-                                            cursorPointerPosition.value.y - webViewTopPadding.toPx(),
+                                            cursorPointerPosition.value.y - webViewPaddingValue.calculateTopPadding()
+                                                .toPx(),
                                             0
                                         )
                                         webView.dispatchTouchEvent(downEvent)

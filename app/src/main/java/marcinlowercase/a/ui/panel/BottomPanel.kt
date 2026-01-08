@@ -26,12 +26,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
@@ -203,7 +206,6 @@ fun BottomPanel(
     tabs: List<Tab>,
     isUrlBarVisible: Boolean,
     isBottomPanelVisible: Boolean,
-    isOptionsPanelVisible: Boolean,
     browserSettings: MutableState<BrowserSettings>,
     updateBrowserSettings: (BrowserSettings) -> Unit,
 //    url: String,
@@ -240,6 +242,8 @@ fun BottomPanel(
         Column(
             modifier = Modifier
                 .padding(browserSettings.value.padding.dp)
+                .windowInsetsPadding(WindowInsets.ime)
+//                .padding(webViewPaddingValue)
                 .padding(bottom = floatingPanelBottomPadding)
 
 
@@ -715,7 +719,7 @@ fun BottomPanel(
                                             if (it.isFocused) {
                                                 setSavedPanelState(
                                                     PanelVisibilityState(
-                                                        options = isOptionsPanelVisible,
+                                                        options = draggableState.currentValue == RevealState.Visible,
                                                         tabs = isTabsPanelVisible,
                                                         downloads = isDownloadPanelVisible.value,
                                                         tabData = isTabDataPanelVisible,
@@ -1049,7 +1053,7 @@ fun BottomPanel(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    painter = painterResource(id = if (isBottomPanelLock.value) R.drawable.ic_lock else R.drawable.ic_lock_open_right),
+                                    painter = painterResource(id = if (browserSettings.value.isFullscreenMode) R.drawable.ic_fullscreen else R.drawable.ic_fullscreen_exit),
                                     contentDescription = "toggle bottom panel lock",
                                     tint = Color.White
                                 )
