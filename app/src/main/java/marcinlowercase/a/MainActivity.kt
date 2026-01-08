@@ -84,6 +84,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -213,6 +214,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+
+
 
         createNotificationChannel(this) // Call it here
         setContent {
@@ -1359,6 +1362,17 @@ fun BrowserScreen(
 
     //region LaunchedEffect
 
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as Activity).window
+            val insetsController = WindowCompat.getInsetsController(window, view)
+
+            // 1. Make the status bar transparent
+
+            // 2. FORCE White Icons (set to false)
+            insetsController.isAppearanceLightStatusBars = false
+        }
+    }
     LaunchedEffect(isSettingsPanelVisible.value) {
         if (!isSettingsPanelVisible.value) updateBrowserSettings(
             browserSettings.value.copy(
