@@ -2961,22 +2961,6 @@ fun BrowserScreen(
                                                         backSquareOffsetX.snapTo(newX)
                                                         backSquareOffsetY.snapTo(newY)
                                                     }
-
-
-//                                                horizontalDragAccumulator += change.position.x - change.previousPosition.x
-//                                                verticalDragAccumulator += change.position.y - change.previousPosition.y
-//
-//                                                if (abs(horizontalDragAccumulator) > abs(
-//                                                        verticalDragAccumulator
-//                                                    )
-//                                                ) {
-//                                                    squareAlignment =
-//                                                        if (horizontalDragAccumulator < 0) Alignment.BottomStart else Alignment.BottomEnd
-//                                                } else {
-//                                                    if (!isUrlBarVisible) {
-//                                                        isUrlBarVisible = true
-//                                                    }
-//                                                }
                                                 }
 
                                                 // --- SNAP LOGIC (Release) ---

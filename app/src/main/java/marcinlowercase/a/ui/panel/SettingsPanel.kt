@@ -1,5 +1,6 @@
 package marcinlowercase.a.ui.panel
 
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
@@ -454,8 +455,9 @@ fun SettingsPanel(
             browserSettings.value = browserSettings.value.copy(isFullscreenMode = true)
         } else {
             backgroundColor.value = Color.Black
+            if (isSettingCornerRadius.value) browserSettings.value = browserSettings.value.copy(isFullscreenMode = false)
             isSettingCornerRadius.value = false
-            browserSettings.value = browserSettings.value.copy(isFullscreenMode = false)
+            Log.e("FULLSCRFEEN", "update <- currentView changed${browserSettings.value.isFullscreenMode}")
 
 
         }
