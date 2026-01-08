@@ -488,6 +488,7 @@ fun BrowserScreen(
     val isBottomPanelLock = remember { mutableStateOf(false) }
     val isAppsPanelVisible = remember { mutableStateOf(false) }
     val resetBottomPanelTrigger = remember { mutableStateOf(false) }
+    val isSettingCornerRadius = remember { mutableStateOf(true) }
 
 
     val offsetY = remember { Animatable(0f) }
@@ -514,62 +515,62 @@ fun BrowserScreen(
 //        label = "WebView Top Padding Animation"
 //    )
 
-    val targetWebViewTopPadding = if (browserSettings.value.isFullscreenMode) {
-        if (browserSettings.value.isSharpMode) {
-            maxOf(cutoutTop, browserSettings.value.deviceCornerRadius.dp)
-        } else {
-            cutoutTop
-        }
+
+    val webViewTopPaddingFullscreen = if (browserSettings.value.isSharpMode) {
+        maxOf(cutoutTop, browserSettings.value.deviceCornerRadius.dp)
     } else {
-        if (browserSettings.value.isSharpMode) {
+        cutoutTop
+    }
+    val webViewTopPaddingRegular = if (browserSettings.value.isSharpMode) {
 //            browserSettings.value.deviceCornerRadius.dp
-            maxOf(
-                maxOf(cutoutTop, browserSettings.value.deviceCornerRadius.dp),
-                innerPadding.calculateTopPadding()
-            )
-
-        } else {
+        maxOf(
+            maxOf(cutoutTop, browserSettings.value.deviceCornerRadius.dp),
             innerPadding.calculateTopPadding()
-        }
-    }
-    val targetWebViewBottomPadding = if (browserSettings.value.isFullscreenMode) {
-        if (browserSettings.value.isSharpMode) {
-            maxOf(cutoutBottom, browserSettings.value.deviceCornerRadius.dp)
-        } else {
-            cutoutBottom
-        }
+        )
+
     } else {
-        if (browserSettings.value.isSharpMode) {
-            maxOf(
-                maxOf(cutoutBottom, browserSettings.value.deviceCornerRadius.dp),
-                innerPadding.calculateBottomPadding()
-            )
-        } else {
-            innerPadding.calculateBottomPadding()
-
-        }
+        innerPadding.calculateTopPadding()
+    }
+    val webViewTopPaddingNormalScreen = if (browserSettings.value.isFullscreenMode) {
+        webViewTopPaddingFullscreen
+    } else {
+        webViewTopPaddingRegular
     }
 
+
+    val webViewBottomPaddingFullscreen = if (browserSettings.value.isSharpMode) {
+        maxOf(cutoutBottom, browserSettings.value.deviceCornerRadius.dp)
+    } else {
+        cutoutBottom
+    }
+    val webViewBottomPaddingRegular = if (browserSettings.value.isSharpMode) {
+        maxOf(
+            maxOf(cutoutBottom, browserSettings.value.deviceCornerRadius.dp),
+            innerPadding.calculateBottomPadding()
+        )
+    } else {
+        innerPadding.calculateBottomPadding()
+
+    }
+
+
+    val webViewBottomPaddingNormalScreen = if (browserSettings.value.isFullscreenMode) {
+        webViewBottomPaddingFullscreen
+    } else {
+        webViewBottomPaddingRegular
+    }
+
+
+    val targetWebViewTopPadding =
+        if (isSettingCornerRadius.value) 0.dp else webViewTopPaddingNormalScreen
+    val targetWebViewBottomPadding =
+        if (isSettingCornerRadius.value) 0.dp else webViewBottomPaddingNormalScreen
 
     val webViewTopPadding by animateDpAsState(
         targetValue = targetWebViewTopPadding,
     )
 
 
-//    val webViewBottomPaddingFullscreen by animateDpAsState(
-//        targetValue = if (browserSettings.value.isSharpMode) (
-//                if (cutoutBottom >= browserSettings.value.deviceCornerRadius.dp) cutoutBottom else browserSettings.value.deviceCornerRadius.dp
-//
-//                ) else cutoutBottom,
-//        label = "WebView Top Padding Animation"
-//    )
-//    val webViewBottomPaddingRegular by animateDpAsState(
-//        targetValue = if (browserSettings.value.isSharpMode) (
-//                browserSettings.value.deviceCornerRadius.dp
-//
-//                ) else 0.dp,
-//        label = "WebView Top Padding Animation"
-//    )
     val webViewBottomPadding by animateDpAsState(
         targetValue = targetWebViewBottomPadding,
     )
@@ -582,10 +583,16 @@ fun BrowserScreen(
     val imeInsets = WindowInsets.ime.asPaddingValues()
     val keyboardHeight = imeInsets.calculateBottomPadding()
     val isKeyboardVisible = keyboardHeight > 0.dp
+
+    val floatingPanelBottomPaddingNoKeyboard = if (browserSettings.value.isFullscreenMode) {
+        webViewBottomPaddingFullscreen
+    } else {
+        webViewBottomPaddingRegular
+    }
     val floatingPanelBottomPadding by animateDpAsState(
         targetValue = if (isKeyboardVisible) (
                 0.dp
-                ) else (webViewBottomPadding),
+                ) else (floatingPanelBottomPaddingNoKeyboard),
         animationSpec = tween(browserSettings.value.animationSpeedForLayer(1)),
         label = "Floating Panel Padding Animation"
     )
@@ -2415,6 +2422,7 @@ fun BrowserScreen(
                     confirmationPopup = ::confirmationPopup,
                     resetBrowserSettings = resetBrowserSettings,
                     targetSetting = SettingPanelView.CORNER_RADIUS,
+                    isSettingCornerRadius = isSettingCornerRadius
                 )
             }
         }
@@ -2515,6 +2523,7 @@ fun BrowserScreen(
 
 
                 BottomPanel(
+                    isSettingCornerRadius = isSettingCornerRadius,
                     floatingPanelBottomPadding = floatingPanelBottomPadding,
                     optionsPanelHeightPx = optionsPanelHeightPx,
                     draggableState = draggableState,

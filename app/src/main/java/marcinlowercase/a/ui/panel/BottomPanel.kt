@@ -110,6 +110,7 @@ import kotlin.math.abs
 @SuppressLint("FrequentlyChangingValue")
 @Composable
 fun BottomPanel(
+    isSettingCornerRadius: MutableState<Boolean>,
     floatingPanelBottomPadding: Dp,
     optionsPanelHeightPx: Float,
     draggableState: AnchoredDraggableState<RevealState>,
@@ -359,8 +360,10 @@ fun BottomPanel(
                 resetBrowserSettings = resetBrowserSettings,
                 confirmationPopup = confirmationPopup,
                 targetSetting = initialSettingPanelView,
+                isSettingCornerRadius = isSettingCornerRadius
 
-                )
+
+            )
             TabDataPanel(
                 descriptionContent = descriptionContent,
 //                onAddToHomeScreen = onAddToHomeScreen,

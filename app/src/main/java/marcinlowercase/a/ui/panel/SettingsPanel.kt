@@ -431,6 +431,7 @@ fun TextSetting(
 }
 @Composable
 fun SettingsPanel(
+    isSettingCornerRadius: MutableState<Boolean>,
     descriptionContent: MutableState<String>,
     backgroundColor: MutableState<Color>,
     isSettingsPanelVisible: MutableState<Boolean>,
@@ -449,8 +450,14 @@ fun SettingsPanel(
     LaunchedEffect(currentView) {
         if (currentView == SettingPanelView.CORNER_RADIUS) {
             backgroundColor.value = Color.Red
+            isSettingCornerRadius.value = true
+            browserSettings.value = browserSettings.value.copy(isFullscreenMode = true)
         } else {
             backgroundColor.value = Color.Black
+            isSettingCornerRadius.value = false
+            browserSettings.value = browserSettings.value.copy(isFullscreenMode = false)
+
+
         }
 
     }
