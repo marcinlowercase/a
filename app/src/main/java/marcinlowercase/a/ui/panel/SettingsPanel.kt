@@ -1,6 +1,5 @@
 package marcinlowercase.a.ui.panel
 
-import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
@@ -437,7 +436,6 @@ fun SettingsPanel(
     backgroundColor: MutableState<Color>,
     isSettingsPanelVisible: MutableState<Boolean>,
     browserSettings: MutableState<BrowserSettings>,
-    updateBrowserSettings: (BrowserSettings) -> Unit,
     confirmationPopup: (String, () -> Unit, () -> Unit) -> Unit,
     resetBrowserSettings: () -> Unit,
     targetSetting: SettingPanelView = SettingPanelView.MAIN,
@@ -457,7 +455,6 @@ fun SettingsPanel(
             backgroundColor.value = Color.Black
             if (isSettingCornerRadius.value) browserSettings.value = browserSettings.value.copy(isFullscreenMode = false)
             isSettingCornerRadius.value = false
-            Log.e("FULLSCRFEEN", "update <- currentView changed${browserSettings.value.isFullscreenMode}")
 
 
         }
@@ -610,9 +607,9 @@ fun SettingsPanel(
                     SliderSetting(
                         browserSettings = browserSettings,
                         updateBrowserSettingsForSpecificValue = { newValue ->
-                            updateBrowserSettings(
+                            browserSettings.value =
                                 browserSettings.value.copy(deviceCornerRadius = newValue)
-                            )
+
                         },
                         onBackClick = { if (!browserSettings.value.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
                         valueRange = 0f..60f,
@@ -631,9 +628,9 @@ fun SettingsPanel(
                         browserSettings = browserSettings,
                         updateBrowserSettingsForSpecificValue = { newValue ->
 
-                            updateBrowserSettings(
+                            browserSettings.value =
                                 browserSettings.value.copy(animationSpeed = newValue)
-                            )
+
                         },
                         onBackClick = { if (!browserSettings.value.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
                         valueRange = 0f..1000f,
@@ -652,9 +649,9 @@ fun SettingsPanel(
                         browserSettings = browserSettings,
                         updateBrowserSettingsForSpecificValue = { newValue ->
 
-                            updateBrowserSettings(
+                            browserSettings.value =
                                 browserSettings.value.copy(singleLineHeight = newValue)
-                            )
+
                         },
                         onBackClick = { if (!browserSettings.value.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
                         valueRange = 65f..140f,
@@ -674,9 +671,9 @@ fun SettingsPanel(
                         browserSettings = browserSettings,
                         updateBrowserSettingsForSpecificValue = { newValue ->
 
-                            updateBrowserSettings(
+                            browserSettings.value =
                                 browserSettings.value.copy(padding = newValue)
-                            )
+
                         },
                         onBackClick = { if (!browserSettings.value.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
                         valueRange = 3f..11f,
@@ -697,9 +694,9 @@ fun SettingsPanel(
                         browserSettings = browserSettings,
                         updateBrowserSettingsForSpecificValue = { newValue ->
 
-                            updateBrowserSettings(
+                            browserSettings.value =
                                 browserSettings.value.copy(cursorContainerSize = newValue)
-                            )
+
                         },
                         onBackClick = { if (!browserSettings.value.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
                         valueRange = 20f..70f,
@@ -719,9 +716,9 @@ fun SettingsPanel(
                         browserSettings = browserSettings,
                         updateBrowserSettingsForSpecificValue = { newValue ->
 
-                            updateBrowserSettings(
+                            browserSettings.value =
                                 browserSettings.value.copy(cursorTrackingSpeed = newValue)
-                            )
+
                         },
                         onBackClick = { if (!browserSettings.value.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
                         valueRange = 0.5f..2f,
@@ -740,7 +737,7 @@ fun SettingsPanel(
                     TextSetting(
                         browserSettings = browserSettings,
                         updateBrowserSettingsForSpecificValue = { newValue ->
-                            updateBrowserSettings(browserSettings.value.copy(defaultUrl = newValue))
+                            browserSettings.value =browserSettings.value.copy(defaultUrl = newValue)
                         },
                         onBackClick = { if (!browserSettings.value.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
                         iconID = R.drawable.ic_link,
@@ -767,9 +764,9 @@ fun SettingsPanel(
                     SliderSetting(
                         browserSettings = browserSettings,
                         updateBrowserSettingsForSpecificValue = { newValue ->
-                            updateBrowserSettings(
+                            browserSettings.value =
                                 browserSettings.value.copy(closedTabHistorySize = newValue)
-                            )
+
                         },
                         onBackClick = { if (!browserSettings.value.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
                         valueRange = 0f..30f, // A sensible range for this setting
@@ -786,9 +783,9 @@ fun SettingsPanel(
                     SliderSetting(
                         browserSettings = browserSettings,
                         updateBrowserSettingsForSpecificValue = { newValue ->
-                            updateBrowserSettings(
+                            browserSettings.value =
                                 browserSettings.value.copy(backSquareIdleOpacity = newValue)
-                            )
+
                         },
                         onBackClick = { if (!browserSettings.value.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
                         valueRange = 0f..1f, // 0% to 100%
@@ -808,9 +805,9 @@ fun SettingsPanel(
                     SliderSetting(
                         browserSettings = browserSettings,
                         updateBrowserSettingsForSpecificValue = { newValue ->
-                            updateBrowserSettings(
+                            browserSettings.value =
                                 browserSettings.value.copy(maxListHeight = newValue)
-                            )
+
                         },
                         onBackClick = {  currentView = SettingPanelView.MAIN },
                         valueRange = 0f..10f,
@@ -829,9 +826,9 @@ fun SettingsPanel(
                     SliderSetting(
                         browserSettings = browserSettings,
                         updateBrowserSettingsForSpecificValue = { newValue ->
-                            updateBrowserSettings(
+                            browserSettings.value =
                                 browserSettings.value.copy(searchEngine = newValue.toInt())
-                            )
+
                         },
                         onBackClick = {  currentView = SettingPanelView.MAIN },
                         valueRange = 0f..SearchEngine.entries.lastIndex.toFloat(),

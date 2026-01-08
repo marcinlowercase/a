@@ -1128,24 +1128,20 @@ fun BrowserScreen(
         }
 
     // This function will be our single, safe way to update settings.
-    val updateBrowserSettings = { newSettings: BrowserSettings ->
-        browserSettings.value = newSettings
-    }
+
 
     val resetBrowserSettings = {
-        updateBrowserSettings(
-            browserSettings.value.copy(
-                padding = 8f,
-                deviceCornerRadius = pixel_9_corner_radius,
-                defaultUrl = default_url,
-                animationSpeed = 300f,
-                singleLineHeight = 100f,
-                isSharpMode = false,
-                cursorContainerSize = 50f,
-                cursorPointerSize = 5f,
-                cursorTrackingSpeed = 1.75f,
-                backSquareIdleOpacity = 0.2f
-            )
+        browserSettings.value = browserSettings.value.copy(
+            padding = 8f,
+            deviceCornerRadius = pixel_9_corner_radius,
+            defaultUrl = default_url,
+            animationSpeed = 300f,
+            singleLineHeight = 100f,
+            isSharpMode = false,
+            cursorContainerSize = 50f,
+            cursorPointerSize = 5f,
+            cursorTrackingSpeed = 1.75f,
+            backSquareIdleOpacity = 0.2f
         )
     }
 
@@ -1373,12 +1369,12 @@ fun BrowserScreen(
             insetsController.isAppearanceLightStatusBars = false
         }
     }
+
     LaunchedEffect(isSettingsPanelVisible.value) {
-        if (!isSettingsPanelVisible.value) updateBrowserSettings(
-            browserSettings.value.copy(
+        if (!isSettingsPanelVisible.value)
+            browserSettings.value = browserSettings.value.copy(
                 isFirstAppLoad = false
             )
-        )
     }
     LaunchedEffect(inspectingAppId.longValue) {
         descriptionContent.value = apps.find { it.id == inspectingAppId.longValue }?.label ?: ""
@@ -1469,6 +1465,7 @@ fun BrowserScreen(
 
             backSquareOffsetX.snapTo(defaultX)
             backSquareOffsetY.snapTo(defaultY)
+            isBackSquareInitialized = true
         }
     }
 
@@ -2164,11 +2161,11 @@ fun BrowserScreen(
                     )
                 }
 
-                updateBrowserSettings(
+                browserSettings.value =
                     browserSettings.value.copy(
                         backSquareOffsetY = targetY
                     )
-                )
+
                 hideBackSquare(false)
             }
         }
@@ -2433,7 +2430,6 @@ fun BrowserScreen(
                     backgroundColor = backgroundColor,
                     isSettingsPanelVisible = isSettingsPanelVisible,
                     browserSettings = browserSettings,
-                    updateBrowserSettings = updateBrowserSettings,
                     confirmationPopup = ::confirmationPopup,
                     resetBrowserSettings = resetBrowserSettings,
                     targetSetting = SettingPanelView.CORNER_RADIUS,
@@ -2747,7 +2743,6 @@ fun BrowserScreen(
                     isUrlBarVisible = isUrlBarVisible,
                     isBottomPanelVisible = isBottomPanelVisible,
                     browserSettings = browserSettings,
-                    updateBrowserSettings = updateBrowserSettings,
 //                        url = url,
                     focusManager = focusManager,
                     keyboardController = keyboardController,
@@ -2983,8 +2978,8 @@ fun BrowserScreen(
                                                 )
 
                                                 coroutineScope.launch {
-                                                    // Animate snapping
-                                                    Log.i("AUTOFIT", "bound")
+                                                    // Animate snappin
+
                                                     launch {
                                                         backSquareOffsetX.animateTo(
                                                             targetX,
@@ -2997,13 +2992,12 @@ fun BrowserScreen(
                                                             spring()
                                                         )
                                                     }
-
-                                                    updateBrowserSettings(
-                                                        browserSettings.value.copy(
-                                                            backSquareOffsetX = targetX,
-                                                            backSquareOffsetY = targetY
-                                                        )
+                                                    browserSettings.value = browserSettings.value.copy(
+                                                        backSquareOffsetX = targetX,
+                                                        backSquareOffsetY = targetY
                                                     )
+
+
                                                     // Fade out after snap
                                                     hideBackSquare(false)
                                                 }

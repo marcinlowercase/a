@@ -6,7 +6,6 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,7 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import marcinlowercase.a.R
 import marcinlowercase.a.core.data_class.BrowserSettings
@@ -52,12 +51,9 @@ fun TextEditPanel(
                 .fillMaxWidth()
                 .padding(horizontal = browserSettings.value.padding.dp)
                 .padding(bottom = browserSettings.value.padding.dp)
-                .background(
-                    color = Color.Cyan,
-                    shape = RoundedCornerShape(
-                        browserSettings.value.cornerRadiusForLayer(2).dp
-                    )
-                )
+                .clip(RoundedCornerShape(
+                    browserSettings.value.cornerRadiusForLayer(2).dp
+                ))
                 .padding(browserSettings.value.padding.dp),
             horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
         ) {

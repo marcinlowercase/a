@@ -47,7 +47,6 @@ fun OptionsPanel(
     isSettingsPanelVisible: MutableState<Boolean>,
     setIsOptionsPanelVisible: (Boolean) -> Job,
     toggleIsTabsPanelVisible: () -> Unit,
-    updateBrowserSettings: (BrowserSettings) -> Unit,
     browserSettings: MutableState<BrowserSettings>,
     tabsPanelLock: Boolean,
     isDownloadPanelVisible: MutableState<Boolean>,
@@ -151,9 +150,8 @@ fun OptionsPanel(
                     enabled = browserSettings.value.showSuggestions // The button is "active" when suggestions are on
                 ) {
                     // When clicked, create a new settings object with the toggled value
-                    updateBrowserSettings(
-                        browserSettings.value.copy(showSuggestions = !browserSettings.value.showSuggestions)
-                    )
+
+                    browserSettings.value = browserSettings.value.copy(showSuggestions = !browserSettings.value.showSuggestions)
                     setIsOptionsPanelVisible(false)
 
                 },
