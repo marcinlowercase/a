@@ -1,4 +1,4 @@
-package marcinlowercase.a.ui.panel
+package studio.oo1.browser.ui.panel
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -43,10 +43,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
-import marcinlowercase.a.R
-import marcinlowercase.a.core.data_class.BrowserSettings
-import marcinlowercase.a.core.data_class.Tab
-import marcinlowercase.a.core.function.getFaviconUrlFromGoogleServer
+import studio.oo1.browser.R
+import studio.oo1.browser.core.data_class.BrowserSettings
+import studio.oo1.browser.core.data_class.Tab
+import studio.oo1.browser.core.function.getFaviconUrlFromGoogleServer
 
 @Composable
 fun NewTabButton(

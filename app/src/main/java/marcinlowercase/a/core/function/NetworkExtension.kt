@@ -1,4 +1,4 @@
-package marcinlowercase.a.core.function
+package studio.oo1.browser.core.function
 
 import android.content.Context
 import android.net.ConnectivityManager

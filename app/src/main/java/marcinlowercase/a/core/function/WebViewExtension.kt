@@ -1,7 +1,7 @@
-package marcinlowercase.a.core.function
+package studio.oo1.browser.core.function
 
-import marcinlowercase.a.core.custom_class.CustomWebView
-import marcinlowercase.a.core.data_class.BrowserSettings
+import studio.oo1.browser.core.custom_class.CustomWebView
+import studio.oo1.browser.core.data_class.BrowserSettings
 
 
 fun webViewLoad(view: CustomWebView?, url: String, browserSettings: BrowserSettings) {

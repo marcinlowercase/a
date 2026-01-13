@@ -1,4 +1,4 @@
-package marcinlowercase.a.ui.panel
+package studio.oo1.browser.ui.panel
 
 import android.Manifest
 import android.webkit.WebHistoryItem
@@ -47,16 +47,16 @@ import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import kotlinx.coroutines.delay
-import marcinlowercase.a.R
-import marcinlowercase.a.core.constant.generic_location_permission
-import marcinlowercase.a.core.data_class.BrowserSettings
-import marcinlowercase.a.core.data_class.SiteSettings
-import marcinlowercase.a.core.data_class.Tab
-import marcinlowercase.a.core.enum_class.TabState
-import marcinlowercase.a.core.function.getFaviconUrlFromGoogleServer
-import marcinlowercase.a.core.manager.SiteSettingsManager
-import marcinlowercase.a.core.manager.WebViewManager
-import marcinlowercase.a.ui.component.CustomIconButton
+import studio.oo1.browser.R
+import studio.oo1.browser.core.constant.generic_location_permission
+import studio.oo1.browser.core.data_class.BrowserSettings
+import studio.oo1.browser.core.data_class.SiteSettings
+import studio.oo1.browser.core.data_class.Tab
+import studio.oo1.browser.core.enum_class.TabState
+import studio.oo1.browser.core.function.getFaviconUrlFromGoogleServer
+import studio.oo1.browser.core.manager.SiteSettingsManager
+import studio.oo1.browser.core.manager.WebViewManager
+import studio.oo1.browser.ui.component.CustomIconButton
 import kotlin.collections.component1
 import kotlin.collections.component2
 import kotlin.math.roundToInt

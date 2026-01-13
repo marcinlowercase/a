@@ -1,4 +1,4 @@
-package marcinlowercase.a.core.enum_class
+package studio.oo1.browser.core.enum_class
 
 enum class GestureNavAction {
     NONE, // The overlay is hidden

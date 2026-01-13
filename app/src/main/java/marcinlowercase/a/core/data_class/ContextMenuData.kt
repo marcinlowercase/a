@@ -1,4 +1,4 @@
-package marcinlowercase.a.core.data_class
+package studio.oo1.browser.core.data_class
 
 data class ContextMenuData(
     val url: String,

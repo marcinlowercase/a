@@ -1,4 +1,4 @@
-package marcinlowercase.a.core.constant
+package studio.oo1.browser.core.constant
 
 const val inject_corner_radius = """
     (function() {

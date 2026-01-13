@@ -1,4 +1,4 @@
-package marcinlowercase.a.core.function
+package studio.oo1.browser.core.function
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.AnchoredDraggableState

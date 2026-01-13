@@ -1,4 +1,4 @@
-package marcinlowercase.a.ui.component
+package studio.oo1.browser.ui.component
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
@@ -11,9 +11,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import marcinlowercase.a.core.data_class.BrowserSettings
-import marcinlowercase.a.core.function.buttonPointerInput
-import marcinlowercase.a.core.function.buttonSettingsForLayer
+import studio.oo1.browser.core.data_class.BrowserSettings
+import studio.oo1.browser.core.function.buttonPointerInput
+import studio.oo1.browser.core.function.buttonSettingsForLayer
 
 @Composable
 fun CustomIconButton(

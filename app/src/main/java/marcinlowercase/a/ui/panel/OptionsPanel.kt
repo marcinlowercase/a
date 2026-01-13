@@ -1,4 +1,4 @@
-package marcinlowercase.a.ui.panel
+package studio.oo1.browser.ui.panel
 
 import android.annotation.SuppressLint
 import androidx.compose.foundation.background
@@ -22,12 +22,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Job
-import marcinlowercase.a.R
-import marcinlowercase.a.core.custom_class.CustomWebView
-import marcinlowercase.a.core.data_class.BrowserSettings
-import marcinlowercase.a.core.data_class.OptionItem
-import marcinlowercase.a.core.enum_class.RevealState
-import marcinlowercase.a.ui.component.CustomIconButton
+import studio.oo1.browser.R
+import studio.oo1.browser.core.custom_class.CustomWebView
+import studio.oo1.browser.core.data_class.BrowserSettings
+import studio.oo1.browser.core.data_class.OptionItem
+import studio.oo1.browser.core.enum_class.RevealState
+import studio.oo1.browser.ui.component.CustomIconButton
 import kotlin.collections.chunked
 import kotlin.collections.forEach
 import kotlin.math.roundToInt

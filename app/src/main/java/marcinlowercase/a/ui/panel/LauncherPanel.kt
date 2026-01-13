@@ -1,2 +1,2 @@
-package marcinlowercase.a.ui.panel
+package studio.oo1.browser.ui.panel
 

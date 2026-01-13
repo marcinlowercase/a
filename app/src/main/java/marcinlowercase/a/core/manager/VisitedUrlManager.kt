@@ -1,4 +1,4 @@
-package marcinlowercase.a.core.manager
+package studio.oo1.browser.core.manager
 
 import android.content.Context
 import android.util.Patterns

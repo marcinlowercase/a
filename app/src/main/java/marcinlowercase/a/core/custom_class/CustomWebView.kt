@@ -1,4 +1,4 @@
-package marcinlowercase.a.core.custom_class
+package studio.oo1.browser.core.custom_class
 
 import android.annotation.SuppressLint
 import android.content.Context

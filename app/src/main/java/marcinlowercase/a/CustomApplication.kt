@@ -1,4 +1,4 @@
-package marcinlowercase.a
+package studio.oo1.browser
 
 import android.app.Application
 import coil.Coil

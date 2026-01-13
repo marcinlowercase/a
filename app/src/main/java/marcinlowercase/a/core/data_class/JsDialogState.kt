@@ -1,4 +1,4 @@
-package marcinlowercase.a.core.data_class
+package studio.oo1.browser.core.data_class
 
 // A sealed interface to represent any type of JS Dialog
 sealed interface JsDialogState

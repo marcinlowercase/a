@@ -1,4 +1,4 @@
-package marcinlowercase.a.core.custom_class
+package studio.oo1.browser.core.custom_class
 
 import android.content.Context
 import android.net.ConnectivityManager
@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
-import marcinlowercase.a.core.function.isOnlineNow
+import studio.oo1.browser.core.function.isOnlineNow
 
 class NetworkConnectivityObserver(private val context: Context) {
 

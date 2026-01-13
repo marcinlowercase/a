@@ -1,4 +1,4 @@
-package marcinlowercase.a.ui.panel
+package studio.oo1.browser.ui.panel
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -40,14 +40,14 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import marcinlowercase.a.R
-import marcinlowercase.a.core.custom_class.CustomWebView
-import marcinlowercase.a.core.data_class.BrowserSettings
-import marcinlowercase.a.core.data_class.JsAlert
-import marcinlowercase.a.core.data_class.JsConfirm
-import marcinlowercase.a.core.data_class.JsDialogState
-import marcinlowercase.a.core.data_class.JsPrompt
-import marcinlowercase.a.core.function.buttonSettingsForLayer
+import studio.oo1.browser.R
+import studio.oo1.browser.core.custom_class.CustomWebView
+import studio.oo1.browser.core.data_class.BrowserSettings
+import studio.oo1.browser.core.data_class.JsAlert
+import studio.oo1.browser.core.data_class.JsConfirm
+import studio.oo1.browser.core.data_class.JsDialogState
+import studio.oo1.browser.core.data_class.JsPrompt
+import studio.oo1.browser.core.function.buttonSettingsForLayer
 
 @Composable
 fun PromptPanel(

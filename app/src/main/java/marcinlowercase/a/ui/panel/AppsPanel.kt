@@ -1,4 +1,4 @@
-package marcinlowercase.a.ui.panel
+package studio.oo1.browser.ui.panel
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
@@ -29,9 +29,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
-import marcinlowercase.a.R
-import marcinlowercase.a.core.data_class.App
-import marcinlowercase.a.core.data_class.BrowserSettings
+import studio.oo1.browser.R
+import studio.oo1.browser.core.data_class.App
+import studio.oo1.browser.core.data_class.BrowserSettings
 
 @Composable
 fun AppsPanel(

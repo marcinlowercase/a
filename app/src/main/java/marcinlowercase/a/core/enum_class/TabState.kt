@@ -1,4 +1,4 @@
-package marcinlowercase.a.core.enum_class
+package studio.oo1.browser.core.enum_class
 
 import kotlinx.serialization.Serializable
 

@@ -1,8 +1,8 @@
-package marcinlowercase.a.core.manager
+package studio.oo1.browser.core.manager
 
 import android.content.Context
 import kotlinx.serialization.json.Json
-import marcinlowercase.a.core.data_class.App
+import studio.oo1.browser.core.data_class.App
 import androidx.core.content.edit
 
 

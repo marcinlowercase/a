@@ -1,4 +1,4 @@
-package marcinlowercase.a.ui.panel
+package studio.oo1.browser.ui.panel
 
 import android.content.ClipData
 import android.content.Intent
@@ -44,9 +44,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import marcinlowercase.a.R
-import marcinlowercase.a.core.data_class.BrowserSettings
-import marcinlowercase.a.core.data_class.ContextMenuData
+import studio.oo1.browser.R
+import studio.oo1.browser.core.data_class.BrowserSettings
+import studio.oo1.browser.core.data_class.ContextMenuData
 import kotlin.math.roundToInt
 
 @Composable

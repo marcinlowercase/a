@@ -1,6 +1,6 @@
-package marcinlowercase.a.core.data_class
+package studio.oo1.browser.core.data_class
 
-import marcinlowercase.a.core.enum_class.SuggestionSource
+import studio.oo1.browser.core.enum_class.SuggestionSource
 
 data class Suggestion(
     val text: String,

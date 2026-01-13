@@ -1,4 +1,4 @@
-package marcinlowercase.a.ui.panel
+package studio.oo1.browser.ui.panel
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -16,9 +16,9 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-import marcinlowercase.a.R
-import marcinlowercase.a.core.data_class.BrowserSettings
-import marcinlowercase.a.ui.component.CustomIconButton
+import studio.oo1.browser.R
+import studio.oo1.browser.core.data_class.BrowserSettings
+import studio.oo1.browser.ui.component.CustomIconButton
 
 @Composable
 fun TextEditPanel(

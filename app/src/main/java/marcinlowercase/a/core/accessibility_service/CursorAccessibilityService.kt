@@ -1,4 +1,4 @@
-package marcinlowercase.a.core.accessibility_service
+package studio.oo1.browser.core.accessibility_service
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription

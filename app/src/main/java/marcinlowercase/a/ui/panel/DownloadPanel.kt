@@ -1,4 +1,4 @@
-package marcinlowercase.a.ui.panel
+package studio.oo1.browser.ui.panel
 
 import android.annotation.SuppressLint
 import androidx.compose.animation.AnimatedVisibility
@@ -42,13 +42,13 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import marcinlowercase.a.R
-import marcinlowercase.a.core.data_class.BrowserSettings
-import marcinlowercase.a.core.data_class.DownloadItem
-import marcinlowercase.a.core.enum_class.DownloadStatus
-import marcinlowercase.a.core.function.formatSpeed
-import marcinlowercase.a.core.function.formatTimeRemaining
-import marcinlowercase.a.ui.component.CustomIconButton
+import studio.oo1.browser.R
+import studio.oo1.browser.core.data_class.BrowserSettings
+import studio.oo1.browser.core.data_class.DownloadItem
+import studio.oo1.browser.core.enum_class.DownloadStatus
+import studio.oo1.browser.core.function.formatSpeed
+import studio.oo1.browser.core.function.formatTimeRemaining
+import studio.oo1.browser.ui.component.CustomIconButton
 
 @Composable
 fun DownloadPanel(
