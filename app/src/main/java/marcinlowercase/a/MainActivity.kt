@@ -20,7 +20,6 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.util.Base64
-import android.util.Log
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
@@ -2114,10 +2113,6 @@ fun BrowserScreen(
 
 
     LaunchedEffect(browserSettings.value.isFullscreenMode) {
-        Log.d("FULLSCRFEEN", "isFullscreenMode: ${browserSettings.value.isFullscreenMode}")
-//        Log.d("FULLSCRFEEN", "isSharpMode: ${browserSettings.value.isSharpMode}")
-//        Log.d("FULLSCRFEEN", "topPadding: ${webViewTopPadding}")
-//        Log.d("FULLSCRFEEN", "botPadding: ${webViewBottomPadding}")
         if (browserSettings.value.isFullscreenMode) {
             insetsController?.hide(WindowInsetsCompat.Type.systemBars())
             insetsController?.systemBarsBehavior =
@@ -2137,15 +2132,10 @@ fun BrowserScreen(
         val paddingPx = with(density) { browserSettings.value.padding.dp.toPx() }
 
 
-        Log.d("FULLSCRFEEN", "currentY: ${backSquareOffsetY.value}")
-        Log.d("FULLSCRFEEN", "maxy: ${screenSize.height.toFloat() - squareBoxSizePx - paddingPx}")
-
-
         if (screenSize.height.toFloat() > (squareBoxSizePx - paddingPx)
             && backSquareOffsetY.value > screenSize.height.toFloat() - squareBoxSizePx - paddingPx
         ) {
-            // Auto Fit
-            Log.d("AUTOFIT", "AUTO FIT")
+
 
             // Clamp Y to screen bounds
             val targetY = backSquareOffsetY.value.coerceIn(
@@ -2979,7 +2969,7 @@ fun BrowserScreen(
                                                 )
 
                                                 coroutineScope.launch {
-                                                    // Animate snappin
+                                                    // Animate snap in
 
                                                     launch {
                                                         backSquareOffsetX.animateTo(
