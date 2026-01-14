@@ -1,4 +1,4 @@
-package studio.oo1.browser.ui.screen
+package marcinlowercase.a.ui.screen
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -13,7 +13,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import studio.oo1.browser.core.data_class.BrowserSettings
+import marcinlowercase.a.core.data_class.BrowserSettings
 
 @Composable
 fun NoInternetScreen(

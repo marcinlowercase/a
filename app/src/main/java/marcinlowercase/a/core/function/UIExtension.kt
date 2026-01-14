@@ -1,4 +1,4 @@
-package studio.oo1.browser.core.function
+package marcinlowercase.a.core.function
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -20,8 +20,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import studio.oo1.browser.core.data_class.BrowserSettings
-import studio.oo1.browser.core.enum_class.DragDirection
+import marcinlowercase.a.core.data_class.BrowserSettings
+import marcinlowercase.a.core.enum_class.DragDirection
 
 import java.net.URL
 import kotlin.math.abs

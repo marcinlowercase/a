@@ -1,4 +1,4 @@
-package studio.oo1.browser.ui.panel
+package marcinlowercase.a.ui.panel
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -21,7 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import studio.oo1.browser.core.data_class.BrowserSettings
+import marcinlowercase.a.core.data_class.BrowserSettings
 
 @Composable
 fun DescriptionPanel(

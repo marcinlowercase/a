@@ -1,8 +1,8 @@
-package studio.oo1.browser.core.manager
+package marcinlowercase.a.core.manager
 
 import android.content.Context
 import kotlinx.serialization.json.Json
-import studio.oo1.browser.core.data_class.App
+import marcinlowercase.a.core.data_class.App
 import androidx.core.content.edit
 
 
@@ -20,7 +20,7 @@ class AppManager(context: Context) {
         val jsonString = prefs.getString(appsKey, null) ?: return emptyList()
         return try {
             json.decodeFromString(jsonString)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             emptyList()
         }
     }

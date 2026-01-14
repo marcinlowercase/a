@@ -1,10 +1,10 @@
-package studio.oo1.browser.core.manager
+package marcinlowercase.a.core.manager
 
 import android.content.Context
 import androidx.core.content.edit
 import androidx.core.net.toUri
 import kotlinx.serialization.json.Json
-import studio.oo1.browser.core.data_class.SiteSettings
+import marcinlowercase.a.core.data_class.SiteSettings
 
 class SiteSettingsManager(context: Context) {
     private val prefs = context.getSharedPreferences("BrowserSiteSettings", Context.MODE_PRIVATE)

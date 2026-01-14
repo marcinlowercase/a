@@ -1,4 +1,4 @@
-package studio.oo1.browser
+package marcinlowercase.a
 
 import org.junit.Test
 

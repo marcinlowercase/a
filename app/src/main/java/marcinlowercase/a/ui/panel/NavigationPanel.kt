@@ -1,4 +1,4 @@
-package studio.oo1.browser.ui.panel
+package marcinlowercase.a.ui.panel
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -27,10 +27,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import studio.oo1.browser.R
-import studio.oo1.browser.core.custom_class.CustomWebView
-import studio.oo1.browser.core.data_class.BrowserSettings
-import studio.oo1.browser.core.enum_class.GestureNavAction
+import marcinlowercase.a.R
+import marcinlowercase.a.core.custom_class.CustomWebView
+import marcinlowercase.a.core.data_class.BrowserSettings
+import marcinlowercase.a.core.enum_class.GestureNavAction
 
 @Composable
 fun NavigationPanel(

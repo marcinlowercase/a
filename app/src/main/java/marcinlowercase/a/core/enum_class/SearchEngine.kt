@@ -1,4 +1,4 @@
-package studio.oo1.browser.core.enum_class
+package marcinlowercase.a.core.enum_class
 
 
 enum class SearchEngine(

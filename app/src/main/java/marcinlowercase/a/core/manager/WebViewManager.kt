@@ -1,4 +1,4 @@
-package studio.oo1.browser.core.manager
+package marcinlowercase.a.core.manager
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -24,18 +24,18 @@ import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
-import studio.oo1.browser.R
-import studio.oo1.browser.core.constant.favicon_discovery
-import studio.oo1.browser.core.constant.generic_location_permission
-import studio.oo1.browser.core.custom_class.CustomWebView
-import studio.oo1.browser.core.data_class.BrowserSettings
-import studio.oo1.browser.core.data_class.ContextMenuData
-import studio.oo1.browser.core.data_class.CustomPermissionRequest
-import studio.oo1.browser.core.data_class.SiteSettings
-import studio.oo1.browser.core.data_class.Tab
-import studio.oo1.browser.core.function.webViewLoad
-import studio.oo1.browser.core.js_interface.BlobDownloaderInterface
-import studio.oo1.browser.core.js_interface.FaviconJavascriptInterface
+import marcinlowercase.a.R
+import marcinlowercase.a.core.constant.favicon_discovery
+import marcinlowercase.a.core.constant.generic_location_permission
+import marcinlowercase.a.core.custom_class.CustomWebView
+import marcinlowercase.a.core.data_class.BrowserSettings
+import marcinlowercase.a.core.data_class.ContextMenuData
+import marcinlowercase.a.core.data_class.CustomPermissionRequest
+import marcinlowercase.a.core.data_class.SiteSettings
+import marcinlowercase.a.core.data_class.Tab
+import marcinlowercase.a.core.function.webViewLoad
+import marcinlowercase.a.core.js_interface.BlobDownloaderInterface
+import marcinlowercase.a.core.js_interface.FaviconJavascriptInterface
 import java.net.URISyntaxException
 import kotlin.collections.get
 

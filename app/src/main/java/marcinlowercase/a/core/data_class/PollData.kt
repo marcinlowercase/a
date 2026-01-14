@@ -1,4 +1,4 @@
-package studio.oo1.browser.core.data_class
+package marcinlowercase.a.core.data_class
 
 data class PollData(
     val timestampMs: Long,

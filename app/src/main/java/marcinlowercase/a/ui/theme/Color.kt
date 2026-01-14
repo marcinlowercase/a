@@ -1,6 +1,6 @@
 @file:Suppress("unused")
 
-package studio.oo1.browser.ui.theme
+package marcinlowercase.a.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

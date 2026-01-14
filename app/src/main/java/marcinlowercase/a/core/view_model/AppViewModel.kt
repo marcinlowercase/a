@@ -1,4 +1,4 @@
-package studio.oo1.browser.core.view_model
+package marcinlowercase.a.core.view_model
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
@@ -6,8 +6,8 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
-import studio.oo1.browser.core.custom_class.NetworkConnectivityObserver
-import studio.oo1.browser.core.function.isOnlineNow
+import marcinlowercase.a.core.custom_class.NetworkConnectivityObserver
+import marcinlowercase.a.core.function.isOnlineNow
 
 class AppViewModel(application: Application) : AndroidViewModel(application) {
 

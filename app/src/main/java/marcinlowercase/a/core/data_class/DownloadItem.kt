@@ -1,7 +1,7 @@
-package studio.oo1.browser.core.data_class
+package marcinlowercase.a.core.data_class
 
 import kotlinx.serialization.Serializable
-import studio.oo1.browser.core.enum_class.DownloadStatus
+import marcinlowercase.a.core.enum_class.DownloadStatus
 
 @Serializable
 data class DownloadItem(

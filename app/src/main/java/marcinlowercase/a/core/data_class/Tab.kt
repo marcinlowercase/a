@@ -1,8 +1,8 @@
-package studio.oo1.browser.core.data_class
+package marcinlowercase.a.core.data_class
 
 import kotlinx.serialization.Serializable
-import studio.oo1.browser.core.constant.default_url
-import studio.oo1.browser.core.enum_class.TabState
+import marcinlowercase.a.core.constant.default_url
+import marcinlowercase.a.core.enum_class.TabState
 
 @Serializable
 data class Tab(

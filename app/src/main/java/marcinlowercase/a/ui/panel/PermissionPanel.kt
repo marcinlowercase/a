@@ -1,4 +1,4 @@
-package studio.oo1.browser.ui.panel
+package marcinlowercase.a.ui.panel
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -27,9 +27,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import studio.oo1.browser.core.data_class.BrowserSettings
-import studio.oo1.browser.core.data_class.CustomPermissionRequest
-import studio.oo1.browser.core.function.buttonSettingsForLayer
+import marcinlowercase.a.core.data_class.BrowserSettings
+import marcinlowercase.a.core.data_class.CustomPermissionRequest
+import marcinlowercase.a.core.function.buttonSettingsForLayer
 import kotlin.math.roundToInt
 
 @Composable

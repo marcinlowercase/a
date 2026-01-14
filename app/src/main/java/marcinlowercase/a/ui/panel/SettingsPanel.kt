@@ -1,4 +1,4 @@
-package studio.oo1.browser.ui.panel
+package marcinlowercase.a.ui.panel
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -54,11 +54,11 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
-import studio.oo1.browser.R
-import studio.oo1.browser.core.data_class.BrowserSettings
-import studio.oo1.browser.core.data_class.OptionItem
-import studio.oo1.browser.core.enum_class.SearchEngine
-import studio.oo1.browser.ui.component.CustomIconButton
+import marcinlowercase.a.R
+import marcinlowercase.a.core.data_class.BrowserSettings
+import marcinlowercase.a.core.data_class.OptionItem
+import marcinlowercase.a.core.enum_class.SearchEngine
+import marcinlowercase.a.ui.component.CustomIconButton
 import kotlin.collections.chunked
 import kotlin.collections.forEach
 import kotlin.math.roundToInt

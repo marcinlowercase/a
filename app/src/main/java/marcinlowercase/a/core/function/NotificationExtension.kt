@@ -1,4 +1,4 @@
-package studio.oo1.browser.core.function
+package marcinlowercase.a.core.function
 
 import android.app.NotificationChannel
 import android.app.NotificationManager

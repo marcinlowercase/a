@@ -1,2 +1,2 @@
-package studio.oo1.browser.core.function
+package marcinlowercase.a.core.function
 

@@ -1,4 +1,4 @@
-package studio.oo1.browser.core.js_interface
+package marcinlowercase.a.core.js_interface
 
 import android.webkit.JavascriptInterface
 

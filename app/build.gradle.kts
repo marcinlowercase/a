@@ -8,12 +8,12 @@ plugins {
 }
 
 android {
-    namespace = "studio.oo1.browser"
+    namespace = "marcinlowercase.a"
     compileSdk = 36
 
     ndkVersion = "29.0.14206865"
     defaultConfig {
-        applicationId = "studio.oo1.browser"
+        applicationId = "marcinlowercase.a"
         minSdk = 29
         targetSdk = 36
         versionCode = 15

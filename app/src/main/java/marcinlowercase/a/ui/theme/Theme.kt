@@ -1,4 +1,4 @@
-package studio.oo1.browser.ui.theme
+package marcinlowercase.a.ui.theme
 
 import android.app.Activity
 import android.os.Build
