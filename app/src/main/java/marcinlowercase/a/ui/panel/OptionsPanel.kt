@@ -23,11 +23,11 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Job
 import marcinlowercase.a.R
-import marcinlowercase.a.core.custom_class.CustomWebView
 import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.OptionItem
 import marcinlowercase.a.core.enum_class.RevealState
 import marcinlowercase.a.ui.component.CustomIconButton
+import org.mozilla.geckoview.GeckoSession
 import kotlin.collections.chunked
 import kotlin.collections.forEach
 import kotlin.math.roundToInt
@@ -40,7 +40,7 @@ fun OptionsPanel(
     isPinningApp: MutableState<Boolean>,
     bottomPanelPagerState: PagerState,
     onCloseAllTabs: () -> Unit,
-    activeWebView: CustomWebView?,
+    activeSession: GeckoSession,
     isFindInPageVisible: MutableState<Boolean>,
     descriptionContent: MutableState<String>,
     reopenClosedTab: () -> Unit,
@@ -65,7 +65,7 @@ fun OptionsPanel(
             isDownloadPanelVisible,
             isCursorPadVisible,
             isSettingsPanelVisible,
-            activeWebView,
+            activeSession,
             bottomPanelPagerState,
             isPinningApp.value,
             isFindInPageVisible.value,

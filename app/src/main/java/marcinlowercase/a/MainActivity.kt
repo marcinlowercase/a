@@ -173,6 +173,7 @@ import marcinlowercase.a.core.manager.BrowserDownloadManager
 import marcinlowercase.a.core.manager.SiteSettingsManager
 import marcinlowercase.a.core.manager.TabManager
 import marcinlowercase.a.core.manager.AppManager
+import marcinlowercase.a.core.manager.GeckoManager
 import marcinlowercase.a.core.manager.VisitedUrlManager
 import marcinlowercase.a.core.manager.WebViewManager
 import marcinlowercase.a.core.view_model.AppViewModel
@@ -182,6 +183,9 @@ import marcinlowercase.a.ui.panel.SettingsPanel
 import marcinlowercase.a.ui.screen.NoInternetScreen
 import marcinlowercase.a.ui.theme.Theme
 import org.json.JSONArray
+import org.mozilla.geckoview.GeckoSession
+import org.mozilla.geckoview.GeckoView
+import org.mozilla.geckoview.ScreenLength
 import java.io.File
 import java.io.FileOutputStream
 import java.net.URL
@@ -204,6 +208,7 @@ class MainActivity : ComponentActivity() {
 
     private val tabManager by lazy { TabManager(this) }
     private val webViewManager by lazy { WebViewManager(this) }
+    private val geckoManager by lazy { GeckoManager(this) }
     val newUrlFromIntent = MutableStateFlow<String?>(null)
 
     private val appViewModel: AppViewModel by viewModels()
@@ -238,7 +243,8 @@ class MainActivity : ComponentActivity() {
                         isOnline = isOnline,
                         newUrlFlow = newUrlFromIntent,
                         tabManager = tabManager,
-                        webViewManager = webViewManager
+                        webViewManager = webViewManager,
+                        geckoManager = geckoManager,
                     )
                 }
             }
@@ -310,6 +316,7 @@ fun BrowserScreen(
     newUrlFlow: StateFlow<String?>,
     tabManager: TabManager,
     webViewManager: WebViewManager,
+    geckoManager: GeckoManager,
     modifier: Modifier = Modifier
 ) {
 
@@ -417,42 +424,50 @@ fun BrowserScreen(
     val textFieldState =
         rememberTextFieldState(webViewManager.getWebView(tabs[activeTabIndex.intValue]).url ?: "")
     val recentlyClosedTabs = remember { mutableStateListOf<Tab>() }
-    val activeTab = tabs.getOrNull(activeTabIndex.intValue)
-    val activeWebView = activeTab?.let { tab ->
-        webViewManager.getWebView(tab).apply {
-            // If the tab was frozen, its WebView was just created and needs to load its URL
-            if (tab.state == TabState.FROZEN || this.url == null) {
+    val activeTab = remember {
+        mutableStateOf<Tab>(
+            // 1. If list is empty, return a dummy empty tab to prevent crashing
 
+            if (tabs.isEmpty()) {
+                Tab.createEmpty()
+            } else tabs[activeTabIndex.intValue.coerceIn(tabs.indices)]
+        )
+    }
 
-                if (tab.savedState != null) {
+    val activeSession = activeTab.let { tab ->
+        geckoManager.getSession(tab.value).apply {
+            if (tab.value.state == TabState.FROZEN) {
+                if (tab.value.savedState != null) {
                     try {
-                        // 1. Decode the Base64 string back to a byte array
-                        val stateBytes = Base64.decode(tab.savedState, Base64.DEFAULT)
-                        val restoreBundle = Bundle()
-                        // 2. Put the bytes back into a new Bundle with the correct key
-                        restoreBundle.putByteArray("WEBVIEW_CHROMIUM_STATE", stateBytes)
-                        // 3. Restore the state into the WebView
-                        this.restoreState(restoreBundle)
 
-
-
-                        initialLoadDone = true
-                        this.url?.let { restoredUrl ->
-                            textFieldState.setTextAndPlaceCursorAtEnd(restoredUrl.toDomain())
-//                            textFieldValue =
-//                                TextFieldValue(restoredUrl, TextRange(restoredUrl.length))
-                        }
+                        // TODO restore session
+//                        // 1. Decode the Base64 string back to a byte array
+//                        val stateBytes = Base64.decode(tab.savedState, Base64.DEFAULT)
+//                        val restoreBundle = Bundle()
+//                        // 2. Put the bytes back into a new Bundle with the correct key
+//                        restoreBundle.putByteArray("WEBVIEW_CHROMIUM_STATE", stateBytes)
+//                        // 3. Restore the state into the WebView
+//                        this.restoreState(restoreBundle)
+//
+//
+//
+//                        initialLoadDone = true
+//                        this.url?.let { restoredUrl ->
+//                            textFieldState.setTextAndPlaceCursorAtEnd(restoredUrl.toDomain())
+////                            textFieldValue =
+////                                TextFieldValue(restoredUrl, TextRange(restoredUrl.length))
+//                        }
 
 
                         // 4. CRITICAL: Clear the state so it's not restored again on config change
-                        tab.savedState = null
+                        tab.value.savedState = null
                         saveTrigger++ // Trigger a save to persist the cleared state
 
                     } catch (_: Exception) {
                         // Fallback to loading the URL if restore fails
 //                        webViewLoad(this, browserSettings.value.defaultUrl, browserSettings)
                         val urlToLoad =
-                            tab.currentURL.ifBlank { browserSettings.value.defaultUrl }
+                            tab.value.currentURL.ifBlank { browserSettings.value.defaultUrl }
                         webViewLoad(this, urlToLoad, browserSettings.value)
                     }
                 } else {
@@ -462,6 +477,52 @@ fun BrowserScreen(
             }
         }
     }
+//    val activeWebView = activeTab?.let { tab ->
+//        webViewManager.getWebView(tab).apply {
+//            // If the tab was frozen, its WebView was just created and needs to load its URL
+//            if (tab.state == TabState.FROZEN || this.url == null) {
+//
+//
+//
+//                if (tab.savedState != null) {
+//                    try {
+//                        // 1. Decode the Base64 string back to a byte array
+//                        val stateBytes = Base64.decode(tab.savedState, Base64.DEFAULT)
+//                        val restoreBundle = Bundle()
+//                        // 2. Put the bytes back into a new Bundle with the correct key
+//                        restoreBundle.putByteArray("WEBVIEW_CHROMIUM_STATE", stateBytes)
+//                        // 3. Restore the state into the WebView
+//                        this.restoreState(restoreBundle)
+//
+//
+//
+//                        initialLoadDone = true
+//                        this.url?.let { restoredUrl ->
+//                            textFieldState.setTextAndPlaceCursorAtEnd(restoredUrl.toDomain())
+////                            textFieldValue =
+////                                TextFieldValue(restoredUrl, TextRange(restoredUrl.length))
+//                        }
+//
+//
+//                        // 4. CRITICAL: Clear the state so it's not restored again on config change
+//                        tab.savedState = null
+//                        saveTrigger++ // Trigger a save to persist the cleared state
+//
+//                    } catch (_: Exception) {
+//                        // Fallback to loading the URL if restore fails
+////                        webViewLoad(this, browserSettings.value.defaultUrl, browserSettings)
+//                        val urlToLoad =
+//                            tab.currentURL.ifBlank { browserSettings.value.defaultUrl }
+//                        webViewLoad(this, urlToLoad, browserSettings.value)
+//                    }
+//                } else {
+//                    // No saved state, just load the URL normally
+//                    webViewLoad(this, browserSettings.value.defaultUrl, browserSettings.value)
+//                }
+//            }
+//        }
+//    }
+
     val siteSettingsManager = remember { SiteSettingsManager(context) }
     val siteSettings = remember {
         mutableStateMapOf<String, SiteSettings>().apply {
@@ -755,6 +816,9 @@ fun BrowserScreen(
 
         )
 
+
+    var geckoViewRef= remember { mutableStateOf<GeckoView?>(null) }
+
     //endregion
 
     //region Functions
@@ -924,7 +988,7 @@ fun BrowserScreen(
             confirmationPopup(
                 message = "refresh ?",
                 onConfirm = {
-                    activeWebView?.reload()
+                    activeSession.reload()
                     isUrlBarVisible = false
                 },
                 onCancel = {
@@ -1174,16 +1238,16 @@ fun BrowserScreen(
 
     fun navigateWebView() {
         when (activeNavAction) {
-            GestureNavAction.BACK -> if (activeWebView?.canGoBack() ?: false) {
-                activeWebView.goBack()
+            GestureNavAction.BACK -> if (activeTab.value.canGoBack) {
+                activeSession.goBack(true)
             }
 
             GestureNavAction.REFRESH -> {
-                activeWebView?.reload()
+                activeSession.reload()
             }
 
-            GestureNavAction.FORWARD -> if (activeWebView?.canGoForward() ?: false) {
-                activeWebView.goForward()
+            GestureNavAction.FORWARD -> if (activeTab.value.canGoForward) {
+                activeSession.goForward(true)
             }
 
             GestureNavAction.CLOSE_TAB -> {
@@ -1214,7 +1278,7 @@ fun BrowserScreen(
 
                     val urlToLoad = webViewManager.getWebView(tabs[nextTabIndex]).url
                         ?: browserSettings.value.defaultUrl
-                    webViewLoad(activeWebView, urlToLoad, browserSettings.value)
+                    webViewLoad(activeSession, urlToLoad, browserSettings.value)
                     textFieldState.setTextAndPlaceCursorAtEnd(urlToLoad.toDomain())
                     saveTrigger++
                 } else {
@@ -1470,7 +1534,7 @@ fun BrowserScreen(
 
     LaunchedEffect(textFieldState.text, isFocusOnTextField) {
 
-        if (!browserSettings.value.showSuggestions || (textFieldState.text as String) == activeWebView?.url || textFieldState.text.isBlank() || isPinningApp.value) {
+        if (!browserSettings.value.showSuggestions || (textFieldState.text as String) == currentInspectingTab?.currentURL || textFieldState.text.isBlank() || isPinningApp.value) {
             suggestions.clear()
             return@LaunchedEffect
         }
@@ -1738,313 +1802,338 @@ fun BrowserScreen(
         }
     }
 
-    LaunchedEffect(activeWebView) {
-        activeWebView?.let { webView ->
+    LaunchedEffect(activeSession) {
+        geckoManager.setupDelegates(
+            session = activeSession,
+            tab = activeTab.value,
+            browserSettings = browserSettings,
+            onTitleChange = { title ->
 
 
-            // Set up all the clients for the *current* active WebView.
-            webViewManager.setWebViewClients(
-                density = density,
-                browserSettings = browserSettings.value,
-                webView = webView,
-                tab = activeTab, // Pass the active tab
-                siteSettingsManager = siteSettingsManager,
-                siteSettings = siteSettings,
-                onFaviconChanged = { tabId, faviconUrl ->
-                    // Find the index of the tab that fired this event.
-                    val tabIndex = tabs.indexOfFirst { it.id == tabId }
-                    if (tabIndex == -1) return@setWebViewClients
+            },
+            onProgressChange = { int ->
 
-                    val targetTab = tabs[tabIndex]
-
-
-                    // Check if an update is even needed to prevent unnecessary recompositions.
-                    if (faviconUrl.isNotBlank()) {
-                        tabs[tabIndex] = targetTab.copy(currentFaviconUrl = faviconUrl)
-                        saveTrigger++
-                    }
-                },
-                onJsAlert = { message -> jsDialogState = JsAlert(message) },
-                onJsConfirm = { message, onResult -> jsDialogState = JsConfirm(message, onResult) },
-                onJsPrompt = { message, default, onResult ->
-                    jsDialogState = JsPrompt(message, default, onResult)
-                },
-                onPermissionRequest = { request -> pendingPermissionRequest = request },
-                setCustomViewCallback = { callback -> customViewCallback = callback },
-                setOriginalOrientation = { _ -> },
-                resetCustomView = {
-                    activity?.requestedOrientation = originalOrientation
-
-                    customViewCallback?.onCustomViewHidden()
-                    val insetsController = activity?.let {
-                        WindowCompat.getInsetsController(
-                            it.window,
-                            it.window.decorView
-                        )
-                    }
-                    insetsController?.hide(WindowInsetsCompat.Type.systemBars())
-                    customViewCallback = null
-                },
-                onPageStartedFun = { _, url, _ ->
-                    pendingPermissionRequest?.let { request ->
-                        // Check if the new URL's host is DIFFERENT from the origin of the permission request.
-                        val newHost = url?.toUri()?.host
-                        val requestHost = request.origin.toUri().host
-
-                        if (newHost != requestHost) {
-                            // The user is navigating away, so clear the old permission request.
-                            pendingPermissionRequest = null
-                        }
-                    }
-
-
-                    isLoading = true
-
-
-                },
-                onPageFinishedFun = { view, currentUrlString ->
-                    isLoading = false
-
-
-//                    view.evaluateJavascript(JS_HOVER_SIMULATOR.trimIndent().replace("\n", ""), null)
-                    val jsInjectCornerRadius = inject_corner_radius.replace(
-                        "___corner-radius___",
-                        browserSettings.value.deviceCornerRadius.toString()
-                    )
-                    view.evaluateJavascript(jsInjectCornerRadius, null)
-
-
-                    if (currentUrlString != null) {
-                        // Pass both the URL and the title to the manager
-                        visitedUrlManager.addUrl(currentUrlString, view.title)
-                        // Update our in-memory map
-                        view.title?.let { title ->
-                            if (title.isNotBlank()) {
-                                visitedUrlMap[currentUrlString] = title
-                            }
-                        }
-                    }
-
-                },
-                onDoUpdateVisitedHistoryFun = { view, url, _ ->
-                    if (!isFocusOnTextField) view.url?.let {
-                        textFieldState.setTextAndPlaceCursorAtEnd(it.toDomain())
-                    }
-                    if (url != null && activeTab.currentURL != url) {
-                        tabs[activeTabIndex.intValue] =
-                            tabs[activeTabIndex.intValue].copy(currentURL = url)
-                    }
-                },
-                onTitleReceived = { view, url, title ->
-                    val tabIndex = tabs.indexOfFirst { it.id == activeTab.id }
-                    if (tabIndex == -1) return@setWebViewClients
-
-                    val oldTab = tabs[tabIndex]
-                    if (oldTab.currentTitle != title || oldTab.currentURL != url) {
-                        // Create a new Tab instance and replace the old one
-                        tabs[tabIndex] = oldTab.copy(currentTitle = title)
-                        saveTrigger++
-                    }
-
-
-                    view.evaluateJavascript(favicon_discovery, null)
-
-
-                    // Pass both the URL and the title to the manager
-                    visitedUrlManager.addUrl(url, view.title)
-                    // Update our in-memory map
-                    view.title?.let { title ->
-                        if (title.isNotBlank()) {
-                            visitedUrlMap[url] = title
-                        }
-                    }
-                },
-
-                onBlobDownloadRequested = { base64Data, filename, mimeType ->
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                    }
-
-                    try {
-                        val fileData = Base64.decode(base64Data, Base64.DEFAULT)
-                        val downloadsDir =
-                            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-                        if (!downloadsDir.exists()) downloadsDir.mkdirs()
-
-                        // 1. Generate a unique filename
-                        val finalFilename = generateUniqueFilename(filename, downloads)
-                        val file = File(downloadsDir, finalFilename)
-
-                        // 2. Save the file
-                        FileOutputStream(file).use { it.write(fileData) }
-
-                        // 3. Notify the MediaStore
-                        MediaScannerConnection.scanFile(
-                            context,
-                            arrayOf(file.absolutePath),
-                            arrayOf(mimeType),
-                            null
-                        )
-
-                        // 1. Build the intent and notification first
-                        val fileUri = FileProvider.getUriForFile(
-                            context,
-                            "${context.packageName}.fileprovider",
-                            file
-                        )
-                        val openIntent = Intent(Intent.ACTION_VIEW).apply {
-                            setDataAndType(fileUri, mimeType)
-                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-                        }
-                        val pendingIntent = PendingIntent.getActivity(
-                            context,
-                            0,
-                            openIntent,
-                            PendingIntent.FLAG_IMMUTABLE
-                        )
-
-                        val notification = NotificationCompat.Builder(context, "download_channel")
-                            .setSmallIcon(R.drawable.ic_download_done)
-                            .setContentTitle(finalFilename)
-                            .setContentText("download complete")
-                            .setPriority(NotificationCompat.PRIORITY_LOW)
-                            .setContentIntent(pendingIntent)
-                            .setAutoCancel(true)
-                            .build()
-
-                        // 2. Check for permission BEFORE calling .notify()
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            // For Android 13 and above
-                            if (ContextCompat.checkSelfPermission(
-                                    context,
-                                    Manifest.permission.POST_NOTIFICATIONS
-                                ) == PackageManager.PERMISSION_GRANTED
-                            ) {
-                                // We have permission, so we can safely show the notification
-                                NotificationManagerCompat.from(context)
-                                    .notify(System.currentTimeMillis().toInt(), notification)
-                            } else {
-                                // We don't have permission, so we request it.
-                                // The notification will NOT be shown this time, but will work on the next download if granted.
-                                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                                // Optionally, show a toast to inform the user that the file was saved.
-                                Toast.makeText(
-                                    context,
-                                    "Downloaded: $finalFilename",
-                                    Toast.LENGTH_LONG
-                                ).show()
-                            }
-                        } else {
-                            // For older versions, no permission is needed
-                            NotificationManagerCompat.from(context)
-                                .notify(System.currentTimeMillis().toInt(), notification)
-                        }
-                        // 4. CRUCIAL: Create a DownloadItem and add it to your UI state list
-                        val newDownload = DownloadItem(
-                            id = System.currentTimeMillis(), // Use timestamp for ID as there's no DownloadManager ID
-                            url = "blob:...", // You can store a placeholder URL
-                            filename = finalFilename,
-                            mimeType = mimeType,
-                            status = DownloadStatus.SUCCESSFUL,// It's instantly successful
-                            isBlobDownload = true,
-                            progress = 100,
-                            totalBytes = fileData.size.toLong(),
-                            downloadedBytes = fileData.size.toLong()
-                        )
-                        downloads.add(0, newDownload)
-                        downloadTracker.saveDownloads(downloads) // Save the updated list
-
-                        Toast.makeText(context, "Downloaded: $finalFilename", Toast.LENGTH_LONG)
-                            .show()
-
-                    } catch (_: Exception) {
-                        Toast.makeText(context, "Download failed", Toast.LENGTH_LONG).show()
-                    }
-                },
-                onDownloadRequested = { url, userAgent, contentDisposition, mimeType, _ ->
-
-                    if (!isUrlBarVisible) isUrlBarVisible = true
-                    if (!isDownloadPanelVisible.value) isDownloadPanelVisible.value = true
-                    if (url.startsWith("blob:")) {
-                        val filename = getBestGuessFilename(url, contentDisposition, mimeType)
-
-                        // This JavaScript reads the blob, converts it to Base64, and calls our Kotlin interface.
-                        val js = """
-            javascript:
-            (async () => {
-                const response = await fetch('$url');
-                const blob = await response.blob();
-                const reader = new FileReader();
-                reader.onload = () => {
-                    // The result includes the Base64 prefix, so we remove it.
-                    const base64Data = reader.result.split(',')[1];
-                    BlobDownloader.downloadBase64File(base64Data, '$filename', '$mimeType');
-                };
-                reader.readAsDataURL(blob);
-            })();
-        """.trimIndent()
-
-
-                        // Execute the JavaScript in the WebView
-                        webView.evaluateJavascript(js, null)
-
-                    } else {
-                        val initialFilename =
-                            getBestGuessFilename(url, contentDisposition, mimeType)
-
-                        // 2. Generate a guaranteed unique filename using our helper
-                        val finalFilename = generateUniqueFilename(initialFilename, downloads)
-
-
-//                        Toast.makeText(context, "Downloading $finalFilename", Toast.LENGTH_SHORT)
-//                            .show()
-
-                        // 3. Use the final, unique filename for the DownloadManager request
-                        val request = DownloadManager.Request(url.toUri())
-                            .setTitle(finalFilename) // Use unique name
-                            .setDescription("Downloading...")
-                            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                            .setDestinationInExternalPublicDir(
-                                Environment.DIRECTORY_DOWNLOADS,
-                                finalFilename
-                            ) // Use unique name
-                            .addRequestHeader("User-Agent", userAgent)
-
-                        val downloadManager =
-                            context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-                        val downloadId = downloadManager.enqueue(request)
-
-                        // 4. Use the final, unique filename for our internal state object
-                        val newDownload = DownloadItem(
-                            id = downloadId,
-                            url = url,
-                            filename = finalFilename, // Use unique name
-                            mimeType = mimeType,
-                            status = DownloadStatus.PENDING
-                        )
-                        downloads.add(0, newDownload)
-                        downloadTracker.saveDownloads(downloads)
-                    }
-
-                },
-                onFindResultReceived = { activeIndex, numberOfMatches, _ ->
-                    // The listener gives 1-based index, we can use it directly for display
-                    findInPageResult.value = (activeIndex + 1) to numberOfMatches
-                },
-
-                onContextMenu = { data ->
-                    contextMenuData = data
-                    displayContextMenuData = contextMenuData
-                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+            },
+            onUrlChange = { url ->
+                if (!isFocusOnTextField) url.let {
+                    textFieldState.setTextAndPlaceCursorAtEnd(it.toDomain())
                 }
-
-            )
-            webView.onWebViewTouch = {
-                if (isUrlBarVisible && !isBottomPanelLock.value) isUrlBarVisible = false
-                if (contextMenuData != null) contextMenuData = null
-            }
-        }
+                if (activeTab.value.currentURL != url) {
+                    tabs[activeTabIndex.intValue] =
+                        tabs[activeTabIndex.intValue].copy(currentURL = url)
+                }
+            },
+        )
     }
+
+        // OLD LAUNCHEDEFFECT
+//    LaunchedEffect(activeWebView) {
+//        activeWebView?.let { webView ->
+//
+//
+//            // Set up all the clients for the *current* active WebView.
+//            webViewManager.setWebViewClients(
+//                density = density,
+//                browserSettings = browserSettings.value,
+//                webView = webView,
+//                tab = activeTab, // Pass the active tab
+//                siteSettingsManager = siteSettingsManager,
+//                siteSettings = siteSettings,
+//                onFaviconChanged = { tabId, faviconUrl ->
+//                    // Find the index of the tab that fired this event.
+//                    val tabIndex = tabs.indexOfFirst { it.id == tabId }
+//                    if (tabIndex == -1) return@setWebViewClients
+//
+//                    val targetTab = tabs[tabIndex]
+//
+//
+//                    // Check if an update is even needed to prevent unnecessary recompositions.
+//                    if (faviconUrl.isNotBlank()) {
+//                        tabs[tabIndex] = targetTab.copy(currentFaviconUrl = faviconUrl)
+//                        saveTrigger++
+//                    }
+//                },
+//                onJsAlert = { message -> jsDialogState = JsAlert(message) },
+//                onJsConfirm = { message, onResult -> jsDialogState = JsConfirm(message, onResult) },
+//                onJsPrompt = { message, default, onResult ->
+//                    jsDialogState = JsPrompt(message, default, onResult)
+//                },
+//                onPermissionRequest = { request -> pendingPermissionRequest = request },
+//                setCustomViewCallback = { callback -> customViewCallback = callback },
+//                setOriginalOrientation = { _ -> },
+//                resetCustomView = {
+//                    activity?.requestedOrientation = originalOrientation
+//
+//                    customViewCallback?.onCustomViewHidden()
+//                    val insetsController = activity?.let {
+//                        WindowCompat.getInsetsController(
+//                            it.window,
+//                            it.window.decorView
+//                        )
+//                    }
+//                    insetsController?.hide(WindowInsetsCompat.Type.systemBars())
+//                    customViewCallback = null
+//                },
+//                onPageStartedFun = { _, url, _ ->
+//                    pendingPermissionRequest?.let { request ->
+//                        // Check if the new URL's host is DIFFERENT from the origin of the permission request.
+//                        val newHost = url?.toUri()?.host
+//                        val requestHost = request.origin.toUri().host
+//
+//                        if (newHost != requestHost) {
+//                            // The user is navigating away, so clear the old permission request.
+//                            pendingPermissionRequest = null
+//                        }
+//                    }
+//
+//
+//                    isLoading = true
+//
+//
+//                },
+//                onPageFinishedFun = { view, currentUrlString ->
+//                    isLoading = false
+//
+//
+////                    view.evaluateJavascript(JS_HOVER_SIMULATOR.trimIndent().replace("\n", ""), null)
+//                    val jsInjectCornerRadius = inject_corner_radius.replace(
+//                        "___corner-radius___",
+//                        browserSettings.value.deviceCornerRadius.toString()
+//                    )
+//                    view.evaluateJavascript(jsInjectCornerRadius, null)
+//
+//
+//                    if (currentUrlString != null) {
+//                        // Pass both the URL and the title to the manager
+//                        visitedUrlManager.addUrl(currentUrlString, view.title)
+//                        // Update our in-memory map
+//                        view.title?.let { title ->
+//                            if (title.isNotBlank()) {
+//                                visitedUrlMap[currentUrlString] = title
+//                            }
+//                        }
+//                    }
+//
+//                },
+//                onDoUpdateVisitedHistoryFun = { view, url, _ ->
+//                    if (!isFocusOnTextField) view.url?.let {
+//                        textFieldState.setTextAndPlaceCursorAtEnd(it.toDomain())
+//                    }
+//                    if (url != null && activeTab.currentURL != url) {
+//                        tabs[activeTabIndex.intValue] =
+//                            tabs[activeTabIndex.intValue].copy(currentURL = url)
+//                    }
+//                },
+//                onTitleReceived = { view, url, title ->
+//                    val tabIndex = tabs.indexOfFirst { it.id == activeTab.id }
+//                    if (tabIndex == -1) return@setWebViewClients
+//
+//                    val oldTab = tabs[tabIndex]
+//                    if (oldTab.currentTitle != title || oldTab.currentURL != url) {
+//                        // Create a new Tab instance and replace the old one
+//                        tabs[tabIndex] = oldTab.copy(currentTitle = title)
+//                        saveTrigger++
+//                    }
+//
+//
+//                    view.evaluateJavascript(favicon_discovery, null)
+//
+//
+//                    // Pass both the URL and the title to the manager
+//                    visitedUrlManager.addUrl(url, view.title)
+//                    // Update our in-memory map
+//                    view.title?.let { title ->
+//                        if (title.isNotBlank()) {
+//                            visitedUrlMap[url] = title
+//                        }
+//                    }
+//                },
+//
+//                onBlobDownloadRequested = { base64Data, filename, mimeType ->
+//                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+//                        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+//                    }
+//
+//                    try {
+//                        val fileData = Base64.decode(base64Data, Base64.DEFAULT)
+//                        val downloadsDir =
+//                            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+//                        if (!downloadsDir.exists()) downloadsDir.mkdirs()
+//
+//                        // 1. Generate a unique filename
+//                        val finalFilename = generateUniqueFilename(filename, downloads)
+//                        val file = File(downloadsDir, finalFilename)
+//
+//                        // 2. Save the file
+//                        FileOutputStream(file).use { it.write(fileData) }
+//
+//                        // 3. Notify the MediaStore
+//                        MediaScannerConnection.scanFile(
+//                            context,
+//                            arrayOf(file.absolutePath),
+//                            arrayOf(mimeType),
+//                            null
+//                        )
+//
+//                        // 1. Build the intent and notification first
+//                        val fileUri = FileProvider.getUriForFile(
+//                            context,
+//                            "${context.packageName}.fileprovider",
+//                            file
+//                        )
+//                        val openIntent = Intent(Intent.ACTION_VIEW).apply {
+//                            setDataAndType(fileUri, mimeType)
+//                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+//                        }
+//                        val pendingIntent = PendingIntent.getActivity(
+//                            context,
+//                            0,
+//                            openIntent,
+//                            PendingIntent.FLAG_IMMUTABLE
+//                        )
+//
+//                        val notification = NotificationCompat.Builder(context, "download_channel")
+//                            .setSmallIcon(R.drawable.ic_download_done)
+//                            .setContentTitle(finalFilename)
+//                            .setContentText("download complete")
+//                            .setPriority(NotificationCompat.PRIORITY_LOW)
+//                            .setContentIntent(pendingIntent)
+//                            .setAutoCancel(true)
+//                            .build()
+//
+//                        // 2. Check for permission BEFORE calling .notify()
+//                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+//                            // For Android 13 and above
+//                            if (ContextCompat.checkSelfPermission(
+//                                    context,
+//                                    Manifest.permission.POST_NOTIFICATIONS
+//                                ) == PackageManager.PERMISSION_GRANTED
+//                            ) {
+//                                // We have permission, so we can safely show the notification
+//                                NotificationManagerCompat.from(context)
+//                                    .notify(System.currentTimeMillis().toInt(), notification)
+//                            } else {
+//                                // We don't have permission, so we request it.
+//                                // The notification will NOT be shown this time, but will work on the next download if granted.
+//                                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+//                                // Optionally, show a toast to inform the user that the file was saved.
+//                                Toast.makeText(
+//                                    context,
+//                                    "Downloaded: $finalFilename",
+//                                    Toast.LENGTH_LONG
+//                                ).show()
+//                            }
+//                        } else {
+//                            // For older versions, no permission is needed
+//                            NotificationManagerCompat.from(context)
+//                                .notify(System.currentTimeMillis().toInt(), notification)
+//                        }
+//                        // 4. CRUCIAL: Create a DownloadItem and add it to your UI state list
+//                        val newDownload = DownloadItem(
+//                            id = System.currentTimeMillis(), // Use timestamp for ID as there's no DownloadManager ID
+//                            url = "blob:...", // You can store a placeholder URL
+//                            filename = finalFilename,
+//                            mimeType = mimeType,
+//                            status = DownloadStatus.SUCCESSFUL,// It's instantly successful
+//                            isBlobDownload = true,
+//                            progress = 100,
+//                            totalBytes = fileData.size.toLong(),
+//                            downloadedBytes = fileData.size.toLong()
+//                        )
+//                        downloads.add(0, newDownload)
+//                        downloadTracker.saveDownloads(downloads) // Save the updated list
+//
+//                        Toast.makeText(context, "Downloaded: $finalFilename", Toast.LENGTH_LONG)
+//                            .show()
+//
+//                    } catch (_: Exception) {
+//                        Toast.makeText(context, "Download failed", Toast.LENGTH_LONG).show()
+//                    }
+//                },
+//                onDownloadRequested = { url, userAgent, contentDisposition, mimeType, _ ->
+//
+//                    if (!isUrlBarVisible) isUrlBarVisible = true
+//                    if (!isDownloadPanelVisible.value) isDownloadPanelVisible.value = true
+//                    if (url.startsWith("blob:")) {
+//                        val filename = getBestGuessFilename(url, contentDisposition, mimeType)
+//
+//                        // This JavaScript reads the blob, converts it to Base64, and calls our Kotlin interface.
+//                        val js = """
+//            javascript:
+//            (async () => {
+//                const response = await fetch('$url');
+//                const blob = await response.blob();
+//                const reader = new FileReader();
+//                reader.onload = () => {
+//                    // The result includes the Base64 prefix, so we remove it.
+//                    const base64Data = reader.result.split(',')[1];
+//                    BlobDownloader.downloadBase64File(base64Data, '$filename', '$mimeType');
+//                };
+//                reader.readAsDataURL(blob);
+//            })();
+//        """.trimIndent()
+//
+//
+//                        // Execute the JavaScript in the WebView
+//                        webView.evaluateJavascript(js, null)
+//
+//                    } else {
+//                        val initialFilename =
+//                            getBestGuessFilename(url, contentDisposition, mimeType)
+//
+//                        // 2. Generate a guaranteed unique filename using our helper
+//                        val finalFilename = generateUniqueFilename(initialFilename, downloads)
+//
+//
+////                        Toast.makeText(context, "Downloading $finalFilename", Toast.LENGTH_SHORT)
+////                            .show()
+//
+//                        // 3. Use the final, unique filename for the DownloadManager request
+//                        val request = DownloadManager.Request(url.toUri())
+//                            .setTitle(finalFilename) // Use unique name
+//                            .setDescription("Downloading...")
+//                            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+//                            .setDestinationInExternalPublicDir(
+//                                Environment.DIRECTORY_DOWNLOADS,
+//                                finalFilename
+//                            ) // Use unique name
+//                            .addRequestHeader("User-Agent", userAgent)
+//
+//                        val downloadManager =
+//                            context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+//                        val downloadId = downloadManager.enqueue(request)
+//
+//                        // 4. Use the final, unique filename for our internal state object
+//                        val newDownload = DownloadItem(
+//                            id = downloadId,
+//                            url = url,
+//                            filename = finalFilename, // Use unique name
+//                            mimeType = mimeType,
+//                            status = DownloadStatus.PENDING
+//                        )
+//                        downloads.add(0, newDownload)
+//                        downloadTracker.saveDownloads(downloads)
+//                    }
+//
+//                },
+//                onFindResultReceived = { activeIndex, numberOfMatches, _ ->
+//                    // The listener gives 1-based index, we can use it directly for display
+//                    findInPageResult.value = (activeIndex + 1) to numberOfMatches
+//                },
+//
+//                onContextMenu = { data ->
+//                    contextMenuData = data
+//                    displayContextMenuData = contextMenuData
+//                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+//                }
+//
+//            )
+//            webView.onWebViewTouch = {
+//                if (isUrlBarVisible && !isBottomPanelLock.value) isUrlBarVisible = false
+//                if (contextMenuData != null) contextMenuData = null
+//            }
+//        }
+//    }
 
     LaunchedEffect(jsDialogState) {
         if (jsDialogState != null) {
@@ -2262,7 +2351,7 @@ fun BrowserScreen(
 
             val urlToLoad = browserSettings.value.defaultUrl
 //            activeWebView?.loadUrl(urlToLoad)
-            webViewLoad(activeWebView, urlToLoad, browserSettings.value)
+            webViewLoad(activeSession, urlToLoad, browserSettings.value)
 
         }
     }
@@ -2299,10 +2388,10 @@ fun BrowserScreen(
     }
 
     LaunchedEffect(isOnline) {
-        activeWebView?.reload()
+        activeSession.reload()
     }
     //endregion
-    BackHandler(enabled = !isBottomPanelVisible || activeWebView?.canGoBack() ?: false) {
+    BackHandler(enabled = !isBottomPanelVisible || activeTab.value.canGoBack) {
         when {
             // Priority 1: Exit fullscreen video if it's active.
             customView != null -> {
@@ -2310,8 +2399,8 @@ fun BrowserScreen(
 
             }
             // Priority 2: Navigate back in the WebView.
-            activeWebView?.canGoBack() ?: false -> {
-                activeWebView.goBack()
+            activeTab.value.canGoBack -> {
+                activeSession.goBack(true)
             }
 
             else -> {
@@ -2478,38 +2567,26 @@ fun BrowserScreen(
                         ) {
 
 
-                            @Suppress("COMPOSE_APPLIER_CALL_MISMATCH")
                             AndroidView(
-                                // The factory now ONLY creates the container. It's simple.
+                                modifier = Modifier.fillMaxSize(),
                                 factory = { context ->
-                                    FrameLayout(context)
-                                },
-                                // --- THIS UPDATE BLOCK IS THE FIX ---
-                                // It's called on the initial composition AND every time
-                                // 'activeWebView' changes.
-                                update = { frameLayout ->
-                                    // Check if the correct WebView is already being shown.
-                                    // This prevents unnecessary add/remove operations.
-                                    if (frameLayout.getChildAt(0) != activeWebView) {
-                                        // 1. Safely remove the new WebView from its old parent, if any.
-                                        (activeWebView?.parent as? ViewGroup)?.removeView(
-                                            activeWebView
+                                    // Create the View ONCE.
+                                    // We never need to recreate this View during tab switching.
+                                    GeckoView(context).apply {
+                                        layoutParams = ViewGroup.LayoutParams(
+                                            ViewGroup.LayoutParams.MATCH_PARENT,
+                                            ViewGroup.LayoutParams.MATCH_PARENT
                                         )
-                                        // 2. Clear out the old WebView from our container.
-                                        frameLayout.removeAllViews()
-                                        // 3. Add the new, correct WebView to our container.
-                                        frameLayout.addView(
-                                            activeWebView,
-                                            FrameLayout.LayoutParams(
-                                                FrameLayout.LayoutParams.MATCH_PARENT,
-                                                FrameLayout.LayoutParams.MATCH_PARENT
-                                            ).apply {
-                                                gravity = Gravity.CENTER
-                                            }
-                                        )
+                                        geckoViewRef.value = this
                                     }
                                 },
-                                modifier = Modifier.fillMaxSize()
+                                update = { geckoView ->
+                                    // 4. THE SWITCH: Just swap the session!
+                                    // When 'activeSession' changes, this block runs automatically.
+                                    // GeckoView handles detaching the old one and attaching the new one.
+                                    geckoView.setSession(activeSession)
+                                    geckoViewRef.value = geckoView
+                                }
                             )
                         }
                         LoadingIndicator(isLoading = isLoading, browserSettings = browserSettings)
@@ -2526,6 +2603,8 @@ fun BrowserScreen(
 
 
                 BottomPanel(
+                    geckoViewRef = geckoViewRef,
+                    activeTab = activeTab,
                     isSettingCornerRadius = isSettingCornerRadius,
                     floatingPanelBottomPadding = floatingPanelBottomPadding,
                     optionsPanelHeightPx = optionsPanelHeightPx,
@@ -2551,12 +2630,13 @@ fun BrowserScreen(
                     },
                     onDownloadImage = { url ->
                         // Simple generic download for images found via context menu
-                        startDownload(
-                            url,
-                            activeWebView?.settings?.userAgentString ?: "",
-                            null,
-                            "image/*"
-                        )
+                        // TODO HANDLE DOWNLOAD
+//                        startDownload(
+//                            url,
+//                            activeWebView?.settings?.userAgentString ?: "",
+//                            null,
+//                            "image/*"
+//                        )
                     },
                     contextMenuData = contextMenuData,
                     displayContextMenuData = displayContextMenuData,
@@ -2574,7 +2654,7 @@ fun BrowserScreen(
                     },
                     suggestions = suggestions,
                     onSuggestionClick = { suggestion ->
-                        webViewLoad(activeWebView, suggestion.url, browserSettings.value)
+                        webViewLoad(activeSession, suggestion.url, browserSettings.value)
                         focusManager.clearFocus()
                         keyboardController?.hide()
                     },
@@ -2589,7 +2669,7 @@ fun BrowserScreen(
                     },
 
                     webViewManager = webViewManager,
-                    activeWebView = activeWebView,
+                    activeSession = activeSession,
 
                     findInPageResult = findInPageResult,
                     findInPageText = findInPageText,
@@ -2740,7 +2820,7 @@ fun BrowserScreen(
                     keyboardController = keyboardController,
                     setIsOptionsPanelVisible = setIsOptionsPanelVisible,
                     onNewUrl = { newUrl ->
-                        webViewLoad(activeWebView, newUrl, browserSettings.value)
+                        webViewLoad(activeSession, newUrl, browserSettings.value)
 
                     },
                     setIsFocusOnTextField = { isFocusOnTextField = it },
@@ -2758,7 +2838,8 @@ fun BrowserScreen(
                     setIsCursorPadVisible = { isCursorMode = it },
                     browserSettings = browserSettings,
                     coroutineScope = coroutineScope,
-                    activeWebView = activeWebView,
+//                    activeWebView = activeWebView,
+                    activeSession = activeSession,
                     cursorPointerPosition = cursorPointerPosition,
                     webViewPaddingValue = webViewPaddingValue,
                     setIsUrlBarVisible = { isUrlBarVisible = it },
@@ -2906,7 +2987,7 @@ fun BrowserScreen(
                                             // --- SIMULATE CLICK AT CURSOR POSITION ---
 
 
-                                            activeWebView?.let { webView ->
+                                            activeSession.let { webView ->
                                                 val downTime = System.currentTimeMillis()
                                                 val downEvent = MotionEvent.obtain(
                                                     downTime,
@@ -2927,8 +3008,10 @@ fun BrowserScreen(
                                                         .toPx(),
                                                     0
                                                 )
-                                                webView.dispatchTouchEvent(downEvent)
-                                                webView.dispatchTouchEvent(upEvent)
+
+                                                activeSession.panZoomController.onTouchEvent(downEvent)
+//                                                webView.dispatchTouchEvent(downEvent)
+//                                                webView.dispatchTouchEvent(upEvent)
                                             }
 
                                             coroutineScope.launch {
@@ -2984,10 +3067,11 @@ fun BrowserScreen(
                                                             spring()
                                                         )
                                                     }
-                                                    browserSettings.value = browserSettings.value.copy(
-                                                        backSquareOffsetX = targetX,
-                                                        backSquareOffsetY = targetY
-                                                    )
+                                                    browserSettings.value =
+                                                        browserSettings.value.copy(
+                                                            backSquareOffsetX = targetX,
+                                                            backSquareOffsetY = targetY
+                                                        )
 
 
                                                     // Fade out after snap
@@ -3175,7 +3259,7 @@ fun CursorPad(
     browserSettings: MutableState<BrowserSettings>,
     screenSize: IntSize,
     coroutineScope: CoroutineScope,
-    activeWebView: CustomWebView?,
+    activeSession: GeckoSession,
     cursorPointerPosition: MutableState<Offset>,
     webViewPaddingValue: PaddingValues,
     setIsUrlBarVisible: (Boolean) -> Unit,
@@ -3244,7 +3328,7 @@ fun CursorPad(
                             if (longPressJob.isCompleted && !longPressJob.isCancelled) {
 
 
-                                activeWebView?.let { webView ->
+                                activeSession.let { webView ->
 //                                    longPressDownTime = System.currentTimeMillis()
                                     val longPressDownEvent = MotionEvent.obtain(
                                         longPressDownTime,
@@ -3255,7 +3339,7 @@ fun CursorPad(
                                             .toPx(),
                                         0
                                     )
-                                    webView.dispatchTouchEvent(longPressDownEvent)
+                                    activeSession.panZoomController.onTouchEvent(longPressDownEvent)
 
                                 }
                                 if (drag != null) {
@@ -3293,7 +3377,7 @@ fun CursorPad(
 
 
 
-                                                activeWebView?.let { webView ->
+                                                activeSession.let { webView ->
                                                     val moveEvent = MotionEvent.obtain(
                                                         System.currentTimeMillis(),
                                                         System.currentTimeMillis(),
@@ -3303,7 +3387,9 @@ fun CursorPad(
                                                             .toPx(),
                                                         0
                                                     )
-                                                    webView.dispatchTouchEvent(moveEvent)
+
+                                                    activeSession.panZoomController.onTouchEvent(moveEvent)
+
 
                                                 }
 
@@ -3355,7 +3441,7 @@ fun CursorPad(
 
                                 isLongPressDrag.value = false
 
-                                activeWebView?.let { webView ->
+                                activeSession.let { webView ->
                                     val upEvent = MotionEvent.obtain(
                                         longPressDownTime,
                                         System.currentTimeMillis(),
@@ -3365,7 +3451,7 @@ fun CursorPad(
                                             .toPx(),
                                         0
                                     )
-                                    webView.dispatchTouchEvent(upEvent)
+                                    activeSession.panZoomController.onTouchEvent(upEvent)
 
                                 }
 
@@ -3404,10 +3490,10 @@ fun CursorPad(
                                                     screenSize.height.toFloat()
 
                                                 cursorPointerPosition.value = Offset(newX, newY)
-                                                activeWebView?.evaluateJavascript(
-                                                    "window.simulateHover($newX, $newY)",
-                                                    null
-                                                )
+//                                                activeWebView?.evaluateJavascript(
+//                                                    "window.simulateHover($newX, $newY)",
+//                                                    null
+//                                                )
 //                                            cursorPointerPosition.value += Offset(
 //                                                changeSpaceX,
 //                                                changeSpaceY
@@ -3418,22 +3504,19 @@ fun CursorPad(
 
                                                 val changeDelta =
                                                     change.position - change.previousPosition
-                                                var changeSpaceY = changeDelta.y
 
 
-                                                if (activeWebView != null) {
+                                                val scrollAmountY = -changeDelta.y.toDouble()
 
-                                                    if (!activeWebView.canScrollVertically(1) && changeSpaceY < 0) changeSpaceY =
-                                                        0f
-                                                    if (!activeWebView.canScrollVertically(-1) && changeSpaceY > 0) changeSpaceY =
-                                                        0f
+                                                // 3. Execute Scroll
+                                                // SCROLL_METHOD_IMMEDIATE ensures it feels like a trackpad (1:1 movement)
+                                                // SCROLL_METHOD_SMOOTH would add an animation (momentum), which feels laggy for a trackpad.
+                                                activeSession.panZoomController.scrollBy(
+                                                    ScreenLength.fromPixels(0.0),
+                                                    ScreenLength.fromPixels(scrollAmountY),
+                                                    0,
+                                                )
 
-                                                    // We negate the value for "natural" scrolling (fingers down -> content up).
-                                                    activeWebView.scrollBy(
-                                                        0,
-                                                        -changeSpaceY.roundToInt()
-                                                    )
-                                                }
 
 
                                                 // 3. Consume the changes to prevent single-finger logic from also running.
@@ -3465,7 +3548,7 @@ fun CursorPad(
 //                                                cursorPointerPosition.value.y
 //                                            )
 
-                                    activeWebView?.let { webView ->
+                                    activeSession.let { webView ->
                                         val downTime = System.currentTimeMillis()
                                         val downEvent = MotionEvent.obtain(
                                             downTime,
@@ -3485,8 +3568,8 @@ fun CursorPad(
                                                 .toPx(),
                                             0
                                         )
-                                        webView.dispatchTouchEvent(downEvent)
-                                        webView.dispatchTouchEvent(upEvent)
+                                        activeSession.panZoomController.onTouchEvent(downEvent)
+                                        activeSession.panZoomController.onTouchEvent(upEvent)
                                     }
                                 }
                             }

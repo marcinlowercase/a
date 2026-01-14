@@ -80,7 +80,6 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import marcinlowercase.a.R
-import marcinlowercase.a.core.custom_class.CustomWebView
 import marcinlowercase.a.core.data_class.App
 import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.ConfirmationDialogState
@@ -104,6 +103,9 @@ import marcinlowercase.a.core.function.toDomain
 import marcinlowercase.a.core.function.webViewLoad
 import marcinlowercase.a.core.manager.AppManager
 import marcinlowercase.a.core.manager.WebViewManager
+import org.mozilla.geckoview.GeckoResult
+import org.mozilla.geckoview.GeckoSession
+import org.mozilla.geckoview.GeckoView
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import kotlin.String
@@ -112,6 +114,8 @@ import kotlin.math.abs
 @SuppressLint("FrequentlyChangingValue")
 @Composable
 fun BottomPanel(
+    geckoViewRef : MutableState<GeckoView?>,
+    activeTab: MutableState<Tab>,
     isSettingCornerRadius: MutableState<Boolean>,
     floatingPanelBottomPadding: Dp,
     optionsPanelHeightPx: Float,
@@ -183,7 +187,7 @@ fun BottomPanel(
     isDownloadPanelVisible: MutableState<Boolean>,
     downloads: List<DownloadItem>,
 
-    activeWebView: CustomWebView?,
+    activeSession: GeckoSession,
     isUrlOverlayBoxVisible: Boolean,
     setIsUrlOverlayBoxVisible: (Boolean) -> Unit,
     onNewTabClicked: (Int) -> Unit,
@@ -282,7 +286,7 @@ fun BottomPanel(
                 visibility = isAppsPanelVisible,
                 browserSettings = browserSettings,
                 onAppClick = { app ->
-                    webViewLoad(activeWebView, app.url, browserSettings.value)
+                    webViewLoad(activeSession, app.url, browserSettings.value)
                     if (!isBottomPanelLock.value) {
                         setIsBottomPanelVisible(false)
                         setIsUrlBarVisible(false)
@@ -292,7 +296,7 @@ fun BottomPanel(
             )
             NavigationPanel(
                 isNavPanelVisible = isNavPanelVisible,
-                activeWebView = activeWebView,
+                activeTab = activeTab,
                 browserSettings = browserSettings,
                 activeAction = activeNavAction,
             )
@@ -330,21 +334,54 @@ fun BottomPanel(
                 searchResult = findInPageResult.value,
                 onSearchTextChanged = { newText ->
                     findInPageText.value = newText
-                    activeWebView?.findAllAsync(newText)
+                    activeSession.let { session ->
+                        if (newText.isEmpty()) {
+                            session.finder.clear()
+                            // Update UI to show 0/0 results
+                            findInPageResult.value = 0 to 0
+                        } else {
+                            // 0 means no special flags (case insensitive, forward direction)
+                            session.finder.find(newText, 0).then { result ->
+                                // result is of type GeckoSession.FinderResult?
+                                if (result != null) {
+                                    // Update your Compose state directly here
+                                    // result.current is 1-based index (WebView was 0-based, Gecko is 1-based usually, check logic)
+                                    // Actually Gecko's 'current' is 0-based index of the match, or -1 if none.
+
+                                    val currentMatch = if (result.total > 0) result.current + 1 else 0
+                                    findInPageResult.value = currentMatch to result.total
+                                }
+                                GeckoResult.fromValue(result)
+                            }
+                        }
+                    }
                 },
-                onFindNext = { activeWebView?.findNext(true) },
-                onFindPrevious = { activeWebView?.findNext(false) },
+                onFindNext = {
+                    activeSession.finder.find(findInPageText.value, 0)
+                        .then { result ->
+                            // Update UI with new result.current
+                            GeckoResult.fromValue(result)
+                        }
+                },
+                onFindPrevious = {
+                    activeSession.finder.find(findInPageText.value, 1)
+                        .then { result ->
+                            // Update UI
+                            GeckoResult.fromValue(result)
+                        }
+                },
                 onClose = {
                     isFindInPageVisible.value = false
                     findInPageText.value = ""
-                    activeWebView?.clearMatches()
+                    activeSession.finder.clear()
                 },
                 browserSettings = browserSettings,
                 descriptionContent = descriptionContent,
             )
             PromptPanel(
+                geckoViewRef = geckoViewRef,
                 isUrlBarVisible = isUrlBarVisible,
-                activeWebView = activeWebView,
+                activeTab = activeTab,
                 browserSettings = browserSettings,
                 //                modifier = modifier,
                 isPromptPanelVisible = isPromptPanelVisible,
@@ -727,7 +764,7 @@ fun BottomPanel(
                                         .focusRequester(urlBarFocusRequester)
                                         //                            .padding(horizontal = browserSettings.value.padding.dp, vertical = browserSettings.value.padding.dp / 2)
                                         .onFocusChanged {
-                                            val resetUrl = activeWebView?.url ?: ""
+                                            val resetUrl = activeTab.value.currentURL
                                             setIsFocusOnTextField(it.isFocused)
                                             if (it.isFocused) {
                                                 setSavedPanelState(
@@ -793,7 +830,7 @@ fun BottomPanel(
                                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
                                     onKeyboardAction = {
                                         val input = (textFieldState.text as String).trim()
-                                        val resetUrl = activeWebView?.url ?: ""
+                                        val resetUrl = activeTab.value.currentURL
 
 
                                         if (input.isEmpty()) {
@@ -802,14 +839,14 @@ fun BottomPanel(
                                                 apps.add(
                                                     App(
                                                         id = System.currentTimeMillis(),
-                                                        label = tabs[activeTabIndex.value].currentTitle,
-                                                        iconUrl = tabs[activeTabIndex.value].currentFaviconUrl,
+                                                        label = activeTab.value.currentTitle,
+                                                        iconUrl = activeTab.value.currentFaviconUrl,
                                                         url = resetUrl
                                                     )
                                                 )
                                                 isPinningApp.value = false
                                             } else {
-                                                activeWebView?.reload()
+                                                activeSession.reload()
                                             }
                                             focusManager.clearFocus()
                                             keyboardController?.hide()
@@ -836,7 +873,7 @@ fun BottomPanel(
                                                 App(
                                                     id = System.currentTimeMillis(),
                                                     label = input,
-                                                    iconUrl = tabs[activeTabIndex.value].currentFaviconUrl,
+                                                    iconUrl = activeTab.value.currentFaviconUrl,
                                                     url = resetUrl,
                                                 )
                                             )
@@ -907,8 +944,9 @@ fun BottomPanel(
                                         .matchParentSize()
                                         .pointerInput(
                                             Unit,
-                                            activeWebView?.canGoBack(),
-                                            activeWebView?.canGoForward()
+                                            activeTab.value.canGoBack,
+                                            activeTab.value.canGoForward,
+                                           
                                         ) {
                                             // 1. CAPTURE the CoroutineScope provided by pointerInput
                                             val coroutineScope =
@@ -966,12 +1004,10 @@ fun BottomPanel(
                                                                     }
                                                                 }
 
-                                                                horizontalDragAccumulator < -horizontalDragThreshold -> if (activeWebView?.canGoBack()
-                                                                        ?: false
+                                                                horizontalDragAccumulator < -horizontalDragThreshold -> if (activeTab.value.canGoBack
                                                                 ) GestureNavAction.BACK else GestureNavAction.NONE
 
-                                                                horizontalDragAccumulator > horizontalDragThreshold -> if (activeWebView?.canGoForward()
-                                                                        ?: false
+                                                                horizontalDragAccumulator > horizontalDragThreshold -> if (activeTab.value.canGoForward
                                                                 ) GestureNavAction.FORWARD else GestureNavAction.NONE
 
                                                                 else -> GestureNavAction.NONE
@@ -1095,7 +1131,7 @@ fun BottomPanel(
                     isPinningApp = isPinningApp,
                     bottomPanelPagerState = bottomPanelPagerState,
                     onCloseAllTabs = onCloseAllTabs,
-                    activeWebView = activeWebView,
+                    activeSession = activeSession,
                     isFindInPageVisible = isFindInPageVisible,
                     descriptionContent = descriptionContent,
                     reopenClosedTab = reopenClosedTab,
@@ -1133,7 +1169,7 @@ fun BottomPanel(
                 isVisible = isPinningApp.value || (isFocusOnTextField && textFieldState.text.isBlank()),
                 browserSettings = browserSettings,
                 onCopyClick = {
-                    val clipData = ClipData.newPlainText("url", activeWebView?.url ?: "")
+                    val clipData = ClipData.newPlainText("url", activeTab.value.currentURL)
 
                     clipboard.nativeClipboard.setPrimaryClip(clipData)
 
@@ -1141,8 +1177,8 @@ fun BottomPanel(
                 onEditClick = {
                     textFieldState.setTextAndPlaceCursorAtEnd(
                         if (isPinningApp.value) {
-                            activeWebView?.title ?: ""
-                        } else activeWebView?.url ?: ""
+                            activeTab.value.currentTitle
+                        } else activeTab.value.currentURL
                     )
                     urlBarFocusRequester.requestFocus()
                     keyboardController?.show()
@@ -1151,7 +1187,7 @@ fun BottomPanel(
                     setIsFocusOnTextField(false)
                     focusManager.clearFocus()
                 },
-                activeWebViewTitle = activeWebView?.title ?: "",
+                activeWebViewTitle = activeTab.value.currentTitle,
                 descriptionContent = descriptionContent,
             )
         }

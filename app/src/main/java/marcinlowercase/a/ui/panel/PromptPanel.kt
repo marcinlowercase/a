@@ -41,18 +41,20 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import marcinlowercase.a.R
-import marcinlowercase.a.core.custom_class.CustomWebView
 import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.JsAlert
 import marcinlowercase.a.core.data_class.JsConfirm
 import marcinlowercase.a.core.data_class.JsDialogState
 import marcinlowercase.a.core.data_class.JsPrompt
+import marcinlowercase.a.core.data_class.Tab
 import marcinlowercase.a.core.function.buttonSettingsForLayer
+import org.mozilla.geckoview.GeckoView
 
 @Composable
 fun PromptPanel(
+    geckoViewRef: MutableState<GeckoView?>,
     isUrlBarVisible: Boolean,
-    activeWebView: CustomWebView?,
+    activeTab: MutableState<Tab>,
     browserSettings: MutableState<BrowserSettings>,
     isPromptPanelVisible: Boolean,
     state: JsDialogState?,
@@ -130,8 +132,7 @@ fun PromptPanel(
                         modifier = Modifier.weight(1f)
                     ) {
                         Text(
-                            text = activeWebView?.url
-                                ?: "the current page", // Safely handle null URL
+                            text = activeTab.value.currentURL, // Safely handle null URL
                             color = Color.White,
                             maxLines = 1, // Crucial for horizontal scrolling
                             overflow = TextOverflow.Ellipsis, // Good practice, though scrolling will hide it
@@ -210,7 +211,8 @@ fun PromptPanel(
                                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default),
                                 keyboardActions = KeyboardActions(
                                     onDone = {
-                                        activeWebView?.requestFocus()
+
+                                        geckoViewRef.value?.requestFocus()
                                         promptComponentDisplayState.onResult(textInput)
                                         onDismiss()
                                     }
@@ -280,7 +282,7 @@ fun PromptPanel(
                             ),
 
                             onClick = {
-                                activeWebView?.requestFocus()
+                                geckoViewRef.value?.requestFocus()
                                 when (state) {
                                     is JsConfirm -> state.onResult(false)
                                     is JsPrompt -> state.onResult(null)
@@ -319,7 +321,7 @@ fun PromptPanel(
                             containerColor = Color.White
                         ),
                         onClick = {
-                            activeWebView?.requestFocus()
+                            geckoViewRef.value?.requestFocus()
                             when (state) {
                                 is JsAlert -> { /* Just dismiss */
                                 }

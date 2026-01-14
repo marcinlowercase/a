@@ -2,6 +2,7 @@ package marcinlowercase.a.core.function
 
 import marcinlowercase.a.core.custom_class.CustomWebView
 import marcinlowercase.a.core.data_class.BrowserSettings
+import org.mozilla.geckoview.GeckoSession
 
 
 fun webViewLoad(view: CustomWebView?, url: String, browserSettings: BrowserSettings) {
@@ -11,4 +12,12 @@ fun webViewLoad(view: CustomWebView?, url: String, browserSettings: BrowserSetti
     headerinlowercase["device_corner_radius"] = browserSettings.deviceCornerRadius.toString()
 
     view?.loadUrl(url, headerinlowercase)
+}
+
+
+fun webViewLoad(session: GeckoSession?, url: String, browserSettings: BrowserSettings) {
+    session?.load(GeckoSession.Loader()
+        .uri(url)
+//        .data(browserSettings.deviceCornerRadius.toString(), "text/plain")
+    )
 }

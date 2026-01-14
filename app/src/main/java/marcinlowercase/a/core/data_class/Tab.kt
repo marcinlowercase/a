@@ -1,6 +1,7 @@
 package marcinlowercase.a.core.data_class
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import marcinlowercase.a.core.constant.default_url
 import marcinlowercase.a.core.enum_class.TabState
 
@@ -11,7 +12,10 @@ data class Tab(
     var currentURL: String = default_url,
     var currentTitle: String = "",
     var currentFaviconUrl: String = currentURL,
-    var savedState: String? = null
+    var savedState: String? = null,
+
+    @Transient var canGoBack: Boolean = false,
+    @Transient var canGoForward: Boolean = false
 ) {
     companion object {
         fun createEmpty(): Tab {

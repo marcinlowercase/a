@@ -28,13 +28,13 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import marcinlowercase.a.R
-import marcinlowercase.a.core.custom_class.CustomWebView
 import marcinlowercase.a.core.data_class.BrowserSettings
+import marcinlowercase.a.core.data_class.Tab
 import marcinlowercase.a.core.enum_class.GestureNavAction
 
 @Composable
 fun NavigationPanel(
-    activeWebView: CustomWebView?,
+    activeTab : MutableState<Tab>,
     isNavPanelVisible: Boolean,
     modifier: Modifier = Modifier,
     browserSettings: MutableState<BrowserSettings>,
@@ -129,7 +129,7 @@ fun NavigationPanel(
                         activeAction = activeAction,
                         gestureNavAction = GestureNavAction.BACK,
                         actionIcon = painterResource(R.drawable.ic_arrow_back),
-                        visibility = activeWebView?.canGoBack() ?: false,
+                        visibility = activeTab.value.canGoBack,
                         browserSettings = browserSettings,
 
                         )
@@ -150,7 +150,7 @@ fun NavigationPanel(
                         activeAction = activeAction,
                         gestureNavAction = GestureNavAction.FORWARD,
                         actionIcon = painterResource(R.drawable.ic_arrow_forward),
-                        visibility = activeWebView?.canGoForward() ?: false,
+                        visibility = activeTab.value.canGoForward,
                         browserSettings = browserSettings,
 
                         )
