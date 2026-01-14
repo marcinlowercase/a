@@ -262,7 +262,7 @@ fun BottomPanel(
                     state = draggableState,
                     orientation = Orientation.Vertical,
                     flingBehavior = flingBehavior,
-                    enabled = !isFocusOnTextField
+                    enabled = !isFocusOnTextField && contextMenuData == null
                 )
 
         ) {
@@ -891,7 +891,7 @@ fun BottomPanel(
                                     ),
                                 )
 
-                                if (isUrlOverlayBoxVisible) Box(
+                                if (isUrlOverlayBoxVisible && !isFocusOnTextField) Box(
                                     modifier = Modifier
                                         .background(
                                             Color.Transparent, shape = RoundedCornerShape(

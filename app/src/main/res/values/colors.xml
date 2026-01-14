@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="webview_highlight_color">#FF000000</color>
+    <color name="red">#FFff00ff</color>
 
 </resources>

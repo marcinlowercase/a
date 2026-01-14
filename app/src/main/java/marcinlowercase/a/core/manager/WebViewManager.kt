@@ -10,6 +10,7 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.os.Build
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.ConsoleMessage
@@ -20,6 +21,7 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.compose.ui.unit.Density
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.core.view.WindowCompat
@@ -120,7 +122,9 @@ class WebViewManager(private val context: Context) {
 
     // We can also move the client setup here.
     // Note: These now take lambdas to communicate back to the Composable.
+    @SuppressLint("ClickableViewAccessibility")
     fun setWebViewClients(
+        density: Density,
         browserSettings: BrowserSettings,
         webView: CustomWebView,
         tab: Tab,
@@ -160,6 +164,17 @@ class WebViewManager(private val context: Context) {
             },
             "FaviconJavascriptInterface" // This name must match the JS
         )
+        var lastTouchX = 0f
+        var lastTouchY = 0f
+
+        webView.setOnTouchListener { _, event ->
+            if (event.action == MotionEvent.ACTION_DOWN) {
+                lastTouchX = event.x
+                lastTouchY = event.y
+            }
+            // Return false so we don't consume the event; let WebView handle scrolling/clicking
+            false
+        }
 
         // The WebChromeClient handles UI-related browser events.
         webView.webChromeClient = object : WebChromeClient() {
@@ -615,23 +630,75 @@ class WebViewManager(private val context: Context) {
         }
         webView.setOnLongClickListener { v ->
             val result = (v as WebView).hitTestResult
-
             val type = result.type
 
-            // Check for Link (SRC_ANCHOR_TYPE) or Image Link (SRC_IMAGE_ANCHOR_TYPE)
-            if (type == WebView.HitTestResult.SRC_ANCHOR_TYPE || type == WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE ||
-                type == WebView.HitTestResult.IMAGE_TYPE
-            ) {
-                val url = result.extra
+            // If we hit an image, an anchor, or an image-anchor, let's investigate further with JS
+            if (type == WebView.HitTestResult.SRC_ANCHOR_TYPE ||
+                type == WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE ||
+                type == WebView.HitTestResult.IMAGE_TYPE) {
 
-                if (url != null) {
-                    onContextMenu(ContextMenuData(url, type))
-                    // Return TRUE to stop the event here (prevents default drag/selection)
-                    return@setOnLongClickListener true
+                // We need to convert Android physical pixels to Web CSS pixels
+                val touchX = lastTouchX /density.density
+                val touchY = lastTouchY / density.density
+
+                // JavaScript logic:
+                // 1. Get element at touch point.
+                // 2. Climb up parents until we find an <a> tag or run out of parents.
+                val jsCode = """
+            (function() {
+                var element = document.elementFromPoint($touchX, $touchY);
+                while (element) {
+                    if (element.tagName === 'A') {
+                        return element.href;
+                    }
+                    element = element.parentElement;
                 }
+                return null;
+            })()
+        """
+
+                webView.evaluateJavascript(jsCode) { value ->
+                    // value comes back as a JSON string, e.g., "https://arc.net" or "null"
+                    val url = if (value != "null" && value != null) {
+                        // Remove the wrapping quotes from the JSON string
+                        value.removeSurrounding("\"")
+                    } else {
+                        // Fallback: If JS failed to find a link, rely on the original HitTestResult
+                        // This handles cases where it really is just a standalone image
+                        result.extra
+                    }
+
+                    if (!url.isNullOrEmpty()) {
+                        // Now you have the correct URL (arc.net instead of favicon.ico)
+                        onContextMenu(ContextMenuData(url, type))
+                    }
+                }
+
+                // Return TRUE to stop the WebView from showing its default context menu
+                return@setOnLongClickListener true
             }
-            // Return FALSE to let normal long presses (like text selection) continue
+
             false
         }
+//        webView.setOnLongClickListener { v ->
+//            val result = (v as WebView).hitTestResult
+//
+//            val type = result.type
+//
+//            // Check for Link (SRC_ANCHOR_TYPE) or Image Link (SRC_IMAGE_ANCHOR_TYPE)
+//            if (type == WebView.HitTestResult.SRC_ANCHOR_TYPE || type == WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE ||
+//                type == WebView.HitTestResult.IMAGE_TYPE
+//            ) {
+//                val url = result.extra
+//
+//                if (url != null) {
+//                    onContextMenu(ContextMenuData(url, type))
+//                    // Return TRUE to stop the event here (prevents default drag/selection)
+//                    return@setOnLongClickListener true
+//                }
+//            }
+//            // Return FALSE to let normal long presses (like text selection) continue
+//            false
+//        }
     }
 }

@@ -1744,6 +1744,7 @@ fun BrowserScreen(
 
             // Set up all the clients for the *current* active WebView.
             webViewManager.setWebViewClients(
+                density = density,
                 browserSettings = browserSettings.value,
                 webView = webView,
                 tab = activeTab, // Pass the active tab
