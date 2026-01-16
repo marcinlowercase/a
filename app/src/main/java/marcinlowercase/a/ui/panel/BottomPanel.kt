@@ -1,7 +1,9 @@
 package marcinlowercase.a.ui.panel
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.content.ClipData
+import android.util.Log
 import android.util.Patterns
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.compose.animation.AnimatedVisibility
@@ -168,6 +170,7 @@ fun BottomPanel(
 
     confirmationState: ConfirmationDialogState?,
     onPermissionDeny: () -> Unit,
+    onMediaPermissionAllow: (Map<String, Boolean>) -> Unit,
     tabsPanelLock: Boolean,
     updateInspectingTab: (Tab) -> Unit,
     isTabDataPanelVisible: Boolean,
@@ -207,7 +210,7 @@ fun BottomPanel(
     onDismiss: () -> Unit,
     isPermissionPanelVisible: Boolean = false,
     permissionLauncher: ManagedActivityResultLauncher<Array<String>, Map<String, @JvmSuppressWildcards Boolean>>,
-    pendingPermissionRequest: CustomPermissionRequest?,
+    pendingPermissionRequest: MutableState<CustomPermissionRequest?>,
     modifier: Modifier,
     activeTabIndex: MutableState<Int>,
     tabs: List<Tab>,
@@ -286,6 +289,8 @@ fun BottomPanel(
                 visibility = isAppsPanelVisible,
                 browserSettings = browserSettings,
                 onAppClick = { app ->
+                    Log.e("WebViewLoad", "HERE9")
+
                     webViewLoad(activeSession, app.url, browserSettings.value)
                     if (!isBottomPanelLock.value) {
                         setIsBottomPanelVisible(false)
@@ -357,16 +362,35 @@ fun BottomPanel(
                     }
                 },
                 onFindNext = {
-                    activeSession.finder.find(findInPageText.value, 0)
+                    activeSession.finder.find(findInPageText.value, GeckoSession.FINDER_FIND_FORWARD)
                         .then { result ->
                             // Update UI with new result.current
+                            if (result != null) {
+                                // Update your Compose state directly here
+                                // result.current is 1-based index (WebView was 0-based, Gecko is 1-based usually, check logic)
+                                // Actually Gecko's 'current' is 0-based index of the match, or -1 if none.
+
+                                val currentMatch = if (result.total > 0) result.current else 0
+                                findInPageResult.value = currentMatch to result.total
+                            }
+
                             GeckoResult.fromValue(result)
+
+
                         }
                 },
                 onFindPrevious = {
-                    activeSession.finder.find(findInPageText.value, 1)
+                    activeSession.finder.find(findInPageText.value, GeckoSession.FINDER_FIND_BACKWARDS)
                         .then { result ->
                             // Update UI
+                            if (result != null) {
+                                // Update your Compose state directly here
+                                // result.current is 1-based index (WebView was 0-based, Gecko is 1-based usually, check logic)
+                                // Actually Gecko's 'current' is 0-based index of the match, or -1 if none.
+
+                                val currentMatch = if (result.total > 0) result.current else 0
+                                findInPageResult.value = currentMatch to result.total
+                            }
                             GeckoResult.fromValue(result)
                         }
                 },
@@ -431,13 +455,26 @@ fun BottomPanel(
                 isUrlBarVisible = isUrlBarVisible,
                 isPermissionPanelVisible = isPermissionPanelVisible,
                 browserSettings = browserSettings,
-                request = pendingPermissionRequest,
+                request = pendingPermissionRequest.value,
                 onAllow = {
                     // When user clicks allow, launch the system dialog with the permissions
                     // stored in our request object.
 
-                    pendingPermissionRequest?.let {
-                        permissionLauncher.launch(it.permissionsToRequest.toTypedArray())
+                    pendingPermissionRequest.value?.let {
+//                        if ( request.isSystemRequest) {
+//                            permissionLauncher.launch(request.permissionsToRequest.toTypedArray())
+//                        } else {
+//                            val successMap = request.permissionsToRequest.associateWith { true }
+//                            request.onResult(successMap)
+//                            pendingPermissionRequest.value = null
+//
+//                        }
+                        if (it.permissionsToRequest.contains(Manifest.permission.CAMERA) || it.permissionsToRequest.contains(Manifest.permission.RECORD_AUDIO)){
+                            onMediaPermissionAllow(it.permissionsToRequest.associateWith { true })
+                        } else {
+                            permissionLauncher.launch(it.permissionsToRequest.toTypedArray())
+                        }
+
                     }
                 },
                 onDeny = {

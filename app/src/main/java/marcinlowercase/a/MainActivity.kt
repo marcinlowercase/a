@@ -20,6 +20,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.util.Base64
+import android.util.Log
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
@@ -142,6 +143,7 @@ import marcinlowercase.a.core.constant.generic_location_permission
 import marcinlowercase.a.core.constant.default_url
 import marcinlowercase.a.core.constant.favicon_discovery
 import marcinlowercase.a.core.constant.pixel_9_corner_radius
+import marcinlowercase.a.core.custom_class.CustomPermissionDelegate
 import marcinlowercase.a.core.custom_class.CustomWebView
 import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.ConfirmationDialogState
@@ -183,8 +185,10 @@ import marcinlowercase.a.ui.panel.SettingsPanel
 import marcinlowercase.a.ui.screen.NoInternetScreen
 import marcinlowercase.a.ui.theme.Theme
 import org.json.JSONArray
+import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.GeckoView
+import org.mozilla.geckoview.PanZoomController
 import org.mozilla.geckoview.ScreenLength
 import java.io.File
 import java.io.FileOutputStream
@@ -219,6 +223,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
+        GeckoRuntime.getDefault(this)
 
 
         createNotificationChannel(this) // Call it here
@@ -283,29 +288,63 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
 
+//        val tabs = tabManager.loadTabs()
+//        val activeIndex = tabs.indexOfFirst { it.state == TabState.ACTIVE }
+//
+//        val stateToSave = geckoManager.getSessionStateString(tabs[activeIndex].id)
+//
+//        Log.i("onStop", "isStateToSave == null${stateToSave == null}")
+//        Log.e("onStop", "isStateToSave == null$stateToSave")
+//
+//        if (stateToSave != null) {
+//            tabs[activeIndex].savedState = stateToSave
+//            tabManager.saveTabs(tabs, activeIndex)
+//        }
 
-        val activeWebView = webViewManager.activeWebView
-        val tabs = tabManager.loadTabs() // Load current tabs to modify them
-        val activeIndex = tabs.indexOfFirst { it.state == TabState.ACTIVE }
 
-        if (activeWebView != null && activeIndex != -1) {
-            val outState = Bundle()
-            activeWebView.saveState(outState)
-            val stateBytes = outState.getByteArray("WEBVIEW_CHROMIUM_STATE")
-
-            if (stateBytes != null) {
-                // Encode the byte array to a Base64 string for storage
-                val encodedState = Base64.encodeToString(stateBytes, Base64.DEFAULT)
-                tabs[activeIndex].savedState = encodedState
-                // Now save the modified tabs list back
-                tabManager.saveTabs(tabs, activeIndex)
-            }
-        }
+//        // Load current tabs to modify them
+//
+//        if (activeWebView != null && activeIndex != -1) {
+//            val outState = Bundle()
+//            activeWebView.saveState(outState)
+//            val stateBytes = outState.getByteArray("WEBVIEW_CHROMIUM_STATE")
+//
+//            if (stateBytes != null) {
+//                // Encode the byte array to a Base64 string for storage
+//                val encodedState = Base64.encodeToString(stateBytes, Base64.DEFAULT)
+//                tabs[activeIndex].savedState = encodedState
+//                // Now save the modified tabs list back
+//                tabManager.saveTabs(tabs, activeIndex)
+//            }
+//        }
 
 
         // When the app goes to the background, freeze everything.
         tabManager.freezeAllTabs()
     }
+
+//    override fun onRequestPermissionsResult(
+//        requestCode: Int,
+//        permissions: Array<String>,
+//        grantResults: IntArray,
+//        deviceId: Int
+//    ) {
+//
+//        if (requestCode == CustomPermissionDelegate.ANDROID_PERMISSION_REQUEST_CODE) {
+//            // 1. Get the current active session
+//            val activeTab = tabManager.loadTabs().find { it.state == TabState.ACTIVE }
+//
+//            if (activeTab != null) {
+//                val session = geckoManager.getSession(activeTab)
+//
+//                // 2. Cast the delegate and pass the result
+//                val delegate = session.permissionDelegate as? CustomPermissionDelegate
+//                delegate?.onAndroidRequestPermissionsResult(permissions, grantResults)
+//            }
+//        } else {
+//            super.onRequestPermissionsResult(requestCode, permissions, grantResults, deviceId)
+//        }
+//    }
 }
 
 
@@ -419,64 +458,105 @@ fun BrowserScreen(
 
 
     val activeTabIndex = remember {
-        mutableIntStateOf(tabs.indexOfFirst { it.state == TabState.ACTIVE }.coerceAtLeast(0))
+        mutableIntStateOf(tabManager.getActiveTabIndex().coerceAtLeast(0))
     }
-    val textFieldState =
-        rememberTextFieldState(webViewManager.getWebView(tabs[activeTabIndex.intValue]).url ?: "")
+
     val recentlyClosedTabs = remember { mutableStateListOf<Tab>() }
-    val activeTab = remember {
-        mutableStateOf<Tab>(
-            // 1. If list is empty, return a dummy empty tab to prevent crashing
-
-            if (tabs.isEmpty()) {
-                Tab.createEmpty()
-            } else tabs[activeTabIndex.intValue.coerceIn(tabs.indices)]
-        )
-    }
-
-    val activeSession = activeTab.let { tab ->
-        geckoManager.getSession(tab.value).apply {
-            if (tab.value.state == TabState.FROZEN) {
-                if (tab.value.savedState != null) {
-                    try {
-
-                        // TODO restore session
-//                        // 1. Decode the Base64 string back to a byte array
-//                        val stateBytes = Base64.decode(tab.savedState, Base64.DEFAULT)
-//                        val restoreBundle = Bundle()
-//                        // 2. Put the bytes back into a new Bundle with the correct key
-//                        restoreBundle.putByteArray("WEBVIEW_CHROMIUM_STATE", stateBytes)
-//                        // 3. Restore the state into the WebView
-//                        this.restoreState(restoreBundle)
-//
-//
-//
-//                        initialLoadDone = true
-//                        this.url?.let { restoredUrl ->
-//                            textFieldState.setTextAndPlaceCursorAtEnd(restoredUrl.toDomain())
-////                            textFieldValue =
-////                                TextFieldValue(restoredUrl, TextRange(restoredUrl.length))
-//                        }
-
-
-                        // 4. CRITICAL: Clear the state so it's not restored again on config change
-                        tab.value.savedState = null
-                        saveTrigger++ // Trigger a save to persist the cleared state
-
-                    } catch (_: Exception) {
-                        // Fallback to loading the URL if restore fails
-//                        webViewLoad(this, browserSettings.value.defaultUrl, browserSettings)
-                        val urlToLoad =
-                            tab.value.currentURL.ifBlank { browserSettings.value.defaultUrl }
-                        webViewLoad(this, urlToLoad, browserSettings.value)
-                    }
-                } else {
-                    // No saved state, just load the URL normally
-                    webViewLoad(this, browserSettings.value.defaultUrl, browserSettings.value)
+    val activeTab = remember(tabs, activeTabIndex.intValue) {
+        object : MutableState<Tab> {
+            override var value: Tab
+                get() {
+                    // READ: Always get the tab at the CURRENT index
+                    if (tabs.isEmpty()) return Tab.createEmpty()
+                    val index = activeTabIndex.intValue.coerceIn(tabs.indices)
+                    return tabs[index]
                 }
-            }
+                set(newTab) {
+                    // WRITE: Always update the tab at the CURRENT index
+                    if (tabs.isNotEmpty()) {
+                        val index = activeTabIndex.intValue.coerceIn(tabs.indices)
+                        // This updates the list, which triggers UI updates automatically
+                        tabs[index] = newTab
+                    }
+                }
+
+            // Boilerplate required by Compose
+            override fun component1() = value
+            override fun component2(): (Tab) -> Unit = { value = it }
         }
     }
+
+    val textFieldState =
+        rememberTextFieldState(activeTab.value.currentURL)
+
+    LaunchedEffect(activeTab.value) {
+        Log.i("Newsession", "Changed to ${activeTab.value.id}")
+    }
+    LaunchedEffect(initialLoadDone) {
+        Log.i("initLoad", "Changed to $initialLoadDone")
+    }
+    val activeSession = remember(activeTab.value.id) {
+        Log.e("Newsession", "change active session to ${activeTabIndex.value}")
+        geckoManager.getSession(activeTab.value)
+    }
+//    val activeSession = activeTab.let { tab ->
+//        geckoManager.getSession(tab.value).apply {
+//
+//            if (tab.value.state == TabState.FROZEN && !initialLoadDone) {
+//
+//                Log.w("RestoreSessionState", "have saved state ${tab.value.savedState != null}")
+//
+//
+//                if (tab.value.savedState != null) {
+//                    try {
+//
+//                        Log.i("initLoad", "first")
+//                        val stateToRestore =
+//                            geckoManager.restoreStateFromString(tab.value.savedState ?: "")
+//
+//                        if (stateToRestore != null) {
+//
+//                            try {
+//                                Log.d("RestoreSessionState", "RestoringST")
+//                                this.restoreState(stateToRestore)
+//
+//                            } catch (e: Exception) {
+//                                Log.e("RestoreSessionState", "Error:$e")
+//
+//                            }
+//
+//
+//                            initialLoadDone = true
+//
+//                            stateToRestore[stateToRestore.currentIndex].uri.let { restoredUrl ->
+//                                textFieldState.setTextAndPlaceCursorAtEnd(restoredUrl.toDomain())
+//                            }
+//
+//
+//
+//                            //  Clear the state so it's not restored again on config change
+//                            tab.value.savedState = null
+//                            saveTrigger++
+//                        }
+//
+//                    } catch (_: Exception) {
+//                        // Fallback to loading the URL if restore fails
+////                        webViewLoad(this, browserSettings.value.defaultUrl, browserSettings)
+//                        val urlToLoad =
+//                            tab.value.currentURL.ifBlank { browserSettings.value.defaultUrl }
+//
+//                        Log.e("WebViewLoad", "HERE1")
+//                        webViewLoad(this, urlToLoad, browserSettings.value)
+//                    }
+//                } else {
+//                    // No saved state, just load the URL normally
+//                    Log.e("WebViewLoad", "HERE2")
+//
+//                    webViewLoad(this, browserSettings.value.defaultUrl, browserSettings.value)
+//                }
+//            }
+//        }
+//    }
 //    val activeWebView = activeTab?.let { tab ->
 //        webViewManager.getWebView(tab).apply {
 //            // If the tab was frozen, its WebView was just created and needs to load its URL
@@ -661,12 +741,16 @@ fun BrowserScreen(
     )
 
 
-    var pendingPermissionRequest by remember {
+    val pendingPermissionRequest = remember {
         mutableStateOf<CustomPermissionRequest?>(null)
     }
+
+    var pendingMediaPermissionRequest= remember {
+        mutableStateOf<CustomPermissionRequest?>(null)
+    }
+
     var customView by remember { mutableStateOf<View?>(null) }
     var customViewCallback by remember { mutableStateOf<WebChromeClient.CustomViewCallback?>(null) }
-    var originalOrientation by remember { mutableIntStateOf(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED) }
     val activity = context as? Activity // Get the activity reference
     val isDarkTheme = isSystemInDarkTheme()
     val view = LocalView.current // Get the underlying view
@@ -675,6 +759,8 @@ fun BrowserScreen(
         val updatedDecisions = currentSettings.permissionDecisions.toMutableMap()
         // First, add all results from the system dialog
         updatedDecisions.putAll(permissions)
+
+        Log.e("anPer", "savePermissionDecision $updatedDecisions")
 
         // Now, check if any location permission was part of the request
         if (updatedDecisions.containsKey(Manifest.permission.ACCESS_FINE_LOCATION) ||
@@ -690,6 +776,8 @@ fun BrowserScreen(
 
             // Add our single, generic permission entry
             updatedDecisions[generic_location_permission] = isGranted
+            Log.e("anPer", "grant location permission $isGranted")
+
         }
 
         // Proceed with saving the consolidated map
@@ -700,20 +788,31 @@ fun BrowserScreen(
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions(),
         onResult = { permissions ->
+
+            /// on ALLOW
             // When the system dialog returns a result, trigger the onResult
-            // callback that we stored in our pendingPermissionRequest.
 
-            pendingPermissionRequest?.let { request ->
-                siteSettingsManager.getDomain(request.origin)?.let { domain ->
-                    savePermissionDecision(domain, permissions)
+//            Log.e("anPer", "click allow on android popup")
+//            Log.e("anPer", "${permissions.toString()}")
 
+            if (permissions.contains(Manifest.permission.CAMERA) || permissions.contains(Manifest.permission.RECORD_AUDIO)) {
+//                pendingPermissionRequest.value = pendingMediaPermissionRequest
+
+                pendingMediaPermissionRequest.value?.onResult?.invoke(permissions, pendingMediaPermissionRequest)
+
+            } else {
+                pendingPermissionRequest.value?.let { request ->
+                    siteSettingsManager.getDomain(request.origin)?.let { domain ->
+                        savePermissionDecision(domain, permissions)
+                    }
                 }
+
+                pendingPermissionRequest.value?.onResult?.invoke(permissions, pendingPermissionRequest)
+
+                // Clear the request to hide the panel.
+//                pendingPermissionRequest.value = null
             }
 
-            pendingPermissionRequest?.onResult?.invoke(permissions)
-
-            // Clear the request to hide the panel.
-            pendingPermissionRequest = null
         }
     )
 
@@ -746,7 +845,7 @@ fun BrowserScreen(
     val density = LocalDensity.current
     var screenSize by remember { mutableStateOf(IntSize.Zero) }
     var screenSizeDp by remember { mutableStateOf(IntSize.Zero) }
-    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+    rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { isGranted ->
             if (!isGranted) {
@@ -817,7 +916,7 @@ fun BrowserScreen(
         )
 
 
-    var geckoViewRef= remember { mutableStateOf<GeckoView?>(null) }
+    var geckoViewRef = remember { mutableStateOf<GeckoView?>(null) }
 
     //endregion
 
@@ -882,7 +981,8 @@ fun BrowserScreen(
 
             // Deactivate the current tab.
             if (activeTabIndex.intValue in tabs.indices) {
-                tabs[activeTabIndex.intValue].state = TabState.BACKGROUND
+//                tabs[activeTabIndex.intValue].state = TabState.BACKGROUND
+                activeTab.value.state = TabState.BACKGROUND
             }
 
             // Add the reopened tab back to the list, usually at the end or a specific index.
@@ -949,7 +1049,7 @@ fun BrowserScreen(
 
                 }
                 if (activeTabIndex.intValue != tabIndexInMainList) {
-                    tabs[activeTabIndex.intValue].state = TabState.BACKGROUND
+                    activeTab.value.state = TabState.BACKGROUND
                     activeTabIndex.intValue = tabIndexInMainList
                     tabToNavigate.state = TabState.ACTIVE
                 }
@@ -1159,36 +1259,35 @@ fun BrowserScreen(
     }
 
 
-    val startDownload =
-        { url: String, userAgent: String, contentDisposition: String?, mimeType: String? ->
-            if (!isUrlBarVisible) isUrlBarVisible = true
-            if (!isDownloadPanelVisible.value) isDownloadPanelVisible.value = true
+    { url: String, userAgent: String, contentDisposition: String?, mimeType: String? ->
+        if (!isUrlBarVisible) isUrlBarVisible = true
+        if (!isDownloadPanelVisible.value) isDownloadPanelVisible.value = true
 
-            // (Reuse your existing filename/unique logic here)
-            val initialFilename = getBestGuessFilename(url, contentDisposition, mimeType)
-            val finalFilename = generateUniqueFilename(initialFilename, downloads)
+        // (Reuse your existing filename/unique logic here)
+        val initialFilename = getBestGuessFilename(url, contentDisposition, mimeType)
+        val finalFilename = generateUniqueFilename(initialFilename, downloads)
 
-            val request = DownloadManager.Request(url.toUri())
-                .setTitle(finalFilename)
-                .setDescription("Downloading...")
-                .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, finalFilename)
-                .addRequestHeader("User-Agent", userAgent)
+        val request = DownloadManager.Request(url.toUri())
+            .setTitle(finalFilename)
+            .setDescription("Downloading...")
+            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+            .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, finalFilename)
+            .addRequestHeader("User-Agent", userAgent)
 
-            val downloadManager =
-                context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-            val downloadId = downloadManager.enqueue(request)
+        val downloadManager =
+            context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+        val downloadId = downloadManager.enqueue(request)
 
-            val newDownload = DownloadItem(
-                id = downloadId,
-                url = url,
-                filename = finalFilename,
-                mimeType = mimeType ?: "application/octet-stream",
-                status = DownloadStatus.PENDING
-            )
-            downloads.add(0, newDownload)
-            downloadTracker.saveDownloads(downloads)
-        }
+        val newDownload = DownloadItem(
+            id = downloadId,
+            url = url,
+            filename = finalFilename,
+            mimeType = mimeType ?: "application/octet-stream",
+            status = DownloadStatus.PENDING
+        )
+        downloads.add(0, newDownload)
+        downloadTracker.saveDownloads(downloads)
+    }
 
     // This function will be our single, safe way to update settings.
 
@@ -1218,10 +1317,10 @@ fun BrowserScreen(
         )
 
         tabs.add(insertAtIndex, newTab)
+        val newSession = geckoManager.getSession(newTab)
+        Log.e("WebViewLoad", "HERE")
 
-        val newWebView = webViewManager.getWebView(newTab)
-//        newWebView.loadUrl(url)
-        webViewLoad(newWebView, url, browserSettings.value)
+//        webViewLoad(newSession, url, browserSettings.value)
 
         inspectingTabId = newTab.id
 
@@ -1262,7 +1361,8 @@ fun BrowserScreen(
                         recentlyClosedTabs.removeAt(0)
                     }
 
-                    webViewManager.destroyWebView(tabToRemove)
+//                    webViewManager.destroyWebView(tabToRemove)
+                    geckoManager.closeSession(tabToRemove)
                     tabs.removeAt(tabToRemoveIndex)
 
                     // Determine the next active tab
@@ -1275,10 +1375,12 @@ fun BrowserScreen(
                     activeTabIndex.intValue = nextTabIndex
                     tabs[nextTabIndex].state = TabState.ACTIVE
 
+                    Log.e("WebViewLoad", "HERE4")
 
-                    val urlToLoad = webViewManager.getWebView(tabs[nextTabIndex]).url
-                        ?: browserSettings.value.defaultUrl
-                    webViewLoad(activeSession, urlToLoad, browserSettings.value)
+                    val urlToLoad = tabs[nextTabIndex].currentURL
+//                    val urlToLoad = webViewManager.getWebView(tabs[nextTabIndex]).url
+//                        ?: browserSettings.value.defaultUrl
+//                    webViewLoad(activeSession, urlToLoad, browserSettings.value)
                     textFieldState.setTextAndPlaceCursorAtEnd(urlToLoad.toDomain())
                     saveTrigger++
                 } else {
@@ -1803,30 +1905,205 @@ fun BrowserScreen(
     }
 
     LaunchedEffect(activeSession) {
+
+        activeSession.setActive(true)
+
+        Log.e("GSession", activeSession.toString())
+
+        // If we are resuming the app and the active session was killed/closed
+        if (!activeSession.isOpen) {
+            Log.w("BrowserScreen", "Active session was closed. Re-opening.")
+            activeSession.open(geckoManager.runtime)
+            val stateToRestore = geckoManager.restoreStateFromString(activeTab.value.savedState ?: "")
+            if (stateToRestore != null) activeSession.restoreState( stateToRestore)
+        }
+
         geckoManager.setupDelegates(
             session = activeSession,
             tab = activeTab.value,
             browserSettings = browserSettings,
-            onTitleChange = { title ->
+            onTitleChangeFun = { session, title ->
+                val tabIndex = tabs.indexOfFirst { it.id == activeTab.value.id }
+                if (tabIndex == -1) return@setupDelegates
+
+                val oldTab = tabs[tabIndex]
+                if (oldTab.currentTitle != title) {
+                    // Create a new Tab instance and replace the old one
+                    tabs[tabIndex] = oldTab.copy(currentTitle = title)
+                    saveTrigger++
+                }
+
+
+//                view.evaluateJavascript(favicon_discovery, null)
+
+
+                val url = activeTab.value.currentURL
+                // Pass both the URL and the title to the manager
+                visitedUrlManager.addUrl(url, title)
+                // Update our in-memory map
+                if (title.isNotBlank()) {
+                    visitedUrlMap[url] = title
+                }
 
 
             },
             onProgressChange = { int ->
+                isLoading = (int < 100)
+            },
+            onLocationChangeFun = { session, url, perms, userGesture ->
+                if (url != null) {
+                    if (!isFocusOnTextField) url.let {
+                        textFieldState.setTextAndPlaceCursorAtEnd(it.toDomain())
+                    }
+                    if (activeTab.value.currentURL != url) {
+//                        tabs[activeTabIndex.intValue] =
+//                            tabs[activeTabIndex.intValue].copy(currentURL = url)
+                        activeTab.value.currentURL = url
+                    }
+                }
+
+
+                Log.e("onLocationChange", "session: $session")
+                Log.e("onLocationChange", "url: $url")
+                Log.e("onLocationChange", "perms: $perms")
+                Log.e("onLocationChange", "userGesture: $userGesture")
+
 
             },
-            onUrlChange = { url ->
-                if (!isFocusOnTextField) url.let {
-                    textFieldState.setTextAndPlaceCursorAtEnd(it.toDomain())
-                }
-                if (activeTab.value.currentURL != url) {
-                    tabs[activeTabIndex.intValue] =
-                        tabs[activeTabIndex.intValue].copy(currentURL = url)
+            onNewSessionFun = { session, url ->
+                Log.i("onNewSession", "session: $session")
+                Log.i("onNewSession", "url: $url")
+            },
+            onHistoryStateChangeFun = { session, realtimeHistory ->
+                Log.i("onHistoryStateChange", "session: $session")
+                realtimeHistory.forEachIndexed { index, item ->
+                    Log.i("onHistoryStateChange", "index: $index")
+                    Log.i("onHistoryStateChange", "item: ${item.uri}")
                 }
             },
+            onSessionStateChangeFun = { session,state ->
+                val stateToSave = geckoManager.getSessionStateString(activeTab.value.id)
+                if (stateToSave != null) {
+//                    tabs[activeTabIndex.value].savedState = stateToSave
+                    activeTab.value.savedState = stateToSave
+                    tabManager.saveTabs(tabs, activeTabIndex.value)
+                }
+            },
+            onCanGoBackFun = { session, canGoBack ->
+                activeTab.value.canGoBack = canGoBack
+            },
+            onCanGoForwardFun = {_, canGoForward ->
+                activeTab.value.canGoForward = canGoForward
+            },
+            setPermissionDelegate = {request ->
+                if (request.permissionsToRequest.contains(Manifest.permission.CAMERA) || request.permissionsToRequest.contains(Manifest.permission.RECORD_AUDIO)){
+                    Log.w("anPer", "MEDIA REUQEST")
+                    Log.w("anPer", "${request.isSystemRequest}")
+                    // this is the problem
+                    if (request.isSystemRequest) {
+                        pendingMediaPermissionRequest.value = request
+                        permissionLauncher.launch(request.permissionsToRequest.toTypedArray())
+
+//                        val hasAudio = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+//
+//
+//                        val hasVideo = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+//
+//
+//                        if (!hasAudio || !hasVideo) {
+//                            // We don't have OS permission, so we can't give Site permission.
+////                            pendingMediaPermissionRequest = request
+//                            permissionLauncher.launch(request.permissionsToRequest.toTypedArray())
+//                        } else {
+//
+//                            pendingPermissionRequest.value = request
+//                        }
+                    } else {
+                        Log.d("anPer", "not system request")
+                        Log.d("anPer", "request for ${request.permissionsToRequest}")
+                        pendingPermissionRequest.value = request
+                    }
+
+                } else {
+                    pendingPermissionRequest.value = request
+                }
+            }
+            ,
+            onShowAndroidRequest = { permissions,  callback ->
+                if (permissions != null) {
+                    Log.i("anPer", "onShowAndroidRequest")
+//                    permissionLauncher.launch(permissions.toList().toTypedArray())
+                }
+            }
         )
+
+
+        if (activeTab.value.state == TabState.FROZEN && !initialLoadDone) {
+
+
+            Log.w("RestoreSessionState", "have saved state ${activeTab.value.savedState != null}")
+            Log.w("RestoreSessionState", "savedstate ${activeTab.value.savedState }")
+
+
+            if (activeTab.value.savedState != null) {
+                try {
+
+                    Log.i("initLoad", "first")
+                    val stateToRestore =
+                        geckoManager.restoreStateFromString(activeTab.value.savedState ?: "")
+
+                    if (stateToRestore != null) {
+
+                        try {
+                            Log.d("RestoreSessionState", "RestoringST")
+                            activeSession.restoreState(stateToRestore)
+
+                        } catch (e: Exception) {
+                            Log.e("RestoreSessionState", "Error:$e")
+
+                        }
+
+
+                        initialLoadDone = true
+
+                        stateToRestore[stateToRestore.currentIndex].uri.let { restoredUrl ->
+                            textFieldState.setTextAndPlaceCursorAtEnd(restoredUrl.toDomain())
+                        }
+
+
+
+                        //  Clear the state so it's not restored again on config change
+                        activeTab.value.savedState = null
+                        saveTrigger++
+                    }
+
+                } catch (_: Exception) {
+                    // Fallback to loading the URL if restore fails
+                    val urlToLoad =
+                        activeTab.value.currentURL.ifBlank { browserSettings.value.defaultUrl }
+
+                    Log.e("WebViewLoad", "HERE1")
+                    webViewLoad(activeSession, urlToLoad, browserSettings.value)
+                }
+            } else {
+                // No saved state, just load the URL normally
+                Log.e("WebViewLoad", "HERE2")
+
+                webViewLoad(activeSession, browserSettings.value.defaultUrl, browserSettings.value)
+            }
+        }
     }
 
-        // OLD LAUNCHEDEFFECT
+    DisposableEffect(activeSession) {
+        onDispose {
+            // This allows the background tab to sleep (optional, but good for battery)
+            // Since you have suspendMediaWhenInactive(false), it won't kill audio,
+            // but it will lower the rendering priority.
+            activeSession.setActive(false)
+        }
+    }
+
+    // OLD LAUNCHEDEFFECT
 //    LaunchedEffect(activeWebView) {
 //        activeWebView?.let { webView ->
 //
@@ -1922,30 +2199,6 @@ fun BrowserScreen(
 //                    if (url != null && activeTab.currentURL != url) {
 //                        tabs[activeTabIndex.intValue] =
 //                            tabs[activeTabIndex.intValue].copy(currentURL = url)
-//                    }
-//                },
-//                onTitleReceived = { view, url, title ->
-//                    val tabIndex = tabs.indexOfFirst { it.id == activeTab.id }
-//                    if (tabIndex == -1) return@setWebViewClients
-//
-//                    val oldTab = tabs[tabIndex]
-//                    if (oldTab.currentTitle != title || oldTab.currentURL != url) {
-//                        // Create a new Tab instance and replace the old one
-//                        tabs[tabIndex] = oldTab.copy(currentTitle = title)
-//                        saveTrigger++
-//                    }
-//
-//
-//                    view.evaluateJavascript(favicon_discovery, null)
-//
-//
-//                    // Pass both the URL and the title to the manager
-//                    visitedUrlManager.addUrl(url, view.title)
-//                    // Update our in-memory map
-//                    view.title?.let { title ->
-//                        if (title.isNotBlank()) {
-//                            visitedUrlMap[url] = title
-//                        }
 //                    }
 //                },
 //
@@ -2269,8 +2522,8 @@ fun BrowserScreen(
             shakeDetector.stop()
         }
     }
-    LaunchedEffect(pendingPermissionRequest) {
-        isPermissionPanelVisible = pendingPermissionRequest != null
+    LaunchedEffect(pendingPermissionRequest.value) {
+        isPermissionPanelVisible = pendingPermissionRequest.value != null
     }
     // This effect will re-launch whenever isBottomPanelVisible changes.
     LaunchedEffect(isBottomPanelVisible) {
@@ -2346,15 +2599,18 @@ fun BrowserScreen(
         }
     }
 
-    LaunchedEffect(Unit) {
-        if (!initialLoadDone) {
-
-            val urlToLoad = browserSettings.value.defaultUrl
-//            activeWebView?.loadUrl(urlToLoad)
-            webViewLoad(activeSession, urlToLoad, browserSettings.value)
-
-        }
-    }
+//    LaunchedEffect(Unit) {
+//        if (!initialLoadDone) {
+//            Log.e("WebViewLoad", "HERE5")
+//            Log.i("initLoad", "sec")
+//
+//
+//            val urlToLoad = browserSettings.value.defaultUrl
+////            activeWebView?.loadUrl(urlToLoad)
+//            webViewLoad(activeSession, urlToLoad, browserSettings.value)
+//
+//        }
+//    }
 
     // The LaunchedEffect now saves the entire settings object (or individual fields)
     LaunchedEffect(browserSettings.value) {
@@ -2391,7 +2647,9 @@ fun BrowserScreen(
         activeSession.reload()
     }
     //endregion
-    BackHandler(enabled = !isBottomPanelVisible || activeTab.value.canGoBack) {
+    BackHandler(enabled = true) {
+        Log.i("BackHandler", "BackHandler")
+        Log.i("BackHandler", "activeTab.value.canGoBack: ${activeTab.value.canGoBack}")
         when {
             // Priority 1: Exit fullscreen video if it's active.
             customView != null -> {
@@ -2400,10 +2658,12 @@ fun BrowserScreen(
             }
             // Priority 2: Navigate back in the WebView.
             activeTab.value.canGoBack -> {
+                Log.i("canGoBack", "goback with system back buttton")
                 activeSession.goBack(true)
             }
 
             else -> {
+
             }
         }
     }
@@ -2577,6 +2837,16 @@ fun BrowserScreen(
                                             ViewGroup.LayoutParams.MATCH_PARENT,
                                             ViewGroup.LayoutParams.MATCH_PARENT
                                         )
+
+                                        setOnTouchListener { _, event ->
+                                            if (event.action == MotionEvent.ACTION_DOWN) {
+                                                // The user touched the web content
+                                                if (isUrlBarVisible) {
+                                                    isUrlBarVisible = false
+                                                }
+                                            }
+                                            false
+                                        }
                                         geckoViewRef.value = this
                                     }
                                 },
@@ -2584,6 +2854,8 @@ fun BrowserScreen(
                                     // 4. THE SWITCH: Just swap the session!
                                     // When 'activeSession' changes, this block runs automatically.
                                     // GeckoView handles detaching the old one and attaching the new one.
+                                    Log.i("updateGecko", "updateGecko to neww session")
+                                    Log.i("updateGecko", "activeIndex ${activeTabIndex.value}")
                                     geckoView.setSession(activeSession)
                                     geckoViewRef.value = geckoView
                                 }
@@ -2654,6 +2926,8 @@ fun BrowserScreen(
                     },
                     suggestions = suggestions,
                     onSuggestionClick = { suggestion ->
+                        Log.e("WebViewLoad", "HERE6")
+
                         webViewLoad(activeSession, suggestion.url, browserSettings.value)
                         focusManager.clearFocus()
                         keyboardController?.hide()
@@ -2704,7 +2978,7 @@ fun BrowserScreen(
                     confirmationState = confirmationState,
                     confirmationDisplayState = confirmationDisplayState,
                     onPermissionDeny = {
-                        pendingPermissionRequest?.let { request ->
+                        pendingPermissionRequest.value?.let { request ->
                             // --- SAVE THE DENIAL (NEW) ---
                             siteSettingsManager.getDomain(request.origin)?.let { domain ->
                                 val deniedPermissions =
@@ -2712,9 +2986,21 @@ fun BrowserScreen(
                                 savePermissionDecision(domain, deniedPermissions)
                             }
                             // --- END OF NEW LOGIC ---
-                            request.onResult.invoke(emptyMap())
+                            request.onResult.invoke(emptyMap(), pendingPermissionRequest)
                         }
-                        pendingPermissionRequest = null
+//                        pendingPermissionRequest.value = null
+                    },
+                    onMediaPermissionAllow = { permissions ->
+                        pendingPermissionRequest.value?.let { request ->
+                            siteSettingsManager.getDomain(request.origin)?.let { domain ->
+                                savePermissionDecision(domain, permissions)
+                            }
+                        }
+
+                        pendingPermissionRequest.value?.onResult?.invoke(permissions, pendingPermissionRequest)
+
+                        // Clear the request to hide the panel.
+//                        pendingPermissionRequest.value = null
                     },
                     tabsPanelLock = tabsPanelLock,
                     updateInspectingTab = { tab ->
@@ -2755,30 +3041,33 @@ fun BrowserScreen(
                         if (activeTabIndex.intValue != newIndex) {
 
                             // save old tab state
-                            val oldTab = tabs.getOrNull(activeTabIndex.intValue)
-                            // We use the webViewManager's pool to find the correct WebView instance
-                            val oldWebView = oldTab?.let { webViewManager.getWebView(it) }
+//                            val oldTab = tabs[activeTabIndex.intValue]
+//                            // We use the webViewManager's pool to find the correct WebView instance
+//                            oldTab.let { webViewManager.getWebView(it) }
 
-                            if (oldWebView != null) {
-                                val outState = Bundle()
-                                oldWebView.saveState(outState)
-                                val stateBytes = outState.getByteArray("WEBVIEW_CHROMIUM_STATE")
-                                if (stateBytes != null) {
-                                    oldTab.savedState =
-                                        Base64.encodeToString(stateBytes, Base64.DEFAULT)
-                                }
-                            }
+//                            val stateToSave = geckoManager.getSessionStateString(oldTab.id)
 
+//                            tabs[activeTabIndex.intValue].savedState = stateToSave
 
+//                            if (oldWebView != null) {
+//                                val outState = Bundle()
+//                                oldWebView.saveState(outState)
+//                                val stateBytes = outState.getByteArray("WEBVIEW_CHROMIUM_STATE")
+//                                if (stateBytes != null) {
+//                                    oldTab.savedState =
+//                                        Base64.encodeToString(stateBytes, Base64.DEFAULT)
+//                                }
+//                            }
 
-
-                            tabs[activeTabIndex.intValue].state = TabState.BACKGROUND
+//                            tabs[activeTabIndex.intValue].state = TabState.BACKGROUND
+                            activeTab.value.state = TabState.BACKGROUND
                             tabs[newIndex].state = TabState.ACTIVE
 
                             activeTabIndex.intValue = newIndex
+                            val urlToLoad = tabs[newIndex].currentURL
 
-                            val urlToLoad = webViewManager.getWebView(tabs[newIndex]).url
-                                ?: browserSettings.value.defaultUrl
+//                            val urlToLoad = webViewManager.getWebView(tabs[newIndex]).url
+//                                ?: browserSettings.value.defaultUrl
 //                        activeWebView?.loadUrl(urlToLoad)
                             textFieldState.setTextAndPlaceCursorAtEnd(urlToLoad.toDomain())
                             saveTrigger++
@@ -2820,6 +3109,9 @@ fun BrowserScreen(
                     keyboardController = keyboardController,
                     setIsOptionsPanelVisible = setIsOptionsPanelVisible,
                     onNewUrl = { newUrl ->
+                        Log.i("onNewUrl", "Loading $newUrl")
+                        Log.e("WebViewLoad", "HERE7")
+
                         webViewLoad(activeSession, newUrl, browserSettings.value)
 
                     },
@@ -2999,7 +3291,7 @@ fun BrowserScreen(
                                                         .toPx(),
                                                     0
                                                 )
-                                                val upEvent = MotionEvent.obtain(
+                                                MotionEvent.obtain(
                                                     downTime,
                                                     downTime + 10,
                                                     MotionEvent.ACTION_UP,
@@ -3009,7 +3301,9 @@ fun BrowserScreen(
                                                     0
                                                 )
 
-                                                activeSession.panZoomController.onTouchEvent(downEvent)
+                                                activeSession.panZoomController.onTouchEvent(
+                                                    downEvent
+                                                )
 //                                                webView.dispatchTouchEvent(downEvent)
 //                                                webView.dispatchTouchEvent(upEvent)
                                             }
@@ -3388,7 +3682,9 @@ fun CursorPad(
                                                         0
                                                     )
 
-                                                    activeSession.panZoomController.onTouchEvent(moveEvent)
+                                                    activeSession.panZoomController.onTouchEvent(
+                                                        moveEvent
+                                                    )
 
 
                                                 }
@@ -3514,9 +3810,8 @@ fun CursorPad(
                                                 activeSession.panZoomController.scrollBy(
                                                     ScreenLength.fromPixels(0.0),
                                                     ScreenLength.fromPixels(scrollAmountY),
-                                                    0,
+                                                    PanZoomController.SCROLL_BEHAVIOR_SMOOTH,
                                                 )
-
 
 
                                                 // 3. Consume the changes to prevent single-finger logic from also running.

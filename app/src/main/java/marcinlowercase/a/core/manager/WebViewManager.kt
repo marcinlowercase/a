@@ -10,6 +10,7 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.os.Build
+import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
@@ -285,7 +286,7 @@ class WebViewManager(private val context: Context) {
                     ),
                     // This is the key: the onResult callback for this specific request
                     // knows how to talk back to the WebView's Geolocation callback.
-                    onResult = { permissions ->
+                    onResult = { permissions, pending ->
                         val isGranted =
                             permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
                                     permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
@@ -379,7 +380,7 @@ class WebViewManager(private val context: Context) {
                     iconResAllow = allowIcon,
                     iconResDeny = denyIcon,
                     permissionsToRequest = requestedAndroidPermissions,
-                    onResult = { permissionsResult ->
+                    onResult = { permissionsResult ,_ ->
                         activity?.runOnUiThread {
                             // Check which permissions were actually granted
                             val grantedPermissions = permissionsResult.filter { it.value }.keys
@@ -563,6 +564,8 @@ class WebViewManager(private val context: Context) {
 
 
                 if (url.scheme == "http" || url.scheme == "https") {
+                    Log.e("WebViewLoad", "HERE8")
+
                     webViewLoad(activeWebView, url.toString(), browserSettings)
 //                    activeWebView?.loadUrl(url.toString())
                     return true

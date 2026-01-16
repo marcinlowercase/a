@@ -1,5 +1,7 @@
 package marcinlowercase.a.core.data_class
 
+import androidx.compose.runtime.MutableState
+
 data class CustomPermissionRequest(
     val origin: String,
     val title: String,
@@ -7,5 +9,7 @@ data class CustomPermissionRequest(
     val iconResAllow: Int,
     val iconResDeny: Int,
     val permissionsToRequest: List<String>,
-    val onResult: (Map<String, Boolean>) -> Unit
+    val onResult: (Map<String, Boolean>, pendingRequest: MutableState<CustomPermissionRequest?>) -> Unit,
+    val isSystemRequest: Boolean = true,
+
 )

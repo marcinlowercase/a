@@ -1,6 +1,7 @@
 package marcinlowercase.a.core.manager
 
 import android.content.Context
+import android.util.Log
 import androidx.core.content.edit
 import kotlinx.serialization.json.Json
 import marcinlowercase.a.core.data_class.Tab
@@ -14,6 +15,9 @@ class TabManager(context: Context) {
     private val tabsKey = "tabs_list_json"
     private val activeTabIndexKey = "active_tab_index"
 
+    fun getActiveTabIndex(): Int {
+        return prefs.getInt(activeTabIndexKey, 0)
+    }
 
     fun saveTabs(tabs: List<Tab>, activeTabIndex: Int) {
         // Convert the list of tabs into a single JSON string
@@ -34,11 +38,7 @@ class TabManager(context: Context) {
             // Freeze all tabs
             tabs.forEach { it.state = TabState.FROZEN }
 
-            // Mark the last known active tab as ACTIVE so we can find it on next launch
-            if (activeIndex in tabs.indices) {
-                tabs[activeIndex].state = TabState.ACTIVE
-            }
-
+//            Log.e("RestoreSessionState", "${tabs[activeIndex]}")
             saveTabs(tabs, activeIndex)
         }
     }
@@ -63,10 +63,11 @@ class TabManager(context: Context) {
                 if (loadedTabs.isEmpty()) {
                     return createDefaultTabs()
                 }
-                val activeIndex = prefs.getInt(activeTabIndexKey, 0)
-                loadedTabs.forEachIndexed { index, tab ->
-                    tab.state = if (index == activeIndex) TabState.ACTIVE else TabState.FROZEN
-                }
+//                val activeIndex = prefs.getInt(activeTabIndexKey, 0)
+//                loadedTabs.forEachIndexed { index, tab ->
+////                    tab.state = if (index == activeIndex) TabState.ACTIVE else TabState.FROZEN
+//                    tab.state = if (index == activeIndex) TabState.ACTIVE else TabState.FROZEN
+//                }
 
                 return loadedTabs
 
