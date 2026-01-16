@@ -473,6 +473,7 @@ fun BottomPanel(
                             onMediaPermissionAllow(it.permissionsToRequest.associateWith { true })
                         } else {
                             permissionLauncher.launch(it.permissionsToRequest.toTypedArray())
+
                         }
 
                     }

@@ -810,7 +810,7 @@ fun BrowserScreen(
                 pendingPermissionRequest.value?.onResult?.invoke(permissions, pendingPermissionRequest)
 
                 // Clear the request to hide the panel.
-//                pendingPermissionRequest.value = null
+                pendingPermissionRequest.value = null
             }
 
         }
