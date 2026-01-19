@@ -1330,12 +1330,14 @@ fun BrowserScreen(
         }
 
         val newTab = Tab(
+            currentURL = url,
             state = TabState.ACTIVE,
         )
 
         tabs.add(insertAtIndex, newTab)
         geckoManager.getSession(newTab)
         Log.e("WebViewLoad", "HERE")
+        Log.e("WebViewLoad", "url : $url")
 
 //        webViewLoad(newSession, url, browserSettings.value)
 
@@ -1991,6 +1993,8 @@ fun BrowserScreen(
             onNewSessionFun = { session, url ->
                 Log.i("onNewSession", "session: $session")
                 Log.i("onNewSession", "url: $url")
+
+                createNewTab(activeTabIndex.intValue + 1, url)
             },
             onHistoryStateChangeFun = { session, realtimeHistory ->
                 Log.i("onHistoryStateChange", "session: $session")
@@ -1999,13 +2003,15 @@ fun BrowserScreen(
                     Log.i("onHistoryStateChange", "item: ${item.uri}")
                 }
                 val url = realtimeHistory[realtimeHistory.lastIndex].uri
-//                if (!isFocusOnTextField) view.url?.let {
-//                        textFieldState.setTextAndPlaceCursorAtEnd(it.toDomain())
-//                    }
-                if (!isFocusOnTextField) textFieldState.setTextAndPlaceCursorAtEnd(url)
-                if (activeTab.value.currentURL != url) {
-                    tabs[activeTabIndex.intValue] =
-                        tabs[activeTabIndex.intValue].copy(currentURL = url)
+
+
+                // fe:  change  tab A -> B, the textbox changed to A.url
+                if (session == geckoManager.getSession(activeTab.value)) {
+                    if (!isFocusOnTextField) textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
+                    if (activeTab.value.currentURL != url) {
+                        tabs[activeTabIndex.intValue] =
+                            tabs[activeTabIndex.intValue].copy(currentURL = url)
+                    }
                 }
             },
             onSessionStateChangeFun = { session, state ->
@@ -2075,7 +2081,21 @@ fun BrowserScreen(
                         pendingPermissionRequest.value = null
                     }
                 }
-            }
+            },
+            onFaviconChanged = { tabId, faviconUrl ->
+                    // Find the index of the tab that fired this event.
+                    val tabIndex = tabs.indexOfFirst { it.id == tabId }
+                    if (tabIndex == -1) return@setupDelegates
+
+                    val targetTab = tabs[tabIndex]
+
+
+                    // Check if an update is even needed to prevent unnecessary recompositions.
+                    if (faviconUrl.isNotBlank()) {
+                        tabs[tabIndex] = targetTab.copy(currentFaviconUrl = faviconUrl)
+                        saveTrigger++
+                    }
+                },
         )
 
 
@@ -3124,6 +3144,7 @@ fun BrowserScreen(
 //                            val urlToLoad = webViewManager.getWebView(tabs[newIndex]).url
 //                                ?: browserSettings.value.defaultUrl
 //                        activeWebView?.loadUrl(urlToLoad)
+                            Log.i("textFieldState", "onTabSelect : ${urlToLoad}")
                             textFieldState.setTextAndPlaceCursorAtEnd(urlToLoad.toDomain())
                             saveTrigger++
 
@@ -3173,7 +3194,11 @@ fun BrowserScreen(
                     setIsFocusOnTextField = { isFocusOnTextField = it },
                     handleHistoryNavigation = handleHistoryNavigation,
                     isFindInPageVisible = isFindInPageVisible,
+                    openUBlockDashboard = {
+                        val url = geckoManager.uBlockDashboardUrl
+                        if (url != null) webViewLoad(geckoManager.getSession(activeTab.value), url, browserSettings.value)
 
+                    },
                     )
 
 

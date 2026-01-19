@@ -55,6 +55,7 @@ fun OptionsPanel(
     setIsCursorMode: (Boolean) -> Unit,
     closedTabsCount: Int,
     addAppToPin: () -> Unit,
+    openUBlockDashboard: () -> Unit,
 ) {
 
     // This remains the same
@@ -73,7 +74,14 @@ fun OptionsPanel(
 
         ) {
             listOf(
-
+//                OptionItem(
+//                    R.drawable.ic_bug, // You'll need an icon for this
+//                    "adblock", // Display the number of open tabs
+//                    false
+//                ) {
+//                    openUBlockDashboard()
+//
+//                },
                 OptionItem(
                     R.drawable.ic_keep, // You'll need an icon for this
                     "pin", // Display the number of open tabs

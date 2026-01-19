@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Parcel
 import android.util.Base64
 import android.util.Log
+import android.view.PointerIcon
 import androidx.compose.runtime.MutableState
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
@@ -11,16 +12,25 @@ import marcinlowercase.a.core.custom_class.CustomPermissionDelegate
 import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.CustomPermissionRequest
 import marcinlowercase.a.core.data_class.Tab
+import org.json.JSONObject
+import org.mozilla.geckoview.AllowOrDeny
 import org.mozilla.geckoview.GeckoResult
 import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.GeckoSessionSettings
+import org.mozilla.geckoview.WebExtension
+import org.mozilla.geckoview.WebExtensionController
+import java.io.File
+import java.io.FileOutputStream
 
+const val UBLOCK_ID = "uBlock0@raymondhill.net"
 class GeckoManager(private val context: Context) {
+    var uBlockDashboardUrl: String? = null
 
     val runtime: GeckoRuntime by lazy {
         GeckoRuntime.getDefault(context)
     }
+
     private val stateCache = mutableMapOf<Long, GeckoSession.SessionState>()
 
 
@@ -28,13 +38,132 @@ class GeckoManager(private val context: Context) {
     private val killedSessionIds = mutableSetOf<Long>()
 
 
+    init {
+        runtime.settings.consoleOutputEnabled
+        setupExtensionPrompts()
+        setupUBlock()
+    }
+
+    private fun setupExtensionPrompts() {
+        runtime.webExtensionController.setPromptDelegate(object : WebExtensionController.PromptDelegate {
+
+            // 1. MATCHING THE NEW SIGNATURE
+            override fun onInstallPromptRequest(
+                extension: WebExtension,
+                permissions: Array<String>,
+                origins: Array<String>,
+                dataCollectionPermissions: Array<String>
+            ): GeckoResult<WebExtension.PermissionPromptResponse>? {
+
+                Log.i("GeckoExt", "Auto-confirming install for: ${extension.metaData
+                    .name}")
+
+                // 2. BUILD THE RESPONSE
+                // true = Allow installation
+                val response = WebExtension.PermissionPromptResponse(
+                    true,
+                    true,
+                    true
+                )
+
+                // 3. RETURN GECKO RESULT
+                return GeckoResult.fromValue(response)
+            }
+
+            override fun onUpdatePrompt(
+                extension: WebExtension,
+                permissions: Array<String>,
+                origins: Array<String>,
+                dataCollectionPermissions: Array<String>
+            ): GeckoResult<AllowOrDeny> {
+                Log.i("GeckoExt", "Auto-confirming update for: ${extension.metaData.name}")
+
+                // AllowOrDeny.ALLOW = 1, DENY = 0
+                // We return the integer value for ALLOW (usually 1) or use AllowOrDeny.ALLOW if available enum
+                val result = AllowOrDeny.ALLOW
+                return GeckoResult.fromValue(result)  // 1 = Allow
+            }
+        })
+
+    }
+    private fun setupUBlock() {
+        val extensionName = "ublock_origin.xpi"
+        val extensionFile = File(context.filesDir, extensionName)
+
+        // 1. COPY FILE (Force overwrite to ensure clean state)
+        try {
+            context.assets.open("extensions/$extensionName").use { inputStream ->
+                FileOutputStream(extensionFile).use { outputStream ->
+                    inputStream.copyTo(outputStream)
+                }
+            }
+            // Verify it exists
+            if (!extensionFile.exists() || extensionFile.length() == 0L) {
+                Log.e("GeckoExt", "CRITICAL: XPI file is empty or missing!")
+                return
+            }
+            Log.i("GeckoExt", "XPI Ready at: ${extensionFile.absolutePath} (${extensionFile.length()} bytes)")
+        } catch (e: Exception) {
+            Log.e("GeckoExt", "Failed to copy asset", e)
+            return
+        }
+
+        // 2. CHECK IF INSTALLED
+        runtime.webExtensionController.list()
+            .accept(
+                { extensions ->
+                    val existing = extensions?.find { it.id == UBLOCK_ID }
+                    if (existing != null) {
+                        Log.i("GeckoExt", "uBlock already installed.")
+                        configureExtension(existing)
+                    } else {
+                        Log.i("GeckoExt", "Installing fresh XPI...")
+                        installXpi(extensionFile)
+                    }
+                },
+                { e -> Log.e("GeckoExt", "List failed", e) }
+            )
+    }
+
+    private fun installXpi(file: File) {
+        // 3. FORCE CORRECT URI (Triple Slash)
+        // File.toURI() gives "file:/", Gecko needs "file:///"
+        val fileUri = "file://${file.absolutePath}"
+
+        Log.i("GeckoExt", "Sending install command: $fileUri")
+
+        runtime.webExtensionController
+            .install(fileUri)
+            .accept(
+                { extension ->
+                    Log.i("GeckoExt", "SUCCESS: Extension ID: ${extension?.id}")
+                    if (extension != null) configureExtension(extension)
+                },
+                { e ->
+                    // If this logs, we know WHY it failed
+                    Log.e("GeckoExt", "INSTALL FAILURE", e)
+                }
+            )
+    }
+
+    private fun configureExtension(extension: WebExtension) {
+        // 4. ENABLE (Critical)
+        runtime.webExtensionController.enable(extension, WebExtensionController.EnableSource.APP)
+
+
+        // 5. DASHBOARD
+        // For XPI installs, the dashboard URL is standard:
+        val b = extension.metaData.optionsPageUrl
+        uBlockDashboardUrl = "${extension.metaData.optionsPageUrl}dashboard.html"
+        Log.i("GeckoExt", "Dashboard: $uBlockDashboardUrl")
+    }
 
     fun getSession(tab: Tab): GeckoSession {
-        val session =  sessionPool.getOrPut(tab.id) {
+        val session = sessionPool.getOrPut(tab.id) {
             createAndConfigureSession(tab)
         }
 
-        if(!session.isOpen){
+        if (!session.isOpen) {
             session.open(runtime)
         }
         return session
@@ -111,6 +240,7 @@ class GeckoManager(private val context: Context) {
         session: GeckoSession,
         tab: Tab,
         browserSettings: MutableState<BrowserSettings>,
+        onFaviconChanged: (Long, String) -> Unit,
         onTitleChangeFun: (GeckoSession, String) -> Unit,
         onNewSessionFun: (session: GeckoSession, uri: String) -> Unit,
         onProgressChange: (Int) -> Unit,
@@ -124,9 +254,9 @@ class GeckoManager(private val context: Context) {
             session: GeckoSession,
             state: GeckoSession.SessionState
         ) -> Unit,
-        onCanGoBackFun: (session: GeckoSession, canGoBack: Boolean)-> Unit,
-        onCanGoForwardFun: (session: GeckoSession, canGoForward: Boolean)-> Unit,
-        setPermissionDelegate: (request: CustomPermissionRequest )-> Unit,
+        onCanGoBackFun: (session: GeckoSession, canGoBack: Boolean) -> Unit,
+        onCanGoForwardFun: (session: GeckoSession, canGoForward: Boolean) -> Unit,
+        setPermissionDelegate: (request: CustomPermissionRequest) -> Unit,
         onShowAndroidRequest: (
             permissions: Array<out String>?,
             callback: GeckoSession.PermissionDelegate.Callback
@@ -193,6 +323,7 @@ class GeckoManager(private val context: Context) {
             override fun onCanGoBack(session: GeckoSession, canGoBack: Boolean) {
                 onCanGoBackFun(session, canGoBack)
             }
+
             override fun onCanGoForward(session: GeckoSession, canGoForward: Boolean) {
                 onCanGoForwardFun(session, canGoForward)
             }
@@ -209,10 +340,22 @@ class GeckoManager(private val context: Context) {
                 onPageStartedFun(session, url)
             }
 
+
             // 2. EQUIVALENT TO onPageFinished
             override fun onPageStop(session: GeckoSession, success: Boolean) {
                 Log.d("GeckoView", "Page Finished. Success: $success")
                 // Hide loading spinner
+                val FAVICON_SCRAPER_JS = """
+    javascript:(function() {
+        var link = document.querySelector("link[rel*='icon']") || document.querySelector("link[rel='shortcut icon']");
+        if (link && link.href) {
+            // Send the result back to Kotlin via a specific prefix
+            prompt("GECKO_FAVICON:" + link.href);
+        }
+    })();
+"""
+                session.loadUri(FAVICON_SCRAPER_JS)
+
             }
 
             override fun onProgressChange(session: GeckoSession, progress: Int) {
@@ -239,10 +382,38 @@ class GeckoManager(private val context: Context) {
                 title?.let { title ->
                     onTitleChangeFun(session, title)
                 }
-
-
             }
 
+            // 1. Get High-Res Icons from Manifest
+            override fun onWebAppManifest(session: GeckoSession, manifest: JSONObject) {
+                try {
+                    if (manifest.has("icons")) {
+                        val icons = manifest.getJSONArray("icons")
+                        // Grab the first icon (or loop to find the biggest one)
+                        if (icons.length() > 0) {
+                            val iconObj = icons.getJSONObject(0)
+                            val iconPath = iconObj.getString("src")
+
+                            // Resolve relative paths
+                            val fullUrl = if (iconPath.startsWith("http")) {
+                                iconPath
+                            } else {
+                                java.net.URI(
+                                    session.navigationDelegate?.toString() ?: ""
+                                ) // This is tricky, see Helper below
+                                // Easier: Just pass the path up and resolve it in UI against current tab URL
+                                iconPath
+                            }
+
+//                            onIconChangeFun(fullUrl)
+                            onFaviconChanged(tab.id, fullUrl)
+
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("GeckoIcons", "Error parsing manifest", e)
+                }
+            }
 
             override fun onContextMenu(
                 session: GeckoSession,
@@ -254,6 +425,7 @@ class GeckoManager(private val context: Context) {
                 // 'element' contains the type (IMAGE, VIDEO, LINK) and the URL.
                 // You can map this to your ContextMenuData.
             }
+
             override fun onCrash(session: GeckoSession) {
                 // The Content Process died (Crash or OOM Kill)
                 Log.e("GeckoManager", "Session $session Crashed: ${session.isOpen}")
@@ -282,7 +454,7 @@ class GeckoManager(private val context: Context) {
             }
         }
 
-        session.permissionDelegate = CustomPermissionDelegate (
+        session.permissionDelegate = CustomPermissionDelegate(
 
             context = context,
             onShowRequest = { request ->
@@ -290,6 +462,37 @@ class GeckoManager(private val context: Context) {
             },
             onShowAndroidRequest = onShowAndroidRequest
         )
+
+        session.promptDelegate = object : GeckoSession.PromptDelegate {
+
+            override fun onTextPrompt(
+                session: GeckoSession,
+                prompt: GeckoSession.PromptDelegate.TextPrompt
+            ): GeckoResult<GeckoSession.PromptDelegate.PromptResponse>? {
+
+                val message = prompt.message ?: ""
+
+                // CHECK FOR OUR SECRET PREFIX
+                if (message.startsWith("GECKO_FAVICON:")) {
+                    val iconUrl = message.substring("GECKO_FAVICON:".length)
+
+                    Log.d("GeckoIcon", "Found Icon via JS: $iconUrl")
+
+                    // Send to UI
+//                    onIconChangeFun(session, iconUrl)
+                    onFaviconChanged(tab.id, iconUrl)
+
+                    // Confirm and close the invisible prompt immediately
+                    return GeckoResult.fromValue(prompt.confirm(iconUrl))
+                }
+
+                // If it's a real website prompt, return null to let the browser handle it (or your UI)
+                return null
+            }
+
+            // Note: You should also implement onAlertPrompt, onButtonPrompt, etc.
+            // if you want to support normal alerts.
+        }
 
     }
 }
