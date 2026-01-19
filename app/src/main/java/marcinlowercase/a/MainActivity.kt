@@ -489,6 +489,7 @@ fun BrowserScreen(
     val textFieldState =
         rememberTextFieldState(activeTab.value.currentURL)
 
+//    LaunchedEffect(is) { }
     LaunchedEffect(activeTab.value) {
         Log.i("Newsession", "Changed to ${activeTab.value.id}")
     }
@@ -611,6 +612,16 @@ fun BrowserScreen(
     }
     var isLoading by remember { mutableStateOf(false) }
     var isFocusOnTextField by remember { mutableStateOf(false) }
+    var isApplyImePaddingToWebView by remember { mutableStateOf(true) }
+    LaunchedEffect(isFocusOnTextField) {
+        if (!isFocusOnTextField){
+            delay(300)
+            isApplyImePaddingToWebView = true
+        } else {
+            isApplyImePaddingToWebView = false
+        }
+
+    }
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
     var isUrlBarVisible by rememberSaveable { mutableStateOf(true) }
@@ -745,7 +756,7 @@ fun BrowserScreen(
         mutableStateOf<CustomPermissionRequest?>(null)
     }
 
-    var pendingMediaPermissionRequest= remember {
+    var pendingMediaPermissionRequest = remember {
         mutableStateOf<CustomPermissionRequest?>(null)
     }
 
@@ -798,7 +809,10 @@ fun BrowserScreen(
             if (permissions.contains(Manifest.permission.CAMERA) || permissions.contains(Manifest.permission.RECORD_AUDIO)) {
 //                pendingPermissionRequest.value = pendingMediaPermissionRequest
 
-                pendingMediaPermissionRequest.value?.onResult?.invoke(permissions, pendingMediaPermissionRequest)
+                pendingMediaPermissionRequest.value?.onResult?.invoke(
+                    permissions,
+                    pendingMediaPermissionRequest
+                )
 
             } else {
                 pendingPermissionRequest.value?.let { request ->
@@ -807,7 +821,10 @@ fun BrowserScreen(
                     }
                 }
 
-                pendingPermissionRequest.value?.onResult?.invoke(permissions, pendingPermissionRequest)
+                pendingPermissionRequest.value?.onResult?.invoke(
+                    permissions,
+                    pendingPermissionRequest
+                )
 
                 // Clear the request to hide the panel.
                 pendingPermissionRequest.value = null
@@ -1317,7 +1334,7 @@ fun BrowserScreen(
         )
 
         tabs.add(insertAtIndex, newTab)
-        val newSession = geckoManager.getSession(newTab)
+        geckoManager.getSession(newTab)
         Log.e("WebViewLoad", "HERE")
 
 //        webViewLoad(newSession, url, browserSettings.value)
@@ -1914,8 +1931,9 @@ fun BrowserScreen(
         if (!activeSession.isOpen) {
             Log.w("BrowserScreen", "Active session was closed. Re-opening.")
             activeSession.open(geckoManager.runtime)
-            val stateToRestore = geckoManager.restoreStateFromString(activeTab.value.savedState ?: "")
-            if (stateToRestore != null) activeSession.restoreState( stateToRestore)
+            val stateToRestore =
+                geckoManager.restoreStateFromString(activeTab.value.savedState ?: "")
+            if (stateToRestore != null) activeSession.restoreState(stateToRestore)
         }
 
         geckoManager.setupDelegates(
@@ -1980,8 +1998,17 @@ fun BrowserScreen(
                     Log.i("onHistoryStateChange", "index: $index")
                     Log.i("onHistoryStateChange", "item: ${item.uri}")
                 }
+                val url = realtimeHistory[realtimeHistory.lastIndex].uri
+//                if (!isFocusOnTextField) view.url?.let {
+//                        textFieldState.setTextAndPlaceCursorAtEnd(it.toDomain())
+//                    }
+                if (!isFocusOnTextField) textFieldState.setTextAndPlaceCursorAtEnd(url)
+                if (activeTab.value.currentURL != url) {
+                    tabs[activeTabIndex.intValue] =
+                        tabs[activeTabIndex.intValue].copy(currentURL = url)
+                }
             },
-            onSessionStateChangeFun = { session,state ->
+            onSessionStateChangeFun = { session, state ->
                 val stateToSave = geckoManager.getSessionStateString(activeTab.value.id)
                 if (stateToSave != null) {
 //                    tabs[activeTabIndex.value].savedState = stateToSave
@@ -1992,11 +2019,14 @@ fun BrowserScreen(
             onCanGoBackFun = { session, canGoBack ->
                 activeTab.value.canGoBack = canGoBack
             },
-            onCanGoForwardFun = {_, canGoForward ->
+            onCanGoForwardFun = { _, canGoForward ->
                 activeTab.value.canGoForward = canGoForward
             },
-            setPermissionDelegate = {request ->
-                if (request.permissionsToRequest.contains(Manifest.permission.CAMERA) || request.permissionsToRequest.contains(Manifest.permission.RECORD_AUDIO)){
+            setPermissionDelegate = { request ->
+                if (request.permissionsToRequest.contains(Manifest.permission.CAMERA) || request.permissionsToRequest.contains(
+                        Manifest.permission.RECORD_AUDIO
+                    )
+                ) {
                     Log.w("anPer", "MEDIA REUQEST")
                     Log.w("anPer", "${request.isSystemRequest}")
                     // this is the problem
@@ -2027,12 +2057,23 @@ fun BrowserScreen(
                 } else {
                     pendingPermissionRequest.value = request
                 }
-            }
-            ,
-            onShowAndroidRequest = { permissions,  callback ->
+            },
+            onShowAndroidRequest = { permissions, callback ->
                 if (permissions != null) {
                     Log.i("anPer", "onShowAndroidRequest")
 //                    permissionLauncher.launch(permissions.toList().toTypedArray())
+                }
+            },
+            onPageStartedFun = { session, url ->
+                pendingPermissionRequest.value?.let { request ->
+                    // Check if the new URL's host is DIFFERENT from the origin of the permission request.
+                    val newHost = url?.toUri()?.host
+                    val requestHost = request.origin.toUri().host
+
+                    if (newHost != requestHost) {
+                        // The user is navigating away, so clear the old permission request.
+                        pendingPermissionRequest.value = null
+                    }
                 }
             }
         )
@@ -2042,7 +2083,7 @@ fun BrowserScreen(
 
 
             Log.w("RestoreSessionState", "have saved state ${activeTab.value.savedState != null}")
-            Log.w("RestoreSessionState", "savedstate ${activeTab.value.savedState }")
+            Log.w("RestoreSessionState", "savedstate ${activeTab.value.savedState}")
 
 
             if (activeTab.value.savedState != null) {
@@ -2069,7 +2110,6 @@ fun BrowserScreen(
                         stateToRestore[stateToRestore.currentIndex].uri.let { restoredUrl ->
                             textFieldState.setTextAndPlaceCursorAtEnd(restoredUrl.toDomain())
                         }
-
 
 
                         //  Clear the state so it's not restored again on config change
@@ -2533,11 +2573,14 @@ fun BrowserScreen(
             // a. Instantly appear with 0.6 opacity.
             if (!isCursorMode) hideBackSquare()
 
+
             // d. After blinking, fade out completely.
         } else {
             // -- The URL bar is visible. Ensure the square is fully transparent. --
             hideBackSquare(false)
+            geckoViewRef.value?.clearFocus()
         }
+
     }
     LaunchedEffect(browserSettings.value.backSquareIdleOpacity) {
         if (!isBottomPanelVisible && !isCursorPadVisible) {
@@ -2795,6 +2838,7 @@ fun BrowserScreen(
                 modifier = modifier
                     .fillMaxSize()
 
+
 //                .padding(top = cutoutTop, bottom = cutoutBottom)
             ) {
 
@@ -2810,6 +2854,14 @@ fun BrowserScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(1f)
+
+                            .run {
+                                if (isApplyImePaddingToWebView) {
+                                    this.windowInsetsPadding(WindowInsets.ime)
+                                } else {
+                                    this
+                                }
+                            }
                             .clip(
                                 RoundedCornerShape(
                                     animatedCornerRadius
@@ -2997,7 +3049,10 @@ fun BrowserScreen(
                             }
                         }
 
-                        pendingPermissionRequest.value?.onResult?.invoke(permissions, pendingPermissionRequest)
+                        pendingPermissionRequest.value?.onResult?.invoke(
+                            permissions,
+                            pendingPermissionRequest
+                        )
 
                         // Clear the request to hide the panel.
 //                        pendingPermissionRequest.value = null
@@ -3178,6 +3233,7 @@ fun BrowserScreen(
                         Box(
                             modifier = Modifier
 //                            .align(squareAlignment)
+
                                 .offset {
                                     IntOffset(
                                         backSquareOffsetX.value.roundToInt(),
@@ -3376,6 +3432,8 @@ fun BrowserScreen(
                                                 if (longPressJob.isActive) {
                                                     longPressJob.cancel()
                                                     coroutineScope.launch {
+                                                        geckoViewRef.value?.clearFocus()
+
                                                         if (!isUrlBarVisible) isUrlBarVisible = true
                                                     }
                                                 }

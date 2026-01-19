@@ -131,6 +131,7 @@ class GeckoManager(private val context: Context) {
             permissions: Array<out String>?,
             callback: GeckoSession.PermissionDelegate.Callback
         ) -> Unit,
+        onPageStartedFun: (session: GeckoSession, url: String) -> Unit,
     ) {
 
         if (killedSessionIds.contains(tab.id)) {
@@ -199,6 +200,21 @@ class GeckoManager(private val context: Context) {
 
         // 2. Progress Delegate (Loading bar)
         session.progressDelegate = object : GeckoSession.ProgressDelegate {
+            // 1. EQUIVALENT TO onPageStarted
+            override fun onPageStart(session: GeckoSession, url: String) {
+                // This fires when the page actually starts loading content.
+                Log.d("GeckoView", "Page Started: $url")
+
+                // Example: Show loading spinner, reset error states
+                onPageStartedFun(session, url)
+            }
+
+            // 2. EQUIVALENT TO onPageFinished
+            override fun onPageStop(session: GeckoSession, success: Boolean) {
+                Log.d("GeckoView", "Page Finished. Success: $success")
+                // Hide loading spinner
+            }
+
             override fun onProgressChange(session: GeckoSession, progress: Int) {
                 onProgressChange(progress)
             }

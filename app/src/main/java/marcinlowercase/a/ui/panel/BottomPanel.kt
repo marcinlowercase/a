@@ -77,6 +77,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -805,6 +806,13 @@ fun BottomPanel(
                                             val resetUrl = activeTab.value.currentURL
                                             setIsFocusOnTextField(it.isFocused)
                                             if (it.isFocused) {
+
+//                                                geckoViewRef.value?.clearFocus()
+//                                                CoroutineScope(Dispatchers.Main).launch {
+//                                                    delay(300) // 50ms is usually enough to beat the race condition
+//                                                    keyboardController?.show()
+//                                                }
+
                                                 setSavedPanelState(
                                                     PanelVisibilityState(
                                                         options = draggableState.currentValue == RevealState.Visible,
@@ -824,6 +832,8 @@ fun BottomPanel(
 
 //                                    textFieldState.edit { selectAll() }
                                                 textFieldState.setTextAndPlaceCursorAtEnd("")
+
+
                                             } else {
                                                 if (isPinningApp.value) isPinningApp.value = false
                                                 setIsUrlOverlayBoxVisible(true)
