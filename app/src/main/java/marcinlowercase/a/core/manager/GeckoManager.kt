@@ -265,8 +265,12 @@ class GeckoManager(private val context: Context) {
             callback: GeckoSession.PermissionDelegate.Callback
         ) -> Unit,
         onPageStartedFun: (session: GeckoSession, url: String) -> Unit,
+        onPageStopFun: (session: GeckoSession, success: Boolean) -> Unit,
         onContextMenuFun: (data: ContextMenuData) -> Unit,
         onDownloadRequested: (url: String, userAgent: String, contentDisposition: String?, mimeType: String?) -> Unit,
+        onJsAlert: (String) -> Unit,
+        onJsConfirm: (String, (Boolean) -> Unit) -> Unit,
+        onJsPrompt: (String, String, (String?) -> Unit) -> Unit
     ) {
 
         if (killedSessionIds.contains(tab.id)) {
@@ -348,6 +352,7 @@ class GeckoManager(private val context: Context) {
 
             // 2. EQUIVALENT TO onPageFinished
             override fun onPageStop(session: GeckoSession, success: Boolean) {
+                onPageStopFun(session, success)
                 Log.d("GeckoView", "Page Finished. Success: $success")
                 // Hide loading spinner
                 val FAVICON_SCRAPER_JS = """
@@ -528,33 +533,81 @@ class GeckoManager(private val context: Context) {
 
         session.promptDelegate = object : GeckoSession.PromptDelegate {
 
+            // 1. ALERT
+            override fun onAlertPrompt(
+                session: GeckoSession,
+                prompt: GeckoSession.PromptDelegate.AlertPrompt
+            ): GeckoResult<GeckoSession.PromptDelegate.PromptResponse>? {
+                val message = prompt.message ?: ""
+
+                // Show UI
+                onJsAlert(message)
+
+                // GeckoView alerts are non-blocking in the UI sense,
+                // but we need to return a result to acknowledge it.
+                // We return 'dismiss()' immediately here because your Compose UI
+                // will just show a message. If you want to block the web thread until
+                // the user clicks OK, that's much harder in GeckoView's async model.
+                // Standard practice: Show the UI, but tell the engine "OK" immediately.
+                return GeckoResult.fromValue(prompt.dismiss())
+            }
+
+            // 2. CONFIRM
+            override fun onButtonPrompt(
+                session: GeckoSession,
+                prompt: GeckoSession.PromptDelegate.ButtonPrompt
+            ): GeckoResult<GeckoSession.PromptDelegate.PromptResponse>? {
+                val message = prompt.message ?: ""
+
+                // We create a GeckoResult that will be completed LATER by the UI
+                val result = GeckoResult<GeckoSession.PromptDelegate.PromptResponse>()
+
+                // Pass the message and a callback to the UI
+                onJsConfirm(message) { confirmed ->
+                    val buttonType = if (confirmed)
+                        GeckoSession.PromptDelegate.ButtonPrompt.Type.POSITIVE
+                    else
+                        GeckoSession.PromptDelegate.ButtonPrompt.Type.NEGATIVE
+
+                    // Complete the result when user clicks a button
+                    result.complete(prompt.confirm(buttonType))
+                }
+
+                // Return the pending result to GeckoView
+                // Gecko will PAUSE JavaScript execution until this result completes!
+                return result
+            }
+
+            // 3. PROMPT (Text Input)
             override fun onTextPrompt(
                 session: GeckoSession,
                 prompt: GeckoSession.PromptDelegate.TextPrompt
             ): GeckoResult<GeckoSession.PromptDelegate.PromptResponse>? {
 
                 val message = prompt.message ?: ""
+                val defaultValue = prompt.defaultValue ?: ""
 
-                // CHECK FOR OUR SECRET PREFIX
+                // SPECIAL CASE: Favicon Scraper (Your existing logic)
                 if (message.startsWith("GECKO_FAVICON:")) {
                     val iconUrl = message.substring("GECKO_FAVICON:".length)
-
-                    Log.d("GeckoIcon", "Found Icon via JS: $iconUrl")
-
-                    // Send to UI
-//                    onIconChangeFun(session, iconUrl)
                     onFaviconChanged(tab.id, iconUrl)
-
-                    // Confirm and close the invisible prompt immediately
                     return GeckoResult.fromValue(prompt.confirm(iconUrl))
                 }
 
-                // If it's a real website prompt, return null to let the browser handle it (or your UI)
-                return null
-            }
+                // NORMAL CASE: Real website prompt
+                val result = GeckoResult<GeckoSession.PromptDelegate.PromptResponse>()
 
-            // Note: You should also implement onAlertPrompt, onButtonPrompt, etc.
-            // if you want to support normal alerts.
+                onJsPrompt(message, defaultValue) { input ->
+                    if (input != null) {
+                        result.complete(prompt.confirm(input))
+                    } else {
+                        // User cancelled
+                        result.complete(prompt.dismiss())
+                    }
+                }
+
+                return result
+            }
         }
 
     }

@@ -272,7 +272,8 @@ fun BottomPanel(
                     state = draggableState,
                     orientation = Orientation.Vertical,
                     flingBehavior = flingBehavior,
-                    enabled = !isFocusOnTextField && contextMenuData == null
+//                    enabled = !isFocusOnTextField && contextMenuData == null && !isPromptPanelVisible  && (!isPermissionPanelVisible || (isPermissionPanelVisible &&  isUrlBarVisible) )
+                    enabled = (!isFocusOnTextField && contextMenuData == null && !isPromptPanelVisible  && (!isPermissionPanelVisible )) || isUrlBarVisible
                 )
 
         ) {

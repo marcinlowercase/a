@@ -613,15 +613,7 @@ fun BrowserScreen(
     var isLoading by remember { mutableStateOf(false) }
     var isFocusOnTextField by remember { mutableStateOf(false) }
     var isApplyImePaddingToWebView by remember { mutableStateOf(true) }
-    LaunchedEffect(isFocusOnTextField) {
-        if (!isFocusOnTextField){
-            delay(300)
-            isApplyImePaddingToWebView = true
-        } else {
-            isApplyImePaddingToWebView = false
-        }
 
-    }
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
     var isUrlBarVisible by rememberSaveable { mutableStateOf(true) }
@@ -1416,6 +1408,7 @@ fun BrowserScreen(
             }
 
             GestureNavAction.CLOSE_TAB -> {
+                if(isLoading) isLoading = false
                 if (tabs.size > 1) {
                     val tabToRemoveIndex = activeTabIndex.intValue
                     val tabToRemove = tabs[tabToRemoveIndex]
@@ -1588,7 +1581,15 @@ fun BrowserScreen(
 
 
     //region LaunchedEffect
+    LaunchedEffect(isFocusOnTextField, isPromptPanelVisible) {
+        if (!isFocusOnTextField && !isPromptPanelVisible){
+            delay(300)
+            isApplyImePaddingToWebView = true
+        } else {
+            isApplyImePaddingToWebView = false
+        }
 
+    }
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
@@ -2128,8 +2129,12 @@ fun BrowserScreen(
                         pendingPermissionRequest.value = null
                     }
                 }
+                isLoading = true
 
                 textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
+            },
+            onPageStopFun = {session, url ->
+                isLoading = false
             },
             onFaviconChanged = { tabId, faviconUrl ->
                     // Find the index of the tab that fired this event.
@@ -2165,6 +2170,19 @@ fun BrowserScreen(
                     onCancel = {
                     }
                 )
+            },
+            onJsAlert = { message ->
+                // For Alert, we just show it. We don't need a callback because
+                // we auto-dismissed it in the Manager (see note above).
+                jsDialogState = JsAlert(message)
+            },
+            onJsConfirm = { message, callback ->
+                // Pass the callback into the state object so the UI can call it
+                jsDialogState = JsConfirm(message, callback)
+            },
+            onJsPrompt = { message, defaultValue, callback ->
+                // Pass the callback into the state object
+                jsDialogState = JsPrompt(message, defaultValue, callback)
             }
 
         )
@@ -3474,6 +3492,8 @@ fun BrowserScreen(
                                                 activeSession.panZoomController.onTouchEvent(
                                                     upEvent
                                                 )
+                                                downEvent.recycle()
+                                                upEvent.recycle()
 //                                                webView.dispatchTouchEvent(downEvent)
 //                                                webView.dispatchTouchEvent(upEvent)
                                             }
