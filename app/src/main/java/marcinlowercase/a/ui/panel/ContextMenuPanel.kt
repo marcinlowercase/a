@@ -56,6 +56,7 @@ import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.ContextMenuData
 import marcinlowercase.a.core.enum_class.ContextMenuType
 import marcinlowercase.a.core.function.copyImageToClipboard
+//import marcinlowercase.a.core.function.shareImage
 import kotlin.math.roundToInt
 
 @Composable
@@ -129,6 +130,14 @@ fun ContextMenuPanel(
                     clipboard.nativeClipboard.setPrimaryClip(clip)
                     onDismiss()
                 })
+//                actions.add(Triple(R.drawable.ic_share, "share link") {
+//                    val intent = Intent(Intent.ACTION_SEND).apply {
+//                        type = "text/plain"
+//                        putExtra(Intent.EXTRA_TEXT, targetUrl)
+//                    }
+//                    context.startActivity(Intent.createChooser(intent, "Share Link"))
+//                    onDismiss()
+//                })
 
             } else {
                 if (data.linkUrl != null) {
@@ -140,6 +149,14 @@ fun ContextMenuPanel(
                     actions.add(Triple(R.drawable.ic_add, "open link in new tab") {
                         onOpenInNewTab(targetUrl)
                     })
+//                    actions.add(Triple(R.drawable.ic_share, "share link") {
+//                        val intent = Intent(Intent.ACTION_SEND).apply {
+//                            type = "text/plain"
+//                            putExtra(Intent.EXTRA_TEXT, targetUrl)
+//                        }
+//                        context.startActivity(Intent.createChooser(intent, "Share Link"))
+//                        onDismiss()
+//                    })
                     actions.add(Triple(R.drawable.ic_content_copy, "copy link") {
                         val clip = ClipData.newPlainText("Link", targetUrl)
                         clipboard.nativeClipboard.setPrimaryClip(clip)
@@ -157,12 +174,23 @@ fun ContextMenuPanel(
                     secondActions.add(Triple(R.drawable.ic_download, "download media file") {
                         onDownload(secondTargetUrl)
                     })
-                    secondActions.add(Triple(R.drawable.ic_search, "copy image") {
+                    secondActions.add(Triple(R.drawable.ic_file_copy, "copy image") {
                         onDismiss()
                         coroutineScope.launch {
                             copyImageToClipboard(context, targetUrl)
                         }
                     })
+//                    secondActions.add(Triple(R.drawable.ic_share, "share image") {
+////                        val intent = Intent(Intent.ACTION_SEND).apply {
+////                            type = "text/plain"
+////                            putExtra(Intent.EXTRA_TEXT, secondTargetUrl)
+////                        }
+////                        context.startActivity(Intent.createChooser(intent, "Share Link"))
+//                        onDismiss()
+//                        coroutineScope.launch {
+//                            shareImage(context, secondTargetUrl)
+//                        }
+//                    })
 
                 } else {
                     // only media
@@ -175,11 +203,19 @@ fun ContextMenuPanel(
                         clipboard.nativeClipboard.setPrimaryClip(clip)
                         onDismiss()
                     })
+//                    actions.add(Triple(R.drawable.ic_share, "share link") {
+//                        val intent = Intent(Intent.ACTION_SEND).apply {
+//                            type = "text/plain"
+//                            putExtra(Intent.EXTRA_TEXT, targetUrl)
+//                        }
+//                        context.startActivity(Intent.createChooser(intent, "Share Link"))
+//                        onDismiss()
+//                    })
                     actions.add(Triple(R.drawable.ic_download, "download media file") {
                         onDownload(targetUrl)
                     })
                     if (data.type == ContextMenuType.IMAGE) {
-                        actions.add(Triple(R.drawable.ic_search, "copy image") {
+                        actions.add(Triple(R.drawable.ic_file_copy, "copy image") {
                             onDismiss()
 
                             coroutineScope.launch {
@@ -213,6 +249,7 @@ fun ContextMenuPanel(
                             modifier = Modifier
                                 .padding(browserSettings.value.padding.dp)
                                 .size(30.dp)
+                                .clip(CircleShape)
                                 .background(
                                     color = if (contextMenuPanelPagerState.currentPage == 0) Color.White else Color.Black,
                                     shape = CircleShape
@@ -245,6 +282,8 @@ fun ContextMenuPanel(
                             modifier = Modifier
                                 .padding(browserSettings.value.padding.dp)
                                 .size(30.dp)
+                                .clip(CircleShape)
+
                                 .background(
                                     color = if (contextMenuPanelPagerState.currentPage == 1) Color.White else Color.Black,
                                     shape = CircleShape
@@ -287,7 +326,13 @@ fun ContextMenuPanel(
                                     browserSettings.value.cornerRadiusForLayer(2).dp
                                 )
                             )
-                            .padding(browserSettings.value.padding.dp * 2),
+                            .padding(browserSettings.value.padding.dp * 2)
+//                            .clickable(onClick = {
+//                                val clip = ClipData.newPlainText("Link", urlSrc)
+//                                clipboard.nativeClipboard.setPrimaryClip(clip)
+//                                onDismiss()
+//                            })
+                        ,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         if(isOnlyOneUrl){
