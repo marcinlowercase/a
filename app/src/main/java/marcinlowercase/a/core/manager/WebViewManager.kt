@@ -673,7 +673,7 @@ class WebViewManager(private val context: Context) {
 
                     if (!url.isNullOrEmpty()) {
                         // Now you have the correct URL (arc.net instead of favicon.ico)
-                        onContextMenu(ContextMenuData(url, type))
+//                        onContextMenu(ContextMenuData(url, type))
                     }
                 }
 

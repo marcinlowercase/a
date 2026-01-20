@@ -10,6 +10,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
@@ -18,16 +19,22 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,6 +54,7 @@ import kotlinx.coroutines.launch
 import marcinlowercase.a.R
 import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.ContextMenuData
+import marcinlowercase.a.core.enum_class.ContextMenuType
 import kotlin.math.roundToInt
 
 @Composable
@@ -57,7 +65,7 @@ fun ContextMenuPanel(
     browserSettings: MutableState<BrowserSettings>,
     onDismiss: () -> Unit,
     onOpenInNewTab: (String) -> Unit,
-    onDownloadImage: (String) -> Unit,
+    onDownload: (String) -> Unit,
 ) {
     val clipboard = LocalClipboard.current
     val context = LocalContext.current
@@ -76,159 +84,298 @@ fun ContextMenuPanel(
         // Determine if the target is an image (IMAGE_TYPE) or a Link (SRC_ANCHOR / SRC_IMAGE_ANCHOR)
         // Note: SRC_IMAGE_ANCHOR usually provides the Link URL in 'extra', not the image source.
         // Pure images return IMAGE_TYPE.
-        val isImage = data.type == WebView.HitTestResult.IMAGE_TYPE
+//        val isImage = data.type == WebView.HitTestResult.IMAGE_TYPE
+
+        data.type == ContextMenuType.LINK
 
         Column(
             modifier = Modifier
-                .padding(horizontal = browserSettings.value.padding.dp)
                 .padding(top = browserSettings.value.padding.dp)
                 .fillMaxWidth()
         ) {
             // 1. Header (URL or "Image")
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = browserSettings.value.padding.dp)
-                    .clip(
-                        RoundedCornerShape(
-                            browserSettings.value.cornerRadiusForLayer(2).dp
-                        )
-                    )
-                    .padding(browserSettings.value.padding.dp * 2)
 
-                ,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    painter = painterResource(if(isImage) R.drawable.ic_image else R.drawable.ic_link),
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(Modifier.width(browserSettings.value.padding.dp))
-                Text(
-                    text = data.url,
-                    color = Color.White,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
+            var actionIcon = when (data.type) {
+                ContextMenuType.LINK -> R.drawable.ic_link
+                ContextMenuType.IMAGE, ContextMenuType.IMAGE_LINK -> R.drawable.ic_image
+                ContextMenuType.VIDEO -> R.drawable.ic_video_camera_back
+                else -> R.drawable.ic_bug
             }
+            var targetUrl = ""
+            var secondTargetUrl = ""
+
+
+
+
+
 
             // 2. Action Buttons
             val actions = mutableListOf<Triple<Int, String, () -> Unit>>()
+            val secondActions = mutableListOf<Triple<Int, String, () -> Unit>>()
 
-            if (isImage) {
-                // --- IMAGE ACTIONS ---
-                actions.add(Triple(R.drawable.ic_download, "download image") {
-                    onDownloadImage(data.url)
-                    onDismiss()
-                })
-                actions.add(Triple(R.drawable.ic_add, "open image in new tab") {
-                    onOpenInNewTab(data.url)
-                })
-            } else {
-                // --- LINK ACTIONS ---
+            var isOnlyOneUrl = true
+            if (data.srcUrl == null) {
+                // only link
+
+                targetUrl = data.linkUrl?: ""
+
                 actions.add(Triple(R.drawable.ic_add, "open link in new tab") {
-                    onOpenInNewTab(data.url)
+                    onOpenInNewTab(targetUrl)
                 })
                 actions.add(Triple(R.drawable.ic_content_copy, "copy link") {
-                    val clip = ClipData.newPlainText("Link", data.url)
+                    val clip = ClipData.newPlainText("Link", targetUrl)
                     clipboard.nativeClipboard.setPrimaryClip(clip)
                     onDismiss()
                 })
-                actions.add(Triple(R.drawable.ic_share, "share link") {
-                    val intent = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_TEXT, data.url)
-                    }
-                    context.startActivity(Intent.createChooser(intent, "Share Link"))
-                    onDismiss()
-                })
+
+            } else {
+                if (data.linkUrl != null) {
+                    // media + link
+
+                    isOnlyOneUrl = false
+
+                    targetUrl = data.linkUrl?: ""
+                    actions.add(Triple(R.drawable.ic_add, "open link in new tab") {
+                        onOpenInNewTab(targetUrl)
+                    })
+                    actions.add(Triple(R.drawable.ic_content_copy, "copy link") {
+                        val clip = ClipData.newPlainText("Link", targetUrl)
+                        clipboard.nativeClipboard.setPrimaryClip(clip)
+                        onDismiss()
+                    })
+                    secondTargetUrl = data.srcUrl?: ""
+                    secondActions.add(Triple(R.drawable.ic_add, "open media in new tab") {
+                        onOpenInNewTab(secondTargetUrl)
+                    })
+                    secondActions.add(Triple(R.drawable.ic_content_copy, "copy media link") {
+                        val clip = ClipData.newPlainText("Link", secondTargetUrl)
+                        clipboard.nativeClipboard.setPrimaryClip(clip)
+                        onDismiss()
+                    })
+                    secondActions.add(Triple(R.drawable.ic_download, "download media file") {
+                        onDownload(secondTargetUrl)
+                    })
+
+                } else {
+                    // only media
+                    targetUrl = data.srcUrl ?: ""
+                    actions.add(Triple(R.drawable.ic_add, "open media in new tab") {
+                        onOpenInNewTab(targetUrl)
+                    })
+                    actions.add(Triple(R.drawable.ic_content_copy, "copy media link") {
+                        val clip = ClipData.newPlainText("Link", targetUrl)
+                        clipboard.nativeClipboard.setPrimaryClip(clip)
+                        onDismiss()
+                    })
+                    actions.add(Triple(R.drawable.ic_download, "download media file") {
+                        onDownload(targetUrl)
+                    })
+                }
+
             }
 
+            val pageCount = if (secondActions.isNotEmpty()) 2 else 1
+            val contextMenuPanelPagerState = rememberPagerState(initialPage = 0, pageCount = { pageCount})
 
+            val coroutineScope = rememberCoroutineScope()
+            // LAYOUT
+            if (data.srcUrl != null && data.linkUrl != null) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
 
-            // Render Buttons
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(
-                        RoundedCornerShape(
-                            browserSettings.value.cornerRadiusForLayer(2).dp
-                        )
-                    )
-                    .padding(bottom = browserSettings.value.padding.dp),
-                horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
-            ) {
-                actions.forEach { (icon, desc, action) ->
+                ) {
+                    Box (
+                        modifier = Modifier
+                            .weight(1f)
+//                            .height(browserSettings.value.heightForLayer(2).dp)
+
+                            ,
+                        contentAlignment = Alignment.CenterEnd
+                    ){
+                        Box(
+                            modifier = Modifier
+                                .padding(browserSettings.value.padding.dp)
+                                .size(30.dp)
+                                .background(
+                                    color = if (contextMenuPanelPagerState.currentPage == 0) Color.White else Color.Black,
+                                    shape = CircleShape
+                                )
+                                .clickable(onClick = {
+                                    coroutineScope.launch {
+                                        contextMenuPanelPagerState.animateScrollToPage(0)
+                                    }
+                                })
+                            ,
+                            contentAlignment = Alignment.Center
+
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_link),
+                                tint = if (contextMenuPanelPagerState.currentPage == 1) Color.White else Color.Black,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .height(
-                                browserSettings.value.heightForLayer(2).dp
+//                            .height(browserSettings.value.heightForLayer(2).dp)
+                           ,
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .padding(browserSettings.value.padding.dp)
+                                .size(30.dp)
+                                .background(
+                                    color = if (contextMenuPanelPagerState.currentPage == 1) Color.White else Color.Black,
+                                    shape = CircleShape
+                                )
+                                .clickable(onClick = {
+                                    coroutineScope.launch {
+                                        contextMenuPanelPagerState.animateScrollToPage(1)
+                                    }
+                                })
+                            ,
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                painter = painterResource(actionIcon),
+                                tint = if (contextMenuPanelPagerState.currentPage == 0) Color.White else Color.Black,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+
+
                             )
+                        }
+                    }
+                }
+            }
+            HorizontalPager(state = contextMenuPanelPagerState,
+                modifier = Modifier
+            ) { pageIndex ->
+            // URL
+                val urlSrc =if (pageIndex == 0) targetUrl else secondTargetUrl
+                val buttonSrc = if (pageIndex == 0) actions else secondActions
+                Column (
+                    modifier = Modifier.fillMaxWidth()
+                ){
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = browserSettings.value.padding.dp)
                             .clip(
                                 RoundedCornerShape(
                                     browserSettings.value.cornerRadiusForLayer(2).dp
                                 )
                             )
-                            .background(Color.White)
-//                            .clickable(onClick = action)
-                            .pointerInput(Unit) {
-                                // 1. CAPTURE the CoroutineScope provided by pointerInput
-                                val coroutineScope = CoroutineScope(
-                                    currentCoroutineContext()
-                                )
-                                awaitEachGesture {
-                                    val down = awaitFirstDown(requireUnconsumed = false)
-
-                                    // 2. USE the captured scope to launch the long press job
-                                    val longPressJob = coroutineScope.launch {
-                                        delay(viewConfiguration.longPressTimeoutMillis)
-
-                                        // LONG PRESS CONFIRMED
-                                        hapticFeedback.performHapticFeedback(
-                                            HapticFeedbackType.LongPress
-                                        )
-                                        descriptionContent.value =
-                                            desc
-
-
-                                    }
-                                    val drag =
-                                        awaitTouchSlopOrCancellation(down.id) { change, _ ->
-                                            if (longPressJob.isActive) {
-                                                longPressJob.cancel()
-                                            }
-                                            change.consume()
-                                        }
-
-
-
-                                    if (!(longPressJob.isCompleted && !longPressJob.isCancelled)) {
-                                        if (drag == null) {
-                                            if (longPressJob.isActive) {
-                                                longPressJob.cancel()
-                                                // This was a tap
-                                                action()
-
-                                            }
-                                        }
-                                    }
-
-
-                                    descriptionContent.value = ""
-                                }
-                            }
-                        ,
-                        contentAlignment = Alignment.Center
+                            .padding(browserSettings.value.padding.dp * 2),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            painter = painterResource(icon),
-                            contentDescription = desc,
-                            tint = Color.Black
+                        if(isOnlyOneUrl){
+                            Icon(
+                                painter = painterResource(actionIcon),
+                                //                    painter = painterResource(if(isImage) R.drawable.ic_image else R.drawable.ic_link),
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(Modifier.width(browserSettings.value.padding.dp))
+                        }
+                        Text(
+                            text = urlSrc,
+                            color = Color.White,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
                         )
+                    }
+
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(
+                                RoundedCornerShape(
+                                    browserSettings.value.cornerRadiusForLayer(2).dp
+                                )
+                            )
+                            .padding(horizontal = browserSettings.value.padding.dp)
+                            .padding(bottom = browserSettings.value.padding.dp)
+                        ,
+                        horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
+                    ) {
+                        buttonSrc.forEach { (icon, desc, action) ->
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(
+                                        browserSettings.value.heightForLayer(2).dp
+                                    )
+                                    .clip(
+                                        RoundedCornerShape(
+                                            browserSettings.value.cornerRadiusForLayer(2).dp
+                                        )
+                                    )
+                                    .background(Color.White)
+                                    //                            .clickable(onClick = action)
+                                    .pointerInput(Unit) {
+                                        // 1. CAPTURE the CoroutineScope provided by pointerInput
+                                        val coroutineScope = CoroutineScope(
+                                            currentCoroutineContext()
+                                        )
+                                        awaitEachGesture {
+                                            val down = awaitFirstDown(requireUnconsumed = false)
+
+                                            // 2. USE the captured scope to launch the long press job
+                                            val longPressJob = coroutineScope.launch {
+                                                delay(viewConfiguration.longPressTimeoutMillis)
+
+                                                // LONG PRESS CONFIRMED
+                                                hapticFeedback.performHapticFeedback(
+                                                    HapticFeedbackType.LongPress
+                                                )
+                                                descriptionContent.value =
+                                                    desc
+
+
+                                            }
+                                            val drag =
+                                                awaitTouchSlopOrCancellation(down.id) { change, _ ->
+                                                    if (longPressJob.isActive) {
+                                                        longPressJob.cancel()
+                                                    }
+                                                    change.consume()
+                                                }
+
+
+
+                                            if (!(longPressJob.isCompleted && !longPressJob.isCancelled)) {
+                                                if (drag == null) {
+                                                    if (longPressJob.isActive) {
+                                                        longPressJob.cancel()
+                                                        // This was a tap
+                                                        action()
+
+                                                    }
+                                                }
+                                            }
+
+
+                                            descriptionContent.value = ""
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    painter = painterResource(icon),
+                                    contentDescription = desc,
+                                    tint = Color.Black
+                                )
+                            }
+                        }
                     }
                 }
             }

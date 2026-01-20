@@ -10,8 +10,10 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import marcinlowercase.a.core.custom_class.CustomPermissionDelegate
 import marcinlowercase.a.core.data_class.BrowserSettings
+import marcinlowercase.a.core.data_class.ContextMenuData
 import marcinlowercase.a.core.data_class.CustomPermissionRequest
 import marcinlowercase.a.core.data_class.Tab
+import marcinlowercase.a.core.enum_class.ContextMenuType
 import org.json.JSONObject
 import org.mozilla.geckoview.AllowOrDeny
 import org.mozilla.geckoview.GeckoResult
@@ -20,6 +22,7 @@ import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.GeckoSessionSettings
 import org.mozilla.geckoview.WebExtension
 import org.mozilla.geckoview.WebExtensionController
+import org.mozilla.geckoview.WebResponse
 import java.io.File
 import java.io.FileOutputStream
 
@@ -262,6 +265,8 @@ class GeckoManager(private val context: Context) {
             callback: GeckoSession.PermissionDelegate.Callback
         ) -> Unit,
         onPageStartedFun: (session: GeckoSession, url: String) -> Unit,
+        onContextMenuFun: (data: ContextMenuData) -> Unit,
+        onDownloadRequested: (url: String, userAgent: String, contentDisposition: String?, mimeType: String?) -> Unit,
     ) {
 
         if (killedSessionIds.contains(tab.id)) {
@@ -378,6 +383,30 @@ class GeckoManager(private val context: Context) {
 
         // 3. Content Delegate (Title, Fullscreen, Context Menu)
         session.contentDelegate = object : GeckoSession.ContentDelegate {
+
+            override fun onExternalResponse(session: GeckoSession, response: WebResponse) {
+                // Extract metadata from the WebResponse object
+                val url = response.uri
+                val contentDisposition = response.headers["Content-Disposition"]
+                val mimeType = response.headers["Content-Type"]
+
+                // Get the User Agent (needed for the system DownloadManager to match the browser's request)
+                val userAgent = if (!session.settings.userAgentOverride.isNullOrBlank()) {
+                    session.settings.userAgentOverride!!
+                } else {
+                    // A standard modern Android User Agent
+                    "Mozilla/5.0 (Android 14; Mobile; rv:131.0) Gecko/131.0 Firefox/131.0"
+                }
+                Log.i("onExternalResponse", "url: $url")
+                Log.i("onExternalResponse", "contentDisposition: $contentDisposition")
+                Log.i("onExternalResponse", "mimeType: $mimeType")
+                Log.i("onExternalResponse", "userAgent: $userAgent")
+
+
+                // Pass it up to the UI layer
+                onDownloadRequested(url, userAgent, contentDisposition, mimeType)
+            }
+
             override fun onTitleChange(session: GeckoSession, title: String?) {
                 title?.let { title ->
                     onTitleChangeFun(session, title)
@@ -424,6 +453,40 @@ class GeckoManager(private val context: Context) {
                 // GeckoView handles context menu detection differently.
                 // 'element' contains the type (IMAGE, VIDEO, LINK) and the URL.
                 // You can map this to your ContextMenuData.
+
+                val linkUri = element.linkUri
+                val srcUri = element.srcUri
+                val mediaType = element.type
+
+                // 1. Determine the Type
+                val myType = when (mediaType) {
+                    GeckoSession.ContentDelegate.ContextElement.TYPE_VIDEO ->
+                        ContextMenuType.VIDEO
+
+                    GeckoSession.ContentDelegate.ContextElement.TYPE_IMAGE -> {
+                        if (!linkUri.isNullOrEmpty()) ContextMenuType.IMAGE_LINK
+                        else ContextMenuType.IMAGE
+                    }
+
+                    GeckoSession.ContentDelegate.ContextElement.TYPE_AUDIO ->
+                        ContextMenuType.VIDEO // Treat Audio like Video for now (downloadable)
+
+                    else -> {
+                        if (!linkUri.isNullOrEmpty()) ContextMenuType.LINK
+                        else ContextMenuType.NONE
+                    }
+                }
+
+                if (myType != ContextMenuType.NONE) {
+                    // 2. Create the clean data object
+                    val data = ContextMenuData(
+                        type = myType,
+                        linkUrl = linkUri,
+                        srcUrl = srcUri
+                    )
+
+                    onContextMenuFun(data)
+                }
             }
 
             override fun onCrash(session: GeckoSession) {

@@ -136,7 +136,7 @@ fun BottomPanel(
     isBottomPanelLock: MutableState<Boolean>,
     bottomPanelPagerState: PagerState,
     onOpenInNewTab: (String) -> Unit,
-    onDownloadImage: (String) -> Unit,
+    onDownload: (String) -> Unit,
     contextMenuData: ContextMenuData?,
     displayContextMenuData: ContextMenuData?,
     onDismissContextMenu: () -> Unit,
@@ -333,7 +333,7 @@ fun BottomPanel(
                     onOpenInNewTab(url)
                     onDismissContextMenu()
                 },
-                onDownloadImage = onDownloadImage,
+                onDownload = onDownload,
             )
 
             FindInPagePanel(

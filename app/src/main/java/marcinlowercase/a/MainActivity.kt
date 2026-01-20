@@ -938,6 +938,7 @@ fun BrowserScreen(
     //endregion
 
     //region Functions
+
     val setIsOptionsPanelVisible = { setToVisible: Boolean ->
 
         coroutineScope.launch {
@@ -1272,6 +1273,52 @@ fun BrowserScreen(
                 return newName
             }
             counter++
+        }
+    }
+
+    val startDownload = { url: String, userAgent: String, contentDisposition: String?, mimeType: String? ->
+        // 1. Show the download panel so the user sees progress
+        if (!isUrlBarVisible) isUrlBarVisible = true
+        if (!isDownloadPanelVisible.value) isDownloadPanelVisible.value = true
+
+        if (contextMenuData != null) contextMenuData = null
+
+        // 2. Use your helper to get a clean filename
+        val initialFilename = getBestGuessFilename(url, contentDisposition, mimeType)
+        val finalFilename = generateUniqueFilename(initialFilename, downloads)
+
+        // 3. Create the Android DownloadManager Request
+        val request = DownloadManager.Request(Uri.parse(url)).apply {
+            setTitle(finalFilename)
+            setDescription("Downloading file...")
+            setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+            setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, finalFilename)
+
+            // Critically important: pass the User Agent and Cookies so the server
+            // doesn't reject the DownloadManager's separate request.
+            addRequestHeader("User-Agent", userAgent)
+            // If your app uses cookies for logins, you'd add them here:
+            // addRequestHeader("Cookie", cookieString)
+        }
+
+        val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+
+        try {
+            val downloadId = downloadManager.enqueue(request)
+
+            // 4. Update your Compose 'downloads' list so the UI updates
+            val newDownload = DownloadItem(
+                id = downloadId,
+                url = url,
+                filename = finalFilename,
+                mimeType = mimeType ?: "application/octet-stream",
+                status = DownloadStatus.PENDING
+            )
+            downloads.add(0, newDownload)
+            downloadTracker.saveDownloads(downloads)
+        } catch (e: Exception) {
+            Log.e("Download", "Failed to enqueue download", e)
+            Toast.makeText(context, "Download failed to start", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -2081,6 +2128,8 @@ fun BrowserScreen(
                         pendingPermissionRequest.value = null
                     }
                 }
+
+                textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
             },
             onFaviconChanged = { tabId, faviconUrl ->
                     // Find the index of the tab that fired this event.
@@ -2096,6 +2145,28 @@ fun BrowserScreen(
                         saveTrigger++
                     }
                 },
+            onContextMenuFun = { data ->
+                if (data.linkUrl.isNullOrBlank() && data.srcUrl.isNullOrBlank()){
+                    // do nothing
+                } else {
+                    contextMenuData = data
+                    displayContextMenuData = contextMenuData
+                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                }
+
+            },
+            onDownloadRequested = { url, userAgent, contentDisposition, mimeType ->
+                // Trigger your existing download logic
+                confirmationPopup(
+                    message = "download file on\n$url ?",
+                    onConfirm = {
+                        startDownload(url, userAgent, contentDisposition, mimeType)
+                                },
+                    onCancel = {
+                    }
+                )
+            }
+
         )
 
 
@@ -2483,6 +2554,8 @@ fun BrowserScreen(
     ) {
         isBottomPanelVisible =
             isUrlBarVisible || isPermissionPanelVisible || isPromptPanelVisible || (confirmationState != null || (contextMenuData != null))
+
+        Log.e("Download", "isBottomPanelVisible: $isBottomPanelVisible")
     }
     LaunchedEffect(isTabsPanelVisible) {
         if (!isTabsPanelVisible) {
@@ -2916,6 +2989,8 @@ fun BrowserScreen(
                                                 if (isUrlBarVisible) {
                                                     isUrlBarVisible = false
                                                 }
+
+                                                if (contextMenuData != null) contextMenuData =  null
                                             }
                                             false
                                         }
@@ -2972,15 +3047,26 @@ fun BrowserScreen(
                         createNewTab(activeTabIndex.intValue + 1, url)
 
                     },
-                    onDownloadImage = { url ->
+                    onDownload = { url ->
                         // Simple generic download for images found via context menu
-                        // TODO HANDLE DOWNLOAD
-//                        startDownload(
-//                            url,
-//                            activeWebView?.settings?.userAgentString ?: "",
-//                            null,
-//                            "image/*"
-//                        )
+                        Log.i("onExternalResponse", "url: ${url}")
+                        Log.i("onExternalResponse", "userA: ${activeSession.settings.userAgentOverride ?: ""}")
+
+                        confirmationPopup(
+                            message = "download file on $url ?",
+                            onConfirm = {
+                                startDownload(
+                                    url,
+                                    activeSession.settings.userAgentOverride ?: "",
+                                    null,
+                                    null,
+                                )
+                            },
+                            onCancel = {
+                            }
+                        )
+
+
                     },
                     contextMenuData = contextMenuData,
                     displayContextMenuData = displayContextMenuData,
