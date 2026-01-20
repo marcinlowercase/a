@@ -3,4 +3,5 @@
     <external-path
         name="external_downloads"
         path="Download/" />
+    <cache-path name="shared_images" path="images/" />
 </paths>

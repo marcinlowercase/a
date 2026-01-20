@@ -55,6 +55,7 @@ import marcinlowercase.a.R
 import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.ContextMenuData
 import marcinlowercase.a.core.enum_class.ContextMenuType
+import marcinlowercase.a.core.function.copyImageToClipboard
 import kotlin.math.roundToInt
 
 @Composable
@@ -105,6 +106,7 @@ fun ContextMenuPanel(
             var secondTargetUrl = ""
 
 
+            val coroutineScope = rememberCoroutineScope()
 
 
 
@@ -155,6 +157,12 @@ fun ContextMenuPanel(
                     secondActions.add(Triple(R.drawable.ic_download, "download media file") {
                         onDownload(secondTargetUrl)
                     })
+                    secondActions.add(Triple(R.drawable.ic_search, "copy image") {
+                        onDismiss()
+                        coroutineScope.launch {
+                            copyImageToClipboard(context, targetUrl)
+                        }
+                    })
 
                 } else {
                     // only media
@@ -170,6 +178,15 @@ fun ContextMenuPanel(
                     actions.add(Triple(R.drawable.ic_download, "download media file") {
                         onDownload(targetUrl)
                     })
+                    if (data.type == ContextMenuType.IMAGE) {
+                        actions.add(Triple(R.drawable.ic_search, "copy image") {
+                            onDismiss()
+
+                            coroutineScope.launch {
+                                copyImageToClipboard(context, targetUrl)
+                            }
+                        })
+                    }
                 }
 
             }
@@ -177,7 +194,6 @@ fun ContextMenuPanel(
             val pageCount = if (secondActions.isNotEmpty()) 2 else 1
             val contextMenuPanelPagerState = rememberPagerState(initialPage = 0, pageCount = { pageCount})
 
-            val coroutineScope = rememberCoroutineScope()
             // LAYOUT
             if (data.srcUrl != null && data.linkUrl != null) {
                 Row(
