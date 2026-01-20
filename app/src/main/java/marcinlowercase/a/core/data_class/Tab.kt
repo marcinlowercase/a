@@ -15,7 +15,9 @@ data class Tab(
     var savedState: String? = null,
 
     @Transient var canGoBack: Boolean = false,
-    @Transient var canGoForward: Boolean = false
+    @Transient var canGoForward: Boolean = false,
+    @Transient var errorState: ErrorState? = null
+
 ) {
     companion object {
         fun createEmpty(): Tab {

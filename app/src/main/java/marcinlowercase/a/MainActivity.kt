@@ -38,7 +38,11 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
@@ -48,6 +52,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.AnchoredDraggableDefaults
 import androidx.compose.foundation.gestures.DraggableAnchors
@@ -160,6 +165,7 @@ import marcinlowercase.a.core.data_class.SiteSettings
 import marcinlowercase.a.core.data_class.Suggestion
 import marcinlowercase.a.core.data_class.Tab
 import marcinlowercase.a.core.data_class.App
+import marcinlowercase.a.core.data_class.ErrorState
 import marcinlowercase.a.core.enum_class.BottomPanelMode
 import marcinlowercase.a.core.enum_class.DownloadStatus
 import marcinlowercase.a.core.enum_class.GestureNavAction
@@ -182,6 +188,7 @@ import marcinlowercase.a.core.view_model.AppViewModel
 import marcinlowercase.a.ui.panel.BottomPanel
 import marcinlowercase.a.ui.panel.SettingPanelView
 import marcinlowercase.a.ui.panel.SettingsPanel
+import marcinlowercase.a.ui.screen.ErrorScreen
 import marcinlowercase.a.ui.screen.NoInternetScreen
 import marcinlowercase.a.ui.theme.Theme
 import org.json.JSONArray
@@ -190,6 +197,7 @@ import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.GeckoView
 import org.mozilla.geckoview.PanZoomController
 import org.mozilla.geckoview.ScreenLength
+import org.mozilla.geckoview.WebRequestError
 import java.io.File
 import java.io.FileOutputStream
 import java.net.URL
@@ -228,24 +236,14 @@ class MainActivity : ComponentActivity() {
 
         createNotificationChannel(this) // Call it here
         setContent {
-            val isOnline by appViewModel.isOnline.collectAsStateWithLifecycle()
             Theme {
-//                // HIDE SYSTEM BARS
-//                Surface(modifier = Modifier.fillMaxSize()) {
-//                    BrowserScreen(
-//                        isOnline = isOnline,
-//                        newUrlFlow = newUrlFromIntent,
-//                        tabManager = tabManager,
-//                        webViewManager = webViewManager
-//                    )
-//                }
+//
 
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     BrowserScreen(
                         innerPadding = innerPadding,
                         modifier = Modifier,
 
-                        isOnline = isOnline,
                         newUrlFlow = newUrlFromIntent,
                         tabManager = tabManager,
                         webViewManager = webViewManager,
@@ -351,7 +349,6 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun BrowserScreen(
     innerPadding: PaddingValues,
-    isOnline: Boolean,
     newUrlFlow: StateFlow<String?>,
     tabManager: TabManager,
     webViewManager: WebViewManager,
@@ -1054,7 +1051,7 @@ fun BrowserScreen(
                     webViewToNavigate.goBackOrForward(stepsToNavigate)
 
                     val newUrl = webViewToNavigate.url ?: ""
-                    textFieldState.setTextAndPlaceCursorAtEnd(newUrl.toDomain())
+                    if (!isFocusOnTextField) textFieldState.setTextAndPlaceCursorAtEnd(newUrl.toDomain())
 //                    textFieldValue = TextFieldValue(newUrl, TextRange(newUrl.length))
 
                 }
@@ -1386,7 +1383,7 @@ fun BrowserScreen(
 
 
 //        textFieldValue = TextFieldValue(url, TextRange(url.length))
-        textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
+        if (!isFocusOnTextField) textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
         saveTrigger++
 
 
@@ -1440,7 +1437,7 @@ fun BrowserScreen(
 //                    val urlToLoad = webViewManager.getWebView(tabs[nextTabIndex]).url
 //                        ?: browserSettings.value.defaultUrl
 //                    webViewLoad(activeSession, urlToLoad, browserSettings.value)
-                    textFieldState.setTextAndPlaceCursorAtEnd(urlToLoad.toDomain())
+                    if (!isFocusOnTextField) textFieldState.setTextAndPlaceCursorAtEnd(urlToLoad.toDomain())
                     saveTrigger++
                 } else {
 
@@ -2019,7 +2016,7 @@ fun BrowserScreen(
                 isLoading = (int < 100)
             },
             onLocationChangeFun = { session, url, perms, userGesture ->
-                if (url != null) {
+                if (url != null && session == activeSession) {
                     if (!isFocusOnTextField) url.let {
                         textFieldState.setTextAndPlaceCursorAtEnd(it.toDomain())
                     }
@@ -2129,9 +2126,15 @@ fun BrowserScreen(
                         pendingPermissionRequest.value = null
                     }
                 }
-                isLoading = true
+                if (session == activeSession) {
+                    isLoading = true
+                    if (activeTab.value.errorState != null) {
+                        activeTab.value = activeTab.value.copy(errorState = null)
+                    }
+                    if (!isFocusOnTextField) textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
 
-                textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
+                }
+
             },
             onPageStopFun = {session, url ->
                 isLoading = false
@@ -2183,6 +2186,21 @@ fun BrowserScreen(
             onJsPrompt = { message, defaultValue, callback ->
                 // Pass the callback into the state object
                 jsDialogState = JsPrompt(message, defaultValue, callback)
+            },
+
+            onLoadErrorFun = { session, uri, error ->
+                // Only show if it's the active tab
+                if (session == activeSession) {
+                    isLoading = false
+
+                    val newError = ErrorState(
+                        error = error,
+                        failingUrl = uri ?: activeTab.value.currentURL
+                    )
+
+                    // Update the Tab object
+                    activeTab.value = activeTab.value.copy(errorState = newError)
+                }
             }
 
         )
@@ -2797,9 +2815,7 @@ fun BrowserScreen(
         focusManager.clearFocus()
     }
 
-    LaunchedEffect(isOnline) {
-        activeSession.reload()
-    }
+
     //endregion
     BackHandler(enabled = true) {
         Log.i("BackHandler", "BackHandler")
@@ -2835,29 +2851,6 @@ fun BrowserScreen(
 
     ) {
 
-        // No Internet Screen
-        AnimatedVisibility(
-            modifier = Modifier
-                .windowInsetsPadding(WindowInsets.ime)
-                .padding(webViewPaddingValue)
-
-                .align(Alignment.BottomCenter),
-            visible = !browserSettings.value.isFirstAppLoad && !isOnline,
-            enter = slideInVertically(
-                animationSpec = tween(browserSettings.value.animationSpeedForLayer(0) * 4),
-                initialOffsetY = { it }
-            ),
-            exit = slideOutVertically(
-                animationSpec = tween(browserSettings.value.animationSpeedForLayer(0) * 4),
-                targetOffsetY = { -it }
-            ),
-        ) {
-            NoInternetScreen(
-                webViewTopPadding = webViewTopPadding,
-                webViewBottomPadding = webViewBottomPadding,
-                browserSettings = browserSettings.value,
-            )
-        }
 
         // Adjust Device Corner Radius Screen
         AnimatedVisibility(
@@ -2934,7 +2927,7 @@ fun BrowserScreen(
 
         // WebView
         AnimatedVisibility(
-            visible = !browserSettings.value.isFirstAppLoad && isOnline,
+            visible = !browserSettings.value.isFirstAppLoad ,
             enter = slideInVertically(
                 animationSpec = tween(browserSettings.value.animationSpeedForLayer(0) * 4),
                 initialOffsetY = { it }
@@ -2961,72 +2954,88 @@ fun BrowserScreen(
 
                     ) {
                     // Webview Container
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
-
-                            .run {
-                                if (isApplyImePaddingToWebView) {
-                                    this.windowInsetsPadding(WindowInsets.ime)
-                                } else {
-                                    this
-                                }
-                            }
-                            .clip(
-                                RoundedCornerShape(
-                                    animatedCornerRadius
-                                )
-                            )
-//                            .background(color = Color.White)
-                            .testTag("WebViewContainer")
-
-
+                    AnimatedVisibility(
+                        visible = activeTab.value.errorState == null,
+                        enter = slideInVertically(
+                            animationSpec = tween(browserSettings.value.animationSpeedForLayer(0) * 4),
+                            initialOffsetY = { it }
+                        ),
+                        exit = slideOutVertically(
+                            animationSpec = tween(browserSettings.value.animationSpeedForLayer(0) * 4),
+                            targetOffsetY = { -it }
+                        )
                     ) {
                         Box(
                             modifier = Modifier
-                                .fillMaxSize()
+                                .fillMaxWidth()
+                                .weight(1f)
+
+                                .run {
+                                    if (isApplyImePaddingToWebView) {
+                                        this.windowInsetsPadding(WindowInsets.ime)
+                                    } else {
+                                        this
+                                    }
+                                }
+                                .clip(
+                                    RoundedCornerShape(
+                                        animatedCornerRadius
+                                    )
+                                )
+                                //                            .background(color = Color.White)
+                                .testTag("WebViewContainer")
+
 
                         ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+
+                            ) {
 
 
-                            AndroidView(
-                                modifier = Modifier.fillMaxSize(),
-                                factory = { context ->
-                                    // Create the View ONCE.
-                                    // We never need to recreate this View during tab switching.
-                                    GeckoView(context).apply {
-                                        layoutParams = ViewGroup.LayoutParams(
-                                            ViewGroup.LayoutParams.MATCH_PARENT,
-                                            ViewGroup.LayoutParams.MATCH_PARENT
-                                        )
+                                AndroidView(
+                                    modifier = Modifier.fillMaxSize(),
+                                    factory = { context ->
+                                        // Create the View ONCE.
+                                        // We never need to recreate this View during tab switching.
+                                        GeckoView(context).apply {
+                                            layoutParams = ViewGroup.LayoutParams(
+                                                ViewGroup.LayoutParams.MATCH_PARENT,
+                                                ViewGroup.LayoutParams.MATCH_PARENT
+                                            )
 
-                                        setOnTouchListener { _, event ->
-                                            if (event.action == MotionEvent.ACTION_DOWN) {
-                                                // The user touched the web content
-                                                if (isUrlBarVisible) {
-                                                    isUrlBarVisible = false
+                                            setOnTouchListener { _, event ->
+                                                if (event.action == MotionEvent.ACTION_DOWN) {
+                                                    // The user touched the web content
+                                                    if (isUrlBarVisible) {
+                                                        isUrlBarVisible = false
+                                                    }
+
+                                                    if (contextMenuData != null) contextMenuData =
+                                                        null
                                                 }
-
-                                                if (contextMenuData != null) contextMenuData =  null
+                                                false
                                             }
-                                            false
+                                            geckoViewRef.value = this
                                         }
-                                        geckoViewRef.value = this
+                                    },
+                                    update = { geckoView ->
+                                        // 4. THE SWITCH: Just swap the session!
+                                        // When 'activeSession' changes, this block runs automatically.
+                                        // GeckoView handles detaching the old one and attaching the new one.
+                                        Log.i("updateGecko", "updateGecko to neww session")
+                                        Log.i("updateGecko", "activeIndex ${activeTabIndex.value}")
+                                        geckoView.setSession(activeSession)
+                                        geckoViewRef.value = geckoView
                                     }
-                                },
-                                update = { geckoView ->
-                                    // 4. THE SWITCH: Just swap the session!
-                                    // When 'activeSession' changes, this block runs automatically.
-                                    // GeckoView handles detaching the old one and attaching the new one.
-                                    Log.i("updateGecko", "updateGecko to neww session")
-                                    Log.i("updateGecko", "activeIndex ${activeTabIndex.value}")
-                                    geckoView.setSession(activeSession)
-                                    geckoViewRef.value = geckoView
-                                }
+                                )
+                            }
+                            LoadingIndicator(
+                                isLoading = isLoading,
+                                browserSettings = browserSettings
                             )
                         }
-                        LoadingIndicator(isLoading = isLoading, browserSettings = browserSettings)
                     }
                 }
 
@@ -3039,6 +3048,52 @@ fun BrowserScreen(
 
 
 
+                // 3. The Error Overlay (NEW)
+                AnimatedContent(
+                    targetState = activeTab.value.errorState,
+                    transitionSpec = {
+                        if (targetState != null) {
+                            // Error Appears: Slide In from Bottom
+                            slideInVertically(
+                                animationSpec = tween(browserSettings.value.animationSpeedForLayer(0) * 4),
+                                initialOffsetY = { it }
+                            ) togetherWith ExitTransition.None
+                        } else {
+                            (EnterTransition.None togetherWith slideOutVertically(
+                                animationSpec = tween(browserSettings.value.animationSpeedForLayer(0) * 4),
+                                targetOffsetY = { -it }
+                            )).using(
+                                // FIX IS HERE:
+                                // 1. clip = false: Lets the error screen draw outside the container as it shrinks
+                                // 2. sizeAnimationSpec: Matches the duration so the container doesn't vanish too fast
+                                SizeTransform(clip = false) { _, _ ->
+                                    tween(browserSettings.value.animationSpeedForLayer(0) * 4)
+                                }
+                            )
+                        }
+                    },
+                    label = "ErrorAnimation"
+                ) { targetState ->
+                    // CRITICAL: Check 'targetState', NOT 'errorState'
+                    // targetState is the "captured" value for this specific animation frame
+                    if (targetState != null) {
+                        ErrorScreen(
+                            modifier = Modifier
+                                .padding(webViewPaddingValue)
+
+                            ,
+                            errorState = targetState, // Safe, no !! needed
+                            browserSettings = browserSettings,
+                            onRetry = {
+                                val urlToReload = targetState.failingUrl
+                                webViewLoad(activeSession, urlToReload, browserSettings.value)
+                            },
+                            onHome = {
+                                webViewLoad(activeSession, browserSettings.value.defaultUrl, browserSettings.value)
+                            }
+                        )
+                    }
+                }
                 BottomPanel(
                     geckoViewRef = geckoViewRef,
                     activeTab = activeTab,
@@ -3249,7 +3304,7 @@ fun BrowserScreen(
 //                                ?: browserSettings.value.defaultUrl
 //                        activeWebView?.loadUrl(urlToLoad)
                             Log.i("textFieldState", "onTabSelect : ${urlToLoad}")
-                            textFieldState.setTextAndPlaceCursorAtEnd(urlToLoad.toDomain())
+                            if (!isFocusOnTextField) textFieldState.setTextAndPlaceCursorAtEnd(urlToLoad.toDomain())
                             saveTrigger++
 
                             inspectingTabId = tabs[newIndex].id
@@ -3289,6 +3344,7 @@ fun BrowserScreen(
                     keyboardController = keyboardController,
                     setIsOptionsPanelVisible = setIsOptionsPanelVisible,
                     onNewUrl = { newUrl ->
+
                         Log.i("onNewUrl", "Loading $newUrl")
                         Log.e("WebViewLoad", "HERE7")
 
@@ -3303,10 +3359,7 @@ fun BrowserScreen(
                         if (url != null) webViewLoad(geckoManager.getSession(activeTab.value), url, browserSettings.value)
 
                     },
-                    )
-
-
-
+                )
                 CursorPad(
                     urlBarFocusRequester = urlBarFocusRequester,
                     screenSize = screenSize,
@@ -3352,10 +3405,7 @@ fun BrowserScreen(
                         modifier = Modifier
                             .fillMaxSize(),
                     ) {
-
-
                         val squareBoxSize = browserSettings.value.heightForLayer(1).dp
-
                         val squareBoxSizePx = with(density) { squareBoxSize.toPx() }
                         val paddingPx = with(density) { browserSettings.value.padding.dp.toPx() }
 

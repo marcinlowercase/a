@@ -22,6 +22,7 @@ import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.GeckoSessionSettings
 import org.mozilla.geckoview.WebExtension
 import org.mozilla.geckoview.WebExtensionController
+import org.mozilla.geckoview.WebRequestError
 import org.mozilla.geckoview.WebResponse
 import java.io.File
 import java.io.FileOutputStream
@@ -270,7 +271,8 @@ class GeckoManager(private val context: Context) {
         onDownloadRequested: (url: String, userAgent: String, contentDisposition: String?, mimeType: String?) -> Unit,
         onJsAlert: (String) -> Unit,
         onJsConfirm: (String, (Boolean) -> Unit) -> Unit,
-        onJsPrompt: (String, String, (String?) -> Unit) -> Unit
+        onJsPrompt: (String, String, (String?) -> Unit) -> Unit,
+        onLoadErrorFun: (session: GeckoSession, uri: String?, error: WebRequestError) -> Unit,
     ) {
 
         if (killedSessionIds.contains(tab.id)) {
@@ -335,6 +337,21 @@ class GeckoManager(private val context: Context) {
 
             override fun onCanGoForward(session: GeckoSession, canGoForward: Boolean) {
                 onCanGoForwardFun(session, canGoForward)
+            }
+
+            override fun onLoadError(
+                session: GeckoSession,
+                uri: String?,
+                error: WebRequestError
+            ): GeckoResult<String>? {
+                Log.e("GeckoNav", "Load Error: $uri (${error.category})")
+
+                // 1. Notify the UI to show the error screen
+                onLoadErrorFun(session, uri, error)
+
+                // 2. Return "about:blank" to stop the engine from showing a partial page
+                // or return null to just stop.
+                return GeckoResult.fromValue("about:blank")
             }
         }
 
