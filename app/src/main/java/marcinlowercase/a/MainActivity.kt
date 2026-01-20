@@ -3458,7 +3458,7 @@ fun BrowserScreen(
                                                         .toPx(),
                                                     0
                                                 )
-                                                MotionEvent.obtain(
+                                                val upEvent = MotionEvent.obtain(
                                                     downTime,
                                                     downTime + 10,
                                                     MotionEvent.ACTION_UP,
@@ -3470,6 +3470,9 @@ fun BrowserScreen(
 
                                                 activeSession.panZoomController.onTouchEvent(
                                                     downEvent
+                                                )
+                                                activeSession.panZoomController.onTouchEvent(
+                                                    upEvent
                                                 )
 //                                                webView.dispatchTouchEvent(downEvent)
 //                                                webView.dispatchTouchEvent(upEvent)
@@ -3978,7 +3981,7 @@ fun CursorPad(
                                                 // SCROLL_METHOD_SMOOTH would add an animation (momentum), which feels laggy for a trackpad.
                                                 activeSession.panZoomController.scrollBy(
                                                     ScreenLength.fromPixels(0.0),
-                                                    ScreenLength.fromPixels(scrollAmountY),
+                                                    ScreenLength.fromPixels(scrollAmountY * 2),
                                                     PanZoomController.SCROLL_BEHAVIOR_SMOOTH,
                                                 )
 
