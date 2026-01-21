@@ -1437,6 +1437,7 @@ fun BrowserScreen(
 //                    val urlToLoad = webViewManager.getWebView(tabs[nextTabIndex]).url
 //                        ?: browserSettings.value.defaultUrl
 //                    webViewLoad(activeSession, urlToLoad, browserSettings.value)
+                    Log.e("textFieldStateChanged", "Close Tab")
                     if (!isFocusOnTextField) textFieldState.setTextAndPlaceCursorAtEnd(urlToLoad.toDomain())
                     saveTrigger++
                 } else {
@@ -1987,15 +1988,13 @@ fun BrowserScreen(
             session = activeSession,
             tab = activeTab.value,
             browserSettings = browserSettings,
-            onTitleChangeFun = { session, title ->
-                val tabIndex = tabs.indexOfFirst { it.id == activeTab.value.id }
-                if (tabIndex == -1) return@setupDelegates
+            onTitleChangeFun = { eventTabId,session, title ->
 
-                val oldTab = tabs[tabIndex]
-                if (oldTab.currentTitle != title) {
-                    // Create a new Tab instance and replace the old one
-                    tabs[tabIndex] = oldTab.copy(currentTitle = title)
-                    saveTrigger++
+                if(eventTabId == activeTab.value.id){
+                    if (activeTab.value.currentTitle != title) {
+                        activeTab.value = activeTab.value.copy(currentTitle = title)
+                        saveTrigger++
+                    }
                 }
 
 
@@ -2015,25 +2014,17 @@ fun BrowserScreen(
             onProgressChange = { int ->
                 isLoading = (int < 100)
             },
-            onLocationChangeFun = { session, url, perms, userGesture ->
-                if (url != null && session == activeSession) {
-                    if (!isFocusOnTextField) url.let {
-                        textFieldState.setTextAndPlaceCursorAtEnd(it.toDomain())
+            onLocationChangeFun = { eventTabId, session, url, perms, userGesture ->
+                if (eventTabId == activeTab.value.id && url != null && url != "about:blank") {
+                    if (!isFocusOnTextField) {
+                        textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
                     }
+
+                    // Update the Tab data (this is safe to do for active tab)
                     if (activeTab.value.currentURL != url) {
-//                        tabs[activeTabIndex.intValue] =
-//                            tabs[activeTabIndex.intValue].copy(currentURL = url)
-                        activeTab.value.currentURL = url
+                        activeTab.value = activeTab.value.copy(currentURL = url)
                     }
                 }
-
-
-                Log.e("onLocationChange", "session: $session")
-                Log.e("onLocationChange", "url: $url")
-                Log.e("onLocationChange", "perms: $perms")
-                Log.e("onLocationChange", "userGesture: $userGesture")
-
-
             },
             onNewSessionFun = { session, url ->
                 Log.i("onNewSession", "session: $session")
@@ -2041,17 +2032,13 @@ fun BrowserScreen(
 
                 createNewTab(activeTabIndex.intValue + 1, url)
             },
-            onHistoryStateChangeFun = { session, realtimeHistory ->
-                Log.i("onHistoryStateChange", "session: $session")
-                realtimeHistory.forEachIndexed { index, item ->
-                    Log.i("onHistoryStateChange", "index: $index")
-                    Log.i("onHistoryStateChange", "item: ${item.uri}")
-                }
+            onHistoryStateChangeFun = { eventTabId, session, realtimeHistory ->
+
                 val url = realtimeHistory[realtimeHistory.lastIndex].uri
 
-
                 // fe:  change  tab A -> B, the textbox changed to A.url
-                if (session == geckoManager.getSession(activeTab.value)) {
+//                if (session == activeSession) {
+                if (eventTabId == activeTab.value.id && !url.isNullOrBlank() && url != "about:blank") {
                     if (!isFocusOnTextField) textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
                     if (activeTab.value.currentURL != url) {
                         tabs[activeTabIndex.intValue] =
@@ -2115,10 +2102,10 @@ fun BrowserScreen(
 //                    permissionLauncher.launch(permissions.toList().toTypedArray())
                 }
             },
-            onPageStartedFun = { session, url ->
+            onPageStartFun = { eventTabId,session, url ->
                 pendingPermissionRequest.value?.let { request ->
                     // Check if the new URL's host is DIFFERENT from the origin of the permission request.
-                    val newHost = url?.toUri()?.host
+                    val newHost = url.toUri().host
                     val requestHost = request.origin.toUri().host
 
                     if (newHost != requestHost) {
@@ -2126,11 +2113,12 @@ fun BrowserScreen(
                         pendingPermissionRequest.value = null
                     }
                 }
-                if (session == activeSession) {
+                if (eventTabId == activeTab.value.id  && url != "about:blank") {
                     isLoading = true
                     if (activeTab.value.errorState != null) {
                         activeTab.value = activeTab.value.copy(errorState = null)
                     }
+
                     if (!isFocusOnTextField) textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
 
                 }
@@ -2235,6 +2223,8 @@ fun BrowserScreen(
                         initialLoadDone = true
 
                         stateToRestore[stateToRestore.currentIndex].uri.let { restoredUrl ->
+                            Log.e("textFieldStateChanged", "init")
+
                             textFieldState.setTextAndPlaceCursorAtEnd(restoredUrl.toDomain())
                         }
 
@@ -3274,6 +3264,8 @@ fun BrowserScreen(
                     onTabSelected = { newIndex ->
                         if (activeTabIndex.intValue != newIndex) {
 
+                            if (isLoading) isLoading = false
+
                             // save old tab state
 //                            val oldTab = tabs[activeTabIndex.intValue]
 //                            // We use the webViewManager's pool to find the correct WebView instance
@@ -3303,7 +3295,9 @@ fun BrowserScreen(
 //                            val urlToLoad = webViewManager.getWebView(tabs[newIndex]).url
 //                                ?: browserSettings.value.defaultUrl
 //                        activeWebView?.loadUrl(urlToLoad)
-                            Log.i("textFieldState", "onTabSelect : ${urlToLoad}")
+//                            Log.i("textFieldState", "onTabSelect : ${urlToLoad}")
+                            Log.e("textFieldStateChanged", "onTabSelect")
+
                             if (!isFocusOnTextField) textFieldState.setTextAndPlaceCursorAtEnd(urlToLoad.toDomain())
                             saveTrigger++
 

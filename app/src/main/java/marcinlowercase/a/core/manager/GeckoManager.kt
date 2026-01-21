@@ -245,12 +245,13 @@ class GeckoManager(private val context: Context) {
         tab: Tab,
         browserSettings: MutableState<BrowserSettings>,
         onFaviconChanged: (Long, String) -> Unit,
-        onTitleChangeFun: (GeckoSession, String) -> Unit,
+        onTitleChangeFun: (Long,GeckoSession, String) -> Unit,
         onNewSessionFun: (session: GeckoSession, uri: String) -> Unit,
         onProgressChange: (Int) -> Unit,
-        onLocationChangeFun: (session: GeckoSession, url: String?, perms: MutableList<GeckoSession.PermissionDelegate.ContentPermission>, userGesture: Boolean) -> Unit,
+        onLocationChangeFun: (eventTabId : Long, session: GeckoSession, url: String?, perms: MutableList<GeckoSession.PermissionDelegate.ContentPermission>, userGesture: Boolean) -> Unit,
 
         onHistoryStateChangeFun: (
+            eventTabId : Long,
             session: GeckoSession,
             realtimeHistory: GeckoSession.HistoryDelegate.HistoryList
         ) -> Unit,
@@ -265,7 +266,7 @@ class GeckoManager(private val context: Context) {
             permissions: Array<out String>?,
             callback: GeckoSession.PermissionDelegate.Callback
         ) -> Unit,
-        onPageStartedFun: (session: GeckoSession, url: String) -> Unit,
+        onPageStartFun: (eventTabId: Long, session: GeckoSession, url: String) -> Unit,
         onPageStopFun: (session: GeckoSession, success: Boolean) -> Unit,
         onContextMenuFun: (data: ContextMenuData) -> Unit,
         onDownloadRequested: (url: String, userAgent: String, contentDisposition: String?, mimeType: String?) -> Unit,
@@ -304,7 +305,7 @@ class GeckoManager(private val context: Context) {
                 perms: MutableList<GeckoSession.PermissionDelegate.ContentPermission>,
                 userGesture: Boolean
             ) {
-                onLocationChangeFun(session, url, perms, userGesture)
+                onLocationChangeFun(tab.id,session, url, perms, userGesture)
             }
 
             override fun onNewSession(
@@ -363,7 +364,7 @@ class GeckoManager(private val context: Context) {
                 Log.d("GeckoView", "Page Started: $url")
 
                 // Example: Show loading spinner, reset error states
-                onPageStartedFun(session, url)
+                onPageStartFun(tab.id,session, url)
             }
 
 
@@ -431,7 +432,7 @@ class GeckoManager(private val context: Context) {
 
             override fun onTitleChange(session: GeckoSession, title: String?) {
                 title?.let { title ->
-                    onTitleChangeFun(session, title)
+                    onTitleChangeFun(tab.id,session, title)
                 }
             }
 
@@ -535,7 +536,7 @@ class GeckoManager(private val context: Context) {
                 session: GeckoSession,
                 realtimeHistory: GeckoSession.HistoryDelegate.HistoryList
             ) {
-                onHistoryStateChangeFun(session, realtimeHistory)
+                onHistoryStateChangeFun(tab.id, session, realtimeHistory)
             }
         }
 
