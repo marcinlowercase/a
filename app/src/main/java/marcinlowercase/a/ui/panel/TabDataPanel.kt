@@ -371,6 +371,7 @@ fun TabDataPanel(
                                 ) {
                                     settings.permissionDecisions.forEach { (permission, isGranted) ->
                                         // Determine the correct icon and name for the button
+                                        Log.i("PermissionRelated", "permission: $permission")
                                         val (iconRes, name) = when (permission) {
                                             generic_location_permission -> R.drawable.ic_location_on to "location"
                                             Manifest.permission.CAMERA -> R.drawable.ic_camera_on to "camera"

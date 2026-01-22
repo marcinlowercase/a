@@ -29,8 +29,11 @@ class CustomPermissionDelegate(
         perm: GeckoSession.PermissionDelegate.ContentPermission
     ): GeckoResult<Int?>? {
 
+        val domain = tab.currentURL.toDomain()
+        val locationDecision  = siteSettings[domain]?.permissionDecisions?.get(generic_location_permission)
+
         // We only handle geolocation in this example.
-        if (perm.permission == GeckoSession.PermissionDelegate.PERMISSION_GEOLOCATION) {
+        if (perm.permission == GeckoSession.PermissionDelegate.PERMISSION_GEOLOCATION ) {
             Log.e("PermissionRelated", "onContentPermissionRequest: ${perm.permission}")
             return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW)
         }
@@ -218,7 +221,7 @@ class CustomPermissionDelegate(
                 "camera",
                 Manifest.permission.CAMERA
             ) { granted ->
-//                val videoSource = if (granted) video?.first() else null
+                val videoSource = if (granted) video?.first() else null
                 callback.grant(videoSource, null)
             }
             return
@@ -230,7 +233,7 @@ class CustomPermissionDelegate(
             }
 
             askForSinglePermission(uri, "microphone", Manifest.permission.RECORD_AUDIO) { granted ->
-//                val audioSource = if (granted) audio?.first() else null
+                val audioSource = if (granted) audio?.first() else null
                 callback.grant(null, audioSource)
             }
             return

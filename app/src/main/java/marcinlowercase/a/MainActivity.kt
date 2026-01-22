@@ -783,6 +783,8 @@ fun BrowserScreen(
         // Proceed with saving the consolidated map
         val newSettings = currentSettings.copy(permissionDecisions = updatedDecisions)
         siteSettings[domain] = newSettings // Trigger state update
+        Log.d("PermissionRelated", "finalize $newSettings")
+
         siteSettingsManager.saveSettings(siteSettings)
     }
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -807,6 +809,9 @@ fun BrowserScreen(
                 pendingPermissionRequest.value?.let { request ->
                     Log.d("PermissionRelated", "click allow on android popup")
                     siteSettingsManager.getDomain(request.origin)?.let { domain ->
+
+                        Log.d("PermissionRelated", "$permissions")
+
 
                         savePermissionDecision(domain, permissions)
                     }
@@ -2130,6 +2135,9 @@ fun BrowserScreen(
             },
             onPageStopFun = {session, url ->
                 isLoading = false
+
+                Log.w("PermissionRelated", "${siteSettings[activeTab.value.currentURL.toDomain()]?.permissionDecisions
+                }")
             },
             onFaviconChanged = { tabId, faviconUrl ->
                     // Find the index of the tab that fired this event.
