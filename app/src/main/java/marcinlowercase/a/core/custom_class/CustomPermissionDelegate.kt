@@ -5,54 +5,33 @@ import android.content.pm.PackageManager
 import android.util.Log
 import androidx.core.content.ContextCompat
 import marcinlowercase.a.R
+import marcinlowercase.a.core.constant.generic_location_permission
 import marcinlowercase.a.core.data_class.CustomPermissionRequest
+import marcinlowercase.a.core.data_class.SiteSettings
+import marcinlowercase.a.core.data_class.Tab
+import marcinlowercase.a.core.function.toDomain
+import marcinlowercase.a.core.manager.SiteSettingsManager
 import org.mozilla.geckoview.GeckoResult
 import org.mozilla.geckoview.GeckoSession
+import kotlin.collections.get
 
 class CustomPermissionDelegate(
     // The callback to trigger the UI update in the Composable remains the same
     val context: android.content.Context,
+    val tab: Tab,
     private val onShowRequest: (CustomPermissionRequest) -> Unit,
-    private val onShowAndroidRequest: (
-        permissions: Array<out String>?,
-        callback: GeckoSession.PermissionDelegate.Callback
-    ) -> Unit,
+    private val siteSettingsManager: SiteSettingsManager,
+    private val siteSettings: Map<String, SiteSettings>,
 ) : GeckoSession.PermissionDelegate {
-
-    companion object {
-        const val ANDROID_PERMISSION_REQUEST_CODE: Int = 11111
-    }
-
-    private var mCallback: GeckoSession.PermissionDelegate.Callback? = null
-
-    fun onAndroidRequestPermissionsResult(
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        val cb = mCallback ?: return
-        mCallback = null
-
-        // Check if every permission in the list was granted
-        val allGranted = grantResults.all { it == PackageManager.PERMISSION_GRANTED }
-
-        if (allGranted) {
-            // Tell Gecko: "The OS gave us permission, proceed!"
-            cb.grant()
-        } else {
-            // Tell Gecko: "The OS denied permission, cancel the request."
-            cb.reject()
-        }
-    }
 
     override fun onContentPermissionRequest(
         session: GeckoSession,
         perm: GeckoSession.PermissionDelegate.ContentPermission
     ): GeckoResult<Int?>? {
 
-
         // We only handle geolocation in this example.
         if (perm.permission == GeckoSession.PermissionDelegate.PERMISSION_GEOLOCATION) {
-            Log.e("PermissionRelated", "onContentPermissionRequest: $perm")
+            Log.e("PermissionRelated", "onContentPermissionRequest: ${perm.permission}")
             return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW)
         }
         return super.onContentPermissionRequest(session, perm)
@@ -78,10 +57,16 @@ class CustomPermissionDelegate(
         }
 
 
+        var decision: Boolean? = false
+        val domain = tab.currentURL.toDomain()
         if (permissions.contains("android.permission.ACCESS_FINE_LOCATION") || permissions.contains(
                 "android.permission.ACCESS_COARSE_LOCATION"
             )
         ) {
+//            checkSavedSiteSettings("android.permission.CAMERA")
+            decision = siteSettings[domain]?.permissionDecisions?.get(generic_location_permission)
+
+
             // Show the UI that will eventually trigger the system permission launcher
             requestTitle = "Location Request"
             requestRationale = "This site wants to use your device's location."
@@ -91,13 +76,17 @@ class CustomPermissionDelegate(
 
         if (permissions.contains("android.permission.CAMERA")) {
             // Show the UI that will eventually trigger the system permission launcher
-            requestTitle = "Camera Request"
+            decision = siteSettings[domain]?.permissionDecisions?.get(Manifest.permission.CAMERA)
+
             requestRationale = "This site wants to use your device's camera."
             requestAllowIcon = R.drawable.ic_camera_on
             requestDenyIcon = R.drawable.ic_camera_off
 
         }
         if (permissions.contains("android.permission.RECORD_AUDIO")) {
+
+            decision = siteSettings[domain]?.permissionDecisions?.get(Manifest.permission.RECORD_AUDIO)
+
             // Show the UI that will eventually trigger the system permission launcher
             requestTitle = "Microphone Request"
             requestRationale = "This site wants to use your device's microphone."
@@ -106,8 +95,12 @@ class CustomPermissionDelegate(
         }
 
 
+        if (decision == true) {
+            callback.grant()
+            return
+        }
         val customRequest = CustomPermissionRequest(
-            origin = "",
+            origin = tab.currentURL,
             title = requestTitle,
             rationale = requestRationale,
             iconResAllow = requestAllowIcon, // Make sure you have these drawables
@@ -118,6 +111,7 @@ class CustomPermissionDelegate(
                 if (permissionsMap.any { it.value }) {
                     // Tell GeckoView the app permission was granted.
                     callback.grant()
+
                 } else {
                     // Tell GeckoView the app permission was denied.
                     callback.reject()
@@ -144,6 +138,10 @@ class CustomPermissionDelegate(
         callback: GeckoSession.PermissionDelegate.MediaCallback
     ) {
 
+        var videoSource : GeckoSession.PermissionDelegate.MediaSource? = null
+        var audioSource : GeckoSession.PermissionDelegate.MediaSource? = null
+
+
         val context = context
         val hasAudio = if (audio != null) {
             ContextCompat.checkSelfPermission(
@@ -164,10 +162,39 @@ class CustomPermissionDelegate(
             callback.reject()
             return
         }
+        val domain = uri.toDomain()
+
+        val videoDecision = siteSettings[domain]?.permissionDecisions?.get(Manifest.permission.CAMERA)
+        val audioDecision = siteSettings[domain]?.permissionDecisions?.get(Manifest.permission.RECORD_AUDIO)
 
 
-        val isRequestingVideo = !video.isNullOrEmpty()
-        val isRequestingAudio = !audio.isNullOrEmpty()
+
+
+        var isRequestingVideo = !video.isNullOrEmpty()
+        var isRequestingAudio = !audio.isNullOrEmpty()
+
+//        if ( isRequestingVideo && isRequestingAudio && videoDecision == true && audioDecision == true) {
+//            callback.grant(video?.first(), audio?.first())
+//            Log.i("PermissionRelated", "both grant")
+//
+//            return
+//        }
+
+        if (videoDecision == true && isRequestingVideo) {
+
+//            callback.grant(video?.first(), audio?.first())
+            videoSource = video?.first()
+            Log.i("PermissionRelated", "videoDecision grant")
+//            isRequestingVideo = false
+
+        }
+        if (isRequestingAudio && audioDecision == true) {
+//            callback.grant( null, audio?.first())
+            audioSource = audio?.first()
+            Log.i("PermissionRelated", "audioDecision grant")
+//            isRequestingAudio = false
+
+        }
         Log.i("PermissionRelated", "isRequestingVideo $isRequestingVideo")
         Log.i("PermissionRelated", "isRequestingAudio $isRequestingAudio")
 
@@ -176,21 +203,34 @@ class CustomPermissionDelegate(
             return
         }
 
+
         // SCENARIO 1 & 2: Only one permission is requested (simple case)
         if (isRequestingVideo && !isRequestingAudio) {
+
+
+            if (videoDecision == true) {
+                callback.grant(videoSource, null)
+                return
+            }
+
             askForSinglePermission(
                 uri,
                 "camera",
                 Manifest.permission.CAMERA
             ) { granted ->
-                val videoSource = if (granted) video?.first() else null
+//                val videoSource = if (granted) video?.first() else null
                 callback.grant(videoSource, null)
             }
             return
         }
         if (!isRequestingVideo && isRequestingAudio) {
+            if (audioDecision == true) {
+                callback.grant(null, audioSource)
+                return
+            }
+
             askForSinglePermission(uri, "microphone", Manifest.permission.RECORD_AUDIO) { granted ->
-                val audioSource = if (granted) audio?.first() else null
+//                val audioSource = if (granted) audio?.first() else null
                 callback.grant(null, audioSource)
             }
             return
@@ -199,6 +239,11 @@ class CustomPermissionDelegate(
         // SCENARIO 3: Both are requested (orchestrated case)
         if (isRequestingVideo && isRequestingAudio) {
             // Store the state needed for the multi-step flow
+
+            if (videoDecision == true && audioDecision == true) {
+                callback.grant(videoSource, audioSource)
+                return
+            }
             pendingMediaCallback = callback
             originalVideoSources = video
             originalAudioSources = audio
@@ -207,7 +252,7 @@ class CustomPermissionDelegate(
             Log.i("PermissionRelated", "onMediaPermissionRequest: BOTH")
 
             // Start the flow by asking for the camera first
-            askForCameraThenMicrophone(uri)
+            askForCameraThenMicrophone(uri, videoDecision, audioDecision)
         }
     }
 
@@ -239,7 +284,14 @@ class CustomPermissionDelegate(
         onShowRequest(customRequest)
     }
 
-    private fun askForCameraThenMicrophone(uri: String) {
+    private fun askForCameraThenMicrophone(uri: String, videoDecision: Boolean?, audioDecision: Boolean?) {
+
+        if (videoDecision == true ){
+            this.cameraPermissionGranted = true
+            askForMicrophone(uri, audioDecision)
+            return
+
+        }
         val cameraRequest = CustomPermissionRequest(
             origin = uri,
             title = "Camera Access",
@@ -253,14 +305,36 @@ class CustomPermissionDelegate(
 
                 // Step 2: Now ask for the microphone
                 Log.i("PermissionRelated", "invoke camera, then microphone")
-                askForMicrophone(uri)
+                askForMicrophone(uri, audioDecision)
             },
             isSystemRequest = false,
         )
+
         onShowRequest(cameraRequest)
     }
 
-    private fun askForMicrophone(uri: String) {
+    private fun askForMicrophone(uri: String, audioDecision: Boolean?) {
+        if (audioDecision == true) {
+            val microphonePermissionGranted = true
+
+            // FINAL STEP: Combine results and call the original callback
+            val videoSource =
+                if (cameraPermissionGranted) originalVideoSources?.first() else null
+            val audioSource =
+                if (microphonePermissionGranted) originalAudioSources?.first() else null
+
+            if (videoSource != null || audioSource != null) {
+                pendingMediaCallback?.grant(videoSource, audioSource)
+            } else {
+                pendingMediaCallback?.reject()
+            }
+
+            // Clean up state to prevent memory leaks
+            pendingMediaCallback = null
+            originalVideoSources = null
+            originalAudioSources = null
+            return
+        }
         val microphoneRequest = CustomPermissionRequest(
             origin = uri,
             title = "Microphone Access",

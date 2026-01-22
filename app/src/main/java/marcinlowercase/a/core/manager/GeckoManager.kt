@@ -1,5 +1,6 @@
 package marcinlowercase.a.core.manager
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Parcel
 import android.util.Base64
@@ -12,6 +13,7 @@ import marcinlowercase.a.core.custom_class.CustomPermissionDelegate
 import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.ContextMenuData
 import marcinlowercase.a.core.data_class.CustomPermissionRequest
+import marcinlowercase.a.core.data_class.SiteSettings
 import marcinlowercase.a.core.data_class.Tab
 import marcinlowercase.a.core.enum_class.ContextMenuType
 import org.json.JSONObject
@@ -258,6 +260,8 @@ class GeckoManager(private val context: Context) {
     fun setupDelegates(
         session: GeckoSession,
         tab: Tab,
+        siteSettingsManager: SiteSettingsManager,
+        siteSettings: Map<String, SiteSettings>,
         browserSettings: MutableState<BrowserSettings>,
         onFaviconChanged: (Long, String) -> Unit,
         onTitleChangeFun: (Long,GeckoSession, String) -> Unit,
@@ -334,6 +338,7 @@ class GeckoManager(private val context: Context) {
 
         // 2. ROBUST ATTACHMENT LOGIC
         // We wrap this in a lambda so we can call it recursively/asynchronously if needed
+        @SuppressLint("WrongThread")
         fun ensureDelegateAttached() {
             if (faviconExtension != null) {
                 // Best Case: Extension already loaded
@@ -607,7 +612,9 @@ class GeckoManager(private val context: Context) {
             onShowRequest = { request ->
                 setPermissionDelegate(request)
             },
-            onShowAndroidRequest = onShowAndroidRequest
+            tab = tab,
+            siteSettings = siteSettings,
+            siteSettingsManager = siteSettingsManager,
         )
 
         session.promptDelegate = object : GeckoSession.PromptDelegate {

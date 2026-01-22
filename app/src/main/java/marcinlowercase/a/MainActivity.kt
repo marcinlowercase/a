@@ -760,7 +760,7 @@ fun BrowserScreen(
         // First, add all results from the system dialog
         updatedDecisions.putAll(permissions)
 
-        Log.e("anPer", "savePermissionDecision $updatedDecisions")
+        Log.e("PermissionRelated", "savePermissionDecision $updatedDecisions")
 
         // Now, check if any location permission was part of the request
         if (updatedDecisions.containsKey(Manifest.permission.ACCESS_FINE_LOCATION) ||
@@ -776,7 +776,7 @@ fun BrowserScreen(
 
             // Add our single, generic permission entry
             updatedDecisions[generic_location_permission] = isGranted
-            Log.e("anPer", "grant location permission $isGranted")
+            Log.e("PermissionRelated", "grant location permission $isGranted")
 
         }
 
@@ -792,8 +792,8 @@ fun BrowserScreen(
             /// on ALLOW
             // When the system dialog returns a result, trigger the onResult
 
-//            Log.e("anPer", "click allow on android popup")
-//            Log.e("anPer", "${permissions.toString()}")
+//            Log.e("PermissionRelated", "click allow on android popup")
+//            Log.e("PermissionRelated", "${permissions.toString()}")
 
             if (permissions.contains(Manifest.permission.CAMERA) || permissions.contains(Manifest.permission.RECORD_AUDIO)) {
 //                pendingPermissionRequest.value = pendingMediaPermissionRequest
@@ -805,7 +805,9 @@ fun BrowserScreen(
 
             } else {
                 pendingPermissionRequest.value?.let { request ->
+                    Log.d("PermissionRelated", "click allow on android popup")
                     siteSettingsManager.getDomain(request.origin)?.let { domain ->
+
                         savePermissionDecision(domain, permissions)
                     }
                 }
@@ -2067,8 +2069,8 @@ fun BrowserScreen(
                         Manifest.permission.RECORD_AUDIO
                     )
                 ) {
-                    Log.w("anPer", "MEDIA REUQEST")
-                    Log.w("anPer", "${request.isSystemRequest}")
+                    Log.w("PermissionRelated", "MEDIA REUQEST")
+                    Log.w("PermissionRelated", "${request.isSystemRequest}")
                     // this is the problem
                     if (request.isSystemRequest) {
                         pendingMediaPermissionRequest.value = request
@@ -2089,8 +2091,8 @@ fun BrowserScreen(
 //                            pendingPermissionRequest.value = request
 //                        }
                     } else {
-                        Log.d("anPer", "not system request")
-                        Log.d("anPer", "request for ${request.permissionsToRequest}")
+                        Log.d("PermissionRelated", "not system request")
+                        Log.d("PermissionRelated", "request for ${request.permissionsToRequest}")
                         pendingPermissionRequest.value = request
                     }
 
@@ -2100,7 +2102,7 @@ fun BrowserScreen(
             },
             onShowAndroidRequest = { permissions, callback ->
                 if (permissions != null) {
-                    Log.i("anPer", "onShowAndroidRequest")
+                    Log.i("PermissionRelated", "onShowAndroidRequest")
 //                    permissionLauncher.launch(permissions.toList().toTypedArray())
                 }
             },
@@ -2192,7 +2194,9 @@ fun BrowserScreen(
                     // Update the Tab object
                     activeTab.value = activeTab.value.copy(errorState = newError)
                 }
-            }
+            },
+            siteSettings = siteSettings,
+            siteSettingsManager = siteSettingsManager,
 
         )
 
