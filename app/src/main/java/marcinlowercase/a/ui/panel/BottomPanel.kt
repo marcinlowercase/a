@@ -117,7 +117,6 @@ import kotlin.math.abs
 @SuppressLint("FrequentlyChangingValue")
 @Composable
 fun BottomPanel(
-    openUBlockDashboard: () -> Unit,
 
     geckoViewRef : MutableState<GeckoView?>,
     activeTab: MutableState<Tab>,
@@ -1200,7 +1199,6 @@ fun BottomPanel(
                         isPinningApp.value = true
                         urlBarFocusRequester.requestFocus()
                     },
-                    openUBlockDashboard = openUBlockDashboard,
                 )
 //                Box(
 //                    modifier = Modifier

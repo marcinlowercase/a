@@ -2134,6 +2134,7 @@ fun BrowserScreen(
 
                     val targetTab = tabs[tabIndex]
 
+                Log.i("FAVEICON", "faviconUrl: $faviconUrl")
 
                     // Check if an update is even needed to prevent unnecessary recompositions.
                     if (faviconUrl.isNotBlank()) {
@@ -3014,8 +3015,6 @@ fun BrowserScreen(
                                         // 4. THE SWITCH: Just swap the session!
                                         // When 'activeSession' changes, this block runs automatically.
                                         // GeckoView handles detaching the old one and attaching the new one.
-                                        Log.i("updateGecko", "updateGecko to neww session")
-                                        Log.i("updateGecko", "activeIndex ${activeTabIndex.value}")
                                         geckoView.setSession(activeSession)
                                         geckoViewRef.value = geckoView
                                     }
@@ -3348,11 +3347,7 @@ fun BrowserScreen(
                     setIsFocusOnTextField = { isFocusOnTextField = it },
                     handleHistoryNavigation = handleHistoryNavigation,
                     isFindInPageVisible = isFindInPageVisible,
-                    openUBlockDashboard = {
-                        val url = geckoManager.uBlockDashboardUrl
-                        if (url != null) webViewLoad(geckoManager.getSession(activeTab.value), url, browserSettings.value)
 
-                    },
                 )
                 CursorPad(
                     urlBarFocusRequester = urlBarFocusRequester,

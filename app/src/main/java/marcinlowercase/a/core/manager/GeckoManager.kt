@@ -28,8 +28,10 @@ import java.io.File
 import java.io.FileOutputStream
 
 const val UBLOCK_ID = "uBlock0@raymondhill.net"
+const val UBLOCK_NAME = "ublock_origin"
+private val FAVICON_ID = "favicon@marcinlowercase" // Must match manifest.json
+private var faviconExtension: WebExtension? = null
 class GeckoManager(private val context: Context) {
-    var uBlockDashboardUrl: String? = null
 
     val runtime: GeckoRuntime by lazy {
         GeckoRuntime.getDefault(context)
@@ -45,9 +47,28 @@ class GeckoManager(private val context: Context) {
     init {
         runtime.settings.consoleOutputEnabled
         setupExtensionPrompts()
-        setupUBlock()
+        setupExtension(UBLOCK_NAME, UBLOCK_ID)
+        installFaviconFetcher()
+
+
+
+
     }
 
+    private fun installFaviconFetcher() {
+        val uri = "resource://android/assets/extensions/favicon_fetcher/"
+
+        runtime.webExtensionController
+            .ensureBuiltIn(uri, FAVICON_ID)
+            .accept(
+                { ext ->
+                    Log.i("GeckoExt", "Favicon Fetcher Installed")
+                    // SAVE THE REFERENCE
+                    faviconExtension = ext
+                },
+                { e -> Log.e("GeckoExt", "Favicon Fetcher Failed", e) }
+            )
+    }
     private fun setupExtensionPrompts() {
         runtime.webExtensionController.setPromptDelegate(object : WebExtensionController.PromptDelegate {
 
@@ -90,13 +111,13 @@ class GeckoManager(private val context: Context) {
         })
 
     }
-    private fun setupUBlock() {
-        val extensionName = "ublock_origin.xpi"
+    private fun setupExtension(extName: String, extId: String) {
+        val extensionName = "$extName.xpi"
         val extensionFile = File(context.filesDir, extensionName)
 
         // 1. COPY FILE (Force overwrite to ensure clean state)
         try {
-            context.assets.open("extensions/$extensionName").use { inputStream ->
+            context.assets.open("extensions/$extName/$extensionName").use { inputStream ->
                 FileOutputStream(extensionFile).use { outputStream ->
                     inputStream.copyTo(outputStream)
                 }
@@ -116,7 +137,7 @@ class GeckoManager(private val context: Context) {
         runtime.webExtensionController.list()
             .accept(
                 { extensions ->
-                    val existing = extensions?.find { it.id == UBLOCK_ID }
+                    val existing = extensions?.find { it.id == extId }
                     if (existing != null) {
                         Log.i("GeckoExt", "uBlock already installed.")
                         configureExtension(existing)
@@ -153,13 +174,7 @@ class GeckoManager(private val context: Context) {
     private fun configureExtension(extension: WebExtension) {
         // 4. ENABLE (Critical)
         runtime.webExtensionController.enable(extension, WebExtensionController.EnableSource.APP)
-
-
-        // 5. DASHBOARD
-        // For XPI installs, the dashboard URL is standard:
-        val b = extension.metaData.optionsPageUrl
-        uBlockDashboardUrl = "${extension.metaData.optionsPageUrl}dashboard.html"
-        Log.i("GeckoExt", "Dashboard: $uBlockDashboardUrl")
+        
     }
 
     fun getSession(tab: Tab): GeckoSession {
@@ -297,6 +312,63 @@ class GeckoManager(private val context: Context) {
             killedSessionIds.remove(tab.id)
         }
 
+        // 1. Define the Message Delegate Logic (Keep this as is)
+        val messageDelegate = object : WebExtension.MessageDelegate {
+            override fun onMessage(
+                nativeApp: String,
+                message: Any,
+                sender: WebExtension.MessageSender
+            ): GeckoResult<Any>? {
+                if (nativeApp == "browser" && message is JSONObject) {
+                    val type = message.optString("type")
+                    if (type == "favicon") {
+                        val iconUrl = message.optString("url")
+                        if (iconUrl.isNotEmpty()) {
+                            onFaviconChanged(tab.id, iconUrl)
+                        }
+                    }
+                }
+                return null
+            }
+        }
+
+        // 2. ROBUST ATTACHMENT LOGIC
+        // We wrap this in a lambda so we can call it recursively/asynchronously if needed
+        fun ensureDelegateAttached() {
+            if (faviconExtension != null) {
+                // Best Case: Extension already loaded
+                session.webExtensionController.setMessageDelegate(
+                    faviconExtension!!,
+                    messageDelegate,
+                    "browser"
+                )
+            } else {
+                // Race Condition: Extension installing. Fetch list.
+                runtime.webExtensionController.list().accept { extensions ->
+                    val ext = extensions?.find { it.id == FAVICON_ID }
+
+                    if (ext != null) {
+                        // Found it! Save for later tabs
+                        faviconExtension = ext
+                        // Attach to THIS session
+                        session.webExtensionController.setMessageDelegate(
+                            ext,
+                            messageDelegate,
+                            "browser"
+                        )
+                    } else {
+                        // Still not installed??
+                        // This shouldn't happen if installFaviconFetcher() was called in init.
+                        // But we can verify installation here if needed.
+                        Log.e("GeckoFavicon", "Extension not found in list!")
+                    }
+                }
+            }
+        }
+
+        // 3. Call it immediately
+        ensureDelegateAttached()
+
         // 1. Navigation Delegate (Url changes, History)
         session.navigationDelegate = object : GeckoSession.NavigationDelegate {
             override fun onLocationChange(
@@ -372,17 +444,6 @@ class GeckoManager(private val context: Context) {
             override fun onPageStop(session: GeckoSession, success: Boolean) {
                 onPageStopFun(session, success)
                 Log.d("GeckoView", "Page Finished. Success: $success")
-                // Hide loading spinner
-                val FAVICON_SCRAPER_JS = """
-    javascript:(function() {
-        var link = document.querySelector("link[rel*='icon']") || document.querySelector("link[rel='shortcut icon']");
-        if (link && link.href) {
-            // Send the result back to Kotlin via a specific prefix
-            prompt("GECKO_FAVICON:" + link.href);
-        }
-    })();
-"""
-                session.loadUri(FAVICON_SCRAPER_JS)
 
             }
 
@@ -604,13 +665,6 @@ class GeckoManager(private val context: Context) {
 
                 val message = prompt.message ?: ""
                 val defaultValue = prompt.defaultValue ?: ""
-
-                // SPECIAL CASE: Favicon Scraper (Your existing logic)
-                if (message.startsWith("GECKO_FAVICON:")) {
-                    val iconUrl = message.substring("GECKO_FAVICON:".length)
-                    onFaviconChanged(tab.id, iconUrl)
-                    return GeckoResult.fromValue(prompt.confirm(iconUrl))
-                }
 
                 // NORMAL CASE: Real website prompt
                 val result = GeckoResult<GeckoSession.PromptDelegate.PromptResponse>()

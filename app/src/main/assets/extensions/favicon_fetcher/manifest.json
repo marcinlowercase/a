@@ -1,0 +1,25 @@
+{
+  "manifest_version": 2,
+  "name": "Favicon Fetcher",
+  "version": "1.0",
+  "description": "Extracts favicon for the browser",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "favicon@marcinlowercase",
+      "strict_min_version": "57.0"
+    }
+  },
+  "permissions": [
+    "<all_urls>",
+    "nativeMessaging",
+    "nativeMessagingFromContent",
+    "geckoViewAddons"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
