@@ -109,6 +109,7 @@ fun HistoryRow(
             contentAlignment = Alignment.Center
         ) {
             val imageRequest = ImageRequest.Builder(LocalContext.current)
+                .addHeader("User-Agent", "Mozilla/5.0 (Android 14; Mobile; rv:130.0) Gecko/130.0 Firefox/130.0")
                 // Use the item's saved faviconUrl, or fall back to the Google service
                 .data(getFaviconUrlFromGoogleServer(item.url))
                 .crossfade(true)

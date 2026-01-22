@@ -151,6 +151,7 @@ fun TabItem(
 
                     // 1. Build the same robust ImageRequest as before.
                     val imageRequest = ImageRequest.Builder(LocalContext.current)
+                        .addHeader("User-Agent", "Mozilla/5.0 (Android 14; Mobile; rv:130.0) Gecko/130.0 Firefox/130.0")
                         .data(faviconUrl)
                         .size(imageSizePx) // Explicitly set size
                         .crossfade(true)
