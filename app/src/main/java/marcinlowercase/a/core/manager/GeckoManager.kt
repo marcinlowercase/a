@@ -683,6 +683,14 @@ class GeckoManager(private val context: Context) {
         }
 
     }
+    private fun getPermissionKey(permission: Int): String? {
+        return when (permission) {
+            GeckoSession.PermissionDelegate.PERMISSION_GEOLOCATION -> "android.permission.ACCESS_FINE_LOCATION" // or generic_location_permission
+            // Add others
+            else -> null
+        }
+    }
 }
+
 
 

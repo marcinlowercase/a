@@ -20,8 +20,8 @@ data class Tab(
 
 ) {
     companion object {
-        fun createEmpty(): Tab {
-            return Tab()
+        fun createEmpty(id: Long = System.currentTimeMillis()): Tab {
+            return Tab(id)
         }
     }
 }

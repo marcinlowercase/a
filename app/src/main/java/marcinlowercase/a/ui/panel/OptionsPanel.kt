@@ -117,15 +117,15 @@ fun OptionsPanel(
                     reopenClosedTab()
                     setIsOptionsPanelVisible(false) // Close the panel after action
                 },
-                OptionItem(
-                    R.drawable.ic_mouse_cursor, // You'll need a download icon
-                    "cursor pad",
-                    isCursorPadVisible,
-                ) {
-
-                    setIsCursorMode(!isCursorMode)
-                    setIsOptionsPanelVisible(false)
-                },
+//                OptionItem(
+//                    R.drawable.ic_mouse_cursor, // You'll need a download icon
+//                    "cursor pad",
+//                    isCursorPadVisible,
+//                ) {
+//
+//                    setIsCursorMode(!isCursorMode)
+//                    setIsOptionsPanelVisible(false)
+//                },
                 OptionItem(
                     R.drawable.ic_find_in_page, // You'll need an icon
                     "find in page",

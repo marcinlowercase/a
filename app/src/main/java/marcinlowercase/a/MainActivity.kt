@@ -836,11 +836,13 @@ fun BrowserScreen(
 
     val currentInspectingTab by remember {
         derivedStateOf {
-            // This will re-run whenever inspectingTabId or the tabs list changes.
             inspectingTabId?.let { id ->
                 tabs.find { it.id == id }
             }
         }
+    }
+    LaunchedEffect(currentInspectingTab) {
+        Log.e("TabDataPanel", "currentInspectingTab ${currentInspectingTab?.currentURL}")
     }
     var confirmationState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
     var confirmationDisplayState by remember { mutableStateOf<ConfirmationDialogState?>(null) } // Add this line
@@ -3084,6 +3086,7 @@ fun BrowserScreen(
                     }
                 }
                 BottomPanel(
+                    geckoManager = geckoManager,
                     geckoViewRef = geckoViewRef,
                     activeTab = activeTab,
                     isSettingCornerRadius = isSettingCornerRadius,

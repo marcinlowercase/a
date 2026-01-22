@@ -213,9 +213,12 @@ fun TabsPanel(
 
 
     LaunchedEffect(pagerState.currentPage) {
-        if (pagerState.currentPage in 1..tabs.size) updateInspectingTab(tabs[pagerState.currentPage - 1])
+        if (pagerState.currentPage in 1..tabs.size)
+            updateInspectingTab(tabs[pagerState.currentPage - 1])
+//            inspectingTab.value = tabs[pagerState.currentPage - 1]
         else {
-            updateInspectingTab(Tab.createEmpty())
+            updateInspectingTab(Tab.createEmpty(0L))
+//            inspectingTab.value = null
         }
     }
 

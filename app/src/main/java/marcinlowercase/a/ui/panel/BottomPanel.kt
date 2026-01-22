@@ -105,6 +105,7 @@ import marcinlowercase.a.core.function.consumeChangePointerInput
 import marcinlowercase.a.core.function.toDomain
 import marcinlowercase.a.core.function.webViewLoad
 import marcinlowercase.a.core.manager.AppManager
+import marcinlowercase.a.core.manager.GeckoManager
 import marcinlowercase.a.core.manager.WebViewManager
 import org.mozilla.geckoview.GeckoResult
 import org.mozilla.geckoview.GeckoSession
@@ -118,6 +119,7 @@ import kotlin.math.abs
 @Composable
 fun BottomPanel(
 
+    geckoManager: GeckoManager,
     geckoViewRef : MutableState<GeckoView?>,
     activeTab: MutableState<Tab>,
     isSettingCornerRadius: MutableState<Boolean>,
@@ -430,6 +432,7 @@ fun BottomPanel(
 
             )
             TabDataPanel(
+                geckoManager = geckoManager,
                 descriptionContent = descriptionContent,
 //                onAddToHomeScreen = onAddToHomeScreen,
                 isTabDataPanelVisible = isTabDataPanelVisible,
@@ -440,8 +443,8 @@ fun BottomPanel(
                 onPermissionToggle = handlePermissionToggle,
                 onClearSiteData = handleClearInspectedTabData,
                 onCloseTab = handleCloseInspectedTab,
-                onHistoryItemClicked = handleHistoryNavigation,
-                webViewManager = webViewManager,
+//                onHistoryItemClicked = handleHistoryNavigation,
+//                webViewManager = webViewManager,
             )
             TabsPanel(
 
