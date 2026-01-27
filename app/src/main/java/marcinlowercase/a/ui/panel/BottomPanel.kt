@@ -118,7 +118,6 @@ import kotlin.math.abs
 @SuppressLint("FrequentlyChangingValue")
 @Composable
 fun BottomPanel(
-
     geckoManager: GeckoManager,
     geckoViewRef : MutableState<GeckoView?>,
     activeTab: MutableState<Tab>,

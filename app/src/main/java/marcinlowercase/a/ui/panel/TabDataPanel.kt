@@ -25,8 +25,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -57,7 +55,6 @@ import marcinlowercase.a.core.enum_class.TabState
 import marcinlowercase.a.core.function.getFaviconUrlFromGoogleServer
 import marcinlowercase.a.core.function.toDomain
 import marcinlowercase.a.core.manager.GeckoManager
-import marcinlowercase.a.core.manager.SiteSettingsManager
 //import marcinlowercase.a.core.manager.WebViewManager
 import marcinlowercase.a.ui.component.CustomIconButton
 import kotlin.collections.component1
@@ -215,8 +212,6 @@ fun TabDataPanel(
             ) {
                 Log.d("TabDataPanel", "inspectingTab.value: ${inspectingTab?.currentURL}")
 
-                val tab = inspectingTab
-
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -227,6 +222,8 @@ fun TabDataPanel(
                         )
                 ) {
 
+//                    val siteSettings = currentSiteSettings
+//                    siteSettings?.domain
 //                    val domain =
 //                        SiteSettingsManager(LocalContext.current).getDomain(
 //                            webViewManager.getWebView(
@@ -235,6 +232,9 @@ fun TabDataPanel(
 //                        )
                     val domain = inspectingTab?.currentURL?.toDomain()
                     val settings = siteSettings[domain]
+                    Log.i("TabDataPanel", "domain $domain")
+                    Log.i("TabDataPanel", "settings $settings")
+
 
 //                    val history = webViewManager.getWebView(tab).copyBackForwardList()
 
@@ -356,8 +356,8 @@ fun TabDataPanel(
 //                                SiteSettingsManager(LocalContext.current).getDomain(
 //                                    webViewManager.getWebView(tab).url ?: browserSettings.value.defaultUrl
 //                                )
-                            val domain = tab?.currentURL?.toDomain()
-                            val settings = if (domain != null) siteSettings[domain] else null
+                            val domain = inspectingTab?.currentURL?.toDomain()
+                            val settings = siteSettings[domain]
 
                             // Check if there are any permissions to display
                             if (settings != null && settings.permissionDecisions.isNotEmpty()) {
@@ -435,7 +435,7 @@ fun TabDataPanel(
                     )
 
 
-                    if (tab?.state != TabState.FROZEN) {
+                    if (inspectingTab?.state != TabState.FROZEN) {
                         CustomIconButton(
                             layer = 3,
                             browserSettings = browserSettings,

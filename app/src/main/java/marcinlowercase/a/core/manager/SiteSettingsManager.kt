@@ -1,6 +1,7 @@
 package marcinlowercase.a.core.manager
 
 import android.content.Context
+import android.util.Log
 import androidx.core.content.edit
 import androidx.core.net.toUri
 import kotlinx.serialization.json.Json
@@ -14,7 +15,9 @@ class SiteSettingsManager(context: Context) {
     // We store all settings as a single Map<Domain, SiteSettings> serialized to JSON
     fun saveSettings(settings: Map<String, SiteSettings>) {
         val jsonString = json.encodeToString(settings)
+        Log.i("SiteSettingsManager", "Saving settings: $jsonString")
         prefs.edit { putString(settingsKey, jsonString) }
+
     }
 
     fun loadSettings(): MutableMap<String, SiteSettings> {

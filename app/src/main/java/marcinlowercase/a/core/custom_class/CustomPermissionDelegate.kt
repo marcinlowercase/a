@@ -3,6 +3,7 @@ package marcinlowercase.a.core.custom_class
 import android.Manifest
 import android.content.pm.PackageManager
 import android.util.Log
+import androidx.compose.runtime.MutableState
 import androidx.core.content.ContextCompat
 import marcinlowercase.a.R
 import marcinlowercase.a.core.constant.generic_location_permission
@@ -18,7 +19,7 @@ import kotlin.collections.get
 class CustomPermissionDelegate(
     // The callback to trigger the UI update in the Composable remains the same
     val context: android.content.Context,
-    val tab: Tab,
+    val tab: MutableState<Tab>,
     private val onShowRequest: (CustomPermissionRequest) -> Unit,
     private val siteSettingsManager: SiteSettingsManager,
     private val siteSettings: Map<String, SiteSettings>,
@@ -29,11 +30,21 @@ class CustomPermissionDelegate(
         perm: GeckoSession.PermissionDelegate.ContentPermission
     ): GeckoResult<Int?>? {
 
-        val domain = tab.currentURL.toDomain()
-        val locationDecision  = siteSettings[domain]?.permissionDecisions?.get(generic_location_permission)
+//        val domain = tab.currentURL.toDomain()
+//        val locationDecision  = siteSettings[domain]?.permissionDecisions?.get(generic_location_permission)
 
         // We only handle geolocation in this example.
         if (perm.permission == GeckoSession.PermissionDelegate.PERMISSION_GEOLOCATION ) {
+
+            val decision = siteSettings[perm.uri.toDomain()]?.permissionDecisions?.get(generic_location_permission)
+
+            if (decision == false) {
+                Log.e("PermissionRelated", "decision: PROMPT")
+
+                return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY)
+
+            }
+
             Log.e("PermissionRelated", "onContentPermissionRequest: ${perm.permission}")
             return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW)
         }
@@ -58,10 +69,13 @@ class CustomPermissionDelegate(
             callback.reject()
             return
         }
+        val allGranted = permissions.all {
+            ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
+        }
 
 
         var decision: Boolean? = false
-        val domain = tab.currentURL.toDomain()
+        val domain = tab.value.currentURL.toDomain()
         if (permissions.contains("android.permission.ACCESS_FINE_LOCATION") || permissions.contains(
                 "android.permission.ACCESS_COARSE_LOCATION"
             )
@@ -98,12 +112,19 @@ class CustomPermissionDelegate(
         }
 
 
-        if (decision == true) {
+        if (decision == true && allGranted) { // && is granted android already
             callback.grant()
             return
         }
+//        else if (decision == false) {
+//            callback.reject()
+//            return
+//
+//        }
+
+        Log.e("PermissionRelated", "Just before send : ${tab.value.currentURL}")
         val customRequest = CustomPermissionRequest(
-            origin = tab.currentURL,
+            origin = tab.value.currentURL,
             title = requestTitle,
             rationale = requestRationale,
             iconResAllow = requestAllowIcon, // Make sure you have these drawables
@@ -173,6 +194,7 @@ class CustomPermissionDelegate(
 
 
 
+
         var isRequestingVideo = !video.isNullOrEmpty()
         var isRequestingAudio = !audio.isNullOrEmpty()
 
@@ -182,6 +204,17 @@ class CustomPermissionDelegate(
 //
 //            return
 //        }
+
+        if (isRequestingVideo && !isRequestingAudio && videoDecision == false) {
+            callback.reject()
+            return
+        } else if (isRequestingAudio && !isRequestingVideo && audioDecision == false) {
+            callback.reject()
+            return
+        } else if (isRequestingVideo && isRequestingAudio && (videoDecision == false || audioDecision == false)) {
+            callback.reject()
+            return
+        }
 
         if (videoDecision == true && isRequestingVideo) {
 

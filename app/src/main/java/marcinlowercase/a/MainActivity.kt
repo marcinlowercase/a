@@ -784,9 +784,11 @@ fun BrowserScreen(
         val newSettings = currentSettings.copy(permissionDecisions = updatedDecisions)
         siteSettings[domain] = newSettings // Trigger state update
         Log.d("PermissionRelated", "finalize $newSettings")
+        Log.e("PermissionRelated", "finalized ${siteSettings[domain]}")
 
         siteSettingsManager.saveSettings(siteSettings)
     }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions(),
         onResult = { permissions ->
@@ -848,6 +850,7 @@ fun BrowserScreen(
             }
         }
     }
+
     LaunchedEffect(currentInspectingTab) {
         Log.e("TabDataPanel", "currentInspectingTab ${currentInspectingTab?.currentURL}")
     }
@@ -1082,7 +1085,22 @@ fun BrowserScreen(
 
         if (domain != null) {
             // 1. Get the current settings for the domain, or create a new one if it doesn't exist.
+
+            if (permission.contains(generic_location_permission)
+                && isGranted
+                && !(ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                        || ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED)
+            ) {
+                permissionLauncher.launch(
+                    arrayOf(
+                        Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.ACCESS_COARSE_LOCATION
+                    )
+                )
+            }
+
             val currentSettings = siteSettings[domain] ?: SiteSettings(domain = domain)
+
 
             // 2. Create a new, updated map of permissions.
             val updatedPermissions = currentSettings.permissionDecisions.toMutableMap().apply {
@@ -1099,18 +1117,19 @@ fun BrowserScreen(
             siteSettingsManager.saveSettings(siteSettings)
 
 
-
-
-            confirmationPopup(
-                message = "refresh ?",
-                onConfirm = {
-                    activeSession.reload()
-                    isUrlBarVisible = false
-                },
-                onCancel = {
-                    // Do nothing, the popup will just dismiss.
-                }
-            )
+//            NO NEED TO REFRESH
+//
+//
+//            confirmationPopup(
+//                message = "refresh ?",
+//                onConfirm = {
+//                    activeSession.reload()
+//                    isUrlBarVisible = false
+//                },
+//                onCancel = {
+//                    // Do nothing, the popup will just dismiss.
+//                }
+//            )
 
         }
 
@@ -1995,7 +2014,7 @@ fun BrowserScreen(
 
         geckoManager.setupDelegates(
             session = activeSession,
-            tab = activeTab.value,
+            tab = activeTab,
             browserSettings = browserSettings,
             onTitleChangeFun = { eventTabId,session, title ->
 
@@ -2102,6 +2121,8 @@ fun BrowserScreen(
                     }
 
                 } else {
+                    Log.d("PermissionRelated", "request for ${request.permissionsToRequest}")
+
                     pendingPermissionRequest.value = request
                 }
             },
