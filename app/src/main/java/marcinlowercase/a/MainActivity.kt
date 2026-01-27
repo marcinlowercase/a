@@ -2044,6 +2044,8 @@ fun BrowserScreen(
             },
             onLocationChangeFun = { eventTabId, session, url, perms, userGesture ->
                 if (eventTabId == activeTab.value.id && url != null && url != "about:blank") {
+                    Log.i("onLocationChange", "eventTabId: $eventTabId")
+                    Log.i("onLocationChange", "activeTab.value.id: ${activeTab.value.id}")
                     if (!isFocusOnTextField) {
                         textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
                     }
@@ -3298,6 +3300,8 @@ fun BrowserScreen(
                     isTabsPanelVisible = isTabsPanelVisible,
                     onTabSelected = { newIndex ->
                         if (activeTabIndex.intValue != newIndex) {
+                            Log.w("TabDataPanel", "new index : $newIndex")
+                            Log.w("TabDataPanel", "url : ${tabs[newIndex].currentURL}")
 
                             if (isLoading) isLoading = false
 

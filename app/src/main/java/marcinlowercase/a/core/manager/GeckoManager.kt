@@ -294,9 +294,10 @@ class GeckoManager(private val context: Context) {
         onJsPrompt: (String, String, (String?) -> Unit) -> Unit,
         onLoadErrorFun: (session: GeckoSession, uri: String?, error: WebRequestError) -> Unit,
     ) {
+        val eventTabId = tab.value.id
 
-        if (killedSessionIds.contains(tab.value.id)) {
-            Log.i("GeckoManager", "Resurrecting killed session: ${tab.value.id}")
+        if (killedSessionIds.contains(eventTabId)) {
+            Log.i("GeckoManager", "Resurrecting killed session: ${eventTabId}")
 
             // A. Ensure session is open (in case the whole session closed)
             if (!session.isOpen) {
@@ -304,7 +305,7 @@ class GeckoManager(private val context: Context) {
             }
 
             // B. Try to restore exact state from our memory cache first
-            val cachedState = stateCache[tab.value.id]
+            val cachedState = stateCache[eventTabId]
             if (cachedState != null) {
                 session.restoreState(cachedState)
             } else {
@@ -313,7 +314,7 @@ class GeckoManager(private val context: Context) {
             }
 
             // C. Remove from the kill list so we don't restore loop
-            killedSessionIds.remove(tab.value.id)
+            killedSessionIds.remove(eventTabId)
         }
 
         // 1. Define the Message Delegate Logic (Keep this as is)
@@ -328,7 +329,7 @@ class GeckoManager(private val context: Context) {
                     if (type == "favicon") {
                         val iconUrl = message.optString("url")
                         if (iconUrl.isNotEmpty()) {
-                            onFaviconChanged(tab.value.id, iconUrl)
+                            onFaviconChanged(eventTabId, iconUrl)
                         }
                     }
                 }
@@ -382,7 +383,8 @@ class GeckoManager(private val context: Context) {
                 perms: MutableList<GeckoSession.PermissionDelegate.ContentPermission>,
                 userGesture: Boolean
             ) {
-                onLocationChangeFun(tab.value.id,session, url, perms, userGesture)
+
+                onLocationChangeFun(eventTabId,session, url, perms, userGesture)
             }
 
             override fun onNewSession(
@@ -441,7 +443,7 @@ class GeckoManager(private val context: Context) {
                 Log.d("GeckoView", "Page Started: $url")
 
                 // Example: Show loading spinner, reset error states
-                onPageStartFun(tab.value.id,session, url)
+                onPageStartFun(eventTabId,session, url)
             }
 
 
@@ -461,9 +463,9 @@ class GeckoManager(private val context: Context) {
                 state: GeckoSession.SessionState
             ) {
 
-                stateCache[tab.value.id] = state
+                stateCache[eventTabId] = state
                 Log.e("onSessionStateChange", " state ${state}")
-                Log.i("onSessionStateChange", "saved state to session # ${tab.value.id}")
+                Log.i("onSessionStateChange", "saved state to session # ${eventTabId}")
                 onSessionStateChangeFun(session, state)
 
             }
@@ -498,7 +500,7 @@ class GeckoManager(private val context: Context) {
 
             override fun onTitleChange(session: GeckoSession, title: String?) {
                 title?.let { title ->
-                    onTitleChangeFun(tab.value.id,session, title)
+                    onTitleChangeFun(eventTabId,session, title)
                 }
             }
 
@@ -524,7 +526,7 @@ class GeckoManager(private val context: Context) {
                             }
 
 //                            onIconChangeFun(fullUrl)
-                            onFaviconChanged(tab.value.id, fullUrl)
+                            onFaviconChanged(eventTabId, fullUrl)
 
                         }
                     }
@@ -585,14 +587,14 @@ class GeckoManager(private val context: Context) {
                 // If this session is currently visible (Active), reload it immediately.
                 // If it's in the background, GeckoView will usually auto-reload it
                 // when it becomes active again (thanks to suspendMediaWhenInactive=true).
-                handleSessionDeath(session, tab.value.id)
+                handleSessionDeath(session, eventTabId)
 
             }
 
             override fun onKill(session: GeckoSession) {
                 // Similar to onCrash, but specifically for OS kills
                 Log.e("GeckoManager", "Session $session Killed by OS")
-                handleSessionDeath(session, tab.value.id)
+                handleSessionDeath(session, eventTabId)
             }
 
         }
@@ -602,7 +604,7 @@ class GeckoManager(private val context: Context) {
                 session: GeckoSession,
                 realtimeHistory: GeckoSession.HistoryDelegate.HistoryList
             ) {
-                onHistoryStateChangeFun(tab.value.id, session, realtimeHistory)
+                onHistoryStateChangeFun(eventTabId, session, realtimeHistory)
             }
         }
 
