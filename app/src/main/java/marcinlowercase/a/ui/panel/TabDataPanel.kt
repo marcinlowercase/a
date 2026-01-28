@@ -166,7 +166,8 @@ fun TabDataPanel(
     LaunchedEffect(isTabDataPanelVisible) {
         if (!isTabDataPanelVisible) {
             delay(300) // Wait for exit animation to finish before resetting state
-            currentView = TabDataPanelView.MAIN
+//            currentView = TabDataPanelView.MAIN
+            currentView = TabDataPanelView.PERMISSIONS
         }
     }
 
@@ -392,20 +393,21 @@ fun TabDataPanel(
 //
                                     }
                                 }
-                            } else {
-                                // Same fallback UI for when no permissions are set
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(
-                                            browserSettings.value.heightForLayer(3).dp
-                                        )
-                                        .padding(top = browserSettings.value.padding.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text("No permissions requested yet.", color = Color.Gray)
-                                }
                             }
+//                            else {
+//                                // Same fallback UI for when no permissions are set
+//                                Box(
+//                                    modifier = Modifier
+//                                        .fillMaxWidth()
+//                                        .height(
+//                                            browserSettings.value.heightForLayer(3).dp
+//                                        )
+//                                        .padding(top = browserSettings.value.padding.dp),
+//                                    contentAlignment = Alignment.Center
+//                                ) {
+//                                    Text("No permissions requested yet.", color = Color.Gray)
+//                                }
+//                            }
                         }
                     }
                 }
@@ -417,22 +419,23 @@ fun TabDataPanel(
                         .padding(browserSettings.value.padding.dp),
                     horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
                 ) {
-                    CustomIconButton(
-                        layer = 3,
-                        browserSettings = browserSettings,
-                        modifier = Modifier.weight(1f),
-                        onTap = {
-                            if (currentView == TabDataPanelView.MAIN) {
-                                onDismiss()
-                            } else {
-                                currentView = TabDataPanelView.MAIN
-                            }
-                        },
-                        descriptionContent = descriptionContent,
-                        buttonDescription = "back",
-                        painterId = R.drawable.ic_arrow_back,
-                        isWhite = false
-                    )
+//                    CustomIconButton(
+//                        layer = 3,
+//                        browserSettings = browserSettings,
+//                        modifier = Modifier.weight(1f),
+//                        onTap = {
+//                            onDismiss()
+////                            if (currentView == TabDataPanelView.MAIN) {
+////                                onDismiss()
+////                            } else {
+////                                currentView = TabDataPanelView.MAIN
+////                            }
+//                        },
+//                        descriptionContent = descriptionContent,
+//                        buttonDescription = "back",
+//                        painterId = R.drawable.ic_arrow_back,
+//                        isWhite = false
+//                    )
 
 
                     if (inspectingTab?.state != TabState.FROZEN) {

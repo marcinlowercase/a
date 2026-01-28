@@ -192,11 +192,14 @@ import marcinlowercase.a.ui.screen.ErrorScreen
 import marcinlowercase.a.ui.screen.NoInternetScreen
 import marcinlowercase.a.ui.theme.Theme
 import org.json.JSONArray
+import org.mozilla.gecko.util.ThreadUtils.runOnUiThread
+import org.mozilla.geckoview.GeckoResult
 import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.GeckoView
 import org.mozilla.geckoview.PanZoomController
 import org.mozilla.geckoview.ScreenLength
+import org.mozilla.geckoview.StorageController
 import org.mozilla.geckoview.WebRequestError
 import java.io.File
 import java.io.FileOutputStream
@@ -486,14 +489,8 @@ fun BrowserScreen(
     val textFieldState =
         rememberTextFieldState(activeTab.value.currentURL)
 
-//    LaunchedEffect(is) { }
-    LaunchedEffect(activeTab.value) {
-        Log.i("Newsession", "Changed to ${activeTab.value.id}")
-    }
-    LaunchedEffect(initialLoadDone) {
-        Log.i("initLoad", "Changed to $initialLoadDone")
-    }
-    val activeSession = remember(activeTab.value.id) {
+    var sessionRefreshTrigger by remember { mutableIntStateOf(0) }
+    val activeSession = remember(activeTab.value.id, sessionRefreshTrigger) {
         Log.e("Newsession", "change active session to ${activeTabIndex.value}")
         geckoManager.getSession(activeTab.value)
     }
@@ -1104,7 +1101,7 @@ fun BrowserScreen(
 
             // 2. Create a new, updated map of permissions.
             val updatedPermissions = currentSettings.permissionDecisions.toMutableMap().apply {
-                this[permission] = isGranted
+                this[permission]?.let { this[permission] = !it }
             }
 
             // 3. Create a new SiteSettings object using copy() with the updated map.
@@ -1152,7 +1149,9 @@ fun BrowserScreen(
                             recentlyClosedTabs.removeAt(0)
                         }
 
-                        webViewManager.destroyWebView(tabToClose)
+//                        webViewManager.destroyWebView(tabToClose)
+                        geckoManager.closeSession(tabToClose)
+
                         tabs.removeAt(indexToClose)
 
                         // Determine the next active tab
@@ -1167,20 +1166,16 @@ fun BrowserScreen(
                             tabs[nextTabIndex].state = TabState.ACTIVE
                             inspectingTabId = tabs[nextTabIndex].id
                             activeTabIndex.intValue = nextTabIndex
+                            val nextUrl = tabs[nextTabIndex].currentURL
+                            if (!isFocusOnTextField) {
+                                textFieldState.setTextAndPlaceCursorAtEnd(nextUrl.toDomain())
+                            }
 
-//                    val urlToLoad = tabs[nextTabIndex].currentUrl ?: browserSettings.value.defaultUrl
-//                    textFieldValue = TextFieldValue(urlToLoad, TextRange(urlToLoad.length))
-//
-//                    activeWebView?.loadUrl(urlToLoad)
                         } else
                             if (indexToClose < activeTabIndex.intValue) {
                                 activeTabIndex.intValue -= 1
                             }
 
-
-//                val urlToLoad = tabs[nextTabIndex].currentUrl ?: browserSettings.value.defaultUrl
-//                activeWebView?.loadUrl(urlToLoad)
-//                textFieldValue = TextFieldValue(urlToLoad, TextRange(urlToLoad.length))
                         saveTrigger++
                     } else {
 
@@ -1207,28 +1202,58 @@ fun BrowserScreen(
             message = "clear site data ?",
             onConfirm = {
                 val inspectingTab = currentInspectingTab
-                val inspectingWebView =
-                    webViewManager.getWebView(inspectingTab ?: Tab.createEmpty())
+
                 if (inspectingTab != null) {
-                    val domain = siteSettingsManager.getDomain(inspectingWebView.url ?: "")
+                    val domain = siteSettingsManager.getDomain(inspectingTab.currentURL)
                     if (domain != null) {
-                        // 1. Remove the settings for this domain from the state map
                         siteSettings.remove(domain)
-                        // 2. Save the updated map to persistent storage
                         siteSettingsManager.saveSettings(siteSettings)
                     }
+                    val runtime = geckoManager.runtime
+                    val flags = StorageController.ClearFlags.ALL
+                    runtime.storageController.clearData(flags).then {
 
-                    if (inspectingTab.state != TabState.FROZEN) {
-                        val webView = webViewManager.getWebView(inspectingTab)
-                        CookieManager.getInstance().removeAllCookies(null)
-                        CookieManager.getInstance().flush()
-                        WebStorage.getInstance().deleteOrigin(webView.url)
-                        webView.clearCache(true)
-                        webView.reload()
+// NOT JUST RELOAD -> KILL SESSION THEN RERUN
+//                        val session = geckoManager.getSession(inspectingTab)
+//                        if (session.isOpen) {
+//                            session.reload()
+//                        }
+
+                        runOnUiThread {
+                            // A. Save the current URL
+                            val currentUrl = inspectingTab.currentURL
+
+                            // B. Close and Destroy the old session
+                            geckoManager.closeSession(inspectingTab)
+
+                            // C. Get a FRESH session (GeckoManager will create a new one)
+                            val newSession = geckoManager.getSession(inspectingTab)
+
+                            // D. Attach it to the View (UI Update)
+                            // Because activeSession is a 'remember' keyed to ID,
+                            // we might need to force the UI to recognize the new object.
+                            // But usually, simply updating the session inside the Manager is enough
+                            // if you trigger a recomposition or reload.
+
+                            // Force the new session to load the URL (Clean state)
+                            webViewLoad(newSession, currentUrl, browserSettings.value)
+
+                            // E. If this was the active tab, ensure the UI updates
+                            if (inspectingTab.id == activeTab.value.id) {
+                                // This forces the AndroidView to call 'update' again
+                                sessionRefreshTrigger++
+
+
+                            }
+                        }
+
+                        // Return a result to satisfy the chain
+                        GeckoResult.fromValue(it)
                     }
 
                     isTabDataPanelVisible = false
                 }
+
             }
         )
     }
@@ -1459,13 +1484,7 @@ fun BrowserScreen(
                     activeTabIndex.intValue = nextTabIndex
                     tabs[nextTabIndex].state = TabState.ACTIVE
 
-                    Log.e("WebViewLoad", "HERE4")
-
                     val urlToLoad = tabs[nextTabIndex].currentURL
-//                    val urlToLoad = webViewManager.getWebView(tabs[nextTabIndex]).url
-//                        ?: browserSettings.value.defaultUrl
-//                    webViewLoad(activeSession, urlToLoad, browserSettings.value)
-                    Log.e("textFieldStateChanged", "Close Tab")
                     if (!isFocusOnTextField) textFieldState.setTextAndPlaceCursorAtEnd(urlToLoad.toDomain())
                     saveTrigger++
                 } else {

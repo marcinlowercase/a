@@ -30,11 +30,9 @@ class CustomPermissionDelegate(
         perm: GeckoSession.PermissionDelegate.ContentPermission
     ): GeckoResult<Int?>? {
 
-//        val domain = tab.currentURL.toDomain()
-//        val locationDecision  = siteSettings[domain]?.permissionDecisions?.get(generic_location_permission)
 
-        // We only handle geolocation in this example.
-        if (perm.permission == GeckoSession.PermissionDelegate.PERMISSION_GEOLOCATION ) {
+
+        if (perm.permission == GeckoSession.PermissionDelegate.PERMISSION_GEOLOCATION) {
 
             val decision = siteSettings[perm.uri.toDomain()]?.permissionDecisions?.get(generic_location_permission)
 
@@ -44,10 +42,42 @@ class CustomPermissionDelegate(
                 return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY)
 
             }
+//            if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+//                || ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+//            ) {
+//
+//                val customRequest = CustomPermissionRequest(
+//                    origin = tab.value.currentURL,
+//                    title = "Location Request",
+//                    rationale = "This site wants to use your device's location.",
+//                    iconResAllow = R.drawable.ic_location_on, // Make sure you have these drawables
+//                    iconResDeny = R.drawable.ic_location_off,
+//                    permissionsToRequest = listOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
+//                    onResult = { permissionsMap, pendingRequest ->
+//                        // This is the final step, after the user interacts with the system dialog.
+//                        if (permissionsMap.any { it.value }) {
+//                            // Tell GeckoView the app permission was granted.
+//                            GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW)
+//
+//
+//                        } else {
+//                            // Tell GeckoView the app permission was denied.
+//                            GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY)
+//                            pendingRequest.value = null
+//                        }
+//                    }
+//                )
+//                onShowRequest(customRequest)
+//
+//                return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_PROMPT)
+//
+//
+//            }
 
             Log.e("PermissionRelated", "onContentPermissionRequest: ${perm.permission}")
             return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW)
         }
+        Log.d("PermissionRelated", "run supoer")
         return super.onContentPermissionRequest(session, perm)
     }
 
