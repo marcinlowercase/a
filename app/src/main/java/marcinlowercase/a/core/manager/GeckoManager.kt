@@ -2,10 +2,7 @@ package marcinlowercase.a.core.manager
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.os.Parcel
-import android.util.Base64
 import android.util.Log
-import android.view.PointerIcon
 import androidx.compose.runtime.MutableState
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
@@ -29,9 +26,9 @@ import org.mozilla.geckoview.WebResponse
 import java.io.File
 import java.io.FileOutputStream
 
-const val UBLOCK_ID = "uBlock0@raymondhill.net"
-const val UBLOCK_NAME = "ublock_origin"
-private val FAVICON_ID = "favicon@marcinlowercase" // Must match manifest.json
+private const val UBLOCK_ID = "uBlock0@raymondhill.net"
+private const val UBLOCK_NAME = "ublock_origin"
+private const val FAVICON_ID = "favicon@marcinlowercase" // Must match manifest.json
 private var faviconExtension: WebExtension? = null
 class GeckoManager(private val context: Context) {
 
@@ -80,7 +77,7 @@ class GeckoManager(private val context: Context) {
                 permissions: Array<String>,
                 origins: Array<String>,
                 dataCollectionPermissions: Array<String>
-            ): GeckoResult<WebExtension.PermissionPromptResponse>? {
+            ): GeckoResult<WebExtension.PermissionPromptResponse> {
 
                 Log.i("GeckoExt", "Auto-confirming install for: ${extension.metaData
                     .name}")
