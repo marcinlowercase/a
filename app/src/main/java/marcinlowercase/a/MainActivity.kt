@@ -1174,34 +1174,65 @@ fun BrowserScreen(
 //                            session.reload()
 //                        }
 
+//                        runOnUiThread {
+//                            // A. Save the current URL
+//                            val currentUrl = inspectingTab.currentURL
+//
+//                            // B. Close and Destroy the old session
+//                            geckoManager.closeSession(inspectingTab)
+//
+//                            // C. Get a FRESH session (GeckoManager will create a new one)
+//                            val newSession = geckoManager.getSession(inspectingTab)
+//
+//                            // D. Attach it to the View (UI Update)
+//                            // Because activeSession is a 'remember' keyed to ID,
+//                            // we might need to force the UI to recognize the new object.
+//                            // But usually, simply updating the session inside the Manager is enough
+//                            // if you trigger a recomposition or reload.
+//
+//                            // Force the new session to load the URL (Clean state)
+//                            webViewLoad(newSession, currentUrl, browserSettings.value)
+//
+//                            // E. If this was the active tab, ensure the UI updates
+//                            if (inspectingTab.id == activeTab.value.id) {
+//                                // This forces the AndroidView to call 'update' again
+//                                sessionRefreshTrigger++
+//
+//
+//                            }
+//                        }
                         runOnUiThread {
-                            // A. Save the current URL
-                            val currentUrl = inspectingTab.currentURL
+                            // 4. Loop through ALL tabs to find matches
+                            tabs.forEachIndexed { index, tab ->
+                                val tabDomain = siteSettingsManager.getDomain(tab.currentURL)
 
-                            // B. Close and Destroy the old session
-                            geckoManager.closeSession(inspectingTab)
+                                // Check if this tab belongs to the domain we just cleared
+                                if (domain != null && tabDomain == domain) {
 
-                            // C. Get a FRESH session (GeckoManager will create a new one)
-                            val newSession = geckoManager.getSession(inspectingTab)
+                                    Log.i("ClearData", "Killing session for tab ${tab.id} ($tabDomain)")
 
-                            // D. Attach it to the View (UI Update)
-                            // Because activeSession is a 'remember' keyed to ID,
-                            // we might need to force the UI to recognize the new object.
-                            // But usually, simply updating the session inside the Manager is enough
-                            // if you trigger a recomposition or reload.
+                                    // A. Kill the Gecko Session (Wipes in-memory permission cache)
+                                    geckoManager.closeSession(tab)
 
-                            // Force the new session to load the URL (Clean state)
-                            webViewLoad(newSession, currentUrl, browserSettings.value)
+                                    // B. Clear Saved State
+                                    // Important! If we don't do this, the tab might restore
+                                    // the old state (with old form data) when re-opened.
+                                    // We want a fresh reload.
+                                    tabs[index] = tab.copy(savedState = null)
 
-                            // E. If this was the active tab, ensure the UI updates
-                            if (inspectingTab.id == activeTab.value.id) {
-                                // This forces the AndroidView to call 'update' again
-                                sessionRefreshTrigger++
+                                    // C. Handle Active Tab Refresh
+                                    if (tab.id == activeTab.value.id) {
+                                        // If we just killed the tab the user is looking at,
+                                        // we must force Compose to re-create the session immediately.
+                                        sessionRefreshTrigger++
 
-
+                                        // The new session will be created empty.
+                                        // Since we cleared savedState, createAndConfigureSession
+                                        // will automatically load the currentURL.
+                                    }
+                                }
                             }
                         }
-
                         // Return a result to satisfy the chain
                         GeckoResult.fromValue(it)
                     }
