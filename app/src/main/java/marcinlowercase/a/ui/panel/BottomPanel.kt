@@ -3,6 +3,7 @@ package marcinlowercase.a.ui.panel
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.ClipData
+import android.content.res.Configuration
 import android.util.Log
 import android.util.Patterns
 import androidx.activity.compose.ManagedActivityResultLauncher
@@ -55,6 +56,10 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -69,6 +74,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.SoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
@@ -118,6 +124,8 @@ import kotlin.math.abs
 @SuppressLint("FrequentlyChangingValue")
 @Composable
 fun BottomPanel(
+    updateCurrentRotation: ()-> Unit,
+    currentRotation: Float,
     geckoManager: GeckoManager,
     geckoViewRef : MutableState<GeckoView?>,
     activeTab: MutableState<Tab>,
@@ -232,7 +240,6 @@ fun BottomPanel(
     isPinningApp: MutableState<Boolean>,
 ) {
 
-
     AnimatedVisibility(
         modifier = modifier,
         visible = isBottomPanelVisible,
@@ -251,997 +258,999 @@ fun BottomPanel(
     ) {
         val clipboard = LocalClipboard.current
 
-        Column(
-            modifier = Modifier
-                .padding(browserSettings.value.padding.dp)
-                .windowInsetsPadding(WindowInsets.ime)
-//                .padding(webViewPaddingValue)
-                .padding(bottom = floatingPanelBottomPadding)
-
-
-                .clip(
-                    RoundedCornerShape(
-                        browserSettings.value.cornerRadiusForLayer(1).dp
-                    )
-                )
-
-                .background(
-                    Color.Black,
-                )
-                .anchoredDraggable(
-                    state = draggableState,
-                    orientation = Orientation.Vertical,
-                    flingBehavior = flingBehavior,
-//                    enabled = !isFocusOnTextField && contextMenuData == null && !isPromptPanelVisible  && (!isPermissionPanelVisible || (isPermissionPanelVisible &&  isUrlBarVisible) )
-                    enabled = (!isFocusOnTextField && contextMenuData == null && !isPromptPanelVisible  && (!isPermissionPanelVisible )) || isUrlBarVisible
-                )
-
+        Box(
+            modifier = Modifier.fillMaxWidth()
         ) {
+            Column(
+                modifier = Modifier
+                    .padding(browserSettings.value.padding.dp)
+                    .windowInsetsPadding(WindowInsets.ime)
+                    //                .padding(webViewPaddingValue)
+                    .padding(bottom = floatingPanelBottomPadding)
 
 
-            DescriptionPanel(
-                isVisible = descriptionContent.value.isNotEmpty(),
-                description = descriptionContent.value,
-                browserSettings = browserSettings,
-                onDismiss = {
-                    descriptionContent.value = ""
-                }
-            )
+                    .clip(
+                        RoundedCornerShape(
+                            browserSettings.value.cornerRadiusForLayer(1).dp
+                        )
+                    )
 
-            AppsPanel(
-                apps = apps,
-                visibility = isAppsPanelVisible,
-                browserSettings = browserSettings,
-                onAppClick = { app ->
-                    Log.e("WebViewLoad", "HERE9")
+                    .background(
+                        Color.Black,
+                    )
+                    .anchoredDraggable(
+                        state = draggableState,
+                        orientation = Orientation.Vertical,
+                        flingBehavior = flingBehavior,
+                        //                    enabled = !isFocusOnTextField && contextMenuData == null && !isPromptPanelVisible  && (!isPermissionPanelVisible || (isPermissionPanelVisible &&  isUrlBarVisible) )
+                        enabled = (!isFocusOnTextField && contextMenuData == null && !isPromptPanelVisible && (!isPermissionPanelVisible)) || isUrlBarVisible
+                    )
 
-                    webViewLoad(activeSession, app.url, browserSettings.value)
-                    if (!isBottomPanelLock.value) {
-                        setIsBottomPanelVisible(false)
-                        setIsUrlBarVisible(false)
+            ) {
+
+
+                DescriptionPanel(
+                    isVisible = descriptionContent.value.isNotEmpty(),
+                    description = descriptionContent.value,
+                    browserSettings = browserSettings,
+                    onDismiss = {
+                        descriptionContent.value = ""
                     }
-                },
-                inspectingAppId = inspectingAppId,
-            )
-            NavigationPanel(
-                isNavPanelVisible = isNavPanelVisible,
-                activeTab = activeTab,
-                browserSettings = browserSettings,
-                activeAction = activeNavAction,
-            )
+                )
 
-            DownloadPanel(
-                confirmationPopup = confirmationPopup,
-                isDownloadPanelVisible = isDownloadPanelVisible,
-                downloads = downloads,
-                browserSettings = browserSettings,
-                onDownloadRowClicked = onDownloadRowClicked,
-                onDeleteClicked = onDeleteClicked,
-                onOpenFolderClicked = onOpenFolderClicked,
-                onClearAllClicked = onClearAllClicked,
-                descriptionContent = descriptionContent,
-            )
+                AppsPanel(
+                    apps = apps,
+                    visibility = isAppsPanelVisible,
+                    browserSettings = browserSettings,
+                    onAppClick = { app ->
+                        Log.e("WebViewLoad", "HERE9")
 
-            ContextMenuPanel(
-                descriptionContent = descriptionContent,
+                        webViewLoad(activeSession, app.url, browserSettings.value)
+                        if (!isBottomPanelLock.value) {
+                            setIsBottomPanelVisible(false)
+                            setIsUrlBarVisible(false)
+                        }
+                    },
+                    inspectingAppId = inspectingAppId,
+                )
+                NavigationPanel(
+                    isNavPanelVisible = isNavPanelVisible,
+                    activeTab = activeTab,
+                    browserSettings = browserSettings,
+                    activeAction = activeNavAction,
+                )
 
-                isVisible = contextMenuData != null,
-                data = displayContextMenuData,
+                DownloadPanel(
+                    currentRotation = currentRotation,
+                    confirmationPopup = confirmationPopup,
+                    isDownloadPanelVisible = isDownloadPanelVisible,
+                    downloads = downloads,
+                    browserSettings = browserSettings,
+                    onDownloadRowClicked = onDownloadRowClicked,
+                    onDeleteClicked = onDeleteClicked,
+                    onOpenFolderClicked = onOpenFolderClicked,
+                    onClearAllClicked = onClearAllClicked,
+                    descriptionContent = descriptionContent,
+                )
 
-                browserSettings = browserSettings,
-                onDismiss = onDismissContextMenu,
-                onOpenInNewTab = { url ->
-                    onOpenInNewTab(url)
-                    onDismissContextMenu()
-                },
-                onDownload = onDownload,
-            )
+                ContextMenuPanel(
+                    descriptionContent = descriptionContent,
 
-            FindInPagePanel(
-                isVisible = isFindInPageVisible.value,
-                searchText = findInPageText.value,
-                searchResult = findInPageResult.value,
-                onSearchTextChanged = { newText ->
-                    findInPageText.value = newText
-                    activeSession.let { session ->
-                        if (newText.isEmpty()) {
-                            session.finder.clear()
-                            // Update UI to show 0/0 results
-                            findInPageResult.value = 0 to 0
-                        } else {
-                            // 0 means no special flags (case insensitive, forward direction)
-                            session.finder.find(newText, 0).then { result ->
-                                // result is of type GeckoSession.FinderResult?
+                    isVisible = contextMenuData != null,
+                    data = displayContextMenuData,
+
+                    browserSettings = browserSettings,
+                    onDismiss = onDismissContextMenu,
+                    onOpenInNewTab = { url ->
+                        onOpenInNewTab(url)
+                        onDismissContextMenu()
+                    },
+                    onDownload = onDownload,
+                )
+
+                FindInPagePanel(
+                    currentRotation = currentRotation,
+                    isVisible = isFindInPageVisible.value,
+                    searchText = findInPageText.value,
+                    searchResult = findInPageResult.value,
+                    onSearchTextChanged = { newText ->
+                        findInPageText.value = newText
+                        activeSession.let { session ->
+                            if (newText.isEmpty()) {
+                                session.finder.clear()
+                                // Update UI to show 0/0 results
+                                findInPageResult.value = 0 to 0
+                            } else {
+                                // 0 means no special flags (case insensitive, forward direction)
+                                session.finder.find(newText, 0).then { result ->
+                                    // result is of type GeckoSession.FinderResult?
+                                    if (result != null) {
+                                        // Update your Compose state directly here
+                                        // result.current is 1-based index (WebView was 0-based, Gecko is 1-based usually, check logic)
+                                        // Actually Gecko's 'current' is 0-based index of the match, or -1 if none.
+
+                                        val currentMatch =
+                                            if (result.total > 0) result.current + 1 else 0
+                                        findInPageResult.value = currentMatch to result.total
+                                    }
+                                    GeckoResult.fromValue(result)
+                                }
+                            }
+                        }
+                    },
+                    onFindNext = {
+                        activeSession.finder.find(
+                            findInPageText.value,
+                            GeckoSession.FINDER_FIND_FORWARD
+                        )
+                            .then { result ->
+                                // Update UI with new result.current
                                 if (result != null) {
                                     // Update your Compose state directly here
                                     // result.current is 1-based index (WebView was 0-based, Gecko is 1-based usually, check logic)
                                     // Actually Gecko's 'current' is 0-based index of the match, or -1 if none.
 
-                                    val currentMatch = if (result.total > 0) result.current + 1 else 0
+                                    val currentMatch = if (result.total > 0) result.current else 0
+                                    findInPageResult.value = currentMatch to result.total
+                                }
+
+                                GeckoResult.fromValue(result)
+
+
+                            }
+                    },
+                    onFindPrevious = {
+                        activeSession.finder.find(
+                            findInPageText.value,
+                            GeckoSession.FINDER_FIND_BACKWARDS
+                        )
+                            .then { result ->
+                                // Update UI
+                                if (result != null) {
+                                    // Update your Compose state directly here
+                                    // result.current is 1-based index (WebView was 0-based, Gecko is 1-based usually, check logic)
+                                    // Actually Gecko's 'current' is 0-based index of the match, or -1 if none.
+
+                                    val currentMatch = if (result.total > 0) result.current else 0
                                     findInPageResult.value = currentMatch to result.total
                                 }
                                 GeckoResult.fromValue(result)
                             }
-                        }
-                    }
-                },
-                onFindNext = {
-                    activeSession.finder.find(findInPageText.value, GeckoSession.FINDER_FIND_FORWARD)
-                        .then { result ->
-                            // Update UI with new result.current
-                            if (result != null) {
-                                // Update your Compose state directly here
-                                // result.current is 1-based index (WebView was 0-based, Gecko is 1-based usually, check logic)
-                                // Actually Gecko's 'current' is 0-based index of the match, or -1 if none.
-
-                                val currentMatch = if (result.total > 0) result.current else 0
-                                findInPageResult.value = currentMatch to result.total
-                            }
-
-                            GeckoResult.fromValue(result)
-
-
-                        }
-                },
-                onFindPrevious = {
-                    activeSession.finder.find(findInPageText.value, GeckoSession.FINDER_FIND_BACKWARDS)
-                        .then { result ->
-                            // Update UI
-                            if (result != null) {
-                                // Update your Compose state directly here
-                                // result.current is 1-based index (WebView was 0-based, Gecko is 1-based usually, check logic)
-                                // Actually Gecko's 'current' is 0-based index of the match, or -1 if none.
-
-                                val currentMatch = if (result.total > 0) result.current else 0
-                                findInPageResult.value = currentMatch to result.total
-                            }
-                            GeckoResult.fromValue(result)
-                        }
-                },
-                onClose = {
-                    isFindInPageVisible.value = false
-                    findInPageText.value = ""
-                    activeSession.finder.clear()
-                },
-                browserSettings = browserSettings,
-                descriptionContent = descriptionContent,
-            )
-            PromptPanel(
-                geckoViewRef = geckoViewRef,
-                isUrlBarVisible = isUrlBarVisible,
-                activeTab = activeTab,
-                browserSettings = browserSettings,
-                //                modifier = modifier,
-                isPromptPanelVisible = isPromptPanelVisible,
-                onDismiss = onDismiss,
-                state = state,
-                promptComponentDisplayState = promptComponentDisplayState,
-
-                )
-            SettingsPanel(
-                descriptionContent = descriptionContent,
-                isSettingsPanelVisible = isSettingsPanelVisible,
-                browserSettings = browserSettings,
-                backgroundColor = backgroundColor,
-                resetBrowserSettings = resetBrowserSettings,
-                confirmationPopup = confirmationPopup,
-                targetSetting = initialSettingPanelView,
-                isSettingCornerRadius = isSettingCornerRadius
-
-
-            )
-            TabDataPanel(
-                geckoManager = geckoManager,
-                descriptionContent = descriptionContent,
-//                onAddToHomeScreen = onAddToHomeScreen,
-                isTabDataPanelVisible = isTabDataPanelVisible,
-                inspectingTab = inspectingTab,
-                onDismiss = onTabDataPanelDismiss,
-                browserSettings = browserSettings,
-                siteSettings = siteSettings,
-                onPermissionToggle = handlePermissionToggle,
-                onClearSiteData = handleClearInspectedTabData,
-                onCloseTab = handleCloseInspectedTab,
-//                onHistoryItemClicked = handleHistoryNavigation,
-//                webViewManager = webViewManager,
-            )
-            TabsPanel(
-
-                isTabsPanelVisible = isTabsPanelVisible,
-                tabs = tabs,
-                activeTabIndex = activeTabIndex.value,
-                browserSettings = browserSettings,
-                onTabSelected = onTabSelected,
-                onNewTabClicked = onNewTabClicked,
-                onTabLongPressed = onTabLongPressed,
-                updateInspectingTab = updateInspectingTab,
-            )
-            PermissionPanel(
-                isUrlBarVisible = isUrlBarVisible,
-                isPermissionPanelVisible = isPermissionPanelVisible,
-                browserSettings = browserSettings,
-                request = pendingPermissionRequest.value,
-                onAllow = {
-                    // When user clicks allow, launch the system dialog with the permissions
-                    // stored in our request object.
-
-                    pendingPermissionRequest.value?.let {
-//                        if ( request.isSystemRequest) {
-//                            permissionLauncher.launch(request.permissionsToRequest.toTypedArray())
-//                        } else {
-//                            val successMap = request.permissionsToRequest.associateWith { true }
-//                            request.onResult(successMap)
-//                            pendingPermissionRequest.value = null
-//
-//                        }
-                        if (it.permissionsToRequest.contains(Manifest.permission.CAMERA) || it.permissionsToRequest.contains(Manifest.permission.RECORD_AUDIO)){
-                            onMediaPermissionAllow(it.permissionsToRequest.associateWith { true })
-                        } else {
-                            permissionLauncher.launch(it.permissionsToRequest.toTypedArray())
-
-                        }
-
-                    }
-                },
-                onDeny = {
-                    // When user clicks deny, immediately invoke the stored onResult callback
-                    // with an empty map (signifying denial) and clear the request.
-                    onPermissionDeny()
-                }
-            )
-
-
-            AnimatedVisibility(visible = suggestions.isNotEmpty()) {
-                LazyColumn(
-                    modifier = Modifier
-                        .padding(horizontal = browserSettings.value.padding.dp)
-                        .padding(top = browserSettings.value.padding.dp)
-                        .clip(
-                            RoundedCornerShape(
-                                browserSettings.value.cornerRadiusForLayer(2).dp
-                            )
-                        )
-                        .heightIn(max = browserSettings.value.maxContainerSizeForLayer(3).dp), // Prevent the list from being too tall
-                    reverseLayout = true,
-                ) {
-
-                    items(suggestions) { suggestion ->
-                        val iconRes = when (suggestion.source) {
-                            SuggestionSource.HISTORY -> R.drawable.ic_history
-                            SuggestionSource.GOOGLE -> R.drawable.ic_search
-                        }
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = browserSettings.value.padding.dp)
-                                .padding(
-                                    top = browserSettings.value.padding.dp,
-                                    bottom = if (suggestions.indexOf(suggestion) == 0) browserSettings.value.padding.dp else 0.dp
-                                )
-                                .height(browserSettings.value.heightForLayer(3).dp)
-                                .clip(
-                                    RoundedCornerShape(
-                                        browserSettings.value.cornerRadiusForLayer(3).dp
-                                    )
-                                )
-                                .clickable { onSuggestionClick(suggestion) }
-
-                                .padding(browserSettings.value.padding.dp),
-                            verticalAlignment = Alignment.CenterVertically // Align icon and text vertically
-                        ) {
-                            // 2. Add the search Icon
-                            Icon(
-                                painter = painterResource(id = iconRes), // Make sure you have this drawable
-                                contentDescription = "Search suggestion",
-                                tint = Color.White,
-                                modifier = Modifier.size(24.dp) // Give the icon a suitable size
-                            )
-
-                            // 3. Add a Spacer for visual separation
-                            Spacer(modifier = Modifier.width(browserSettings.value.padding.dp))
-
-                            // 4. Add the Text, which now takes the remaining space
-                            Text(
-                                text = suggestion.text,
-                                color = Color.White,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f) // Ensures text fills available space
-                            )
-
-                            if (suggestion.source == SuggestionSource.HISTORY) {
-                                IconButton(
-                                    onClick = { onRemoveSuggestion(suggestion) },
-                                    modifier = Modifier.size(24.dp) // A small, compact size
-                                ) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.ic_close), // The 'X' icon
-                                        contentDescription = "Remove from history",
-                                        tint = Color.Gray // A subtle color
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-
-            ConfirmationPanel(
-                isUrlBarVisible = isUrlBarVisible,
-                browserSettings = browserSettings,
-                state = confirmationDisplayState, // Use the display state here
-                isConfirmationPanelVisible = confirmationState != null // Visibility is controlled by the primary state
-            )
-
-
-            // URL BAR
-            AnimatedVisibility(
-                modifier = modifier
-                    .pointerInput(Unit) {
-                        // The long press on the UrlBar will activate the gesture
-
                     },
-                visible = isUrlBarVisible,
-                enter = fadeIn(
-                    tween(
-                        browserSettings.value.animationSpeedForLayer(1)
-                    )
-                ),
-                exit = fadeOut(
-                    tween(
-                        browserSettings.value.animationSpeedForLayer(1)
-                    )
+                    onClose = {
+                        isFindInPageVisible.value = false
+                        findInPageText.value = ""
+                        activeSession.finder.clear()
+                    },
+                    browserSettings = browserSettings,
+                    descriptionContent = descriptionContent,
                 )
-            ) {
+                PromptPanel(
+                    geckoViewRef = geckoViewRef,
+                    isUrlBarVisible = isUrlBarVisible,
+                    activeTab = activeTab,
+                    browserSettings = browserSettings,
+                    //                modifier = modifier,
+                    isPromptPanelVisible = isPromptPanelVisible,
+                    onDismiss = onDismiss,
+                    state = state,
+                    promptComponentDisplayState = promptComponentDisplayState,
 
-                HorizontalPager(
-                    state = bottomPanelPagerState,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .animateContentSize(),
-                    contentPadding = PaddingValues(0.dp),
-                    pageSpacing = browserSettings.value.padding.dp // Optional spacing
-                ) { pageIndex ->
+                    )
+                SettingsPanel(
+                    currentRotation = currentRotation,
+                    descriptionContent = descriptionContent,
+                    isSettingsPanelVisible = isSettingsPanelVisible,
+                    browserSettings = browserSettings,
+                    backgroundColor = backgroundColor,
+                    resetBrowserSettings = resetBrowserSettings,
+                    confirmationPopup = confirmationPopup,
+                    targetSetting = initialSettingPanelView,
+                    isSettingCornerRadius = isSettingCornerRadius
 
-                    LaunchedEffect(pageIndex) {
-                        if (pageIndex != BottomPanelMode.SEARCH.ordinal) {
-                            setIsOptionsPanelVisible(false)
+
+                )
+                TabDataPanel(
+                    currentRotation= currentRotation,
+                    geckoManager = geckoManager,
+                    descriptionContent = descriptionContent,
+                    //                onAddToHomeScreen = onAddToHomeScreen,
+                    isTabDataPanelVisible = isTabDataPanelVisible ,
+                    inspectingTab = inspectingTab,
+                    onDismiss = onTabDataPanelDismiss,
+                    browserSettings = browserSettings,
+                    siteSettings = siteSettings,
+                    onPermissionToggle = handlePermissionToggle,
+                    onClearSiteData = handleClearInspectedTabData,
+                    onCloseTab = handleCloseInspectedTab,
+                    //                onHistoryItemClicked = handleHistoryNavigation,
+                    //                webViewManager = webViewManager,
+                )
+                TabsPanel(
+
+                    isTabsPanelVisible = isTabsPanelVisible,
+                    tabs = tabs,
+                    activeTabIndex = activeTabIndex.value,
+                    browserSettings = browserSettings,
+                    onTabSelected = onTabSelected,
+                    onNewTabClicked = onNewTabClicked,
+                    onTabLongPressed = onTabLongPressed,
+                    updateInspectingTab = updateInspectingTab,
+                )
+                PermissionPanel(
+                    isUrlBarVisible = isUrlBarVisible,
+                    isPermissionPanelVisible = isPermissionPanelVisible,
+                    browserSettings = browserSettings,
+                    request = pendingPermissionRequest.value,
+                    onAllow = {
+                        // When user clicks allow, launch the system dialog with the permissions
+                        // stored in our request object.
+
+                        pendingPermissionRequest.value?.let {
+                            //                        if ( request.isSystemRequest) {
+                            //                            permissionLauncher.launch(request.permissionsToRequest.toTypedArray())
+                            //                        } else {
+                            //                            val successMap = request.permissionsToRequest.associateWith { true }
+                            //                            request.onResult(successMap)
+                            //                            pendingPermissionRequest.value = null
+                            //
+                            //                        }
+                            if (it.permissionsToRequest.contains(Manifest.permission.CAMERA) || it.permissionsToRequest.contains(
+                                    Manifest.permission.RECORD_AUDIO
+                                )
+                            ) {
+                                onMediaPermissionAllow(it.permissionsToRequest.associateWith { true })
+                            } else {
+                                permissionLauncher.launch(it.permissionsToRequest.toTypedArray())
+
+                            }
+
                         }
+                    },
+                    onDeny = {
+                        // When user clicks deny, immediately invoke the stored onResult callback
+                        // with an empty map (signifying denial) and clear the request.
+                        onPermissionDeny()
                     }
-                    when (pageIndex) {
-                        // --- LEFT BOX (Page 0) ---
-                        BottomPanelMode.APPS.ordinal -> {
-                            Column(
+                )
+                AnimatedVisibility(visible = suggestions.isNotEmpty()) {
+                    LazyColumn(
+                        modifier = Modifier
+                            .padding(horizontal = browserSettings.value.padding.dp)
+                            .padding(top = browserSettings.value.padding.dp)
+                            .clip(
+                                RoundedCornerShape(
+                                    browserSettings.value.cornerRadiusForLayer(2).dp
+                                )
+                            )
+                            .heightIn(max = browserSettings.value.maxContainerSizeForLayer(3).dp), // Prevent the list from being too tall
+                        reverseLayout = true,
+                    ) {
+
+                        items(suggestions) { suggestion ->
+                            val iconRes = when (suggestion.source) {
+                                SuggestionSource.HISTORY -> R.drawable.ic_history
+                                SuggestionSource.GOOGLE -> R.drawable.ic_search
+                            }
+                            Row(
                                 modifier = Modifier
-                                    .height(
-                                        browserSettings.value.heightForLayer(1).dp
-                                    )
                                     .fillMaxWidth()
-                                    .padding(browserSettings.value.padding.dp)
+                                    .padding(horizontal = browserSettings.value.padding.dp)
+                                    .padding(
+                                        top = browserSettings.value.padding.dp,
+                                        bottom = if (suggestions.indexOf(suggestion) == 0) browserSettings.value.padding.dp else 0.dp
+                                    )
+                                    .height(browserSettings.value.heightForLayer(3).dp)
                                     .clip(
                                         RoundedCornerShape(
-                                            browserSettings.value.cornerRadiusForLayer(
-                                                1
-                                            ).dp
+                                            browserSettings.value.cornerRadiusForLayer(3).dp
                                         )
                                     )
-                                    .consumeChangePointerInput(dragDirection = DragDirection.Vertical)
+                                    .clickable { onSuggestionClick(suggestion) }
+
+                                    .padding(browserSettings.value.padding.dp),
+                                verticalAlignment = Alignment.CenterVertically // Align icon and text vertically
                             ) {
+                                // 2. Add the search Icon
+                                Icon(
+                                    painter = painterResource(id = iconRes), // Make sure you have this drawable
+                                    contentDescription = "Search suggestion",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(24.dp) // Give the icon a suitable size
+                                )
 
-                                AnimatedVisibility(
-                                    visible = inspectingAppId.value > 0L,
-                                    enter = fadeIn(
-                                        tween(
-                                            browserSettings.value.animationSpeedForLayer(
-                                                0
-                                            )
-                                        )
-                                    ),
-                                    exit = fadeOut(
-                                        tween(
-                                            browserSettings.value.animationSpeedForLayer(
-                                                0
-                                            )
-                                        )
-                                    ),
-                                ) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clip(
-                                                RoundedCornerShape(
-                                                    browserSettings.value.cornerRadiusForLayer(
-                                                        1
-                                                    ).dp
-                                                )
-                                            )
-                                    ) {
+                                // 3. Add a Spacer for visual separation
+                                Spacer(modifier = Modifier.width(browserSettings.value.padding.dp))
 
-                                        val currentIndex =
-                                            apps.indexOfFirst { it.id == inspectingAppId.value }
-                                        Box(
-                                            modifier = Modifier
-                                                .buttonSettingsForLayer(
-                                                    2,
-                                                    browserSettings.value,
-                                                    currentIndex > 0
-                                                )
-                                                .weight(1f)
-                                                .clickable {
-                                                    if (currentIndex > 0) {
-                                                        // Swap with the previous item
-                                                        val previousItem = apps[currentIndex - 1]
-                                                        apps[currentIndex - 1] =
-                                                            apps[currentIndex].also {
-                                                                apps[currentIndex] = previousItem
-                                                            }
-                                                        appManager.saveApps(apps)
-                                                    }
-                                                },
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                painter = painterResource(id = R.drawable.ic_arrow_downward),
-                                                contentDescription = "edit pin",
-                                                tint = Color.Black
-                                            )
-                                        }
-                                        Spacer(modifier = Modifier.width(browserSettings.value.padding.dp))
+                                // 4. Add the Text, which now takes the remaining space
+                                Text(
+                                    text = suggestion.text,
+                                    color = Color.White,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f) // Ensures text fills available space
+                                )
 
-                                        Box(
-                                            modifier = Modifier
-                                                .buttonSettingsForLayer(
-                                                    2,
-                                                    browserSettings.value,
-                                                    false
-                                                )
-                                                .weight(1f)
-                                                .clickable {
-                                                    apps.indexOfFirst { it.id == inspectingAppId.value }
-                                                        .takeIf { it >= 0 }
-                                                        ?.let { apps.removeAt(it) }
-                                                    inspectingAppId.value = 0L
-                                                },
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                painter = painterResource(id = R.drawable.ic_delete_forever),
-                                                contentDescription = "delete pin",
-                                                tint = Color.White
-                                            )
-                                        }
-                                        Spacer(modifier = Modifier.width(browserSettings.value.padding.dp))
-                                        Box(
-                                            modifier = Modifier
-                                                .buttonSettingsForLayer(
-                                                    2,
-                                                    browserSettings.value,
-                                                    currentIndex < apps.lastIndex && currentIndex >= 0
-                                                )
-                                                .weight(1f)
-                                                .clickable {
-
-                                                    if (currentIndex < apps.lastIndex) {
-                                                        // Swap with the previous item
-                                                        val nextItem = apps[currentIndex + 1]
-                                                        apps[currentIndex + 1] =
-                                                            apps[currentIndex].also {
-                                                                apps[currentIndex] = nextItem
-                                                            }
-                                                        appManager.saveApps(apps)
-                                                    }
-                                                },
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                painter = painterResource(id = R.drawable.ic_arrow_upward),
-                                                contentDescription = "edit pin",
-                                                tint = Color.Black
-                                            )
-                                        }
-                                    }
-                                }
-
-                                AnimatedVisibility(
-                                    visible = inspectingAppId.value == 0L,
-                                    enter = fadeIn(
-                                        tween(
-                                            browserSettings.value.animationSpeedForLayer(
-                                                0
-                                            )
-                                        )
-                                    ),
-                                    exit = fadeOut(
-                                        tween(
-                                            browserSettings.value.animationSpeedForLayer(
-                                                0
-                                            )
-                                        )
-                                    ),
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .height(
-                                                browserSettings.value.heightForLayer(1).dp
-                                            )
-                                            .fillMaxWidth()
-                                            .clip(
-                                                RoundedCornerShape(
-                                                    browserSettings.value.cornerRadiusForLayer(
-                                                        1
-                                                    ).dp
-                                                )
-                                            )
-                                            .clickable {
-                                                resetBottomPanelTrigger.value =
-                                                    !resetBottomPanelTrigger.value
-                                            },
-                                        contentAlignment = Alignment.Center
+                                if (suggestion.source == SuggestionSource.HISTORY) {
+                                    IconButton(
+                                        onClick = { onRemoveSuggestion(suggestion) },
+                                        modifier = Modifier.size(24.dp) // A small, compact size
                                     ) {
                                         Icon(
-                                            painter = painterResource(id = R.drawable.ic_arrow_forward),
-                                            contentDescription = "toggle app",
-                                            tint = Color.White
+                                            painter = painterResource(id = R.drawable.ic_close), // The 'X' icon
+                                            contentDescription = "Remove from history",
+                                            tint = Color.Gray // A subtle color
                                         )
                                     }
                                 }
-
                             }
-
                         }
+                    }
+                }
+                ConfirmationPanel(
+                    isUrlBarVisible = isUrlBarVisible,
+                    browserSettings = browserSettings,
+                    state = confirmationDisplayState, // Use the display state here
+                    isConfirmationPanelVisible = confirmationState != null // Visibility is controlled by the primary state
+                )
+                // URL BAR
+                AnimatedVisibility(
+                    modifier = modifier
+                        .pointerInput(Unit) {
+                            // The long press on the UrlBar will activate the gesture
 
-                        BottomPanelMode.SEARCH.ordinal -> {
-                            Box(modifier = Modifier) {
-
-                                TextField(
+                        },
+                    visible = isUrlBarVisible,
+                    enter = fadeIn(
+                        tween(
+                            browserSettings.value.animationSpeedForLayer(1)
+                        )
+                    ),
+                    exit = fadeOut(
+                        tween(
+                            browserSettings.value.animationSpeedForLayer(1)
+                        )
+                    )
+                ) {
+                    HorizontalPager(
+                        state = bottomPanelPagerState,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .animateContentSize(),
+                        contentPadding = PaddingValues(0.dp),
+                        pageSpacing = browserSettings.value.padding.dp // Optional spacing
+                    ) { pageIndex ->
+                        LaunchedEffect(pageIndex) {
+                            if (pageIndex != BottomPanelMode.SEARCH.ordinal) {
+                                setIsOptionsPanelVisible(false)
+                            }
+                        }
+                        when (pageIndex) {
+                            // --- LEFT BOX (Page 0) ---
+                            BottomPanelMode.APPS.ordinal -> {
+                                Column(
                                     modifier = Modifier
                                         .height(
                                             browserSettings.value.heightForLayer(1).dp
                                         )
-                                        .padding(browserSettings.value.padding.dp)
-                                        .onSizeChanged { size ->
-                                            setTextFieldHeightPx(size.height)
-                                        }
                                         .fillMaxWidth()
-                                        .focusRequester(urlBarFocusRequester)
-                                        //                            .padding(horizontal = browserSettings.value.padding.dp, vertical = browserSettings.value.padding.dp / 2)
-                                        .onFocusChanged {
-                                            val resetUrl = activeTab.value.currentURL
-                                            setIsFocusOnTextField(it.isFocused)
-                                            if (it.isFocused) {
-
-//                                                geckoViewRef.value?.clearFocus()
-//                                                CoroutineScope(Dispatchers.Main).launch {
-//                                                    delay(300) // 50ms is usually enough to beat the race condition
-//                                                    keyboardController?.show()
-//                                                }
-
-                                                setSavedPanelState(
-                                                    PanelVisibilityState(
-                                                        options = draggableState.currentValue == RevealState.Visible,
-                                                        tabs = isTabsPanelVisible,
-                                                        downloads = isDownloadPanelVisible.value,
-                                                        tabData = isTabDataPanelVisible,
-                                                        nav = isNavPanelVisible
-                                                    )
-                                                )
-                                                setIsOptionsPanelVisible(false)
-                                                setIsTabsPanelVisible(false)
-                                                isDownloadPanelVisible.value = false
-                                                setIsTabDataPanelVisible(false)
-                                                setIsNavPanelVisible(false)
-                                                setIsSettingsPanelVisible(false)
-                                                setIsUrlOverlayBoxVisible(false)
-
-//                                    textFieldState.edit { selectAll() }
-                                                textFieldState.setTextAndPlaceCursorAtEnd("")
-
-
-                                            } else {
-                                                if (isPinningApp.value) isPinningApp.value = false
-                                                setIsUrlOverlayBoxVisible(true)
-
-                                                savedPanelState?.let { savedState ->
-                                                    if (bottomPanelPagerState.currentPage == BottomPanelMode.SEARCH.ordinal) {
-                                                        setIsOptionsPanelVisible(savedState.options)
-                                                        setIsTabsPanelVisible(savedState.tabs)
-                                                        isDownloadPanelVisible.value =
-                                                            savedState.downloads
-                                                        setIsTabDataPanelVisible(savedState.tabData)
-                                                        setIsNavPanelVisible(savedState.nav)
-                                                    }
-
-                                                    setSavedPanelState(null) // Clear the saved state
-                                                }
-                                                textFieldState.setTextAndPlaceCursorAtEnd(resetUrl.toDomain())
-
-
-                                                setIsUrlOverlayBoxVisible(true)
-                                            }
-                                        }
-//
-
+                                        .padding(browserSettings.value.padding.dp)
                                         .clip(
                                             RoundedCornerShape(
-                                                browserSettings.value.cornerRadiusForLayer(2).dp
+                                                browserSettings.value.cornerRadiusForLayer(
+                                                    1
+                                                ).dp
+                                            )
+                                        )
+                                        .consumeChangePointerInput(dragDirection = DragDirection.Vertical)
+                                ) {
+
+                                    AnimatedVisibility(
+                                        visible = inspectingAppId.value > 0L,
+                                        enter = fadeIn(
+                                            tween(
+                                                browserSettings.value.animationSpeedForLayer(
+                                                    0
+                                                )
                                             )
                                         ),
-                                    placeholder = {
-                                        if (!isPinningApp.value) Text("search / url") else Text(
-                                            "pin label"
-                                        )
-                                    },
-                                    state = textFieldState,
-                                    textStyle = LocalTextStyle.current.copy(
-//                            fontFamily = FontFamily.Monospace,
-                                        textAlign = if (isFocusOnTextField) TextAlign.Start else TextAlign.Center
-                                    ),
-//                        state = rememberTextFieldState("Hello"),
-                                    lineLimits = TextFieldLineLimits.SingleLine,
-                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
-                                    onKeyboardAction = {
-                                        val input = (textFieldState.text as String).trim()
-                                        val resetUrl = activeTab.value.currentURL
+                                        exit = fadeOut(
+                                            tween(
+                                                browserSettings.value.animationSpeedForLayer(
+                                                    0
+                                                )
+                                            )
+                                        ),
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clip(
+                                                    RoundedCornerShape(
+                                                        browserSettings.value.cornerRadiusForLayer(
+                                                            1
+                                                        ).dp
+                                                    )
+                                                )
+                                        ) {
+
+                                            val currentIndex =
+                                                apps.indexOfFirst { it.id == inspectingAppId.value }
+                                            Box(
+                                                modifier = Modifier
+                                                    .buttonSettingsForLayer(
+                                                        2,
+                                                        browserSettings.value,
+                                                        currentIndex > 0
+                                                    )
+                                                    .weight(1f)
+                                                    .clickable {
+                                                        if (currentIndex > 0) {
+                                                            // Swap with the previous item
+                                                            val previousItem =
+                                                                apps[currentIndex - 1]
+                                                            apps[currentIndex - 1] =
+                                                                apps[currentIndex].also {
+                                                                    apps[currentIndex] =
+                                                                        previousItem
+                                                                }
+                                                            appManager.saveApps(apps)
+                                                        }
+                                                    },
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    painter = painterResource(id = R.drawable.ic_arrow_downward),
+                                                    contentDescription = "edit pin",
+                                                    tint = Color.Black
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.width(browserSettings.value.padding.dp))
+
+                                            Box(
+                                                modifier = Modifier
+                                                    .buttonSettingsForLayer(
+                                                        2,
+                                                        browserSettings.value,
+                                                        false
+                                                    )
+                                                    .weight(1f)
+                                                    .clickable {
+                                                        apps.indexOfFirst { it.id == inspectingAppId.value }
+                                                            .takeIf { it >= 0 }
+                                                            ?.let { apps.removeAt(it) }
+                                                        inspectingAppId.value = 0L
+                                                    },
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    painter = painterResource(id = R.drawable.ic_delete_forever),
+                                                    contentDescription = "delete pin",
+                                                    tint = Color.White
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.width(browserSettings.value.padding.dp))
+                                            Box(
+                                                modifier = Modifier
+                                                    .buttonSettingsForLayer(
+                                                        2,
+                                                        browserSettings.value,
+                                                        currentIndex < apps.lastIndex && currentIndex >= 0
+                                                    )
+                                                    .weight(1f)
+                                                    .clickable {
+
+                                                        if (currentIndex < apps.lastIndex) {
+                                                            // Swap with the previous item
+                                                            val nextItem = apps[currentIndex + 1]
+                                                            apps[currentIndex + 1] =
+                                                                apps[currentIndex].also {
+                                                                    apps[currentIndex] = nextItem
+                                                                }
+                                                            appManager.saveApps(apps)
+                                                        }
+                                                    },
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    painter = painterResource(id = R.drawable.ic_arrow_upward),
+                                                    contentDescription = "edit pin",
+                                                    tint = Color.Black
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    AnimatedVisibility(
+                                        visible = inspectingAppId.value == 0L,
+                                        enter = fadeIn(
+                                            tween(
+                                                browserSettings.value.animationSpeedForLayer(
+                                                    0
+                                                )
+                                            )
+                                        ),
+                                        exit = fadeOut(
+                                            tween(
+                                                browserSettings.value.animationSpeedForLayer(
+                                                    0
+                                                )
+                                            )
+                                        ),
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .height(
+                                                    browserSettings.value.heightForLayer(1).dp
+                                                )
+                                                .fillMaxWidth()
+                                                .clip(
+                                                    RoundedCornerShape(
+                                                        browserSettings.value.cornerRadiusForLayer(
+                                                            1
+                                                        ).dp
+                                                    )
+                                                )
+                                                .clickable {
+                                                    resetBottomPanelTrigger.value =
+                                                        !resetBottomPanelTrigger.value
+                                                },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(id = R.drawable.ic_arrow_forward),
+                                                contentDescription = "toggle app",
+                                                tint = Color.White
+                                            )
+                                        }
+                                    }
+
+                                }
+
+                            }
+
+                            BottomPanelMode.SEARCH.ordinal -> {
+                                Box(modifier = Modifier) {
+
+                                    TextField(
+                                        modifier = Modifier
+                                            .height(
+                                                browserSettings.value.heightForLayer(1).dp
+                                            )
+                                            .padding(browserSettings.value.padding.dp)
+                                            .onSizeChanged { size ->
+                                                setTextFieldHeightPx(size.height)
+                                            }
+                                            .fillMaxWidth()
+                                            .focusRequester(urlBarFocusRequester)
+                                            //                            .padding(horizontal = browserSettings.value.padding.dp, vertical = browserSettings.value.padding.dp / 2)
+                                            .onFocusChanged {
+                                                val resetUrl = activeTab.value.currentURL
+                                                setIsFocusOnTextField(it.isFocused)
+                                                if (it.isFocused) {
+
+                                                    //                                                geckoViewRef.value?.clearFocus()
+                                                    //                                                CoroutineScope(Dispatchers.Main).launch {
+                                                    //                                                    delay(300) // 50ms is usually enough to beat the race condition
+                                                    //                                                    keyboardController?.show()
+                                                    //                                                }
+
+                                                    setSavedPanelState(
+                                                        PanelVisibilityState(
+                                                            options = draggableState.currentValue == RevealState.Visible,
+                                                            tabs = isTabsPanelVisible,
+                                                            downloads = isDownloadPanelVisible.value,
+                                                            tabData = isTabDataPanelVisible,
+                                                            nav = isNavPanelVisible
+                                                        )
+                                                    )
+                                                    setIsOptionsPanelVisible(false)
+                                                    setIsTabsPanelVisible(false)
+                                                    isDownloadPanelVisible.value = false
+                                                    setIsTabDataPanelVisible(false)
+                                                    setIsNavPanelVisible(false)
+                                                    setIsSettingsPanelVisible(false)
+                                                    setIsUrlOverlayBoxVisible(false)
+
+                                                    //                                    textFieldState.edit { selectAll() }
+                                                    textFieldState.setTextAndPlaceCursorAtEnd("")
 
 
-                                        if (input.isEmpty()) {
+                                                } else {
+                                                    if (isPinningApp.value) isPinningApp.value =
+                                                        false
+                                                    setIsUrlOverlayBoxVisible(true)
+
+                                                    savedPanelState?.let { savedState ->
+                                                        if (bottomPanelPagerState.currentPage == BottomPanelMode.SEARCH.ordinal) {
+                                                            setIsOptionsPanelVisible(savedState.options)
+                                                            setIsTabsPanelVisible(savedState.tabs)
+                                                            isDownloadPanelVisible.value =
+                                                                savedState.downloads
+                                                            setIsTabDataPanelVisible(savedState.tabData)
+                                                            setIsNavPanelVisible(savedState.nav)
+                                                        }
+
+                                                        setSavedPanelState(null) // Clear the saved state
+                                                    }
+                                                    textFieldState.setTextAndPlaceCursorAtEnd(
+                                                        resetUrl.toDomain()
+                                                    )
+
+
+                                                    setIsUrlOverlayBoxVisible(true)
+                                                }
+                                            }
+                                            //
+
+                                            .clip(
+                                                RoundedCornerShape(
+                                                    browserSettings.value.cornerRadiusForLayer(2).dp
+                                                )
+                                            ),
+                                        placeholder = {
+                                            if (!isPinningApp.value) Text("search / url") else Text(
+                                                "pin label"
+                                            )
+                                        },
+                                        state = textFieldState,
+                                        textStyle = LocalTextStyle.current.copy(
+                                            //                            fontFamily = FontFamily.Monospace,
+                                            textAlign = if (isFocusOnTextField) TextAlign.Start else TextAlign.Center
+                                        ),
+                                        //                        state = rememberTextFieldState("Hello"),
+                                        lineLimits = TextFieldLineLimits.SingleLine,
+                                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
+                                        onKeyboardAction = {
+                                            val input = (textFieldState.text as String).trim()
+                                            val resetUrl = activeTab.value.currentURL
+
+
+                                            if (input.isEmpty()) {
+
+                                                if (isPinningApp.value) {
+                                                    apps.add(
+                                                        App(
+                                                            id = System.currentTimeMillis(),
+                                                            label = activeTab.value.currentTitle,
+                                                            iconUrl = activeTab.value.currentFaviconUrl,
+                                                            url = resetUrl
+                                                        )
+                                                    )
+                                                    isPinningApp.value = false
+                                                } else {
+                                                    activeSession.reload()
+                                                }
+                                                focusManager.clearFocus()
+                                                keyboardController?.hide()
+
+                                                textFieldState.setTextAndPlaceCursorAtEnd(resetUrl.toDomain())
+
+                                                setIsFocusOnTextField(false)
+
+                                                return@TextField
+                                            }
+
+
+                                            val isUrl = try {
+                                                Patterns.WEB_URL.matcher(input).matches() ||
+                                                        (input.contains(".") && !input.contains(" "))
+                                                        && !input.endsWith(".")
+                                                        && !input.startsWith(".")
+                                            } catch (_: Exception) {
+                                                false
+                                            }
 
                                             if (isPinningApp.value) {
                                                 apps.add(
                                                     App(
                                                         id = System.currentTimeMillis(),
-                                                        label = activeTab.value.currentTitle,
+                                                        label = input,
                                                         iconUrl = activeTab.value.currentFaviconUrl,
-                                                        url = resetUrl
+                                                        url = resetUrl,
                                                     )
                                                 )
-                                                isPinningApp.value = false
-                                            } else {
-                                                activeSession.reload()
+                                            } else { // search
+                                                val finalUrl = if (isUrl) {
+                                                    if (input.startsWith("http://") || input.startsWith(
+                                                            "https://"
+                                                        )
+                                                    ) {
+                                                        input
+                                                    } else {
+                                                        "https://$input"
+                                                    }
+                                                } else {
+                                                    val encodedQuery =
+                                                        URLEncoder.encode(
+                                                            input,
+                                                            StandardCharsets.UTF_8.toString()
+                                                        )
+                                                    //                                                "https://www.google.com/search?q=$encodedQuery"
+                                                    //                                                "https://duckduckgo.com/?q=$encodedQuery"
+                                                    //                                                "https://www.bing.com/search?q=$encodedQuery"
+                                                    SearchEngine.entries[browserSettings.value.searchEngine].getSearchUrl(
+                                                        encodedQuery
+                                                    )
+                                                }
+
+                                                onNewUrl(finalUrl)
                                             }
+
+
                                             focusManager.clearFocus()
                                             keyboardController?.hide()
 
-                                            textFieldState.setTextAndPlaceCursorAtEnd(resetUrl.toDomain())
-
                                             setIsFocusOnTextField(false)
+                                        },
+                                        shape = RoundedCornerShape(
+                                            browserSettings.value.cornerRadiusForLayer(2).dp
+                                        ),
+                                        colors = TextFieldDefaults.colors(
+                                            focusedContainerColor = Color.Black,
+                                            unfocusedContainerColor = Color.Black,
+                                            cursorColor = Color.White,
+                                            focusedTextColor = Color.White,
+                                            unfocusedTextColor = Color.White,
 
-                                            return@TextField
-                                        }
+                                            // 3. This is the key to removing the underline
+                                            focusedIndicatorColor = Color.Transparent,
+                                            unfocusedIndicatorColor = Color.Transparent,
+                                            disabledIndicatorColor = Color.Transparent,
+                                            errorIndicatorColor = Color.Transparent
+                                        ),
+                                    )
 
-
-                                        val isUrl = try {
-                                            Patterns.WEB_URL.matcher(input).matches() ||
-                                                    (input.contains(".") && !input.contains(" "))
-                                                    && !input.endsWith(".")
-                                                    && !input.startsWith(".")
-                                        } catch (_: Exception) {
-                                            false
-                                        }
-
-                                        if (isPinningApp.value) {
-                                            apps.add(
-                                                App(
-                                                    id = System.currentTimeMillis(),
-                                                    label = input,
-                                                    iconUrl = activeTab.value.currentFaviconUrl,
-                                                    url = resetUrl,
+                                    if (isUrlOverlayBoxVisible && !isFocusOnTextField) Box(
+                                        modifier = Modifier
+                                            .background(
+                                                Color.Transparent, shape = RoundedCornerShape(
+                                                    browserSettings.value.cornerRadiusForLayer(1).dp
                                                 )
                                             )
-                                        } else { // search
-                                            val finalUrl = if (isUrl) {
-                                                if (input.startsWith("http://") || input.startsWith(
-                                                        "https://"
-                                                    )
+                                            .clip(
+                                                RoundedCornerShape(
+                                                    browserSettings.value.cornerRadiusForLayer(1).dp
+                                                )
+                                            )
+
+                                            .matchParentSize()
+                                            .pointerInput(
+                                                Unit,
+                                                activeTab.value.canGoBack,
+                                                activeTab.value.canGoForward,
+
                                                 ) {
-                                                    input
-                                                } else {
-                                                    "https://$input"
-                                                }
-                                            } else {
-                                                val encodedQuery =
-                                                    URLEncoder.encode(
-                                                        input,
-                                                        StandardCharsets.UTF_8.toString()
-                                                    )
-//                                                "https://www.google.com/search?q=$encodedQuery"
-//                                                "https://duckduckgo.com/?q=$encodedQuery"
-//                                                "https://www.bing.com/search?q=$encodedQuery"
-                                                SearchEngine.entries[browserSettings.value.searchEngine].getSearchUrl(
-                                                    encodedQuery
-                                                )
-                                            }
+                                                // 1. CAPTURE the CoroutineScope provided by pointerInput
+                                                val coroutineScope =
+                                                    CoroutineScope(currentCoroutineContext())
+                                                awaitEachGesture {
+                                                    val down =
+                                                        awaitFirstDown(requireUnconsumed = false)
 
-                                            onNewUrl(finalUrl)
-                                        }
+                                                    // 2. USE the captured scope to launch the long press job
+                                                    val longPressJob = coroutineScope.launch {
+                                                        delay(viewConfiguration.longPressTimeoutMillis)
 
+                                                        // LONG PRESS CONFIRMED
+                                                        hapticFeedback.performHapticFeedback(
+                                                            HapticFeedbackType.LongPress
+                                                        )
+                                                        focusManager.clearFocus(true)
+                                                        setIsNavPanelVisible(true)
+                                                        setActiveNavAction(GestureNavAction.NONE)
 
-                                        focusManager.clearFocus()
-                                        keyboardController?.hide()
-
-                                        setIsFocusOnTextField(false)
-                                    },
-                                    shape = RoundedCornerShape(
-                                        browserSettings.value.cornerRadiusForLayer(2).dp
-                                    ),
-                                    colors = TextFieldDefaults.colors(
-                                        focusedContainerColor = Color.Black,
-                                        unfocusedContainerColor = Color.Black,
-                                        cursorColor = Color.White,
-                                        focusedTextColor = Color.White,
-                                        unfocusedTextColor = Color.White,
-
-                                        // 3. This is the key to removing the underline
-                                        focusedIndicatorColor = Color.Transparent,
-                                        unfocusedIndicatorColor = Color.Transparent,
-                                        disabledIndicatorColor = Color.Transparent,
-                                        errorIndicatorColor = Color.Transparent
-                                    ),
-                                )
-
-                                if (isUrlOverlayBoxVisible && !isFocusOnTextField) Box(
-                                    modifier = Modifier
-                                        .background(
-                                            Color.Transparent, shape = RoundedCornerShape(
-                                                browserSettings.value.cornerRadiusForLayer(1).dp
-                                            )
-                                        )
-                                        .clip(
-                                            RoundedCornerShape(
-                                                browserSettings.value.cornerRadiusForLayer(1).dp
-                                            )
-                                        )
-
-                                        .matchParentSize()
-                                        .pointerInput(
-                                            Unit,
-                                            activeTab.value.canGoBack,
-                                            activeTab.value.canGoForward,
-                                           
-                                        ) {
-                                            // 1. CAPTURE the CoroutineScope provided by pointerInput
-                                            val coroutineScope =
-                                                CoroutineScope(currentCoroutineContext())
-                                            awaitEachGesture {
-                                                val down = awaitFirstDown(requireUnconsumed = false)
-
-                                                // 2. USE the captured scope to launch the long press job
-                                                val longPressJob = coroutineScope.launch {
-                                                    delay(viewConfiguration.longPressTimeoutMillis)
-
-                                                    // LONG PRESS CONFIRMED
-                                                    hapticFeedback.performHapticFeedback(
-                                                        HapticFeedbackType.LongPress
-                                                    )
-                                                    focusManager.clearFocus(true)
-                                                    setIsNavPanelVisible(true)
-                                                    setActiveNavAction(GestureNavAction.NONE)
-
-                                                }
-
-                                                val drag =
-                                                    awaitTouchSlopOrCancellation(down.id) { change, _ ->
-                                                        if (longPressJob.isActive) {
-                                                            longPressJob.cancel()
-                                                        }
-                                                        change.consume()
                                                     }
 
-                                                if (longPressJob.isCompleted && !longPressJob.isCancelled) {
-                                                    if (drag != null) {
-                                                        var horizontalDragAccumulator = 0f
-                                                        var verticalDragAccumulator = 0f
-                                                        var previousAction =
-                                                            GestureNavAction.REFRESH
-                                                        val horizontalDragThreshold =
-                                                            40.dp.toPx()
-
-                                                        val verticalCancelThreshold =
-                                                            -40.dp.toPx()
-
-
-                                                        drag(drag.id) { change ->
+                                                    val drag =
+                                                        awaitTouchSlopOrCancellation(down.id) { change, _ ->
+                                                            if (longPressJob.isActive) {
+                                                                longPressJob.cancel()
+                                                            }
                                                             change.consume()
-                                                            horizontalDragAccumulator += change.position.x - change.previousPosition.x
-                                                            verticalDragAccumulator += change.position.y - change.previousPosition.y
+                                                        }
+
+                                                    if (longPressJob.isCompleted && !longPressJob.isCancelled) {
+                                                        if (drag != null) {
+                                                            var horizontalDragAccumulator = 0f
+                                                            var verticalDragAccumulator = 0f
+                                                            var previousAction =
+                                                                GestureNavAction.REFRESH
+                                                            val horizontalDragThreshold =
+                                                                40.dp.toPx()
+
+                                                            val verticalCancelThreshold =
+                                                                -40.dp.toPx()
 
 
-                                                            val newAction = when {
-                                                                verticalDragAccumulator < verticalCancelThreshold -> {
-                                                                    when {
-                                                                        horizontalDragAccumulator < -horizontalDragThreshold -> GestureNavAction.CLOSE_TAB
-                                                                        horizontalDragAccumulator > horizontalDragThreshold -> GestureNavAction.NEW_TAB
-                                                                        else -> GestureNavAction.REFRESH
+                                                            drag(drag.id) { change ->
+                                                                change.consume()
+                                                                horizontalDragAccumulator += change.position.x - change.previousPosition.x
+                                                                verticalDragAccumulator += change.position.y - change.previousPosition.y
+
+
+                                                                val newAction = when {
+                                                                    verticalDragAccumulator < verticalCancelThreshold -> {
+                                                                        when {
+                                                                            horizontalDragAccumulator < -horizontalDragThreshold -> GestureNavAction.CLOSE_TAB
+                                                                            horizontalDragAccumulator > horizontalDragThreshold -> GestureNavAction.NEW_TAB
+                                                                            else -> GestureNavAction.REFRESH
+                                                                        }
                                                                     }
+
+                                                                    horizontalDragAccumulator < -horizontalDragThreshold -> if (activeTab.value.canGoBack
+                                                                    ) GestureNavAction.BACK else GestureNavAction.NONE
+
+                                                                    horizontalDragAccumulator > horizontalDragThreshold -> if (activeTab.value.canGoForward
+                                                                    ) GestureNavAction.FORWARD else GestureNavAction.NONE
+
+                                                                    else -> GestureNavAction.NONE
                                                                 }
 
-                                                                horizontalDragAccumulator < -horizontalDragThreshold -> if (activeTab.value.canGoBack
-                                                                ) GestureNavAction.BACK else GestureNavAction.NONE
-
-                                                                horizontalDragAccumulator > horizontalDragThreshold -> if (activeTab.value.canGoForward
-                                                                ) GestureNavAction.FORWARD else GestureNavAction.NONE
-
-                                                                else -> GestureNavAction.NONE
+                                                                if (newAction != previousAction) {
+                                                                    hapticFeedback.performHapticFeedback(
+                                                                        HapticFeedbackType.TextHandleMove
+                                                                    )
+                                                                    previousAction = newAction
+                                                                }
+                                                                //                                                    activeNavAction = newAction
+                                                                setActiveNavAction(newAction)
                                                             }
 
-                                                            if (newAction != previousAction) {
-                                                                hapticFeedback.performHapticFeedback(
-                                                                    HapticFeedbackType.TextHandleMove
-                                                                )
-                                                                previousAction = newAction
-                                                            }
-                                                            //                                                    activeNavAction = newAction
-                                                            setActiveNavAction(newAction)
+                                                            navigateWebView()
                                                         }
-
-                                                        navigateWebView()
-                                                    }
-                                                } else {
-                                                    if (drag != null) {
-
-                                                        var horizontalDragAccumulator = 0f
-                                                        var verticalDragAccumulator = 0f
-//                                                        val horizontalDragThreshold =
-//                                                            40.dp.toPx()
-//
-//                                                        val verticalCancelThreshold =
-//                                                            -40.dp.toPx()
-
-
-                                                        drag(drag.id) { change ->
-                                                            horizontalDragAccumulator += change.position.x - change.previousPosition.x
-                                                            verticalDragAccumulator += change.position.y - change.previousPosition.y
-
-                                                            if (isFocusOnTextField) change.consume()
-                                                            if (abs(horizontalDragAccumulator) > abs(
-                                                                    verticalDragAccumulator
-                                                                )
-                                                            ) {
-//                                                                change.consume()
-                                                                setIsUrlOverlayBoxVisible(false)
-
-                                                            }
-
-
-                                                        }
-
-
                                                     } else {
-                                                        // Gesture is fully over
-                                                        if (longPressJob.isActive) {
-                                                            longPressJob.cancel()
-                                                            // This was a tap
+                                                        if (drag != null) {
 
-                                                            if (urlBarFocusRequester.requestFocus()) {
-                                                                keyboardController?.show()
-                                                            } else {
-                                                                urlBarFocusRequester.requestFocus()
+                                                            var horizontalDragAccumulator = 0f
+                                                            var verticalDragAccumulator = 0f
+                                                            //                                                        val horizontalDragThreshold =
+                                                            //                                                            40.dp.toPx()
+                                                            //
+                                                            //                                                        val verticalCancelThreshold =
+                                                            //                                                            -40.dp.toPx()
+
+
+                                                            drag(drag.id) { change ->
+                                                                horizontalDragAccumulator += change.position.x - change.previousPosition.x
+                                                                verticalDragAccumulator += change.position.y - change.previousPosition.y
+
+                                                                if (isFocusOnTextField) change.consume()
+                                                                if (abs(horizontalDragAccumulator) > abs(
+                                                                        verticalDragAccumulator
+                                                                    )
+                                                                ) {
+                                                                    //                                                                change.consume()
+                                                                    setIsUrlOverlayBoxVisible(false)
+
+                                                                }
+
+
                                                             }
-                                                            setIsUrlOverlayBoxVisible(false)
+
+
+                                                        } else {
+                                                            // Gesture is fully over
+                                                            if (longPressJob.isActive) {
+                                                                longPressJob.cancel()
+                                                                // This was a tap
+
+                                                                if (urlBarFocusRequester.requestFocus()) {
+                                                                    keyboardController?.show()
+                                                                } else {
+                                                                    urlBarFocusRequester.requestFocus()
+                                                                }
+                                                                setIsUrlOverlayBoxVisible(false)
+                                                            }
                                                         }
                                                     }
+
+                                                    //                                        // Gesture is fully over
+                                                    //                                        if (longPressJob.isActive) {
+                                                    //                                            longPressJob.cancel()
+                                                    //                                            // This was a tap
+                                                    //                                            focusRequester.requestFocus()
+                                                    //                                        }
+
+                                                    // Reset the UI state
+                                                    //                                        isNavPanelVisible = false
+                                                    setIsNavPanelVisible(false)
+                                                    //                                        activeNavAction = GestureNavAction.NONE
+                                                    setActiveNavAction(GestureNavAction.NONE)
                                                 }
-
-                                                //                                        // Gesture is fully over
-                                                //                                        if (longPressJob.isActive) {
-                                                //                                            longPressJob.cancel()
-                                                //                                            // This was a tap
-                                                //                                            focusRequester.requestFocus()
-                                                //                                        }
-
-                                                // Reset the UI state
-                                                //                                        isNavPanelVisible = false
-                                                setIsNavPanelVisible(false)
-                                                //                                        activeNavAction = GestureNavAction.NONE
-                                                setActiveNavAction(GestureNavAction.NONE)
                                             }
-                                        }
-                                ) {
+                                    ) {
+                                    }
                                 }
                             }
-                        }
 
-                        BottomPanelMode.LOCK.ordinal -> {
-                            Box(
-                                modifier = Modifier
-                                    .height(
-                                        browserSettings.value.heightForLayer(1).dp
-                                    )
-                                    .fillMaxWidth()
-                                    .padding(browserSettings.value.padding.dp)
-                                    .clip(
-                                        RoundedCornerShape(
-                                            browserSettings.value.cornerRadiusForLayer(
-                                                1
-                                            ).dp
+                            BottomPanelMode.LOCK.ordinal -> {
+                                Box(
+                                    modifier = Modifier
+                                        .height(
+                                            browserSettings.value.heightForLayer(1).dp
                                         )
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    painter = painterResource(id = if (browserSettings.value.isFullscreenMode) R.drawable.ic_fullscreen else R.drawable.ic_fullscreen_exit),
-                                    contentDescription = "toggle bottom panel lock",
-                                    tint = Color.White
-                                )
+                                        .fillMaxWidth()
+                                        .padding(browserSettings.value.padding.dp)
+                                        .clip(
+                                            RoundedCornerShape(
+                                                browserSettings.value.cornerRadiusForLayer(
+                                                    1
+                                                ).dp
+                                            )
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = if (browserSettings.value.isFullscreenMode) R.drawable.ic_fullscreen else R.drawable.ic_fullscreen_exit),
+                                        contentDescription = "toggle bottom panel lock",
+                                        tint = Color.White
+                                    )
+                                }
                             }
                         }
                     }
                 }
-            }
-
-
-            // SETTING OPTIONS
-
-
-            OptionsPanelWrapper(
-                maxHeight = optionsPanelHeightPx,
-                dragOffset = draggableState.offset
-            ) {
-                OptionsPanel(
-                    draggableState = draggableState,
-                    isPinningApp = isPinningApp,
-                    bottomPanelPagerState = bottomPanelPagerState,
-                    onCloseAllTabs = onCloseAllTabs,
-                    activeSession = activeSession,
-                    isFindInPageVisible = isFindInPageVisible,
-                    descriptionContent = descriptionContent,
-                    reopenClosedTab = reopenClosedTab,
-                    isSettingsPanelVisible = isSettingsPanelVisible,
-                    setIsOptionsPanelVisible = setIsOptionsPanelVisible,
-                    browserSettings = browserSettings,
-                    toggleIsTabsPanelVisible = toggleIsTabsPanelVisible,
-                    tabsPanelLock = tabsPanelLock,
-                    isDownloadPanelVisible = isDownloadPanelVisible,
-                    isCursorPadVisible = isCursorPadVisible,
-                    isCursorMode = isCursorMode,
-                    setIsCursorMode = setIsCursorMode,
-                    closedTabsCount = recentlyClosedTabs.size,
-                    addAppToPin = {
-                        isPinningApp.value = true
-                        urlBarFocusRequester.requestFocus()
-                    },
-                )
-//                Box(
-//                    modifier = Modifier
-//                        .fillMaxWidth()
-//                        .height(browserSettings.value.heightForLayer(1).dp)
-//                        .background(Color(0xFFB00020)), // Red
-//                    contentAlignment = Alignment.Center
-//                ) {
-//                    Text(
-//                        text = "Component C\n(Revealed)",
-//                        color = Color.White
-//                    )
-//                }
-            }
-
-            TextEditPanel(
-                isPinningApp = isPinningApp,
-                isVisible = isPinningApp.value || (isFocusOnTextField && textFieldState.text.isBlank()),
-                browserSettings = browserSettings,
-                onCopyClick = {
-                    val clipData = ClipData.newPlainText("url", activeTab.value.currentURL)
-
-                    clipboard.nativeClipboard.setPrimaryClip(clipData)
-
-                },
-                onEditClick = {
-                    textFieldState.setTextAndPlaceCursorAtEnd(
-                        if (isPinningApp.value) {
-                            activeTab.value.currentTitle
-                        } else activeTab.value.currentURL
+                // SETTING OPTIONS
+                OptionsPanelWrapper(
+                    maxHeight = optionsPanelHeightPx,
+                    dragOffset = draggableState.offset
+                ) {
+                    OptionsPanel(
+                        updateCurrentRotation = updateCurrentRotation,
+                        currentRotation = currentRotation,
+                        draggableState = draggableState,
+                        isPinningApp = isPinningApp,
+                        bottomPanelPagerState = bottomPanelPagerState,
+                        onCloseAllTabs = onCloseAllTabs,
+                        activeSession = activeSession,
+                        isFindInPageVisible = isFindInPageVisible,
+                        descriptionContent = descriptionContent,
+                        reopenClosedTab = reopenClosedTab,
+                        isSettingsPanelVisible = isSettingsPanelVisible,
+                        setIsOptionsPanelVisible = setIsOptionsPanelVisible,
+                        browserSettings = browserSettings,
+                        toggleIsTabsPanelVisible = toggleIsTabsPanelVisible,
+                        tabsPanelLock = tabsPanelLock,
+                        isDownloadPanelVisible = isDownloadPanelVisible,
+                        isCursorPadVisible = isCursorPadVisible,
+                        isCursorMode = isCursorMode,
+                        setIsCursorMode = setIsCursorMode,
+                        closedTabsCount = recentlyClosedTabs.size,
+                        addAppToPin = {
+                            isPinningApp.value = true
+                            urlBarFocusRequester.requestFocus()
+                        },
                     )
-                    urlBarFocusRequester.requestFocus()
-                    keyboardController?.show()
-                },
-                onDismiss = {
-                    setIsFocusOnTextField(false)
-                    focusManager.clearFocus()
-                },
-                activeWebViewTitle = activeTab.value.currentTitle,
-                descriptionContent = descriptionContent,
-            )
+                }
+                TextEditPanel(
+                    currentRotation =  currentRotation,
+                    isPinningApp = isPinningApp,
+                    isVisible = isPinningApp.value || (isFocusOnTextField && textFieldState.text.isBlank()),
+                    browserSettings = browserSettings,
+                    onCopyClick = {
+                        val clipData = ClipData.newPlainText("url", activeTab.value.currentURL)
+
+                        clipboard.nativeClipboard.setPrimaryClip(clipData)
+
+                    },
+                    onEditClick = {
+                        textFieldState.setTextAndPlaceCursorAtEnd(
+                            if (isPinningApp.value) {
+                                activeTab.value.currentTitle
+                            } else activeTab.value.currentURL
+                        )
+                        urlBarFocusRequester.requestFocus()
+                        keyboardController?.show()
+                    },
+                    onDismiss = {
+                        setIsFocusOnTextField(false)
+                        focusManager.clearFocus()
+                    },
+                    activeWebViewTitle = activeTab.value.currentTitle,
+                    descriptionContent = descriptionContent,
+                )
+            }
         }
 
     }

@@ -431,6 +431,7 @@ fun TextSetting(
 }
 @Composable
 fun SettingsPanel(
+    currentRotation: Float,
     isSettingCornerRadius: MutableState<Boolean>,
     descriptionContent: MutableState<String>,
     backgroundColor: MutableState<Color>,
@@ -592,6 +593,7 @@ fun SettingsPanel(
                                     buttonDescription = option.contentDescription,
                                     painterId = option.iconRes,
                                     isWhite = option.enabled,
+                                    currentRotation = currentRotation,
                                 )
 
                             }

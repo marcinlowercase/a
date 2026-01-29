@@ -35,6 +35,7 @@ import kotlin.math.roundToInt
 @SuppressLint("SuspiciousIndentation")
 @Composable
 fun OptionsPanel(
+    currentRotation: Float,
     draggableState: AnchoredDraggableState<RevealState>,
 
     isPinningApp: MutableState<Boolean>,
@@ -55,6 +56,7 @@ fun OptionsPanel(
     setIsCursorMode: (Boolean) -> Unit,
     closedTabsCount: Int,
     addAppToPin: () -> Unit,
+    updateCurrentRotation: ()-> Unit,
 ) {
 
     // This remains the same
@@ -126,6 +128,14 @@ fun OptionsPanel(
 //                    setIsCursorMode(!isCursorMode)
 //                    setIsOptionsPanelVisible(false)
 //                },
+
+                OptionItem(
+                    R.drawable.ic_screen_rotation_up,
+                    "rotate",
+                    false,
+                ) {
+                    updateCurrentRotation()
+                },
                 OptionItem(
                     R.drawable.ic_find_in_page, // You'll need an icon
                     "find in page",
@@ -218,27 +228,6 @@ fun OptionsPanel(
     // The pagerState remembers the current page and handles scroll animations.
     val pagerState = rememberPagerState(pageCount = { optionPages.size })
 
-//    AnimatedVisibility(
-//        visible = isOptionsPanelVisible,
-//        enter = expandVertically(
-//            tween(
-//                browserSettings.value.animationSpeedForLayer( 1)
-//            )
-//        ) + fadeIn(
-//            tween(
-//                browserSettings.value.animationSpeedForLayer(1)
-//            )
-//        ),
-//        exit = shrinkVertically(
-//            tween(
-//                browserSettings.value.animationSpeedForLayer( 1)
-//            )
-//        ) + fadeOut(
-//            tween(
-//                browserSettings.value.animationSpeedForLayer(1)
-//            )
-//        )
-//    ) {
         Box(
             modifier = Modifier
                 .padding(horizontal = browserSettings.value.padding.dp)
@@ -249,20 +238,6 @@ fun OptionsPanel(
                         browserSettings.value.cornerRadiusForLayer(2).dp
                     )
                 )
-//                .pointerInput(Unit) {
-//                    detectVerticalDragGestures(
-//                        onVerticalDrag = { _, dragAmount ->
-//                            // dragAmount is the change in the Y-axis.
-//                            // A negative value means the finger has moved UP.
-//                            if (dragAmount < 0) {
-//                                setIsOptionsPanelVisible(true)
-//                            }
-//                            // A positive value means the finger has moved DOWN.
-//                            else if (dragAmount > 0) {
-//                                setIsOptionsPanelVisible(false)
-//                            }
-//                        })
-//                }
 
         ) {
 
@@ -291,6 +266,7 @@ fun OptionsPanel(
                     // Create an IconButton for each option on the page
                     pageOptions.forEach { option ->
                         CustomIconButton(
+                            currentRotation = currentRotation,
                             layer = 2,
                             browserSettings = browserSettings,
                             modifier = Modifier.weight(1f),

@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
@@ -17,6 +18,7 @@ import marcinlowercase.a.core.function.buttonSettingsForLayer
 
 @Composable
 fun CustomIconButton(
+    currentRotation: Float,
     layer: Int,
     browserSettings: MutableState<BrowserSettings>,
     modifier: Modifier = Modifier,
@@ -51,6 +53,7 @@ fun CustomIconButton(
         contentAlignment = Alignment.Center
     ) {
         Icon(
+            modifier = Modifier.rotate(currentRotation),
             painter = painterResource(id = painterId),
             contentDescription = buttonDescription,
             tint = if (isWhite) Color.Black else Color.White

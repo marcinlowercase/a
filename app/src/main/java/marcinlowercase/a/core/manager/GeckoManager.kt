@@ -265,7 +265,7 @@ class GeckoManager(private val context: Context) {
         onNewSessionFun: (session: GeckoSession, uri: String) -> Unit,
         onProgressChange: (Int) -> Unit,
         onLocationChangeFun: (eventTabId : Long, session: GeckoSession, url: String?, perms: MutableList<GeckoSession.PermissionDelegate.ContentPermission>, userGesture: Boolean) -> Unit,
-
+        onFullScreenFun: (Boolean) -> Unit,
         onHistoryStateChangeFun: (
             eventTabId : Long,
             session: GeckoSession,
@@ -472,6 +472,10 @@ class GeckoManager(private val context: Context) {
         // 3. Content Delegate (Title, Fullscreen, Context Menu)
         session.contentDelegate = object : GeckoSession.ContentDelegate {
 
+            override fun onFullScreen(session: GeckoSession, fullScreen: Boolean) {
+                Log.i("GeckoPiP", "Fullscreen changed: $fullScreen")
+                onFullScreenFun(fullScreen)
+            }
             override fun onExternalResponse(session: GeckoSession, response: WebResponse) {
                 // Extract metadata from the WebResponse object
                 val url = response.uri

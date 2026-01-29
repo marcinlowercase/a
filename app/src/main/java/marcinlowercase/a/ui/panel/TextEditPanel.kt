@@ -22,6 +22,7 @@ import marcinlowercase.a.ui.component.CustomIconButton
 
 @Composable
 fun TextEditPanel(
+    currentRotation: Float,
     isVisible: Boolean,
     browserSettings: MutableState<BrowserSettings>,
     onCopyClick: () -> Unit,
@@ -59,6 +60,7 @@ fun TextEditPanel(
         ) {
             // Dismiss
             CustomIconButton(
+                currentRotation = currentRotation,
                 layer = 3,
                 browserSettings = browserSettings,
                 modifier = Modifier.weight(1f),
@@ -73,6 +75,7 @@ fun TextEditPanel(
                 if (activeWebViewTitle.isNotBlank()) {
                     // Edit Button (ensures keyboard is shown)
                     CustomIconButton(
+                        currentRotation = currentRotation,
                         layer = 3,
                         browserSettings = browserSettings,
                         modifier = Modifier.weight(1f),
@@ -86,6 +89,7 @@ fun TextEditPanel(
             } else {
                 // Copy Button
                 CustomIconButton(
+                    currentRotation = currentRotation,
                     layer = 3,
                     browserSettings = browserSettings,
                     modifier = Modifier.weight(1f),
@@ -98,6 +102,7 @@ fun TextEditPanel(
 
                 // Edit Button (ensures keyboard is shown)
                 CustomIconButton(
+                    currentRotation = currentRotation,
                     layer = 3,
                     browserSettings = browserSettings,
                     modifier = Modifier.weight(1f),

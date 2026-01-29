@@ -52,6 +52,7 @@ import marcinlowercase.a.ui.component.CustomIconButton
 
 @Composable
 fun DownloadPanel(
+    currentRotation: Float,
     confirmationPopup: (message: String, onConfirm: () -> Unit, onCancel: () -> Unit) -> Unit,
     isDownloadPanelVisible: MutableState<Boolean>,
     downloads: List<DownloadItem>,
@@ -167,9 +168,11 @@ fun DownloadPanel(
                     descriptionContent = descriptionContent,
                     buttonDescription = "download folder",
                     painterId = R.drawable.ic_folder,
+                    currentRotation = currentRotation,
                 )
                 if (downloads.isNotEmpty())
                     CustomIconButton(
+                        currentRotation = currentRotation,
                         layer = 3,
                         browserSettings = browserSettings,
                         modifier = Modifier.weight(1f),

@@ -143,6 +143,7 @@ fun HistoryRow(
 
 @Composable
 fun TabDataPanel(
+    currentRotation: Float,
     geckoManager: GeckoManager,
     descriptionContent: MutableState<String>,
 //    webViewManager: WebViewManager,
@@ -271,6 +272,7 @@ fun TabDataPanel(
 
                                 if (settings != null && settings.permissionDecisions.isNotEmpty()) {
                                     CustomIconButton(
+                                        currentRotation = currentRotation,
                                         layer = 3,
                                         browserSettings = browserSettings,
                                         modifier = Modifier.fillMaxWidth(),
@@ -381,6 +383,7 @@ fun TabDataPanel(
                                         }
 
                                         CustomIconButton(
+                                            currentRotation = currentRotation,
                                             layer = 3,
                                             browserSettings = browserSettings,
                                             modifier = Modifier.weight(1f),
@@ -440,6 +443,7 @@ fun TabDataPanel(
 
                     if (inspectingTab?.state != TabState.FROZEN) {
                         CustomIconButton(
+                            currentRotation = currentRotation,
                             layer = 3,
                             browserSettings = browserSettings,
                             modifier = Modifier.weight(1f),
@@ -452,6 +456,7 @@ fun TabDataPanel(
                     }
 
                     CustomIconButton(
+                        currentRotation = currentRotation,
                         layer = 3,
                         browserSettings = browserSettings,
                         modifier = Modifier.weight(1f),

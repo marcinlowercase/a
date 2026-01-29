@@ -44,6 +44,7 @@
             android:theme="@style/Theme.A"
             android:windowSoftInputMode="adjustResize"
             android:screenOrientation="portrait"
+            android:supportsPictureInPicture="true"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode"
             android:launchMode="singleTask"
             tools:ignore="DiscouragedApi,LockedOrientationActivity">

@@ -18,6 +18,7 @@ import android.os.Bundle
 import android.os.Environment
 import android.util.Log
 import android.view.MotionEvent
+import android.view.OrientationEventListener
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.URLUtil
@@ -36,7 +37,9 @@ import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -107,6 +110,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
@@ -187,6 +191,7 @@ import java.net.URL
 import java.net.URLDecoder
 import java.net.URLEncoder
 import java.util.regex.Pattern
+import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 import kotlin.system.exitProcess
@@ -324,6 +329,78 @@ class MainActivity : ComponentActivity() {
 }
 
 
+//@Composable
+//fun rememberScreenRotation(): Float {
+//    val context = LocalContext.current
+//    val rotation = remember { mutableFloatStateOf(0f) }
+//
+//    DisposableEffect(context) {
+//        val listener = object : OrientationEventListener(context, SensorManager.SENSOR_DELAY_UI) {
+//            override fun onOrientationChanged(orientation: Int) {
+//                if (orientation == ORIENTATION_UNKNOWN) return
+//
+//                // Snap to 0, 90, 180, 270
+//                val newRotation = when (orientation) {
+//                    // Landscape Left (Sensor ~90°)
+//                    // We narrow the range to 65-115 (approx ±25° from 90)
+//                    // This forces the user to really tilt it to trigger.
+//                    in 45..134 -> -90f
+//
+//                    // Landscape Right (Sensor ~270°)
+//                    // We narrow the range to 245-295 (approx ±25° from 270)
+//                    in 225..314 -> 90f
+//
+//                    // Upside Down (Sensor ~180°) -> Force to Portrait (0f)
+//                    // Normal Portrait (Sensor ~0°) -> Force to Portrait (0f)
+//                    // Transition zones -> Force to Portrait (0f)
+//                    else -> 0f
+//                }
+//
+//                if (rotation.floatValue != newRotation) {
+//                    rotation.floatValue = newRotation
+//                }
+//            }
+//        }
+//        listener.enable()
+//        onDispose { listener.disable() }
+//    }
+//
+//    // Animate the rotation for smoothness
+//    val animatedRotation by animateFloatAsState(
+//        targetValue = rotation.floatValue,
+//        animationSpec = spring(stiffness = Spring.StiffnessLow)
+//    )
+//
+//    return animatedRotation
+//}
+
+@Composable
+fun rememberDevicePhysicalRotation(): androidx.compose.runtime.State<Float> {
+    val context = LocalContext.current
+    val rotation = remember { mutableFloatStateOf(0f) }
+
+    DisposableEffect(context) {
+        val listener = object : OrientationEventListener(context, SensorManager.SENSOR_DELAY_NORMAL) {
+            override fun onOrientationChanged(orientation: Int) {
+                if (orientation == ORIENTATION_UNKNOWN) return
+
+                val newRotation = when (orientation) {
+                    in 45..134 -> -90f
+                    in 225..314 -> 90f
+                    else -> 0f
+                }
+
+                if (rotation.floatValue != newRotation) {
+                    rotation.floatValue = newRotation
+                }
+            }
+        }
+        listener.enable()
+        onDispose { listener.disable() }
+    }
+
+    return rotation
+}
 @Composable
 fun BrowserScreen(
     innerPadding: PaddingValues,
@@ -609,20 +686,8 @@ fun BrowserScreen(
     val cutoutPaddingValues = WindowInsets.displayCutout.asPaddingValues()
     val cutoutTop = cutoutPaddingValues.calculateTopPadding()
     val cutoutBottom = cutoutPaddingValues.calculateBottomPadding()
-    cutoutPaddingValues.calculateBottomPadding()
-//    val webViewTopPaddingFullscreen by animateDpAsState(
-//        targetValue = if (browserSettings.value.isSharpMode) (
-//                if (cutoutTop >= browserSettings.value.deviceCornerRadius.dp) cutoutTop else browserSettings.value.deviceCornerRadius.dp
-//                ) else cutoutTop,
-//        label = "WebView Top Padding Animation"
-//    )
-//    val webViewTopPaddingRegular by animateDpAsState(
-//        targetValue = if (browserSettings.value.isSharpMode) (
-//                browserSettings.value.deviceCornerRadius.dp
-//                ) else 0.dp,
-//        label = "WebView Top Padding Animation"
-//    )
-
+    val cutoutLeft = cutoutPaddingValues.calculateLeftPadding(LocalLayoutDirection.current)
+    val cutoutRight = cutoutPaddingValues.calculateRightPadding(LocalLayoutDirection.current)
 
     val webViewTopPaddingFullscreen = if (browserSettings.value.isSharpMode) {
         maxOf(cutoutTop, browserSettings.value.deviceCornerRadius.dp)
@@ -682,12 +747,26 @@ fun BrowserScreen(
     val webViewBottomPadding by animateDpAsState(
         targetValue = targetWebViewBottomPadding,
     )
+
+    val targetWebViewStartPadding =
+        if (isSettingCornerRadius.value) 0.dp else cutoutLeft
+    val targetWebViewEndPadding =
+        if (isSettingCornerRadius.value) 0.dp else cutoutRight
+
+    val webViewStartPadding by animateDpAsState(
+        targetValue = targetWebViewStartPadding
+    )
+    val webViewEndPadding by animateDpAsState(
+        targetValue = targetWebViewEndPadding
+    )
+
     val webViewPaddingValue = PaddingValues(
-        start = 0.dp,
+        start = webViewStartPadding,
         top = webViewTopPadding,
-        end = 0.dp,
+        end = webViewEndPadding,
         bottom = webViewBottomPadding
     )
+
     val imeInsets = WindowInsets.ime.asPaddingValues()
     val keyboardHeight = imeInsets.calculateBottomPadding()
     val isKeyboardVisible = keyboardHeight > 0.dp
@@ -887,9 +966,29 @@ fun BrowserScreen(
 
     val geckoViewRef = remember { mutableStateOf<GeckoView?>(null) }
 
+    val deviceRotationState = rememberDevicePhysicalRotation()
+
+    var currentRotationValue by rememberSaveable { mutableFloatStateOf(0f) }
+
+
+    val currentRotation by animateFloatAsState(
+        targetValue = currentRotationValue,
+        animationSpec = spring(stiffness = Spring.StiffnessLow),
+        label = "ScreenRotationAnim"
+    )
+
+
     //endregion
 
     //region Functions
+
+    val updateCurrentRotation = remember {
+        {
+            val freshRotation = deviceRotationState.value
+            Log.i("Rotation", "Click! Snapping to: $freshRotation")
+            currentRotationValue = freshRotation
+        }
+    }
 
     val setIsOptionsPanelVisible = { setToVisible: Boolean ->
 
@@ -2212,6 +2311,10 @@ fun BrowserScreen(
             siteSettings = siteSettings,
             siteSettingsManager = siteSettingsManager,
 
+            onFullScreenFun = { isFullscreen ->
+                // 1. Tell Activity to prep for PiP
+
+            }
         )
 
 
@@ -2903,6 +3006,7 @@ fun BrowserScreen(
                     .padding(bottom = browserSettings.value.padding.dp)
             ) {
                 SettingsPanel(
+                    currentRotation = currentRotation,
                     descriptionContent = descriptionContent,
                     backgroundColor = backgroundColor,
                     isSettingsPanelVisible = isSettingsPanelVisible,
@@ -2939,7 +3043,8 @@ fun BrowserScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(webViewPaddingValue),
+                        .padding(webViewPaddingValue)
+                    ,
 
 
                     ) {
@@ -2959,7 +3064,6 @@ fun BrowserScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .weight(1f)
-
                                 .run {
                                     if (isApplyImePaddingToWebView) {
                                         this.windowInsetsPadding(WindowInsets.ime)
@@ -3083,6 +3187,23 @@ fun BrowserScreen(
                     }
                 }
                 BottomPanel(
+
+                    modifier = Modifier
+                        .padding(PaddingValues(
+                            start = webViewStartPadding,
+                            end = webViewEndPadding,
+                            bottom = 0.dp,
+                            top = 0.dp
+                        ))
+                        .windowInsetsPadding(WindowInsets.ime)
+                        .align(Alignment.BottomCenter),
+//                    updateCurrentRotation = {
+//                        Log.i("Rotation", "currentRotation: $currentRotationValue")
+//                        Log.i("Rotation", "realtimeRotation: $realtimeRotation")
+//                        currentRotationValue = realtimeRotation
+//                    },
+                    updateCurrentRotation = updateCurrentRotation,
+                    currentRotation = currentRotation,
                     geckoManager = geckoManager,
                     geckoViewRef = geckoViewRef,
                     activeTab = activeTab,
@@ -3163,15 +3284,6 @@ fun BrowserScreen(
 
                     findInPageResult = findInPageResult,
                     findInPageText = findInPageText,
-//                    onAddToHomeScreen = {
-//                        addToHomeScreen(
-//                            context = context,
-//                            coroutineScope = coroutineScope,
-//                            tab = currentInspectingTab,
-//                            activeWebView = activeWebView,
-//                        )
-//                    }
-//                    ,
                     descriptionContent = descriptionContent,
                     recentlyClosedTabs = recentlyClosedTabs,
                     reopenClosedTab = reopenClosedTab,
@@ -3260,35 +3372,12 @@ fun BrowserScreen(
                         if (activeTabIndex.intValue != newIndex) {
                             if (isLoading) isLoading = false
 
-                            // save old tab state
-//                            val oldTab = tabs[activeTabIndex.intValue]
-//                            // We use the webViewManager's pool to find the correct WebView instance
-//                            oldTab.let { webViewManager.getWebView(it) }
 
-//                            val stateToSave = geckoManager.getSessionStateString(oldTab.id)
-
-//                            tabs[activeTabIndex.intValue].savedState = stateToSave
-
-//                            if (oldWebView != null) {
-//                                val outState = Bundle()
-//                                oldWebView.saveState(outState)
-//                                val stateBytes = outState.getByteArray("WEBVIEW_CHROMIUM_STATE")
-//                                if (stateBytes != null) {
-//                                    oldTab.savedState =
-//                                        Base64.encodeToString(stateBytes, Base64.DEFAULT)
-//                                }
-//                            }
-
-//                            tabs[activeTabIndex.intValue].state = TabState.BACKGROUND
                             activeTab.value.state = TabState.BACKGROUND
                             tabs[newIndex].state = TabState.ACTIVE
 
                             activeTabIndex.intValue = newIndex
                             val urlToLoad = tabs[newIndex].currentURL
-
-//                            val urlToLoad = webViewManager.getWebView(tabs[newIndex]).url
-//                                ?: browserSettings.value.defaultUrl
-//                        activeWebView?.loadUrl(urlToLoad)
 
                             if (!isFocusOnTextField) textFieldState.setTextAndPlaceCursorAtEnd(urlToLoad.toDomain())
                             saveTrigger++
@@ -3315,11 +3404,7 @@ fun BrowserScreen(
                     isPermissionPanelVisible = isPermissionPanelVisible,
                     permissionLauncher = permissionLauncher,
                     pendingPermissionRequest = pendingPermissionRequest,
-                    modifier = Modifier
-                        // This aligns the panel to the bottom center of the Box
 
-                        .windowInsetsPadding(WindowInsets.ime)
-                        .align(Alignment.BottomCenter),
                     activeTabIndex = activeTabIndex,
                     tabs = tabs,
                     isUrlBarVisible = isUrlBarVisible,
@@ -3380,7 +3465,9 @@ fun BrowserScreen(
 
                     Box(
                         modifier = Modifier
-                            .fillMaxSize(),
+                            .fillMaxSize()
+
+                        ,
                     ) {
                         val squareBoxSize = browserSettings.value.heightForLayer(1).dp
                         val squareBoxSizePx = with(density) { squareBoxSize.toPx() }
