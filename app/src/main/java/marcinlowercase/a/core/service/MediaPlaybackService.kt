@@ -19,6 +19,9 @@ class MediaPlaybackService : Service() {
     private val NOTIFICATION_ID = 101
     private var mediaSession: MediaSessionCompat? = null
 
+    private var currentTitle = "Browser Video"
+    private var currentArtist = "Website"
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
@@ -76,11 +79,12 @@ class MediaPlaybackService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val title = intent?.getStringExtra("TITLE") ?: "Browser Video"
-        val artist = intent?.getStringExtra("ARTIST") ?: "Website"
+        intent?.getStringExtra("TITLE")?.let { currentTitle = it }
+        intent?.getStringExtra("ARTIST")?.let { currentArtist = it }
+
         val isPaused = intent?.getBooleanExtra("IS_PAUSED", false) ?: false
 
-        updateNotification(title, artist, isPaused)
+        updateNotification(currentTitle, currentArtist, isPaused)
         return START_STICKY
     }
 
