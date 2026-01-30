@@ -210,7 +210,9 @@ class MainActivity : ComponentActivity() {
 
     private val tabManager by lazy { TabManager(this) }
     private val webViewManager by lazy { WebViewManager(this) }
-    private val geckoManager by lazy { GeckoManager(this) }
+//    private val geckoManager by lazy { GeckoManager(this) }
+    private val geckoManager by lazy { (application as CustomApplication).geckoManager }
+
     val newUrlFromIntent = MutableStateFlow<String?>(null)
 
 
@@ -250,69 +252,70 @@ class MainActivity : ComponentActivity() {
         handleIntent(intent)
     }
 
-//    fun updatePipParams(isDataFullscreen: Boolean) {
-//        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-//            val params = android.app.PictureInPictureParams.Builder()
-//                // If video is fullscreen, allow Auto-Enter (Swipe up to PiP)
-//                .setAutoEnterEnabled(isDataFullscreen)
-//                .setAspectRatio(android.util.Rational(16, 9)) // Default to 16:9
-//                .build()
-//            setPictureInPictureParams(params)
-//        }
-//    }
-//    var isCurrentlyFullscreen by mutableStateOf(false)
-//    var isEnteringPip by mutableStateOf(false)
+    fun updatePipParams(isDataFullscreen: Boolean) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            isEnteringPip = true
+            val params = android.app.PictureInPictureParams.Builder()
+                // If video is fullscreen, allow Auto-Enter (Swipe up to PiP)
+                .setAutoEnterEnabled(isDataFullscreen)
+                .setAspectRatio(android.util.Rational(16, 9)) // Default to 16:9
+                .build()
+            setPictureInPictureParams(params)
+        }
+    }
+    var isCurrentlyFullscreen by mutableStateOf(false)
+    var isEnteringPip by mutableStateOf(false)
 
-//    override fun onUserLeaveHint() {
-//        Log.i("marcPip", "onUserLeaveHint")
-//        if (isCurrentlyFullscreen) {
-//            Log.i("marcPip", "isCurrentlyFullscreen $isCurrentlyFullscreen")
-//
-//            isEnteringPip = true
-//
-//
-//            // Only call enterPip() manually on older Androids.
-//            // Android 12+ handles it automatically via updatePipParams/setAutoEnterEnabled.
-//            if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.S) {
-//                enterPip()
-//            }
-//        }
-//    }
-//    private fun enterPip() {
-//        Log.i("marcPip", "enterPip")
-//
-//        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-//            // Use 16:9 as a standard fallback since the delegate is missing
-//            val params = android.app.PictureInPictureParams.Builder()
-//                .setAspectRatio(android.util.Rational(16, 9))
-//                .build()
-//            enterPictureInPictureMode(params)
-//        }
-//    }
-//
-//    var isPipMode by mutableStateOf(false)
-//
-//    override fun onPictureInPictureModeChanged(
-//        isInPictureInPictureMode: Boolean,
-//        newConfig: android.content.res.Configuration
-//    ) {
-//        Log.i("marcPip", "onPictureInPictureModeChanged")
-//
-//        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
-//        isPipMode = isInPictureInPictureMode
-//        Log.i("marcPip", "isInPictureInPictureMode $isInPictureInPictureMode")
-//        if (isInPictureInPictureMode) {
-//            // Ensure orientation is correct for the small window
-//            isEnteringPip = false
-//        } else {
-//            isEnteringPip = false
-//
-//            // If we are still conceptually in fullscreen video, restore landscape
-//            if (isCurrentlyFullscreen) {
-//                requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-//            }
-//        }
-//    }
+    override fun onUserLeaveHint() {
+        Log.i("marcPip", "onUserLeaveHint")
+        if (isCurrentlyFullscreen) {
+            Log.i("marcPip", "isCurrentlyFullscreen $isCurrentlyFullscreen")
+
+            isEnteringPip = true
+
+
+            // Only call enterPip() manually on older Androids.
+            // Android 12+ handles it automatically via updatePipParams/setAutoEnterEnabled.
+            if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.S) {
+                enterPip()
+            }
+        }
+    }
+    private fun enterPip() {
+        Log.i("marcPip", "enterPip")
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            // Use 16:9 as a standard fallback since the delegate is missing
+            val params = android.app.PictureInPictureParams.Builder()
+                .setAspectRatio(android.util.Rational(16, 9))
+                .build()
+            enterPictureInPictureMode(params)
+        }
+    }
+
+    var isPipMode by mutableStateOf(false)
+
+    override fun onPictureInPictureModeChanged(
+        isInPictureInPictureMode: Boolean,
+        newConfig: android.content.res.Configuration
+    ) {
+        Log.i("marcPip", "onPictureInPictureModeChanged")
+
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        isPipMode = isInPictureInPictureMode
+        Log.i("marcPip", "isInPictureInPictureMode $isInPictureInPictureMode")
+        if (isInPictureInPictureMode) {
+            // Ensure orientation is correct for the small window
+            isEnteringPip = false
+        } else {
+            isEnteringPip = false
+
+            // If we are still conceptually in fullscreen video, restore landscape
+            if (isCurrentlyFullscreen) {
+                requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            }
+        }
+    }
 
     private fun handleIntent(intent: Intent?) {
         if (intent?.action == Intent.ACTION_VIEW) {
@@ -326,41 +329,46 @@ class MainActivity : ComponentActivity() {
 
     override fun onStop() {
         super.onStop()
-//
-//        Log.e("marcPip", "onStop")
-//        if (isInPictureInPictureMode
-//            || isPipMode || isEnteringPip
-//            ) return
+        Log.e("marcPip", "onStop")
+        if (isInPictureInPictureMode
+            || isPipMode || isEnteringPip
+            ) return
         tabManager.freezeAllTabs()
 
     }
 
-//    override fun onPause() {
-//        super.onPause()
-////        Log.e("marcPip", "onPause")
-////        // If entering PiP, we MUST keep the session active and prevent Gecko from
-////        // interpreting this as a background event that stops media.
-////        if (isInPictureInPictureMode || isEnteringPip) {
-////            val tabs = tabManager.loadTabs()
-////            val index = tabManager.getActiveTabIndex()
-////            if (tabs.isNotEmpty() && index in tabs.indices) {
-////                val activeTab = tabs[index]
-////                // Force the session to remain active
-////                geckoManager.getSession(activeTab).setActive(true)
-////                Log.e("marcPip", "set session to active")
-////
-////            }
-////        }
-//    }
-//
-//    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
-//        // Force Landscape orientation report to Gecko if we are Fullscreen + PiP
-//        // This prevents Gecko from exiting fullscreen due to "Portrait" home screen signals
-//        if (isCurrentlyFullscreen && (isEnteringPip || isInPictureInPictureMode)) {
-//            newConfig.orientation = android.content.res.Configuration.ORIENTATION_LANDSCAPE
-//        }
-//        super.onConfigurationChanged(newConfig)
-//    }
+    override fun onPause() {
+        super.onPause()
+        if (isCurrentlyFullscreen) isEnteringPip = true
+
+
+        Log.e("marcPip", "onPause")
+        Log.d("marcPip", "isInPictureInPictureMode: $isInPictureInPictureMode")
+        Log.d("marcPip", "isEnteringPip: $isEnteringPip")
+        Log.d("marcPip", "isCurrentlyFullscreen: $isCurrentlyFullscreen")
+        // If entering PiP, we MUST keep the session active and prevent Gecko from
+        // interpreting this as a background event that stops media.
+        if (isInPictureInPictureMode || isEnteringPip ) {
+            val tabs = tabManager.loadTabs()
+            val index = tabManager.getActiveTabIndex()
+            if (tabs.isNotEmpty() && index in tabs.indices) {
+                val activeTab = tabs[index]
+                // Force the session to remain active
+                geckoManager.getSession(activeTab).setActive(true)
+                Log.e("marcPip", "set session to active")
+
+            }
+        }
+    }
+
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        // Force Landscape orientation report to Gecko if we are Fullscreen + PiP
+        // This prevents Gecko from exiting fullscreen due to "Portrait" home screen signals
+        if (isCurrentlyFullscreen && (isEnteringPip || isInPictureInPictureMode)) {
+            newConfig.orientation = android.content.res.Configuration.ORIENTATION_LANDSCAPE
+        }
+        super.onConfigurationChanged(newConfig)
+    }
 }
 
 
@@ -405,8 +413,8 @@ fun BrowserScreen(
     //region Variables
     val context = LocalContext.current
     val mainActivity = context as? MainActivity
-//    val isPipMode = mainActivity?.isPipMode == true
-    val isPipMode = false
+    val isPipMode = mainActivity?.isPipMode == true
+//    val isPipMode = false
     var saveTrigger by remember { mutableIntStateOf(0) }
     val sharedPrefs =
         remember { context.getSharedPreferences("BrowserPrefs", Context.MODE_PRIVATE) }
@@ -637,7 +645,7 @@ fun BrowserScreen(
     val animatedCornerRadius by animateDpAsState(
         targetValue = if (browserSettings.value.isSharpMode
             || isOnFullscreenVideo.value
-//            || isPipMode
+            || isPipMode
             ) 0.dp else browserSettings.value.deviceCornerRadius.dp,
         label = "Corner Radius Animation",
     )
@@ -695,50 +703,50 @@ fun BrowserScreen(
 
     val targetWebViewTopPadding =
         if (isSettingCornerRadius.value
-//            || isPipMode
+            || isPipMode
             ) 0.dp else webViewTopPaddingNormalScreen
     val targetWebViewBottomPadding =
         if (isSettingCornerRadius.value
-//            || isPipMode
+            || isPipMode
             ) 0.dp else webViewBottomPaddingNormalScreen
 
 
-//    val paddingAnimationSpec = if (isPipMode) {
-//        snap()
-//    } else {
-//        spring(visibilityThreshold = Dp.VisibilityThreshold)
-//    }
+    val paddingAnimationSpec = if (isPipMode) {
+        snap()
+    } else {
+        spring(visibilityThreshold = Dp.VisibilityThreshold)
+    }
 
     val webViewTopPadding by animateDpAsState(
         targetValue = targetWebViewTopPadding,
-//        animationSpec = paddingAnimationSpec,
+        animationSpec = paddingAnimationSpec,
         label = "WebView Top Padding Animation",
     )
 
 
     val webViewBottomPadding by animateDpAsState(
         targetValue = targetWebViewBottomPadding,
-//        animationSpec = paddingAnimationSpec,
+        animationSpec = paddingAnimationSpec,
         label = "WebView Bottom Padding Animation",
     )
 
     val targetWebViewStartPadding =
         if (isSettingCornerRadius.value
-//            || isPipMode
+            || isPipMode
             ) 0.dp else cutoutLeft
     val targetWebViewEndPadding =
         if (isSettingCornerRadius.value
-//            || isPipMode
+            || isPipMode
             ) 0.dp else cutoutRight
 
     val webViewStartPadding by animateDpAsState(
         targetValue = targetWebViewStartPadding,
-//        animationSpec = paddingAnimationSpec,
+        animationSpec = paddingAnimationSpec,
         label = "WebView Start Padding Animation"
     )
     val webViewEndPadding by animateDpAsState(
         targetValue = targetWebViewEndPadding,
-//        animationSpec = paddingAnimationSpec,
+        animationSpec = paddingAnimationSpec,
         label = "WebView End Padding Animation"
     )
 
@@ -1816,7 +1824,8 @@ fun BrowserScreen(
         }
     }
     LaunchedEffect(screenSize) {
-        if (screenSize.width > 0 && !isBackSquareInitialized) {
+        Log.i("marcPip", "onscreenSize")
+        if (screenSize.width > 0 && !isBackSquareInitialized && !isPipMode) {
             val buttonSize = with(density) {
                 browserSettings.value.heightForLayer(1).dp.toPx()
             }
@@ -2167,10 +2176,22 @@ fun BrowserScreen(
                 // fe:  change  tab A -> B, the textbox changed to A.url
 //                if (session == activeSession) {
                 if (eventTabId == activeTab.value.id && url.isNotBlank() && url != "about:blank") {
-                    if (!isFocusOnTextField) textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
+                    if (!isFocusOnTextField) {
+                        textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
+                    }
+
                     if (activeTab.value.currentURL != url) {
-                        tabs[activeTabIndex.intValue] =
-                            tabs[activeTabIndex.intValue].copy(currentURL = url)
+                        // Get the current tab state
+                        val currentTab = tabs[activeTabIndex.intValue]
+
+                        // TRY TO RESTORE ICON FROM THIS TAB'S CACHE
+                        val cachedIcon = currentTab.faviconCache[url] ?: ""
+
+                        // Update URL and Icon immediately
+                        tabs[activeTabIndex.intValue] = currentTab.copy(
+                            currentURL = url,
+                            currentFaviconUrl = cachedIcon
+                        )
                     }
                 }
             },
@@ -2259,7 +2280,15 @@ fun BrowserScreen(
 
                     // Check if an update is even needed to prevent unnecessary recompositions.
                     if (faviconUrl.isNotBlank()) {
-                        tabs[tabIndex] = targetTab.copy(currentFaviconUrl = faviconUrl)
+                        val newCache = targetTab.faviconCache.toMutableMap().apply {
+                            put(targetTab.currentURL, faviconUrl)
+                        }
+
+                        // Update the tab with the new Icon AND the new Cache
+                        tabs[tabIndex] = targetTab.copy(
+                            currentFaviconUrl = faviconUrl,
+                            faviconCache = newCache
+                        )
                         saveTrigger++
                     }
                 },
@@ -2322,87 +2351,87 @@ fun BrowserScreen(
 //                (context as? MainActivity)?.isCurrentlyFullscreen = isFullscreen
 
 
-                if (isFullscreen) {
-                    activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-                    insetsController?.hide(WindowInsetsCompat.Type.systemBars())
-                    insetsController?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-                    if (isBottomPanelVisible) isBottomPanelVisible = false
+//                if (isFullscreen) {
+//                    activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+//                    insetsController?.hide(WindowInsetsCompat.Type.systemBars())
+//                    insetsController?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+//                    if (isBottomPanelVisible) isBottomPanelVisible = false
+//                } else {
+//                    activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+//                    if (!browserSettings.value.isFullscreenMode) {
+//                        insetsController?.show(WindowInsetsCompat.Type.systemBars())
+//                        insetsController?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
+//                    }
+//                    coroutineScope.launch {
+//                        hideBackSquare(true)
+//                    }
+//                }
+                val inPip = mainActivity?.isPipMode == true || mainActivity?.isEnteringPip == true
+
+                if (inPip && !isFullscreen) {
+                    Log.i("marcPip", "Ignoring Gecko Fullscreen Exit (Keep UI in Fullscreen for PiP)")
+                    // Do NOT update isOnFullscreenVideo
+                    // Do NOT update isCurrentlyFullscreen
+                    // Do NOT update PipParams
                 } else {
-                    activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                    if (!browserSettings.value.isFullscreenMode) {
-                        insetsController?.show(WindowInsetsCompat.Type.systemBars())
-                        insetsController?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
-                    }
-                    coroutineScope.launch {
-                        hideBackSquare(true)
+                    // Normal behavior for all other cases
+                    isOnFullscreenVideo.value = isFullscreen
+                    mainActivity?.isCurrentlyFullscreen = isFullscreen
+                    mainActivity?.updatePipParams(isFullscreen)
+
+                    if (isFullscreen) {
+                        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                        insetsController?.hide(WindowInsetsCompat.Type.systemBars())
+                        insetsController?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                        if (isBottomPanelVisible) isBottomPanelVisible = false
+                    } else {
+                        // Only exit landscape/immersive if NOT in PiP
+                        if (!inPip) {
+                            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                            if (!browserSettings.value.isFullscreenMode) {
+                                insetsController?.show(WindowInsetsCompat.Type.systemBars())
+                                insetsController?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
+                            }
+                            coroutineScope.launch {
+                                hideBackSquare(true)
+                            }
+                        }
                     }
                 }
-//                val inPip = mainActivity?.isPipMode == true || mainActivity?.isEnteringPip == true
-//
-//                if (inPip && !isFullscreen) {
-//                    Log.i("marcPip", "Ignoring Gecko Fullscreen Exit (Keep UI in Fullscreen for PiP)")
-//                    // Do NOT update isOnFullscreenVideo
-//                    // Do NOT update isCurrentlyFullscreen
-//                    // Do NOT update PipParams
-//                } else {
-//                    // Normal behavior for all other cases
-//                    isOnFullscreenVideo.value = isFullscreen
-//                    mainActivity?.isCurrentlyFullscreen = isFullscreen
-//                    mainActivity?.updatePipParams(isFullscreen)
-//
-//                    if (isFullscreen) {
-//                        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-//                        insetsController?.hide(WindowInsetsCompat.Type.systemBars())
-//                        insetsController?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-//                        if (isBottomPanelVisible) isBottomPanelVisible = false
-//                    } else {
-//                        // Only exit landscape/immersive if NOT in PiP
-//                        if (!inPip) {
-//                            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-//                            if (!browserSettings.value.isFullscreenMode) {
-//                                insetsController?.show(WindowInsetsCompat.Type.systemBars())
-//                                insetsController?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
-//                            }
-//                            coroutineScope.launch {
-//                                hideBackSquare(true)
-//                            }
-//                        }
-//                    }
-//                }
-//                mainActivity?.updatePipParams(isFullscreen)
-//                if (isFullscreen) {
-//                    // When video is fullscreen, UNLOCK rotation (allow Landscape)
-//                    // Use SCREEN_ORIENTATION_SENSOR to let the user rotate the phone naturally.
-//                    // Or use SCREEN_ORIENTATION_SENSOR_LANDSCAPE if you want to FORCE it sideways immediately.
-//                    activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-//
-//                    insetsController?.hide(WindowInsetsCompat.Type.systemBars())
-//                    insetsController?.systemBarsBehavior =
-//                        WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-//
-//                    if (isBottomPanelVisible) isBottomPanelVisible = false
-//
-//
-//                } else {
-//                    // When exiting fullscreen, LOCK back to Portrait
-//                    Log.i("marcPip", "exit full screen")
-//
-//                    if (inPip) {
-//                        Log.i("marcPip", "Ignored Fullscreen Exit - Transitioning to/in PiP")
-//                    } else {
-//                        Log.i("marcPip", "Normal Fullscreen Exit")
-//                        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-//
-//                        if (!browserSettings.value.isFullscreenMode) {
-//                            insetsController?.show(WindowInsetsCompat.Type.systemBars())
-//                            insetsController?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
-//                        }
-//                        coroutineScope.launch {
-//                            hideBackSquare(true)
-//                        }
-//                    }
-//
-//                }
+                mainActivity?.updatePipParams(isFullscreen)
+                if (isFullscreen) {
+                    // When video is fullscreen, UNLOCK rotation (allow Landscape)
+                    // Use SCREEN_ORIENTATION_SENSOR to let the user rotate the phone naturally.
+                    // Or use SCREEN_ORIENTATION_SENSOR_LANDSCAPE if you want to FORCE it sideways immediately.
+                    activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+
+                    insetsController?.hide(WindowInsetsCompat.Type.systemBars())
+                    insetsController?.systemBarsBehavior =
+                        WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+
+                    if (isBottomPanelVisible) isBottomPanelVisible = false
+
+
+                } else {
+                    // When exiting fullscreen, LOCK back to Portrait
+                    Log.i("marcPip", "exit full screen")
+
+                    if (inPip) {
+                        Log.i("marcPip", "Ignored Fullscreen Exit - Transitioning to/in PiP")
+                    } else {
+                        Log.i("marcPip", "Normal Fullscreen Exit")
+                        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+
+                        if (!browserSettings.value.isFullscreenMode) {
+                            insetsController?.show(WindowInsetsCompat.Type.systemBars())
+                            insetsController?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
+                        }
+                        coroutineScope.launch {
+                            hideBackSquare(true)
+                        }
+                    }
+
+                }
 
             }
         )
@@ -3511,9 +3540,6 @@ fun BrowserScreen(
 
                         )
 
-                    LaunchedEffect(screenSize) {
-
-                    }
                     // BackSquare
                     AnimatedVisibility(
                         visible = !isBottomPanelVisible && !isOnFullscreenVideo.value,

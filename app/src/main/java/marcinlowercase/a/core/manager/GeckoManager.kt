@@ -2,6 +2,7 @@ package marcinlowercase.a.core.manager
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
 import android.util.Log
 import androidx.compose.runtime.MutableState
 import kotlinx.coroutines.MainScope
@@ -13,12 +14,14 @@ import marcinlowercase.a.core.data_class.CustomPermissionRequest
 import marcinlowercase.a.core.data_class.SiteSettings
 import marcinlowercase.a.core.data_class.Tab
 import marcinlowercase.a.core.enum_class.ContextMenuType
+import marcinlowercase.a.core.service.MediaPlaybackService
 import org.json.JSONObject
 import org.mozilla.geckoview.AllowOrDeny
 import org.mozilla.geckoview.GeckoResult
 import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.GeckoSessionSettings
+import org.mozilla.geckoview.MediaSession
 import org.mozilla.geckoview.WebExtension
 import org.mozilla.geckoview.WebExtensionController
 import org.mozilla.geckoview.WebRequestError
@@ -31,9 +34,10 @@ private const val UBLOCK_NAME = "ublock_origin"
 private const val FAVICON_ID = "favicon@marcinlowercase" // Must match manifest.json
 private var faviconExtension: WebExtension? = null
 class GeckoManager(private val context: Context) {
+    var activeGeckoMediaSession: MediaSession? = null
 
     val runtime: GeckoRuntime by lazy {
-        GeckoRuntime.getDefault(context.applicationContext)
+        GeckoRuntime.getDefault(context)
     }
 
     private val stateCache = mutableMapOf<Long, GeckoSession.SessionState>()
@@ -48,9 +52,6 @@ class GeckoManager(private val context: Context) {
         setupExtensionPrompts()
         setupExtension(UBLOCK_NAME, UBLOCK_ID)
         installFaviconFetcher()
-
-
-
 
     }
 
@@ -209,6 +210,7 @@ class GeckoManager(private val context: Context) {
             .build()
 
         val session = GeckoSession(settings)
+
 
         // RESTORE STATE
         if (tab.savedState != null) {
@@ -462,7 +464,7 @@ class GeckoManager(private val context: Context) {
             ) {
 
                 stateCache[eventTabId] = state
-                Log.e("onSessionStateChange", " state ${state}")
+                Log.d("onSessionStateChange", " state ${state}")
                 Log.i("onSessionStateChange", "saved state to session # ${eventTabId}")
                 onSessionStateChangeFun(session, state)
 
@@ -692,12 +694,67 @@ class GeckoManager(private val context: Context) {
             }
         }
 
-    }
-    private fun getPermissionKey(permission: Int): String? {
-        return when (permission) {
-            GeckoSession.PermissionDelegate.PERMISSION_GEOLOCATION -> "android.permission.ACCESS_FINE_LOCATION" // or generic_location_permission
-            // Add others
-            else -> null
+        session.mediaSessionDelegate = object : MediaSession.Delegate {
+            override fun onActivated(session: GeckoSession, mediaSession: MediaSession) {
+                activeGeckoMediaSession = mediaSession
+
+                // 1. Website started playing media! Start the background service.
+                val intent = Intent(context, MediaPlaybackService::class.java)
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    context.startForegroundService(intent)
+                } else {
+                    context.startService(intent)
+                }
+            }
+
+            override fun onDeactivated(session: GeckoSession,  mediaSession: MediaSession) {
+                activeGeckoMediaSession = null
+                // 2. Media stopped. Stop the background service.
+                context.stopService(Intent(context, MediaPlaybackService::class.java))
+            }
+
+            override fun onMetadata(session: GeckoSession,  mediaSession: MediaSession, metadata: MediaSession.Metadata) {
+                // 3. Update the Android Media Controls with Title/Artist from the website
+                Log.i("marcMedia", "Playing: ${metadata.title} by ${metadata.artist}")
+
+                val intent = Intent(context, MediaPlaybackService::class.java).apply {
+                    putExtra("TITLE", metadata.title)
+                    putExtra("ARTIST", metadata.artist ?: "Web Browser")
+                }
+                context.startService(intent)
+            }
+            override fun onFeatures(session: GeckoSession, mediaSession: MediaSession, features: Long) {
+                val isPaused = (features and MediaSession.Feature.PAUSE) == 0L
+                if (isPaused) mediaSession.pause() else mediaSession.play()
+                Log.d("marcMedia", "Is Paused: $isPaused")
+                context.startService(Intent(context, MediaPlaybackService::class.java).apply {
+                    putExtra("IS_PAUSED", isPaused)
+                })
+            }
+
+            override fun onPause(session: GeckoSession, mediaSession: MediaSession) {
+                activeGeckoMediaSession = mediaSession
+
+                Log.d("marcMedia", "onPause")
+                context.startService(Intent(context, MediaPlaybackService::class.java).apply {
+                    putExtra("IS_PAUSED", true)
+                })
+                super.onPause(session, mediaSession)
+            }
+
+            override fun onPlay(session: GeckoSession, mediaSession: MediaSession) {
+                activeGeckoMediaSession = mediaSession
+
+                Log.d("marcMedia", "onPlay")
+                context.startService(Intent(context, MediaPlaybackService::class.java).apply {
+                    putExtra("IS_PAUSED", false)
+                })
+                super.onPlay(session, mediaSession)
+            }
+
+//            override fun onPlaybackStateChanged(session: GeckoSession, mediaSession: MediaSession, state: Int) {
+//                // Sync play/pause state with Android system
+//            }
         }
     }
 }

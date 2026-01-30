@@ -14,6 +14,9 @@ data class Tab(
     var currentFaviconUrl: String = currentURL,
     var savedState: String? = null,
 
+    val faviconCache: Map<String, String> = emptyMap(),
+
+
     @Transient var canGoBack: Boolean = false,
     @Transient var canGoForward: Boolean = false,
     @Transient var errorState: ErrorState? = null

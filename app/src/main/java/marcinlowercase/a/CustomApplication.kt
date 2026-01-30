@@ -5,9 +5,12 @@ import coil.Coil
 import coil.ImageLoader
 import coil.decode.BitmapFactoryDecoder
 import coil.decode.SvgDecoder
+import marcinlowercase.a.core.manager.GeckoManager
 
 // REMOVE the "ImageLoaderFactory" implementation
 class CustomApplication : Application() {
+    val geckoManager by lazy { GeckoManager(this) }
+
 
     // The onCreate() method is the first safe place to access context.
     override fun onCreate() {
