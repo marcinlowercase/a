@@ -437,7 +437,7 @@ fun SettingsPanel(
     backgroundColor: MutableState<Color>,
     isSettingsPanelVisible: MutableState<Boolean>,
     browserSettings: MutableState<BrowserSettings>,
-    confirmationPopup: (String, () -> Unit, () -> Unit) -> Unit,
+    confirmationPopup: (String, String, () -> Unit, () -> Unit) -> Unit,
     resetBrowserSettings: () -> Unit,
     targetSetting: SettingPanelView = SettingPanelView.MAIN,
 ) {
@@ -519,6 +519,7 @@ fun SettingsPanel(
 
                 confirmationPopup(
                     "reset all settings?",
+                    "",
                     {
                         resetBrowserSettings()
                         isSettingsPanelVisible.value = false

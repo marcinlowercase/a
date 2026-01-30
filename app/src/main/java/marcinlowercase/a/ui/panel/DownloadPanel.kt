@@ -53,7 +53,7 @@ import marcinlowercase.a.ui.component.CustomIconButton
 @Composable
 fun DownloadPanel(
     currentRotation: Float,
-    confirmationPopup: (message: String, onConfirm: () -> Unit, onCancel: () -> Unit) -> Unit,
+    confirmationPopup: (message: String,url: String, onConfirm: () -> Unit, onCancel: () -> Unit) -> Unit,
     isDownloadPanelVisible: MutableState<Boolean>,
     downloads: List<DownloadItem>,
     browserSettings: MutableState<BrowserSettings>,
@@ -179,6 +179,7 @@ fun DownloadPanel(
                         onTap = {
                             confirmationPopup(
                                 "clear download list ?",
+                                "",
                                 {
                                     onClearAllClicked()
 
@@ -217,9 +218,8 @@ fun DownloadRow(
 
             .fillMaxWidth()
 
-            .height(
-                browserSettings.value.heightForLayer(3).dp
-            )
+            .heightIn(min = browserSettings.value.heightForLayer(3).dp)
+
 
             .clip(
                 RoundedCornerShape(
@@ -262,12 +262,14 @@ fun DownloadRow(
 
         AnimatedVisibility(
             visible = item.status == DownloadStatus.RUNNING,
+            modifier = Modifier.matchParentSize(),
             enter = fadeIn(animationSpec = tween(300)),
             exit = fadeOut(animationSpec = tween(300))
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxHeight()
+                    .matchParentSize()
                     // This is the key: fillMaxWidth takes a fraction from 0.0 to 1.0.
                     // We calculate this from the item's progress (0-100).
                     .fillMaxWidth(fraction = item.progress / 100f)
@@ -283,16 +285,13 @@ fun DownloadRow(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-
                 .padding(browserSettings.value.padding.dp)
 
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
-                    .height(
-                        browserSettings.value.heightForLayer(4).dp
-                    )
+                    .heightIn(min = browserSettings.value.heightForLayer(4).dp)
                     .padding(horizontal = browserSettings.value.padding.dp)
             ) {
                 Box(
@@ -365,6 +364,7 @@ fun DownloadRow(
 
         // --- LAYER 3: The Delete Confirmation Overlay ---
         AnimatedVisibility(
+            modifier = Modifier.matchParentSize(),
             visible = showDeleteConfirm,
             enter = fadeIn(animationSpec = tween(200)),
             exit = fadeOut(animationSpec = tween(200))
@@ -372,6 +372,8 @@ fun DownloadRow(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .matchParentSize()
+                    .heightIn(min = browserSettings.value.heightForLayer(4).dp)
                     .background(Color.Red.copy(alpha = 0.8f))
                     // 3. This pointerInput is ONLY on the delete overlay.
                     .pointerInput(Unit) {

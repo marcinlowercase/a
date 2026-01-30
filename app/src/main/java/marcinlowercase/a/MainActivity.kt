@@ -15,8 +15,10 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.media.MediaScannerConnection
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.provider.MediaStore
 import android.util.Log
 import android.view.MotionEvent
 import android.view.OrientationEventListener
@@ -31,6 +33,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
@@ -147,6 +150,7 @@ import marcinlowercase.a.core.data_class.ConfirmationDialogState
 import marcinlowercase.a.core.data_class.ContextMenuData
 import marcinlowercase.a.core.data_class.CustomPermissionRequest
 import marcinlowercase.a.core.data_class.DownloadItem
+import marcinlowercase.a.core.data_class.DownloadParams
 import marcinlowercase.a.core.data_class.ErrorState
 import marcinlowercase.a.core.data_class.JsAlert
 import marcinlowercase.a.core.data_class.JsConfirm
@@ -280,6 +284,7 @@ class MainActivity : ComponentActivity() {
                 enterPip()
             }
         }
+        super.onUserLeaveHint()
     }
     private fun enterPip() {
         Log.i("marcPip", "enterPip")
@@ -1079,9 +1084,10 @@ fun BrowserScreen(
         }
     }
 
-    fun confirmationPopup(message: String, onConfirm: () -> Unit, onCancel: () -> Unit = {}) {
+    fun confirmationPopup(message: String, url: String = "",onConfirm: () -> Unit, onCancel: () -> Unit = {}) {
         confirmationState = ConfirmationDialogState(
             message = message,
+            url = url,
             onConfirm = {
                 onConfirm()
                 confirmationState = null // Automatically dismiss after action
@@ -1415,42 +1421,77 @@ fun BrowserScreen(
         }
     }
 
-    val startDownload = { url: String, userAgent: String, contentDisposition: String?, mimeType: String? ->
-        // 1. Show the download panel so the user sees progress
+//    val startDownload = { url: String, userAgent: String, contentDisposition: String?, mimeType: String? ->
+//        // 1. Show the download panel so the user sees progress
+//        if (!isUrlBarVisible) isUrlBarVisible = true
+//        if (!isDownloadPanelVisible.value) isDownloadPanelVisible.value = true
+//
+//        if (contextMenuData != null) contextMenuData = null
+//
+//        // 2. Use your helper to get a clean filename
+//        val initialFilename = getBestGuessFilename(url, contentDisposition, mimeType)
+//        val finalFilename = generateUniqueFilename(initialFilename, downloads)
+//
+//        // 3. Create the Android DownloadManager Request
+//        val request = DownloadManager.Request(Uri.parse(url)).apply {
+//            setTitle(finalFilename)
+//            setDescription("Downloading file...")
+//            setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+//            setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, finalFilename)
+//
+//            // Critically important: pass the User Agent and Cookies so the server
+//            // doesn't reject the DownloadManager's separate request.
+//            addRequestHeader("User-Agent", userAgent)
+//            // If your app uses cookies for logins, you'd add them here:
+//            // addRequestHeader("Cookie", cookieString)
+//        }
+//
+//        val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+//
+//        try {
+//            val downloadId = downloadManager.enqueue(request)
+//
+//            // 4. Update your Compose 'downloads' list so the UI updates
+//            val newDownload = DownloadItem(
+//                id = downloadId,
+//                url = url,
+//                filename = finalFilename,
+//                mimeType = mimeType ?: "application/octet-stream",
+//                status = DownloadStatus.PENDING
+//            )
+//            downloads.add(0, newDownload)
+//            downloadTracker.saveDownloads(downloads)
+//        } catch (e: Exception) {
+//            Toast.makeText(context, "Download failed to start", Toast.LENGTH_SHORT).show()
+//        }
+//    }
+
+    var pendingDownload by remember { mutableStateOf<DownloadParams?>(null) }
+
+    fun performDownloadEnqueue(params: DownloadParams) {
         if (!isUrlBarVisible) isUrlBarVisible = true
         if (!isDownloadPanelVisible.value) isDownloadPanelVisible.value = true
-
         if (contextMenuData != null) contextMenuData = null
 
-        // 2. Use your helper to get a clean filename
-        val initialFilename = getBestGuessFilename(url, contentDisposition, mimeType)
+        val initialFilename = getBestGuessFilename(params.url, params.contentDisposition, params.mimeType)
         val finalFilename = generateUniqueFilename(initialFilename, downloads)
 
-        // 3. Create the Android DownloadManager Request
-        val request = DownloadManager.Request(Uri.parse(url)).apply {
+        val request = DownloadManager.Request(Uri.parse(params.url)).apply {
             setTitle(finalFilename)
             setDescription("Downloading file...")
             setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
             setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, finalFilename)
-
-            // Critically important: pass the User Agent and Cookies so the server
-            // doesn't reject the DownloadManager's separate request.
-            addRequestHeader("User-Agent", userAgent)
-            // If your app uses cookies for logins, you'd add them here:
-            // addRequestHeader("Cookie", cookieString)
+            addRequestHeader("User-Agent", params.userAgent)
         }
 
         val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-
         try {
             val downloadId = downloadManager.enqueue(request)
-
-            // 4. Update your Compose 'downloads' list so the UI updates
             val newDownload = DownloadItem(
                 id = downloadId,
-                url = url,
+                url = params.url,
                 filename = finalFilename,
-                mimeType = mimeType ?: "application/octet-stream",
+                mimeType = params.mimeType ?: "application/octet-stream",
                 status = DownloadStatus.PENDING
             )
             downloads.add(0, newDownload)
@@ -1460,6 +1501,36 @@ fun BrowserScreen(
         }
     }
 
+    // --- B. THE PERMISSION LAUNCHER ---
+    val storagePermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            // Now we call the standard function, not the 'val'
+            pendingDownload?.let { performDownloadEnqueue(it) }
+        } else {
+            Toast.makeText(context, "Storage permission denied", Toast.LENGTH_LONG).show()
+        }
+        pendingDownload = null
+    }
+
+    // --- C. THE UI-FACING TRIGGER ---
+    val startDownload = { url: String, userAgent: String, contentDisposition: String?, mimeType: String? ->
+        val params = DownloadParams(url, userAgent, contentDisposition, mimeType)
+
+        val needsPermission = android.os.Build.VERSION.SDK_INT <= android.os.Build.VERSION_CODES.P
+        val hasPermission = ContextCompat.checkSelfPermission(
+            context, Manifest.permission.WRITE_EXTERNAL_STORAGE
+        ) == PackageManager.PERMISSION_GRANTED
+
+        if (needsPermission && !hasPermission) {
+            pendingDownload = params
+            storagePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        } else {
+            // Call the standard function directly
+            performDownloadEnqueue(params)
+        }
+    }
 
 //    { url: String, userAgent: String, contentDisposition: String?, mimeType: String? ->
 //        if (!isUrlBarVisible) isUrlBarVisible = true
@@ -1618,9 +1689,20 @@ fun BrowserScreen(
             context.startActivity(intent)
         } catch (_: ActivityNotFoundException) {
             val genericFileManagerIntent = Intent(Intent.ACTION_GET_CONTENT).apply {
-                val downloadsUri = android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI
-                setDataAndType(downloadsUri, "*/*")
+//                val downloadsUri = android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI
+//                setDataAndType(downloadsUri, "*/*")
+//                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addCategory(Intent.CATEGORY_OPENABLE)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    // Android 10+ (API 29+) supports the Downloads URI
+                    setDataAndType(MediaStore.Downloads.EXTERNAL_CONTENT_URI, "*/*")
+                } else {
+                    // Android 9 and below: Just use type.
+                    // The user can still pick 'Downloads' from the system sidebar.
+                    type = "*/*"
+                }
             }
             try {
                 context.startActivity(genericFileManagerIntent)
@@ -2305,7 +2387,8 @@ fun BrowserScreen(
             onDownloadRequested = { url, userAgent, contentDisposition, mimeType ->
                 // Trigger your existing download logic
                 confirmationPopup(
-                    message = "download file on\n$url ?",
+                    message = "download file on",
+                    url = url,
                     onConfirm = {
                         startDownload(url, userAgent, contentDisposition, mimeType)
                                 },
@@ -3337,7 +3420,8 @@ fun BrowserScreen(
                             // Simple generic download for images found via context menu
 
                             confirmationPopup(
-                                message = "download file on $url ?",
+                                message = "download file on",
+                                url = url,
                                 onConfirm = {
                                     startDownload(
                                         url,

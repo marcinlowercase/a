@@ -6,6 +6,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -24,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import marcinlowercase.a.R
 import marcinlowercase.a.core.data_class.BrowserSettings
@@ -56,7 +59,7 @@ fun ConfirmationPanel(
                 .background(
                     Color.Black,
                     shape = RoundedCornerShape(
-                       browserSettings.value.cornerRadiusForLayer(2).dp
+                        browserSettings.value.cornerRadiusForLayer(2).dp
                     )
                 )
 //                .border(
@@ -72,24 +75,35 @@ fun ConfirmationPanel(
 //                )
         ) {
 
-            Text(
-                text = state.message,
-                color = Color.Yellow,
+            Column (
                 modifier = Modifier
+                    .heightIn(min = browserSettings.value.heightForLayer(3).dp)
                     .padding(browserSettings.value.padding.dp)
-
-                    .heightIn(min =browserSettings.value.heightForLayer(3).dp)
-//                    .height(browserSettings.value.heightForLayer(3).dp)
-                    .fillMaxWidth()
-//                    .background(Color.White,
-//                        RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(3).dp))
                     .padding(browserSettings.value.padding.dp)
                     .padding(horizontal = browserSettings.value.cornerRadiusForLayer(3).dp)
-                    .align(Alignment.CenterHorizontally)
 
-                ,
-                textAlign = TextAlign.Start
-            )
+            ) {
+                Text(
+                    text = state.message,
+                    color = Color.Yellow,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.CenterHorizontally),
+                    textAlign = TextAlign.Start
+                )
+
+                if (state.url.isNotBlank()) Text(
+                    text = state.url,
+                    color = Color.Yellow,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Visible,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.CenterHorizontally)
+                        .horizontalScroll(rememberScrollState())
+                )
+            }
 
             Row(
                 modifier = Modifier
@@ -101,10 +115,10 @@ fun ConfirmationPanel(
                 IconButton(
                     modifier = Modifier
                         .buttonSettingsForLayer(
-                        3,
-                       browserSettings.value,
-                        false
-                    )
+                            3,
+                            browserSettings.value,
+                            false
+                        )
                         .weight(1f)
                     ,
                     shape = RoundedCornerShape(
@@ -123,9 +137,9 @@ fun ConfirmationPanel(
                 IconButton(
                     modifier = Modifier
                         .buttonSettingsForLayer(
-                        3,
-                        browserSettings.value,
-                    )
+                            3,
+                            browserSettings.value,
+                        )
                         .weight(1f),
                     shape = RoundedCornerShape(
                         browserSettings.value.cornerRadiusForLayer(2).dp

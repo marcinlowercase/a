@@ -163,7 +163,7 @@ fun BottomPanel(
     descriptionContent: MutableState<String>,
     recentlyClosedTabs: SnapshotStateList<Tab>,
     reopenClosedTab: () -> Unit,
-    confirmationPopup: (message: String, onConfirm: () -> Unit, onCancel: () -> Unit) -> Unit,
+    confirmationPopup: (message: String, url: String, onConfirm: () -> Unit, onCancel: () -> Unit) -> Unit,
     resetBrowserSettings: () -> Unit,
     backgroundColor: MutableState<Color>,
     setIsSettingsPanelVisible: (Boolean) -> Unit,
@@ -283,7 +283,7 @@ fun BottomPanel(
                         orientation = Orientation.Vertical,
                         flingBehavior = flingBehavior,
                         //                    enabled = !isFocusOnTextField && contextMenuData == null && !isPromptPanelVisible  && (!isPermissionPanelVisible || (isPermissionPanelVisible &&  isUrlBarVisible) )
-                        enabled = (!isFocusOnTextField && contextMenuData == null && !isPromptPanelVisible && (!isPermissionPanelVisible)) || isUrlBarVisible
+                        enabled = isUrlBarVisible && ((!isFocusOnTextField && contextMenuData == null && !isPromptPanelVisible && (!isPermissionPanelVisible)) || isUrlBarVisible)
                     )
 
             ) {

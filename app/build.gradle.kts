@@ -14,7 +14,7 @@ android {
     ndkVersion = "29.0.14206865"
     defaultConfig {
         applicationId = "marcinlowercase.a"
-        minSdk = 29
+        minSdk = 28 // android 9
         targetSdk = 36
         versionCode = 15
         versionName = "zero[15]"
