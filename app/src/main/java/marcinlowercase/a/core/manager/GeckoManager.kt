@@ -33,7 +33,7 @@ private var faviconExtension: WebExtension? = null
 class GeckoManager(private val context: Context) {
 
     val runtime: GeckoRuntime by lazy {
-        GeckoRuntime.getDefault(context)
+        GeckoRuntime.getDefault(context.applicationContext)
     }
 
     private val stateCache = mutableMapOf<Long, GeckoSession.SessionState>()
@@ -198,12 +198,13 @@ class GeckoManager(private val context: Context) {
         return killedSessionIds.contains(tabId)
     }
 
-    // )
+    private var currentVideoWidth = 16
+    private var currentVideoHeight = 9
     private fun createAndConfigureSession(tab: Tab): GeckoSession {
         val settings = GeckoSessionSettings.Builder()
             .usePrivateMode(false) // Set based on your Incognito logic
             .userAgentMode(GeckoSessionSettings.USER_AGENT_MODE_MOBILE)
-            .suspendMediaWhenInactive(true)
+            .suspendMediaWhenInactive(false)
             .allowJavascript(true)
             .build()
 
@@ -473,7 +474,6 @@ class GeckoManager(private val context: Context) {
         session.contentDelegate = object : GeckoSession.ContentDelegate {
 
             override fun onFullScreen(session: GeckoSession, fullScreen: Boolean) {
-                Log.i("GeckoPiP", "Fullscreen changed: $fullScreen")
                 onFullScreenFun(fullScreen)
             }
             override fun onExternalResponse(session: GeckoSession, response: WebResponse) {

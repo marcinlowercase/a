@@ -31,6 +31,8 @@ class TabManager(context: Context) {
 
     // New function to freeze all tabs on exit
     fun freezeAllTabs() {
+        Log.e("marcPip", "freezeAllTabs")
+
         val tabs = loadTabs() // Load the current state
         if (tabs.isNotEmpty()) {
             val activeIndex = prefs.getInt(activeTabIndexKey, 0)

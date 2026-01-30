@@ -7,6 +7,7 @@ import android.app.DownloadManager
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.hardware.Sensor
 import android.hardware.SensorEvent
@@ -38,8 +39,10 @@ import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -216,7 +219,8 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
-        GeckoRuntime.getDefault(this)
+        GeckoRuntime.getDefault(applicationContext)
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
 
 
         createNotificationChannel(this) // Call it here
@@ -246,17 +250,69 @@ class MainActivity : ComponentActivity() {
         handleIntent(intent)
     }
 
-    override fun onResume() {
-        super.onResume()
+//    fun updatePipParams(isDataFullscreen: Boolean) {
+//        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+//            val params = android.app.PictureInPictureParams.Builder()
+//                // If video is fullscreen, allow Auto-Enter (Swipe up to PiP)
+//                .setAutoEnterEnabled(isDataFullscreen)
+//                .setAspectRatio(android.util.Rational(16, 9)) // Default to 16:9
+//                .build()
+//            setPictureInPictureParams(params)
+//        }
+//    }
+//    var isCurrentlyFullscreen by mutableStateOf(false)
+//    var isEnteringPip by mutableStateOf(false)
 
-        // HIDE SYSTEM BARS
-//        val windowInsetsController = WindowCompat.getInsetsController(window, window.decorView)
-//        // Hide the system bars.
-//        windowInsetsController.hide(WindowInsetsCompat.Type.systemBars())
-//        // Configure the behavior for revealing them temporarily.
-//        windowInsetsController.systemBarsBehavior =
-//            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-    }
+//    override fun onUserLeaveHint() {
+//        Log.i("marcPip", "onUserLeaveHint")
+//        if (isCurrentlyFullscreen) {
+//            Log.i("marcPip", "isCurrentlyFullscreen $isCurrentlyFullscreen")
+//
+//            isEnteringPip = true
+//
+//
+//            // Only call enterPip() manually on older Androids.
+//            // Android 12+ handles it automatically via updatePipParams/setAutoEnterEnabled.
+//            if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.S) {
+//                enterPip()
+//            }
+//        }
+//    }
+//    private fun enterPip() {
+//        Log.i("marcPip", "enterPip")
+//
+//        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+//            // Use 16:9 as a standard fallback since the delegate is missing
+//            val params = android.app.PictureInPictureParams.Builder()
+//                .setAspectRatio(android.util.Rational(16, 9))
+//                .build()
+//            enterPictureInPictureMode(params)
+//        }
+//    }
+//
+//    var isPipMode by mutableStateOf(false)
+//
+//    override fun onPictureInPictureModeChanged(
+//        isInPictureInPictureMode: Boolean,
+//        newConfig: android.content.res.Configuration
+//    ) {
+//        Log.i("marcPip", "onPictureInPictureModeChanged")
+//
+//        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+//        isPipMode = isInPictureInPictureMode
+//        Log.i("marcPip", "isInPictureInPictureMode $isInPictureInPictureMode")
+//        if (isInPictureInPictureMode) {
+//            // Ensure orientation is correct for the small window
+//            isEnteringPip = false
+//        } else {
+//            isEnteringPip = false
+//
+//            // If we are still conceptually in fullscreen video, restore landscape
+//            if (isCurrentlyFullscreen) {
+//                requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+//            }
+//        }
+//    }
 
     private fun handleIntent(intent: Intent?) {
         if (intent?.action == Intent.ACTION_VIEW) {
@@ -270,109 +326,43 @@ class MainActivity : ComponentActivity() {
 
     override fun onStop() {
         super.onStop()
-
-//        val tabs = tabManager.loadTabs()
-//        val activeIndex = tabs.indexOfFirst { it.state == TabState.ACTIVE }
 //
-//        val stateToSave = geckoManager.getSessionStateString(tabs[activeIndex].id)
-//
-//
-//        if (stateToSave != null) {
-//            tabs[activeIndex].savedState = stateToSave
-//            tabManager.saveTabs(tabs, activeIndex)
-//        }
-
-
-//        // Load current tabs to modify them
-//
-//        if (activeWebView != null && activeIndex != -1) {
-//            val outState = Bundle()
-//            activeWebView.saveState(outState)
-//            val stateBytes = outState.getByteArray("WEBVIEW_CHROMIUM_STATE")
-//
-//            if (stateBytes != null) {
-//                // Encode the byte array to a Base64 string for storage
-//                val encodedState = Base64.encodeToString(stateBytes, Base64.DEFAULT)
-//                tabs[activeIndex].savedState = encodedState
-//                // Now save the modified tabs list back
-//                tabManager.saveTabs(tabs, activeIndex)
-//            }
-//        }
-
-
-        // When the app goes to the background, freeze everything.
+//        Log.e("marcPip", "onStop")
+//        if (isInPictureInPictureMode
+//            || isPipMode || isEnteringPip
+//            ) return
         tabManager.freezeAllTabs()
+
     }
 
-//    override fun onRequestPermissionsResult(
-//        requestCode: Int,
-//        permissions: Array<String>,
-//        grantResults: IntArray,
-//        deviceId: Int
-//    ) {
+//    override fun onPause() {
+//        super.onPause()
+////        Log.e("marcPip", "onPause")
+////        // If entering PiP, we MUST keep the session active and prevent Gecko from
+////        // interpreting this as a background event that stops media.
+////        if (isInPictureInPictureMode || isEnteringPip) {
+////            val tabs = tabManager.loadTabs()
+////            val index = tabManager.getActiveTabIndex()
+////            if (tabs.isNotEmpty() && index in tabs.indices) {
+////                val activeTab = tabs[index]
+////                // Force the session to remain active
+////                geckoManager.getSession(activeTab).setActive(true)
+////                Log.e("marcPip", "set session to active")
+////
+////            }
+////        }
+//    }
 //
-//        if (requestCode == CustomPermissionDelegate.ANDROID_PERMISSION_REQUEST_CODE) {
-//            // 1. Get the current active session
-//            val activeTab = tabManager.loadTabs().find { it.state == TabState.ACTIVE }
-//
-//            if (activeTab != null) {
-//                val session = geckoManager.getSession(activeTab)
-//
-//                // 2. Cast the delegate and pass the result
-//                val delegate = session.permissionDelegate as? CustomPermissionDelegate
-//                delegate?.onAndroidRequestPermissionsResult(permissions, grantResults)
-//            }
-//        } else {
-//            super.onRequestPermissionsResult(requestCode, permissions, grantResults, deviceId)
+//    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+//        // Force Landscape orientation report to Gecko if we are Fullscreen + PiP
+//        // This prevents Gecko from exiting fullscreen due to "Portrait" home screen signals
+//        if (isCurrentlyFullscreen && (isEnteringPip || isInPictureInPictureMode)) {
+//            newConfig.orientation = android.content.res.Configuration.ORIENTATION_LANDSCAPE
 //        }
+//        super.onConfigurationChanged(newConfig)
 //    }
 }
 
-
-//@Composable
-//fun rememberScreenRotation(): Float {
-//    val context = LocalContext.current
-//    val rotation = remember { mutableFloatStateOf(0f) }
-//
-//    DisposableEffect(context) {
-//        val listener = object : OrientationEventListener(context, SensorManager.SENSOR_DELAY_UI) {
-//            override fun onOrientationChanged(orientation: Int) {
-//                if (orientation == ORIENTATION_UNKNOWN) return
-//
-//                // Snap to 0, 90, 180, 270
-//                val newRotation = when (orientation) {
-//                    // Landscape Left (Sensor ~90°)
-//                    // We narrow the range to 65-115 (approx ±25° from 90)
-//                    // This forces the user to really tilt it to trigger.
-//                    in 45..134 -> -90f
-//
-//                    // Landscape Right (Sensor ~270°)
-//                    // We narrow the range to 245-295 (approx ±25° from 270)
-//                    in 225..314 -> 90f
-//
-//                    // Upside Down (Sensor ~180°) -> Force to Portrait (0f)
-//                    // Normal Portrait (Sensor ~0°) -> Force to Portrait (0f)
-//                    // Transition zones -> Force to Portrait (0f)
-//                    else -> 0f
-//                }
-//
-//                if (rotation.floatValue != newRotation) {
-//                    rotation.floatValue = newRotation
-//                }
-//            }
-//        }
-//        listener.enable()
-//        onDispose { listener.disable() }
-//    }
-//
-//    // Animate the rotation for smoothness
-//    val animatedRotation by animateFloatAsState(
-//        targetValue = rotation.floatValue,
-//        animationSpec = spring(stiffness = Spring.StiffnessLow)
-//    )
-//
-//    return animatedRotation
-//}
 
 @Composable
 fun rememberDevicePhysicalRotation(): androidx.compose.runtime.State<Float> {
@@ -414,48 +404,13 @@ fun BrowserScreen(
 
     //region Variables
     val context = LocalContext.current
+    val mainActivity = context as? MainActivity
+//    val isPipMode = mainActivity?.isPipMode == true
+    val isPipMode = false
     var saveTrigger by remember { mutableIntStateOf(0) }
     val sharedPrefs =
         remember { context.getSharedPreferences("BrowserPrefs", Context.MODE_PRIVATE) }
-//    var browserSettings by remember {
-//        mutableStateOf(
-//            BrowserSettings(
-//                isFirstAppLoad = sharedPrefs.getBoolean("is_first_app_load", true),
-//                padding = sharedPrefs.getFloat("padding", 8f),
-//                deviceCornerRadius = sharedPrefs.getFloat(
-//                    "device_corner_radius",
-//                    pixel_9_corner_radius
-//                ),
-//                defaultUrl = sharedPrefs.getString("default_url", default_url)
-//                    ?: default_url,
-//                animationSpeed = sharedPrefs.getFloat("animation_speed", 300f),
-//                singleLineHeight = sharedPrefs.getFloat("single_line_height", 100f),
-////                isDesktopMode = sharedPrefs.getBoolean("is_desktop_mode", false),
-////                desktopModeWidth = sharedPrefs.getInt("desktop_mode_width", 820),
-//                isSharpMode = sharedPrefs.getBoolean("is_sharp_mode", false),
-////                topSharpEdge = sharedPrefs.getFloat("top_sharp_edge", 65.90476f),
-////                bottomSharpEdge = sharedPrefs.getFloat("bottom_sharp_edge", 65.90476f),
-////                topSharpEdge = sharedPrefs.getFloat("top_sharp_edge", pixel_9_corner_radius),
-////                bottomSharpEdge = sharedPrefs.getFloat("bottom_sharp_edge", pixel_9_corner_radius),
-//                cursorContainerSize = sharedPrefs.getFloat(
-//                    "cursor_container_size",
-//                    50f
-//                ),
-//                cursorPointerSize = sharedPrefs.getFloat("cursor_pointer_size", 5f),
-//                cursorTrackingSpeed = sharedPrefs.getFloat("cursor_tracking_speed", 1.75f),
-//                showSuggestions = sharedPrefs.getBoolean("show_suggestions", false),
-//                closedTabHistorySize = sharedPrefs.getFloat("closed_tab_history_size", 2f),
-//                backSquareOffsetX = sharedPrefs.getFloat(
-//                    "back_square_offset_x",
-//                    -1f
-//                ), // Use -1f as a flag for "not set"
-//                backSquareOffsetY = sharedPrefs.getFloat("back_square_offset_y", -1f),
-//                backSquareIdleOpacity = sharedPrefs.getFloat("back_square_idle_opacity", 0.2f),
-//                maxListHeight = sharedPrefs.getFloat("max_list_height", 2.5f),
-//                searchEngine = sharedPrefs.getInt("search_engine", SearchEngine.GOOGLE.ordinal),
-//            )
-//        )
-//    }
+
     val browserSettings = remember {
         mutableStateOf(
             BrowserSettings(
@@ -674,12 +629,16 @@ fun BrowserScreen(
     val isAppsPanelVisible = remember { mutableStateOf(false) }
     val resetBottomPanelTrigger = remember { mutableStateOf(false) }
     val isSettingCornerRadius = remember { mutableStateOf(true) }
+    val isOnFullscreenVideo = remember { mutableStateOf(false) }
 
 
     val offsetY = remember { Animatable(0f) }
     var overlayHeightPx by remember { mutableFloatStateOf(0f) }
     val animatedCornerRadius by animateDpAsState(
-        targetValue = if (!browserSettings.value.isSharpMode) browserSettings.value.deviceCornerRadius.dp else 0.dp,
+        targetValue = if (browserSettings.value.isSharpMode
+            || isOnFullscreenVideo.value
+//            || isPipMode
+            ) 0.dp else browserSettings.value.deviceCornerRadius.dp,
         label = "Corner Radius Animation",
     )
     // Get the raw cutout padding values.
@@ -735,29 +694,52 @@ fun BrowserScreen(
 
 
     val targetWebViewTopPadding =
-        if (isSettingCornerRadius.value) 0.dp else webViewTopPaddingNormalScreen
+        if (isSettingCornerRadius.value
+//            || isPipMode
+            ) 0.dp else webViewTopPaddingNormalScreen
     val targetWebViewBottomPadding =
-        if (isSettingCornerRadius.value) 0.dp else webViewBottomPaddingNormalScreen
+        if (isSettingCornerRadius.value
+//            || isPipMode
+            ) 0.dp else webViewBottomPaddingNormalScreen
+
+
+//    val paddingAnimationSpec = if (isPipMode) {
+//        snap()
+//    } else {
+//        spring(visibilityThreshold = Dp.VisibilityThreshold)
+//    }
 
     val webViewTopPadding by animateDpAsState(
         targetValue = targetWebViewTopPadding,
+//        animationSpec = paddingAnimationSpec,
+        label = "WebView Top Padding Animation",
     )
 
 
     val webViewBottomPadding by animateDpAsState(
         targetValue = targetWebViewBottomPadding,
+//        animationSpec = paddingAnimationSpec,
+        label = "WebView Bottom Padding Animation",
     )
 
     val targetWebViewStartPadding =
-        if (isSettingCornerRadius.value) 0.dp else cutoutLeft
+        if (isSettingCornerRadius.value
+//            || isPipMode
+            ) 0.dp else cutoutLeft
     val targetWebViewEndPadding =
-        if (isSettingCornerRadius.value) 0.dp else cutoutRight
+        if (isSettingCornerRadius.value
+//            || isPipMode
+            ) 0.dp else cutoutRight
 
     val webViewStartPadding by animateDpAsState(
-        targetValue = targetWebViewStartPadding
+        targetValue = targetWebViewStartPadding,
+//        animationSpec = paddingAnimationSpec,
+        label = "WebView Start Padding Animation"
     )
     val webViewEndPadding by animateDpAsState(
-        targetValue = targetWebViewEndPadding
+        targetValue = targetWebViewEndPadding,
+//        animationSpec = paddingAnimationSpec,
+        label = "WebView End Padding Animation"
     )
 
     val webViewPaddingValue = PaddingValues(
@@ -982,6 +964,28 @@ fun BrowserScreen(
 
     //region Functions
 
+    suspend fun hideBackSquare(blinkEffect: Boolean = true) {
+        val idle = browserSettings.value.backSquareIdleOpacity
+        if (blinkEffect) {
+            val peak = 1f
+
+            squareAlpha.animateTo(peak)
+
+            // b. Wait a moment so the user can see it before it blinks.
+            delay(400)
+
+            // c. Blink twice.
+            repeat(2) {
+                squareAlpha.animateTo(idle, animationSpec = tween(300))
+                squareAlpha.animateTo(peak, animationSpec = tween(300))
+            }
+
+        } else {
+            delay(200)
+        }
+        squareAlpha.animateTo(idle, animationSpec = tween(400))
+
+    }
     val updateCurrentRotation = remember {
         {
             val freshRotation = deviceRotationState.value
@@ -2312,7 +2316,93 @@ fun BrowserScreen(
             siteSettingsManager = siteSettingsManager,
 
             onFullScreenFun = { isFullscreen ->
-                // 1. Tell Activity to prep for PiP
+                Log.i("marcPip", " isFULlscreen: $isFullscreen")
+
+                isOnFullscreenVideo.value = isFullscreen
+//                (context as? MainActivity)?.isCurrentlyFullscreen = isFullscreen
+
+
+                if (isFullscreen) {
+                    activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                    insetsController?.hide(WindowInsetsCompat.Type.systemBars())
+                    insetsController?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                    if (isBottomPanelVisible) isBottomPanelVisible = false
+                } else {
+                    activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                    if (!browserSettings.value.isFullscreenMode) {
+                        insetsController?.show(WindowInsetsCompat.Type.systemBars())
+                        insetsController?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
+                    }
+                    coroutineScope.launch {
+                        hideBackSquare(true)
+                    }
+                }
+//                val inPip = mainActivity?.isPipMode == true || mainActivity?.isEnteringPip == true
+//
+//                if (inPip && !isFullscreen) {
+//                    Log.i("marcPip", "Ignoring Gecko Fullscreen Exit (Keep UI in Fullscreen for PiP)")
+//                    // Do NOT update isOnFullscreenVideo
+//                    // Do NOT update isCurrentlyFullscreen
+//                    // Do NOT update PipParams
+//                } else {
+//                    // Normal behavior for all other cases
+//                    isOnFullscreenVideo.value = isFullscreen
+//                    mainActivity?.isCurrentlyFullscreen = isFullscreen
+//                    mainActivity?.updatePipParams(isFullscreen)
+//
+//                    if (isFullscreen) {
+//                        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+//                        insetsController?.hide(WindowInsetsCompat.Type.systemBars())
+//                        insetsController?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+//                        if (isBottomPanelVisible) isBottomPanelVisible = false
+//                    } else {
+//                        // Only exit landscape/immersive if NOT in PiP
+//                        if (!inPip) {
+//                            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+//                            if (!browserSettings.value.isFullscreenMode) {
+//                                insetsController?.show(WindowInsetsCompat.Type.systemBars())
+//                                insetsController?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
+//                            }
+//                            coroutineScope.launch {
+//                                hideBackSquare(true)
+//                            }
+//                        }
+//                    }
+//                }
+//                mainActivity?.updatePipParams(isFullscreen)
+//                if (isFullscreen) {
+//                    // When video is fullscreen, UNLOCK rotation (allow Landscape)
+//                    // Use SCREEN_ORIENTATION_SENSOR to let the user rotate the phone naturally.
+//                    // Or use SCREEN_ORIENTATION_SENSOR_LANDSCAPE if you want to FORCE it sideways immediately.
+//                    activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+//
+//                    insetsController?.hide(WindowInsetsCompat.Type.systemBars())
+//                    insetsController?.systemBarsBehavior =
+//                        WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+//
+//                    if (isBottomPanelVisible) isBottomPanelVisible = false
+//
+//
+//                } else {
+//                    // When exiting fullscreen, LOCK back to Portrait
+//                    Log.i("marcPip", "exit full screen")
+//
+//                    if (inPip) {
+//                        Log.i("marcPip", "Ignored Fullscreen Exit - Transitioning to/in PiP")
+//                    } else {
+//                        Log.i("marcPip", "Normal Fullscreen Exit")
+//                        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+//
+//                        if (!browserSettings.value.isFullscreenMode) {
+//                            insetsController?.show(WindowInsetsCompat.Type.systemBars())
+//                            insetsController?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
+//                        }
+//                        coroutineScope.launch {
+//                            hideBackSquare(true)
+//                        }
+//                    }
+//
+//                }
 
             }
         )
@@ -2362,11 +2452,21 @@ fun BrowserScreen(
     }
 
     DisposableEffect(activeSession) {
+        Log.i("marcPip", "DisposableEffect")
+        activeSession.setActive(true)
+
         onDispose {
             // This allows the background tab to sleep (optional, but good for battery)
             // Since you have suspendMediaWhenInactive(false), it won't kill audio,
             // but it will lower the rendering priority.
+//            val mainActivity = context as? MainActivity
+//            val isEnteringPip = mainActivity?.isEnteringPip == true || mainActivity?.isInPictureInPictureMode == true
+//            Log.i("marcPip", "onDispose")
+//            if (!isEnteringPip) {
+//                activeSession.setActive(false)
+//            }
             activeSession.setActive(false)
+
         }
     }
 
@@ -2698,28 +2798,7 @@ fun BrowserScreen(
     }
 
 
-    suspend fun hideBackSquare(blinkEffect: Boolean = true) {
-        val idle = browserSettings.value.backSquareIdleOpacity
-        if (blinkEffect) {
-            val peak = 1f
 
-            squareAlpha.animateTo(peak)
-
-            // b. Wait a moment so the user can see it before it blinks.
-            delay(400)
-
-            // c. Blink twice.
-            repeat(2) {
-                squareAlpha.animateTo(idle, animationSpec = tween(300))
-                squareAlpha.animateTo(peak, animationSpec = tween(300))
-            }
-
-        } else {
-            delay(200)
-        }
-        squareAlpha.animateTo(idle, animationSpec = tween(400))
-
-    }
 
 
     LaunchedEffect(browserSettings.value.isFullscreenMode) {
@@ -2916,10 +2995,8 @@ fun BrowserScreen(
     BackHandler(enabled = true) {
         when {
             // Priority 1: Exit fullscreen video if it's active.
-            customView != null -> {
-                customViewCallback?.onCustomViewHidden()
+            isOnFullscreenVideo.value -> activeSession.exitFullScreen()
 
-            }
             // Priority 2: Navigate back in the WebView.
             activeTab.value.canGoBack -> {
                 activeSession.goBack(true)
@@ -2972,12 +3049,10 @@ fun BrowserScreen(
                 contentAlignment = Alignment.Center
 
             ) {
-
                 Text(
                     text = "adjust device corner radius",
                     color = Color.Black
                 )
-
             }
         }
 
@@ -3045,8 +3120,6 @@ fun BrowserScreen(
                         .fillMaxSize()
                         .padding(webViewPaddingValue)
                     ,
-
-
                     ) {
                     // Webview Container
                     AnimatedVisibility(
@@ -3086,8 +3159,6 @@ fun BrowserScreen(
                                     .fillMaxSize()
 
                             ) {
-
-
                                 AndroidView(
                                     modifier = Modifier.fillMaxSize(),
                                     factory = { context ->
@@ -3123,7 +3194,8 @@ fun BrowserScreen(
                                     }
                                 )
                             }
-                            LoadingIndicator(
+
+                            if (!isPipMode) LoadingIndicator(
                                 isLoading = isLoading,
                                 browserSettings = browserSettings
                             )
@@ -3132,620 +3204,618 @@ fun BrowserScreen(
                 }
 
 
-                CursorPointer(
-                    isCursorPadVisible = isCursorPadVisible,
-                    position = cursorPointerPosition.value,
-                    browserSettings = browserSettings,
-                )
-
-
-
-                // 3. The Error Overlay (NEW)
-                AnimatedContent(
-                    targetState = activeTab.value.errorState,
-                    transitionSpec = {
-                        if (targetState != null) {
-                            // Error Appears: Slide In from Bottom
-                            slideInVertically(
-                                animationSpec = tween(browserSettings.value.animationSpeedForLayer(0) * 4),
-                                initialOffsetY = { it }
-                            ) togetherWith ExitTransition.None
-                        } else {
-                            (EnterTransition.None togetherWith slideOutVertically(
-                                animationSpec = tween(browserSettings.value.animationSpeedForLayer(0) * 4),
-                                targetOffsetY = { -it }
-                            )).using(
-                                // FIX IS HERE:
-                                // 1. clip = false: Lets the error screen draw outside the container as it shrinks
-                                // 2. sizeAnimationSpec: Matches the duration so the container doesn't vanish too fast
-                                SizeTransform(clip = false) { _, _ ->
-                                    tween(browserSettings.value.animationSpeedForLayer(0) * 4)
-                                }
-                            )
-                        }
-                    },
-                    label = "ErrorAnimation"
-                ) { targetState ->
-                    // CRITICAL: Check 'targetState', NOT 'errorState'
-                    // targetState is the "captured" value for this specific animation frame
-                    if (targetState != null) {
-                        ErrorScreen(
-                            modifier = Modifier
-                                .padding(webViewPaddingValue)
-
-                            ,
-                            errorState = targetState, // Safe, no !! needed
-                            browserSettings = browserSettings,
-                            onRetry = {
-                                val urlToReload = targetState.failingUrl
-                                webViewLoad(activeSession, urlToReload, browserSettings.value)
-                            },
-                            onHome = {
-                                webViewLoad(activeSession, browserSettings.value.defaultUrl, browserSettings.value)
-                            }
-                        )
-                    }
-                }
-                BottomPanel(
-
-                    modifier = Modifier
-                        .padding(PaddingValues(
-                            start = webViewStartPadding,
-                            end = webViewEndPadding,
-                            bottom = 0.dp,
-                            top = 0.dp
-                        ))
-                        .windowInsetsPadding(WindowInsets.ime)
-                        .align(Alignment.BottomCenter),
-//                    updateCurrentRotation = {
-//                        Log.i("Rotation", "currentRotation: $currentRotationValue")
-//                        Log.i("Rotation", "realtimeRotation: $realtimeRotation")
-//                        currentRotationValue = realtimeRotation
-//                    },
-                    updateCurrentRotation = updateCurrentRotation,
-                    currentRotation = currentRotation,
-                    geckoManager = geckoManager,
-                    geckoViewRef = geckoViewRef,
-                    activeTab = activeTab,
-                    isSettingCornerRadius = isSettingCornerRadius,
-                    floatingPanelBottomPadding = floatingPanelBottomPadding,
-                    optionsPanelHeightPx = optionsPanelHeightPx,
-                    draggableState = draggableState,
-                    flingBehavior = flingBehavior,
-                    isPinningApp = isPinningApp,
-
-                    initialSettingPanelView = initialSettingPanelView,
-                    appManager = appManager,
-                    inspectingAppId = inspectingAppId,
-                    resetBottomPanelTrigger = resetBottomPanelTrigger,
-                    setIsBottomPanelVisible = { isBottomPanelVisible = it },
-                    setIsUrlBarVisible = { isUrlBarVisible = it },
-                    isAppsPanelVisible = isAppsPanelVisible,
-                    apps = apps,
-
-                    isBottomPanelLock = isBottomPanelLock,
-                    bottomPanelPagerState = bottomPanelPagerState,
-                    onOpenInNewTab = { url ->
-//                   createNewTab(tabs.size, url)
-                        createNewTab(activeTabIndex.intValue + 1, url)
-
-                    },
-                    onDownload = { url ->
-                        // Simple generic download for images found via context menu
-
-                        confirmationPopup(
-                            message = "download file on $url ?",
-                            onConfirm = {
-                                startDownload(
-                                    url,
-                                    activeSession.settings.userAgentOverride ?: "",
-                                    null,
-                                    null,
-                                )
-                            },
-                            onCancel = {
-                            }
-                        )
-
-
-                    },
-                    contextMenuData = contextMenuData,
-                    displayContextMenuData = displayContextMenuData,
-                    onDismissContextMenu = { contextMenuData = null },
-                    isFocusOnTextField = isFocusOnTextField,
-                    textFieldState = textFieldState,
-                    onCloseAllTabs = {
-                        confirmationPopup(
-                            message = "close all tabs and exit ? ",
-                            onConfirm = {
-                                closeAllTabs()
-                            },
-                            onCancel = {}
-                        )
-                    },
-                    suggestions = suggestions,
-                    onSuggestionClick = { suggestion ->
-                        webViewLoad(activeSession, suggestion.url, browserSettings.value)
-                        focusManager.clearFocus()
-                        keyboardController?.hide()
-                    },
-                    onRemoveSuggestion = { suggestionToRemove ->
-                        confirmationPopup(
-                            message = "remove suggestion from history ? ",
-                            onConfirm = {
-                                removeSuggestionFromHistory(suggestionToRemove)
-                            },
-                            onCancel = {}
-                        )
-                    },
-
-                    webViewManager = webViewManager,
-                    activeSession = activeSession,
-
-                    findInPageResult = findInPageResult,
-                    findInPageText = findInPageText,
-                    descriptionContent = descriptionContent,
-                    recentlyClosedTabs = recentlyClosedTabs,
-                    reopenClosedTab = reopenClosedTab,
-                    confirmationPopup = ::confirmationPopup,
-                    resetBrowserSettings = resetBrowserSettings,
-                    backgroundColor = backgroundColor,
-                    isSettingsPanelVisible = isSettingsPanelVisible,
-                    setIsSettingsPanelVisible = { isSettingsPanelVisible.value = it },
-                    urlBarFocusRequester = urlBarFocusRequester,
-                    isCursorPadVisible = isCursorPadVisible,
-                    isCursorMode = isCursorMode,
-                    setIsCursorMode = {
-                        isCursorMode = it
-
-                    },
-                    setIsTabsPanelVisible = { isTabsPanelVisible = it },
-                    setIsTabDataPanelVisible = { isTabDataPanelVisible = it },
-                    savedPanelState = savedPanelState,
-                    setSavedPanelState = { savedPanelState = it },
-                    confirmationState = confirmationState,
-                    confirmationDisplayState = confirmationDisplayState,
-                    onPermissionDeny = {
-                        pendingPermissionRequest.value?.let { request ->
-                            // --- SAVE THE DENIAL (NEW) ---
-                            siteSettingsManager.getDomain(request.origin)?.let { domain ->
-                                val deniedPermissions =
-                                    request.permissionsToRequest.associateWith { false }
-                                savePermissionDecision(domain, deniedPermissions)
-                            }
-                            // --- END OF NEW LOGIC ---
-                            request.onResult.invoke(emptyMap(), pendingPermissionRequest)
-                        }
-//                        pendingPermissionRequest.value = null
-                    },
-                    onMediaPermissionAllow = { permissions ->
-                        pendingPermissionRequest.value?.let { request ->
-                            siteSettingsManager.getDomain(request.origin)?.let { domain ->
-                                savePermissionDecision(domain, permissions)
-                            }
-                        }
-
-                        pendingPermissionRequest.value?.onResult?.invoke(
-                            permissions,
-                            pendingPermissionRequest
-                        )
-
-                        // Clear the request to hide the panel.
-//                        pendingPermissionRequest.value = null
-                    },
-                    tabsPanelLock = tabsPanelLock,
-                    updateInspectingTab = { tab ->
-                        if (tab.id != 0L) inspectingTabId = tab.id else {
-                            isTabDataPanelVisible = false
-                        }
-
-                    },
-                    isTabDataPanelVisible = isTabDataPanelVisible,
-                    inspectingTab = currentInspectingTab,
-                    handleCloseInspectedTab = handleCloseInspectedTab,
-                    handleClearInspectedTabData = handleClearInspectedTabData,
-                    handlePermissionToggle = handlePermissionToggle,
-                    siteSettings = siteSettings,
-                    onTabDataPanelDismiss = { isTabDataPanelVisible = false },
-
-                    onTabLongPressed = { tab ->
-                        isTabDataPanelVisible = !isTabDataPanelVisible
-                        if (inspectingTabId == null) inspectingTabId = tab.id
-                    },
-                    onDownloadRowClicked = handleOpenFile,
-                    onDeleteClicked = handleDeleteFile,
-                    onOpenFolderClicked = handleOpenDownloadsFolder,
-                    onClearAllClicked = handleClearAll,
-                    downloads = downloads,
-                    isDownloadPanelVisible = isDownloadPanelVisible,
-                    isUrlOverlayBoxVisible = isUrlOverlayBoxVisible,
-                    setIsUrlOverlayBoxVisible = { isUrlOverlayBoxVisible = it },
-                    onNewTabClicked = { index ->
-                        createNewTab(index)
-                    },
-                    toggleIsTabsPanelVisible = {
-                        isTabsPanelVisible = !isTabsPanelVisible
-                        tabsPanelLock = !tabsPanelLock
-                    },
-                    isTabsPanelVisible = isTabsPanelVisible,
-                    onTabSelected = { newIndex ->
-                        if (activeTabIndex.intValue != newIndex) {
-                            if (isLoading) isLoading = false
-
-
-                            activeTab.value.state = TabState.BACKGROUND
-                            tabs[newIndex].state = TabState.ACTIVE
-
-                            activeTabIndex.intValue = newIndex
-                            val urlToLoad = tabs[newIndex].currentURL
-
-                            if (!isFocusOnTextField) textFieldState.setTextAndPlaceCursorAtEnd(urlToLoad.toDomain())
-                            saveTrigger++
-
-                            inspectingTabId = tabs[newIndex].id
-                        }
-
-                    },
-                    navigateWebView = {
-                        navigateWebView()
-                    },
-                    hapticFeedback = hapticFeedback,
-                    setIsNavPanelVisible = { isNavPanelVisible = it },
-                    setActiveNavAction = { activeNavAction = it },
-
-                    isNavPanelVisible = isNavPanelVisible,
-                    activeNavAction = activeNavAction,
-
-                    state = if (jsDialogState != null) jsDialogState!! else null,
-                    promptComponentDisplayState = if (promptComponentDisplayState != null) promptComponentDisplayState else null,
-                    onDismiss = { jsDialogState = null },
-                    isPromptPanelVisible = isPromptPanelVisible,
-
-                    isPermissionPanelVisible = isPermissionPanelVisible,
-                    permissionLauncher = permissionLauncher,
-                    pendingPermissionRequest = pendingPermissionRequest,
-
-                    activeTabIndex = activeTabIndex,
-                    tabs = tabs,
-                    isUrlBarVisible = isUrlBarVisible,
-                    isBottomPanelVisible = isBottomPanelVisible,
-                    browserSettings = browserSettings,
-//                        url = url,
-                    focusManager = focusManager,
-                    keyboardController = keyboardController,
-                    setIsOptionsPanelVisible = setIsOptionsPanelVisible,
-                    onNewUrl = { newUrl ->
-                        webViewLoad(activeSession, newUrl, browserSettings.value)
-                    },
-                    setIsFocusOnTextField = { isFocusOnTextField = it },
-                    handleHistoryNavigation = handleHistoryNavigation,
-                    isFindInPageVisible = isFindInPageVisible,
-
-                )
-                CursorPad(
-                    urlBarFocusRequester = urlBarFocusRequester,
-                    screenSize = screenSize,
-                    isCursorPadVisible = isCursorPadVisible,
-                    setIsCursorPadVisible = { isCursorMode = it },
-                    browserSettings = browserSettings,
-                    coroutineScope = coroutineScope,
-//                    activeWebView = activeWebView,
-                    activeSession = activeSession,
-                    cursorPointerPosition = cursorPointerPosition,
-                    webViewPaddingValue = webViewPaddingValue,
-                    setIsUrlBarVisible = { isUrlBarVisible = it },
-                    isLongPressDrag = isLongPressDrag,
-                    cursorPadHeight = cursorPadHeight,
-
+                if (!isPipMode) {
+                    CursorPointer(
+                        isCursorPadVisible = isCursorPadVisible,
+                        position = cursorPointerPosition.value,
+                        browserSettings = browserSettings,
                     )
 
-                LaunchedEffect(screenSize) {
 
-                }
-                // BackSquare
-                AnimatedVisibility(
-                    visible = !isBottomPanelVisible,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(webViewPaddingValue)
-                        .onSizeChanged {
-                            screenSize = it
-                            with(density) {
-                                @Suppress("AssignedValueIsNeverRead")
-                                screenSizeDp = IntSize(
-                                    it.width.toDp().value.roundToInt(),
-                                    it.height.toDp().value.roundToInt()
+                    // 3. The Error Overlay (NEW)
+                    AnimatedContent(
+                        targetState = activeTab.value.errorState,
+                        transitionSpec = {
+                            if (targetState != null) {
+                                // Error Appears: Slide In from Bottom
+                                slideInVertically(
+                                    animationSpec = tween(browserSettings.value.animationSpeedForLayer(0) * 4),
+                                    initialOffsetY = { it }
+                                ) togetherWith ExitTransition.None
+                            } else {
+                                (EnterTransition.None togetherWith slideOutVertically(
+                                    animationSpec = tween(browserSettings.value.animationSpeedForLayer(0) * 4),
+                                    targetOffsetY = { -it }
+                                )).using(
+                                    // FIX IS HERE:
+                                    // 1. clip = false: Lets the error screen draw outside the container as it shrinks
+                                    // 2. sizeAnimationSpec: Matches the duration so the container doesn't vanish too fast
+                                    SizeTransform(clip = false) { _, _ ->
+                                        tween(browserSettings.value.animationSpeedForLayer(0) * 4)
+                                    }
                                 )
                             }
                         },
-                    enter = fadeIn(tween(browserSettings.value.animationSpeedForLayer(0))),
-                    exit = fadeOut(tween(browserSettings.value.animationSpeedForLayer(0)))
-                ) {
+                        label = "ErrorAnimation"
+                    ) { targetState ->
+                        // CRITICAL: Check 'targetState', NOT 'errorState'
+                        // targetState is the "captured" value for this specific animation frame
+                        if (targetState != null) {
+                            ErrorScreen(
+                                modifier = Modifier
+                                    .padding(webViewPaddingValue),
+                                errorState = targetState, // Safe, no !! needed
+                                browserSettings = browserSettings,
+                                onRetry = {
+                                    val urlToReload = targetState.failingUrl
+                                    webViewLoad(activeSession, urlToReload, browserSettings.value)
+                                },
+                                onHome = {
+                                    webViewLoad(activeSession, browserSettings.value.defaultUrl, browserSettings.value)
+                                }
+                            )
+                        }
+                    }
+                    BottomPanel(
+
+                        modifier = Modifier
+                            .padding(
+                                PaddingValues(
+                                    start = webViewStartPadding,
+                                    end = webViewEndPadding,
+                                    bottom = 0.dp,
+                                    top = 0.dp
+                                )
+                            )
+                            .windowInsetsPadding(WindowInsets.ime)
+                            .align(Alignment.BottomCenter),
+        //                    updateCurrentRotation = {
+        //                        Log.i("Rotation", "currentRotation: $currentRotationValue")
+        //                        Log.i("Rotation", "realtimeRotation: $realtimeRotation")
+        //                        currentRotationValue = realtimeRotation
+        //                    },
+                        updateCurrentRotation = updateCurrentRotation,
+                        currentRotation = currentRotation,
+                        geckoManager = geckoManager,
+                        geckoViewRef = geckoViewRef,
+                        activeTab = activeTab,
+                        isSettingCornerRadius = isSettingCornerRadius,
+                        floatingPanelBottomPadding = floatingPanelBottomPadding,
+                        optionsPanelHeightPx = optionsPanelHeightPx,
+                        draggableState = draggableState,
+                        flingBehavior = flingBehavior,
+                        isPinningApp = isPinningApp,
+
+                        initialSettingPanelView = initialSettingPanelView,
+                        appManager = appManager,
+                        inspectingAppId = inspectingAppId,
+                        resetBottomPanelTrigger = resetBottomPanelTrigger,
+                        setIsBottomPanelVisible = { isBottomPanelVisible = it },
+                        setIsUrlBarVisible = { isUrlBarVisible = it },
+                        isAppsPanelVisible = isAppsPanelVisible,
+                        apps = apps,
+
+                        isBottomPanelLock = isBottomPanelLock,
+                        bottomPanelPagerState = bottomPanelPagerState,
+                        onOpenInNewTab = { url ->
+        //                   createNewTab(tabs.size, url)
+                            createNewTab(activeTabIndex.intValue + 1, url)
+
+                        },
+                        onDownload = { url ->
+                            // Simple generic download for images found via context menu
+
+                            confirmationPopup(
+                                message = "download file on $url ?",
+                                onConfirm = {
+                                    startDownload(
+                                        url,
+                                        activeSession.settings.userAgentOverride ?: "",
+                                        null,
+                                        null,
+                                    )
+                                },
+                                onCancel = {
+                                }
+                            )
 
 
-                    Box(
+                        },
+                        contextMenuData = contextMenuData,
+                        displayContextMenuData = displayContextMenuData,
+                        onDismissContextMenu = { contextMenuData = null },
+                        isFocusOnTextField = isFocusOnTextField,
+                        textFieldState = textFieldState,
+                        onCloseAllTabs = {
+                            confirmationPopup(
+                                message = "close all tabs and exit ? ",
+                                onConfirm = {
+                                    closeAllTabs()
+                                },
+                                onCancel = {}
+                            )
+                        },
+                        suggestions = suggestions,
+                        onSuggestionClick = { suggestion ->
+                            webViewLoad(activeSession, suggestion.url, browserSettings.value)
+                            focusManager.clearFocus()
+                            keyboardController?.hide()
+                        },
+                        onRemoveSuggestion = { suggestionToRemove ->
+                            confirmationPopup(
+                                message = "remove suggestion from history ? ",
+                                onConfirm = {
+                                    removeSuggestionFromHistory(suggestionToRemove)
+                                },
+                                onCancel = {}
+                            )
+                        },
+
+                        webViewManager = webViewManager,
+                        activeSession = activeSession,
+
+                        findInPageResult = findInPageResult,
+                        findInPageText = findInPageText,
+                        descriptionContent = descriptionContent,
+                        recentlyClosedTabs = recentlyClosedTabs,
+                        reopenClosedTab = reopenClosedTab,
+                        confirmationPopup = ::confirmationPopup,
+                        resetBrowserSettings = resetBrowserSettings,
+                        backgroundColor = backgroundColor,
+                        isSettingsPanelVisible = isSettingsPanelVisible,
+                        setIsSettingsPanelVisible = { isSettingsPanelVisible.value = it },
+                        urlBarFocusRequester = urlBarFocusRequester,
+                        isCursorPadVisible = isCursorPadVisible,
+                        isCursorMode = isCursorMode,
+                        setIsCursorMode = {
+                            isCursorMode = it
+
+                        },
+                        setIsTabsPanelVisible = { isTabsPanelVisible = it },
+                        setIsTabDataPanelVisible = { isTabDataPanelVisible = it },
+                        savedPanelState = savedPanelState,
+                        setSavedPanelState = { savedPanelState = it },
+                        confirmationState = confirmationState,
+                        confirmationDisplayState = confirmationDisplayState,
+                        onPermissionDeny = {
+                            pendingPermissionRequest.value?.let { request ->
+                                // --- SAVE THE DENIAL (NEW) ---
+                                siteSettingsManager.getDomain(request.origin)?.let { domain ->
+                                    val deniedPermissions =
+                                        request.permissionsToRequest.associateWith { false }
+                                    savePermissionDecision(domain, deniedPermissions)
+                                }
+                                // --- END OF NEW LOGIC ---
+                                request.onResult.invoke(emptyMap(), pendingPermissionRequest)
+                            }
+        //                        pendingPermissionRequest.value = null
+                        },
+                        onMediaPermissionAllow = { permissions ->
+                            pendingPermissionRequest.value?.let { request ->
+                                siteSettingsManager.getDomain(request.origin)?.let { domain ->
+                                    savePermissionDecision(domain, permissions)
+                                }
+                            }
+
+                            pendingPermissionRequest.value?.onResult?.invoke(
+                                permissions,
+                                pendingPermissionRequest
+                            )
+
+                            // Clear the request to hide the panel.
+        //                        pendingPermissionRequest.value = null
+                        },
+                        tabsPanelLock = tabsPanelLock,
+                        updateInspectingTab = { tab ->
+                            if (tab.id != 0L) inspectingTabId = tab.id else {
+                                isTabDataPanelVisible = false
+                            }
+
+                        },
+                        isTabDataPanelVisible = isTabDataPanelVisible,
+                        inspectingTab = currentInspectingTab,
+                        handleCloseInspectedTab = handleCloseInspectedTab,
+                        handleClearInspectedTabData = handleClearInspectedTabData,
+                        handlePermissionToggle = handlePermissionToggle,
+                        siteSettings = siteSettings,
+                        onTabDataPanelDismiss = { isTabDataPanelVisible = false },
+
+                        onTabLongPressed = { tab ->
+                            isTabDataPanelVisible = !isTabDataPanelVisible
+                            if (inspectingTabId == null) inspectingTabId = tab.id
+                        },
+                        onDownloadRowClicked = handleOpenFile,
+                        onDeleteClicked = handleDeleteFile,
+                        onOpenFolderClicked = handleOpenDownloadsFolder,
+                        onClearAllClicked = handleClearAll,
+                        downloads = downloads,
+                        isDownloadPanelVisible = isDownloadPanelVisible,
+                        isUrlOverlayBoxVisible = isUrlOverlayBoxVisible,
+                        setIsUrlOverlayBoxVisible = { isUrlOverlayBoxVisible = it },
+                        onNewTabClicked = { index ->
+                            createNewTab(index)
+                        },
+                        toggleIsTabsPanelVisible = {
+                            isTabsPanelVisible = !isTabsPanelVisible
+                            tabsPanelLock = !tabsPanelLock
+                        },
+                        isTabsPanelVisible = isTabsPanelVisible,
+                        onTabSelected = { newIndex ->
+                            if (activeTabIndex.intValue != newIndex) {
+                                if (isLoading) isLoading = false
+
+
+                                activeTab.value.state = TabState.BACKGROUND
+                                tabs[newIndex].state = TabState.ACTIVE
+
+                                activeTabIndex.intValue = newIndex
+                                val urlToLoad = tabs[newIndex].currentURL
+
+                                if (!isFocusOnTextField) textFieldState.setTextAndPlaceCursorAtEnd(urlToLoad.toDomain())
+                                saveTrigger++
+
+                                inspectingTabId = tabs[newIndex].id
+                            }
+
+                        },
+                        navigateWebView = {
+                            navigateWebView()
+                        },
+                        hapticFeedback = hapticFeedback,
+                        setIsNavPanelVisible = { isNavPanelVisible = it },
+                        setActiveNavAction = { activeNavAction = it },
+
+                        isNavPanelVisible = isNavPanelVisible,
+                        activeNavAction = activeNavAction,
+
+                        state = if (jsDialogState != null) jsDialogState!! else null,
+                        promptComponentDisplayState = if (promptComponentDisplayState != null) promptComponentDisplayState else null,
+                        onDismiss = { jsDialogState = null },
+                        isPromptPanelVisible = isPromptPanelVisible,
+
+                        isPermissionPanelVisible = isPermissionPanelVisible,
+                        permissionLauncher = permissionLauncher,
+                        pendingPermissionRequest = pendingPermissionRequest,
+
+                        activeTabIndex = activeTabIndex,
+                        tabs = tabs,
+                        isUrlBarVisible = isUrlBarVisible,
+                        isBottomPanelVisible = isBottomPanelVisible,
+                        browserSettings = browserSettings,
+        //                        url = url,
+                        focusManager = focusManager,
+                        keyboardController = keyboardController,
+                        setIsOptionsPanelVisible = setIsOptionsPanelVisible,
+                        onNewUrl = { newUrl ->
+                            webViewLoad(activeSession, newUrl, browserSettings.value)
+                        },
+                        setIsFocusOnTextField = { isFocusOnTextField = it },
+                        handleHistoryNavigation = handleHistoryNavigation,
+                        isFindInPageVisible = isFindInPageVisible,
+
+                        )
+                    CursorPad(
+                        urlBarFocusRequester = urlBarFocusRequester,
+                        screenSize = screenSize,
+                        isCursorPadVisible = isCursorPadVisible,
+                        setIsCursorPadVisible = { isCursorMode = it },
+                        browserSettings = browserSettings,
+                        coroutineScope = coroutineScope,
+        //                    activeWebView = activeWebView,
+                        activeSession = activeSession,
+                        cursorPointerPosition = cursorPointerPosition,
+                        webViewPaddingValue = webViewPaddingValue,
+                        setIsUrlBarVisible = { isUrlBarVisible = it },
+                        isLongPressDrag = isLongPressDrag,
+                        cursorPadHeight = cursorPadHeight,
+
+                        )
+
+                    LaunchedEffect(screenSize) {
+
+                    }
+                    // BackSquare
+                    AnimatedVisibility(
+                        visible = !isBottomPanelVisible && !isOnFullscreenVideo.value,
                         modifier = Modifier
                             .fillMaxSize()
-
-                        ,
+                            .padding(webViewPaddingValue)
+                            .onSizeChanged {
+                                screenSize = it
+                                with(density) {
+                                    @Suppress("AssignedValueIsNeverRead")
+                                    screenSizeDp = IntSize(
+                                        it.width.toDp().value.roundToInt(),
+                                        it.height.toDp().value.roundToInt()
+                                    )
+                                }
+                            },
+                        enter = fadeIn(tween(browserSettings.value.animationSpeedForLayer(0))),
+                        exit = fadeOut(tween(browserSettings.value.animationSpeedForLayer(0)))
                     ) {
-                        val squareBoxSize = browserSettings.value.heightForLayer(1).dp
-                        val squareBoxSizePx = with(density) { squareBoxSize.toPx() }
-                        val paddingPx = with(density) { browserSettings.value.padding.dp.toPx() }
+
 
                         Box(
                             modifier = Modifier
-//                            .align(squareAlignment)
+                                .fillMaxSize(),
+                        ) {
+                            val squareBoxSize = browserSettings.value.heightForLayer(1).dp
+                            val squareBoxSizePx = with(density) { squareBoxSize.toPx() }
+                            val paddingPx = with(density) { browserSettings.value.padding.dp.toPx() }
 
-                                .offset {
-                                    IntOffset(
-                                        backSquareOffsetX.value.roundToInt(),
-                                        backSquareOffsetY.value.roundToInt()
+                            Box(
+                                modifier = Modifier
+                                    //                            .align(squareAlignment)
+
+                                    .offset {
+                                        IntOffset(
+                                            backSquareOffsetX.value.roundToInt(),
+                                            backSquareOffsetY.value.roundToInt()
+                                        )
+                                    }
+
+                                    .animateContentSize(
+                                        tween(
+                                            browserSettings.value.animationSpeedForLayer(1)
+                                        )
                                     )
-                                }
+                                    .size(squareBoxSize)
+                                    //                            .height(squareBoxSmallHeight)
+        //                            .width(screenSizeDp.width.dp * 0.45f)
+                                    .graphicsLayer {
+                                        alpha = squareAlpha.value
+                                    }
+                                    .pointerInput(Unit, isCursorMode) {
 
-                                .animateContentSize(
-                                    tween(
-                                        browserSettings.value.animationSpeedForLayer(1)
-                                    )
-                                )
-                                .size(squareBoxSize)
-//                            .height(squareBoxSmallHeight)
-//                            .width(screenSizeDp.width.dp * 0.45f)
-                                .graphicsLayer {
-                                    alpha = squareAlpha.value
-                                }
-                                .pointerInput(Unit, isCursorMode) {
-
-                                    if (!isCursorMode) awaitEachGesture {
-                                        val down = awaitFirstDown(requireUnconsumed = false)
-                                        coroutineScope.launch {
-                                            squareAlpha.animateTo(1f)
-                                        }
-
-                                        val longPressJob = coroutineScope.launch {
-                                            delay(viewConfiguration.longPressTimeoutMillis)
-                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            isCursorPadVisible = true
-                                            squareAlpha.snapTo(0f)
-
-//
-//                                        val initialCursorX =
-//                                            if (squareAlignment == Alignment.BottomEnd) (
-//                                                    screenSize.width - ((screenSize.width * 0.45f) + browserSettings.value.padding.dp.toPx()) + down.position.x
-//                                                    )
-//                                            else browserSettings.value.padding.dp.toPx() + down.position.x
-
-
-                                            val initialCursorX =
-                                                backSquareOffsetX.value + browserSettings.value.padding + down.position.x
-
-//                                        val initialCursorY = screenSize.height - (squareBoxSmallHeight.toPx() - browserSettings.value.padding.dp.toPx()) + down.position.y - ((screenSize.height - cutoutTop.toPx()) / 2)
-                                            val initialCursorY =
-                                                ((screenSize.height - cutoutTop.toPx()) / 2) - (screenSize.height - backSquareOffsetY.value) + down.position.y + cutoutTop.toPx()
-
-
-                                            cursorPointerPosition.value =
-                                                Offset(initialCursorX, initialCursorY)
-
-
-                                        }
-
-                                        val drag =
-                                            awaitTouchSlopOrCancellation(down.id) { change, _ ->
-                                                if (longPressJob.isActive) {
-                                                    longPressJob.cancel()
-                                                }
-                                                change.consume()
-                                            }
-
-                                        if (longPressJob.isCompleted && !longPressJob.isCancelled) {
-                                            // --- LONG-PRESS PATH ---
-                                            if (drag != null) {
-                                                drag(drag.id) { change ->
-                                                    change.consume()
-
-
-                                                    val changeSpaceX =
-                                                        (change.position.x - change.previousPosition.x) * browserSettings.value.cursorTrackingSpeed
-                                                    val changeSpaceY =
-                                                        (change.position.y - change.previousPosition.y) * browserSettings.value.cursorTrackingSpeed
-
-//                                                val newCursorX =
-//                                                    cursorPointerPosition.value.x + changeSpaceX
-//
-//                                                val newCursorY =
-//                                                    (cursorPointerPosition.value.y + changeSpaceY)
-//                                                cursorPointerPosition.value =
-//                                                    Offset(newCursorX, newCursorY)
-                                                    var newX =
-                                                        cursorPointerPosition.value.x + changeSpaceX
-                                                    var newY =
-                                                        cursorPointerPosition.value.y + changeSpaceY
-                                                    if (newX < 0) newX = 0f
-                                                    if (newX > screenSize.width) newX =
-                                                        screenSize.width.toFloat()
-                                                    if (newY < 0) newY = 0f
-                                                    if (newY > screenSize.height) newY =
-                                                        screenSize.height.toFloat()
-                                                    cursorPointerPosition.value = Offset(newX, newY)
-
-                                                }
-                                            }
-                                            // This code now ONLY runs after a long-press-drag has finished.
-                                            isCursorPadVisible = false
-
-                                            // --- SIMULATE CLICK AT CURSOR POSITION ---
-
-
-                                            activeSession.let { _ ->
-                                                val downTime = System.currentTimeMillis()
-                                                val downEvent = MotionEvent.obtain(
-                                                    downTime,
-                                                    downTime,
-                                                    MotionEvent.ACTION_DOWN,
-                                                    cursorPointerPosition.value.x,
-//                                                    cursorPointerPosition.value.y - webViewTopPadding.toPx(),
-                                                    cursorPointerPosition.value.y - innerPadding.calculateTopPadding()
-                                                        .toPx(),
-                                                    0
-                                                )
-                                                val upEvent = MotionEvent.obtain(
-                                                    downTime,
-                                                    downTime + 10,
-                                                    MotionEvent.ACTION_UP,
-                                                    cursorPointerPosition.value.x,
-                                                    cursorPointerPosition.value.y - innerPadding.calculateTopPadding()
-                                                        .toPx(),
-                                                    0
-                                                )
-
-                                                activeSession.panZoomController.onTouchEvent(
-                                                    downEvent
-                                                )
-                                                activeSession.panZoomController.onTouchEvent(
-                                                    upEvent
-                                                )
-                                                downEvent.recycle()
-                                                upEvent.recycle()
-//                                                webView.dispatchTouchEvent(downEvent)
-//                                                webView.dispatchTouchEvent(upEvent)
-                                            }
-
+                                        if (!isCursorMode) awaitEachGesture {
+                                            val down = awaitFirstDown(requireUnconsumed = false)
                                             coroutineScope.launch {
-                                                squareAlpha.animateTo(browserSettings.value.backSquareIdleOpacity)
+                                                squareAlpha.animateTo(1f)
                                             }
-                                        } else {
-                                            // --- TAP OR SHORT-DRAG PATH ---
+
+                                            val longPressJob = coroutineScope.launch {
+                                                delay(viewConfiguration.longPressTimeoutMillis)
+                                                hapticFeedback.performHapticFeedback(
+                                                    HapticFeedbackType.LongPress
+                                                )
+                                                isCursorPadVisible = true
+                                                squareAlpha.snapTo(0f)
+
+                                                //
+                                                //                                        val initialCursorX =
+                                                //                                            if (squareAlignment == Alignment.BottomEnd) (
+                                                //                                                    screenSize.width - ((screenSize.width * 0.45f) + browserSettings.value.padding.dp.toPx()) + down.position.x
+                                                //                                                    )
+                                                //                                            else browserSettings.value.padding.dp.toPx() + down.position.x
+
+
+                                                val initialCursorX =
+                                                    backSquareOffsetX.value + browserSettings.value.padding + down.position.x
+
+                                                //                                        val initialCursorY = screenSize.height - (squareBoxSmallHeight.toPx() - browserSettings.value.padding.dp.toPx()) + down.position.y - ((screenSize.height - cutoutTop.toPx()) / 2)
+                                                val initialCursorY =
+                                                    ((screenSize.height - cutoutTop.toPx()) / 2) - (screenSize.height - backSquareOffsetY.value) + down.position.y + cutoutTop.toPx()
+
+
+                                                cursorPointerPosition.value =
+                                                    Offset(initialCursorX, initialCursorY)
+
+
+                                            }
+
+                                            val drag =
+                                                awaitTouchSlopOrCancellation(down.id) { change, _ ->
+                                                    if (longPressJob.isActive) {
+                                                        longPressJob.cancel()
+                                                    }
+                                                    change.consume()
+                                                }
+
+                                            if (longPressJob.isCompleted && !longPressJob.isCancelled) {
+                                                // --- LONG-PRESS PATH ---
+                                                if (drag != null) {
+                                                    drag(drag.id) { change ->
+                                                        change.consume()
+
+
+                                                        val changeSpaceX =
+                                                            (change.position.x - change.previousPosition.x) * browserSettings.value.cursorTrackingSpeed
+                                                        val changeSpaceY =
+                                                            (change.position.y - change.previousPosition.y) * browserSettings.value.cursorTrackingSpeed
+
+                                                        //                                                val newCursorX =
+                                                        //                                                    cursorPointerPosition.value.x + changeSpaceX
+                                                        //
+                                                        //                                                val newCursorY =
+                                                        //                                                    (cursorPointerPosition.value.y + changeSpaceY)
+                                                        //                                                cursorPointerPosition.value =
+                                                        //                                                    Offset(newCursorX, newCursorY)
+                                                        var newX =
+                                                            cursorPointerPosition.value.x + changeSpaceX
+                                                        var newY =
+                                                            cursorPointerPosition.value.y + changeSpaceY
+                                                        if (newX < 0) newX = 0f
+                                                        if (newX > screenSize.width) newX =
+                                                            screenSize.width.toFloat()
+                                                        if (newY < 0) newY = 0f
+                                                        if (newY > screenSize.height) newY =
+                                                            screenSize.height.toFloat()
+                                                        cursorPointerPosition.value =
+                                                            Offset(newX, newY)
+
+                                                    }
+                                                }
+                                                // This code now ONLY runs after a long-press-drag has finished.
+                                                isCursorPadVisible = false
+
+                                                // --- SIMULATE CLICK AT CURSOR POSITION ---
+
+
+                                                activeSession.let { _ ->
+                                                    val downTime = System.currentTimeMillis()
+                                                    val downEvent = MotionEvent.obtain(
+                                                        downTime,
+                                                        downTime,
+                                                        MotionEvent.ACTION_DOWN,
+                                                        cursorPointerPosition.value.x,
+                                                        //                                                    cursorPointerPosition.value.y - webViewTopPadding.toPx(),
+                                                        cursorPointerPosition.value.y - innerPadding.calculateTopPadding()
+                                                            .toPx(),
+                                                        0
+                                                    )
+                                                    val upEvent = MotionEvent.obtain(
+                                                        downTime,
+                                                        downTime + 10,
+                                                        MotionEvent.ACTION_UP,
+                                                        cursorPointerPosition.value.x,
+                                                        cursorPointerPosition.value.y - innerPadding.calculateTopPadding()
+                                                            .toPx(),
+                                                        0
+                                                    )
+
+                                                    activeSession.panZoomController.onTouchEvent(
+                                                        downEvent
+                                                    )
+                                                    activeSession.panZoomController.onTouchEvent(
+                                                        upEvent
+                                                    )
+                                                    downEvent.recycle()
+                                                    upEvent.recycle()
+                                                    //                                                webView.dispatchTouchEvent(downEvent)
+                                                    //                                                webView.dispatchTouchEvent(upEvent)
+                                                }
+
+                                                coroutineScope.launch {
+                                                    squareAlpha.animateTo(browserSettings.value.backSquareIdleOpacity)
+                                                }
+                                            } else {
+                                                // --- TAP OR SHORT-DRAG PATH ---
+                                                if (drag != null) {
+                                                    // SHORT-DRAG
+                                                    drag(drag.id) { change ->
+                                                        change.consume()
+                                                        val newX =
+                                                            backSquareOffsetX.value + change.position.x - change.previousPosition.x
+                                                        val newY =
+                                                            backSquareOffsetY.value + change.position.y - change.previousPosition.y
+
+                                                        coroutineScope.launch {
+                                                            backSquareOffsetX.snapTo(newX)
+                                                            backSquareOffsetY.snapTo(newY)
+                                                        }
+                                                    }
+
+                                                    // --- SNAP LOGIC (Release) ---
+                                                    val screenWidth = screenSize.width.toFloat()
+                                                    val currentX = backSquareOffsetX.value
+
+                                                    // Determine snap target (Left or Right edge)
+                                                    val targetX =
+                                                        if (currentX + (squareBoxSizePx / 2) < screenWidth / 2) {
+                                                            paddingPx // Snap Left
+                                                        } else {
+                                                            screenWidth - squareBoxSizePx - paddingPx // Snap Right
+                                                        }
+
+                                                    // Clamp Y to screen bounds
+                                                    val targetY = backSquareOffsetY.value.coerceIn(
+                                                        paddingPx,
+                                                        screenSize.height.toFloat() - squareBoxSizePx - paddingPx
+                                                    )
+
+                                                    coroutineScope.launch {
+                                                        // Animate snap in
+
+                                                        launch {
+                                                            backSquareOffsetX.animateTo(
+                                                                targetX,
+                                                                spring()
+                                                            )
+                                                        }
+                                                        launch {
+                                                            backSquareOffsetY.animateTo(
+                                                                targetY,
+                                                                spring()
+                                                            )
+                                                        }
+                                                        browserSettings.value =
+                                                            browserSettings.value.copy(
+                                                                backSquareOffsetX = targetX,
+                                                                backSquareOffsetY = targetY
+                                                            )
+
+
+                                                        // Fade out after snap
+                                                        hideBackSquare(false)
+                                                    }
+                                                } else {
+                                                    // TAP
+                                                    if (longPressJob.isActive) {
+                                                        longPressJob.cancel()
+                                                        coroutineScope.launch {
+                                                            geckoViewRef.value?.clearFocus()
+
+                                                            if (!isUrlBarVisible) isUrlBarVisible =
+                                                                true
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        else awaitEachGesture {
+                                            val down = awaitFirstDown(requireUnconsumed = false)
+                                            coroutineScope.launch {
+                                                squareAlpha.animateTo(1f)
+                                            }
+
+                                            val drag =
+                                                awaitTouchSlopOrCancellation(down.id) { change, _ ->
+
+                                                    change.consume()
+                                                }
+
                                             if (drag != null) {
                                                 // SHORT-DRAG
                                                 drag(drag.id) { change ->
                                                     change.consume()
-                                                    val newX =
-                                                        backSquareOffsetX.value + change.position.x - change.previousPosition.x
-                                                    val newY =
-                                                        backSquareOffsetY.value + change.position.y - change.previousPosition.y
-
-                                                    coroutineScope.launch {
-                                                        backSquareOffsetX.snapTo(newX)
-                                                        backSquareOffsetY.snapTo(newY)
-                                                    }
-                                                }
-
-                                                // --- SNAP LOGIC (Release) ---
-                                                val screenWidth = screenSize.width.toFloat()
-                                                val currentX = backSquareOffsetX.value
-
-                                                // Determine snap target (Left or Right edge)
-                                                val targetX =
-                                                    if (currentX + (squareBoxSizePx / 2) < screenWidth / 2) {
-                                                        paddingPx // Snap Left
-                                                    } else {
-                                                        screenWidth - squareBoxSizePx - paddingPx // Snap Right
-                                                    }
-
-                                                // Clamp Y to screen bounds
-                                                val targetY = backSquareOffsetY.value.coerceIn(
-                                                    paddingPx,
-                                                    screenSize.height.toFloat() - squareBoxSizePx - paddingPx
-                                                )
-
-                                                coroutineScope.launch {
-                                                    // Animate snap in
-
-                                                    launch {
-                                                        backSquareOffsetX.animateTo(
-                                                            targetX,
-                                                            spring()
-                                                        )
-                                                    }
-                                                    launch {
-                                                        backSquareOffsetY.animateTo(
-                                                            targetY,
-                                                            spring()
-                                                        )
-                                                    }
-                                                    browserSettings.value =
-                                                        browserSettings.value.copy(
-                                                            backSquareOffsetX = targetX,
-                                                            backSquareOffsetY = targetY
-                                                        )
-
-
-                                                    // Fade out after snap
-                                                    hideBackSquare(false)
+                                                    //                                            horizontalDragAccumulator += change.position.x - change.previousPosition.x
+                                                    //                                            verticalDragAccumulator += change.position.y - change.previousPosition.y
+                                                    //
+                                                    //                                            if (abs(horizontalDragAccumulator) > abs(
+                                                    //                                                    verticalDragAccumulator
+                                                    //                                                )
+                                                    //                                            ) {
+                                                    //                                                squareAlignment =
+                                                    //                                                    if (horizontalDragAccumulator < 0) Alignment.BottomStart else Alignment.BottomEnd
+                                                    //                                            } else {
+                                                    //                                                if (!isUrlBarVisible) {
+                                                    //                                                    isUrlBarVisible = true
+                                                    //                                                }
+                                                    //                                            }
                                                 }
                                             } else {
                                                 // TAP
-                                                if (longPressJob.isActive) {
-                                                    longPressJob.cancel()
-                                                    coroutineScope.launch {
-                                                        geckoViewRef.value?.clearFocus()
-
-                                                        if (!isUrlBarVisible) isUrlBarVisible = true
-                                                    }
+                                                coroutineScope.launch {
+                                                    if (!isUrlBarVisible) isUrlBarVisible = true
                                                 }
                                             }
                                         }
                                     }
-                                    else awaitEachGesture {
-                                        val down = awaitFirstDown(requireUnconsumed = false)
-                                        coroutineScope.launch {
-                                            squareAlpha.animateTo(1f)
-                                        }
 
-                                        val drag =
-                                            awaitTouchSlopOrCancellation(down.id) { change, _ ->
-
-                                                change.consume()
-                                            }
-
-                                        if (drag != null) {
-                                            // SHORT-DRAG
-                                            drag(drag.id) { change ->
-                                                change.consume()
-//                                            horizontalDragAccumulator += change.position.x - change.previousPosition.x
-//                                            verticalDragAccumulator += change.position.y - change.previousPosition.y
-//
-//                                            if (abs(horizontalDragAccumulator) > abs(
-//                                                    verticalDragAccumulator
-//                                                )
-//                                            ) {
-//                                                squareAlignment =
-//                                                    if (horizontalDragAccumulator < 0) Alignment.BottomStart else Alignment.BottomEnd
-//                                            } else {
-//                                                if (!isUrlBarVisible) {
-//                                                    isUrlBarVisible = true
-//                                                }
-//                                            }
-                                            }
-                                        } else {
-                                            // TAP
-                                            coroutineScope.launch {
-                                                if (!isUrlBarVisible) isUrlBarVisible = true
-                                            }
-                                        }
-                                    }
-                                }
-
-                                .clip(
-                                    RoundedCornerShape(
-                                        browserSettings.value.cornerRadiusForLayer(1).dp
+                                    .clip(
+                                        RoundedCornerShape(
+                                            browserSettings.value.cornerRadiusForLayer(1).dp
+                                        )
                                     )
-                                )
-                                .background(Color.Black.copy(alpha = 0.5f))
-                                .background(Color.White.copy(alpha = 0.5f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-
-//                        Icon(
-//                            painter = painterResource(R.drawable.ic_circle),
-//                            contentDescription = "Back",
-//                            tint = Color.White
-//                        )
+                                    .background(Color.Black.copy(alpha = 0.5f))
+                                    .background(Color.White.copy(alpha = 0.5f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                            }
                         }
                     }
                 }
+
 
 
             }
