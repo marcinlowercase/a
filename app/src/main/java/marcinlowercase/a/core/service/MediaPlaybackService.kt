@@ -252,9 +252,9 @@ class MediaPlaybackService : Service() {
 
         // Choose which icon to show as the main action
         val toggleAction = if (isPaused) {
-            NotificationCompat.Action(android.R.drawable.ic_media_play, "Play", playIntent)
+            NotificationCompat.Action(marcinlowercase.a.R.drawable.ic_play_arrow, "Play", playIntent)
         } else {
-            NotificationCompat.Action(android.R.drawable.ic_media_pause, "Pause", pauseIntent)
+            NotificationCompat.Action(marcinlowercase.a.R.drawable.ic_pause, "Pause", pauseIntent)
         }
 
         val notificationBuilder = NotificationCompat.Builder(this, CHANNEL_ID)

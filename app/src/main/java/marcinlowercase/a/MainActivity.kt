@@ -3023,6 +3023,8 @@ fun BrowserScreen(
     //endregion
     BackHandler(enabled = true) {
         when {
+
+            activity?.requestedOrientation != ActivityInfo.SCREEN_ORIENTATION_PORTRAIT -> activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
             // Priority 1: Exit fullscreen video if it's active.
             isOnFullscreenVideo.value -> activeSession.exitFullScreen()
 
