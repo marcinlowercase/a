@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateOf
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import marcinlowercase.a.core.custom_class.CustomPermissionDelegate
@@ -28,13 +29,36 @@ import org.mozilla.geckoview.WebRequestError
 import org.mozilla.geckoview.WebResponse
 import java.io.File
 import java.io.FileOutputStream
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import kotlin.math.abs
 
 private const val UBLOCK_ID = "uBlock0@raymondhill.net"
 private const val UBLOCK_NAME = "ublock_origin"
 private const val FAVICON_ID = "favicon@marcinlowercase" // Must match manifest.json
 private var faviconExtension: WebExtension? = null
+
+private const val INIT = -1.0
+private const val RESET = -2.0
 class GeckoManager(private val context: Context) {
     var activeGeckoMediaSession: MediaSession? = null
+//    var currentPosition: Double = 0.0
+//    var duration: Double = 0.0
+
+    var lastPositionSnapshot = mutableStateOf(INIT)
+    var lastPositionSnapshotByGecko = mutableStateOf(INIT)
+    var lastDuration = mutableStateOf(INIT)
+    var lastPlaybackRate = mutableStateOf(1.0)
+    var lastSnapshotTime = mutableStateOf(0L)
+
+    private var exitDuration: Double = INIT
+    private var exitPosition: Double = INIT
+//    private var isWaitingForFreshMedia = false
+    private var isInit = true
+
+    var lastTitle = mutableStateOf("")
+
+    var isActiveMediaSessionPaused by mutableStateOf(true)
 
     val runtime: GeckoRuntime by lazy {
         GeckoRuntime.getDefault(context)
@@ -55,6 +79,44 @@ class GeckoManager(private val context: Context) {
 
     }
 
+    // Set this up in your MediaSession.Delegate
+    fun updatePositionState(state: MediaSession.PositionState) {
+
+
+    }
+
+    fun tickLivePosition() {
+        if(lastPositionSnapshot.value >= 0.0) {
+            val now = System.currentTimeMillis()
+
+            // 1. Calculate how much time passed since the last tick (in seconds)
+            val elapsedMillis = now - lastSnapshotTime.value
+            val elapsedSeconds = elapsedMillis / 1000.0
+
+            // 2. If playing, advance the position snapshot
+            if (lastPlaybackRate.value != 0.0) {
+                val newPos = lastPositionSnapshot.value + (elapsedSeconds * lastPlaybackRate.value)
+                // Update the snapshot and clamp it so it doesn't exceed duration
+                lastPositionSnapshot.value = newPos.coerceAtLeast(0.0)
+            }
+
+            // 3. CRITICAL: Update the snapshot time to "now"
+            // This ensures the NEXT tick only calculates the delta from this moment
+            lastSnapshotTime.value = now
+        }
+    }
+
+    // This calculates the "Live" position without asking Gecko again
+    fun getExtrapolatedPosition(): Double {
+        if (lastPlaybackRate.value == 0.0) {
+            return lastPositionSnapshot.value
+        }
+        val elapsedMillis = System.currentTimeMillis() - lastSnapshotTime.value
+        val elapsedSeconds = elapsedMillis / 1000.0
+        val livePos = lastPositionSnapshot.value + (elapsedSeconds * lastPlaybackRate.value)
+
+        return livePos.coerceIn(0.0, lastDuration.value)
+    }
     private fun installFaviconFetcher() {
         val uri = "resource://android/assets/extensions/favicon_fetcher/"
 
@@ -257,6 +319,62 @@ class GeckoManager(private val context: Context) {
     }
 
 
+    fun startReset() {
+        Log.e("marcMGesture", "startReset")
+        // Save exactly where Video A was when we left the page
+        if (!isInit) {
+            Log.d("marcMGesture", "notinit")
+            if (lastDuration.value != RESET) exitDuration = lastDuration.value
+            if (lastPositionSnapshot.value != INIT) exitPosition = lastPositionSnapshot.value
+            lastDuration.value = RESET
+            lastPositionSnapshot.value = INIT
+//            isWaitingForFreshMedia = true
+            Log.e(
+                "marcMGesture",
+                "RESET: Fingerprint saved (Dur: $exitDuration, Pos: $exitPosition)"
+            )
+        } else {
+            isInit = false
+        }
+    }
+    fun sendVideoCommand(command: String, value: Double = 0.0) {
+        val controller = activeGeckoMediaSession?: return
+
+        val currentLivePos = lastPositionSnapshot.value
+        val totalDuration = lastDuration.value
+
+        when (command) {
+            "play" -> controller.play()
+            "pause" -> controller.pause()
+            "next_5" -> {
+//                val target = (currentPosition + 5.0).coerceAtMost(duration)
+                val target = (currentLivePos + 5.0).coerceAtMost(totalDuration)
+                controller.seekTo(target, false)
+                updateLocalSnapshotOptimistically(target)
+
+            }
+            "prev_5" -> {
+                val target = (currentLivePos - 5.0).coerceAtLeast(0.0)
+                controller.seekTo(target, false)
+                updateLocalSnapshotOptimistically(target)
+
+            }
+            "seek_relative" -> {
+                // value is the delta passed from the drag gesture
+                val target = (currentLivePos + value).coerceAtLeast(0.0)
+                controller.seekTo(target, true)
+                updateLocalSnapshotOptimistically(target)
+
+            }
+            "next_track" -> controller.nextTrack()
+            "prev_track" -> controller.previousTrack()
+
+        }
+    }
+    private fun updateLocalSnapshotOptimistically(newTime: Double) {
+        lastPositionSnapshot.value = newTime
+        lastSnapshotTime.value = System.currentTimeMillis()
+    }
     fun setupDelegates(
         session: GeckoSession,
         tab: MutableState<Tab>,
@@ -383,7 +501,6 @@ class GeckoManager(private val context: Context) {
                 perms: MutableList<GeckoSession.PermissionDelegate.ContentPermission>,
                 userGesture: Boolean
             ) {
-
                 onLocationChangeFun(eventTabId,session, url, perms, userGesture)
             }
 
@@ -489,7 +606,7 @@ class GeckoManager(private val context: Context) {
                     session.settings.userAgentOverride!!
                 } else {
                     // A standard modern Android User Agent
-                    "Mozilla/5.0 (Android 14; Mobile; rv:131.0) Gecko/131.0 Firefox/131.0"
+                    "Mozill9a/5.0 (Android 14; Mobile; rv:131.0) Gecko/131.0 Firefox/131.0"
                 }
                 Log.i("onExternalResponse", "url: $url")
                 Log.i("onExternalResponse", "contentDisposition: $contentDisposition")
@@ -696,8 +813,11 @@ class GeckoManager(private val context: Context) {
 
         session.mediaSessionDelegate = object : MediaSession.Delegate {
             override fun onActivated(session: GeckoSession, mediaSession: MediaSession) {
+                Log.i("marcMedia", "onActivated")
                 activeGeckoMediaSession = mediaSession
 
+                isActiveMediaSessionPaused = false
+//                onActivatedFun()
                 // 1. Website started playing media! Start the background service.
                 val intent = Intent(context, MediaPlaybackService::class.java)
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
@@ -709,6 +829,8 @@ class GeckoManager(private val context: Context) {
 
             override fun onDeactivated(session: GeckoSession,  mediaSession: MediaSession) {
                 activeGeckoMediaSession = null
+                isActiveMediaSessionPaused = true
+
                 // 2. Media stopped. Stop the background service.
                 context.stopService(Intent(context, MediaPlaybackService::class.java))
             }
@@ -716,7 +838,17 @@ class GeckoManager(private val context: Context) {
             override fun onMetadata(session: GeckoSession,  mediaSession: MediaSession, metadata: MediaSession.Metadata) {
                 // 3. Update the Android Media Controls with Title/Artist from the website
                 Log.i("marcMedia", "Playing: ${metadata.title} by ${metadata.artist}")
+//                currentPosition = mediaSession.
 
+
+                if (metadata.title != null && metadata.title != lastTitle.value) {
+                    lastTitle.value = metadata.title.toString()
+                    startReset()
+                    mediaSession.pause()
+                    mediaSession.seekTo(0.0, true)
+                    mediaSession.play()
+
+                }
                 val intent = Intent(context, MediaPlaybackService::class.java).apply {
                     putExtra("TITLE", metadata.title)
                     putExtra("ARTIST", metadata.artist ?: "Web Browser")
@@ -735,6 +867,7 @@ class GeckoManager(private val context: Context) {
             override fun onPause(session: GeckoSession, mediaSession: MediaSession) {
                 activeGeckoMediaSession = mediaSession
 
+                isActiveMediaSessionPaused = true
                 Log.d("marcMedia", "onPause")
                 context.startService(Intent(context, MediaPlaybackService::class.java).apply {
                     putExtra("IS_PAUSED", true)
@@ -743,18 +876,79 @@ class GeckoManager(private val context: Context) {
             }
 
             override fun onPlay(session: GeckoSession, mediaSession: MediaSession) {
+                isActiveMediaSessionPaused = false
                 activeGeckoMediaSession = mediaSession
 
+
                 Log.d("marcMedia", "onPlay")
+                if(lastPositionSnapshot.value == INIT) {
+                    lastPositionSnapshot.value = 0.0
+                }
                 context.startService(Intent(context, MediaPlaybackService::class.java).apply {
                     putExtra("IS_PAUSED", false)
                 })
                 super.onPlay(session, mediaSession)
             }
 
-//            override fun onPlaybackStateChanged(session: GeckoSession, mediaSession: MediaSession, state: Int) {
-//                // Sync play/pause state with Android system
-//            }
+            override fun onStop(session: GeckoSession, mediaSession: MediaSession) {
+                activeGeckoMediaSession = null
+                super.onStop(session, mediaSession)
+            }
+
+
+            override fun onPositionState(session: GeckoSession, mediaSession: MediaSession, state: MediaSession.PositionState) {
+                if (lastDuration.value == RESET) {
+
+
+                    Log.i("marcMGesture", "checking reset + exitduration $exitDuration")
+                    Log.i("marcMGesture", "checking reset + state.duration ${state.duration}")
+                    // 1. Is the duration different? (Strongest Signal)
+                    val durationChanged = abs(state.duration - exitDuration) > 0.0001
+                    Log.d("marcMGesture", "checking reset + durationChanged $durationChanged")
+
+                    // 2. Is the position at the very beginning? (Video B just started)
+                    val isAtStart = state.position < 1.0
+                    Log.d("marcMGesture", "checking reset + isAtStart $isAtStart")
+
+                    // 3. Did the position jump backwards significantly? (Video A was at 59s, now we are at 0s)
+                    val positionJumpedBack = state.position < (exitPosition - 1.0)
+                    Log.d("marcMGesture", "checking reset + positionJumpedBack $positionJumpedBack")
+                    Log.d("marcMGesture", "")
+                    Log.d("marcMGesture", "")
+                    Log.d("marcMGesture", "")
+
+                    // VALIDATION
+                    val isDataFresh = durationChanged || isAtStart || positionJumpedBack
+
+                    if (!isDataFresh) {
+                        // This is identical to Video A's last state or a continuation of it.
+                        // Ignore it.
+                        Log.e("marcMGesture", "STALE DATA DETECTED: Still seeing Video A (${state.position})")
+                        return
+                    }
+
+                    // UNLOCK
+                    Log.d("marcMGesture", "FRESH DATA DETECTED: Unlocking Media Controls")
+                }
+
+                // Update values normally
+                Log.e("marcMGesture", "updatePositionState")
+                if (state.position != lastPositionSnapshotByGecko.value || lastPositionSnapshot.value == INIT) {
+                    lastPositionSnapshotByGecko.value = state.position
+                    lastPositionSnapshot.value = state.position
+                }
+                lastSnapshotTime.value = System.currentTimeMillis()
+
+                lastPlaybackRate.value = state.playbackRate
+
+                Log.w("marcMGesture", "lastdiration ${lastDuration.value}")
+                Log.w("marcMGesture", "state ${state.duration}")
+                if (!state.duration.isNaN()) {
+                    lastDuration.value = state.duration
+                    if ( exitDuration != state.duration) exitDuration = state.duration
+                }
+
+            }
         }
     }
 }

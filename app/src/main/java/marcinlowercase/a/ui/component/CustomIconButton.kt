@@ -2,6 +2,7 @@ package marcinlowercase.a.ui.component
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
@@ -18,6 +19,7 @@ import marcinlowercase.a.core.function.buttonSettingsForLayer
 
 @Composable
 fun CustomIconButton(
+    isLandscape : Boolean = false,
     currentRotation: Float,
     layer: Int,
     browserSettings: MutableState<BrowserSettings>,
@@ -31,12 +33,19 @@ fun CustomIconButton(
 
     ) {
     val  hapticFeedback = LocalHapticFeedback.current
+    val sizeModifier = if (isLandscape) {
+        Modifier.width(browserSettings.value.heightForLayer(layer).dp)
+    } else {
+        Modifier.height(browserSettings.value.heightForLayer(layer).dp)
+    }
     Box(
         modifier = modifier
 
-            .height(
-                browserSettings.value.heightForLayer(layer).dp
-            )
+            .then(sizeModifier)
+//            .height(
+//                browserSettings.value.heightForLayer(layer).dp
+//            )
+
             .buttonSettingsForLayer(
                 layer,
                 browserSettings.value,

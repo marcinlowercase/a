@@ -60,14 +60,20 @@ import androidx.compose.foundation.gestures.animateTo
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -75,6 +81,7 @@ import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -83,6 +90,7 @@ import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -175,11 +183,13 @@ import marcinlowercase.a.core.function.webViewLoad
 import marcinlowercase.a.core.manager.AppManager
 import marcinlowercase.a.core.manager.BrowserDownloadManager
 import marcinlowercase.a.core.manager.GeckoManager
+import marcinlowercase.a.core.manager.MediaGestureManager
 import marcinlowercase.a.core.manager.SiteSettingsManager
 import marcinlowercase.a.core.manager.TabManager
 import marcinlowercase.a.core.manager.VisitedUrlManager
 import marcinlowercase.a.core.manager.WebViewManager
 import marcinlowercase.a.ui.panel.BottomPanel
+import marcinlowercase.a.ui.panel.MediaControlPanel
 import marcinlowercase.a.ui.panel.SettingPanelView
 import marcinlowercase.a.ui.panel.SettingsPanel
 import marcinlowercase.a.ui.screen.ErrorScreen
@@ -643,14 +653,15 @@ fun BrowserScreen(
     val resetBottomPanelTrigger = remember { mutableStateOf(false) }
     val isSettingCornerRadius = remember { mutableStateOf(true) }
     val isOnFullscreenVideo = remember { mutableStateOf(false) }
+    val isMediaControlPanelVisible = remember { mutableStateOf(false) }
 
 
     val offsetY = remember { Animatable(0f) }
     var overlayHeightPx by remember { mutableFloatStateOf(0f) }
     val animatedCornerRadius by animateDpAsState(
         targetValue = if (browserSettings.value.isSharpMode
-            || isOnFullscreenVideo.value
-            || isPipMode
+//            || isOnFullscreenVideo.value
+//            || isPipMode
             ) 0.dp else browserSettings.value.deviceCornerRadius.dp,
         label = "Corner Radius Animation",
     )
@@ -788,9 +799,8 @@ fun BrowserScreen(
         mutableStateOf<CustomPermissionRequest?>(null)
     }
 
-    var customView by remember { mutableStateOf<View?>(null) }
-    var customViewCallback by remember { mutableStateOf<WebChromeClient.CustomViewCallback?>(null) }
-    val activity = context as? Activity // Get the activity reference
+    val activity = context as Activity // Get the activity reference
+    val gestureManager = remember { MediaGestureManager(activity) }
     val isDarkTheme = isSystemInDarkTheme()
     val view = LocalView.current // Get the underlying view
     val savePermissionDecision = { domain: String, permissions: Map<String, Boolean> ->
@@ -972,7 +982,12 @@ fun BrowserScreen(
         label = "ScreenRotationAnim"
     )
 
+    val activeMediaCurrentPosition = remember { mutableStateOf(0.0) }
+    val activeMediaDuration = remember { mutableStateOf(0.0) }
 
+    LaunchedEffect(activeMediaCurrentPosition.value) {
+        Log.d("marcMGesture", "activeMediaCurrentPosition: ${activeMediaCurrentPosition.value}")
+    }
     //endregion
 
     //region Functions
@@ -1802,6 +1817,10 @@ fun BrowserScreen(
 
 
     //region LaunchedEffect
+    LaunchedEffect(isOnFullscreenVideo.value) {
+        isMediaControlPanelVisible.value = isOnFullscreenVideo.value
+
+    }
     LaunchedEffect(isFocusOnTextField, isPromptPanelVisible) {
         if (!isFocusOnTextField && !isPromptPanelVisible){
             delay(300)
@@ -2427,6 +2446,7 @@ fun BrowserScreen(
             siteSettings = siteSettings,
             siteSettingsManager = siteSettingsManager,
 
+
             onFullScreenFun = { isFullscreen ->
                 Log.i("marcPip", " isFULlscreen: $isFullscreen")
 
@@ -2470,6 +2490,8 @@ fun BrowserScreen(
                     } else {
                         // Only exit landscape/immersive if NOT in PiP
                         if (!inPip) {
+                            gestureManager.resetBrightness()
+
                             activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
                             if (!browserSettings.value.isFullscreenMode) {
                                 insetsController?.show(WindowInsetsCompat.Type.systemBars())
@@ -3107,9 +3129,10 @@ fun BrowserScreen(
     BackHandler(enabled = true) {
         when {
 
-            activity?.requestedOrientation != ActivityInfo.SCREEN_ORIENTATION_PORTRAIT -> activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
             // Priority 1: Exit fullscreen video if it's active.
             isOnFullscreenVideo.value -> activeSession.exitFullScreen()
+            activity.requestedOrientation != ActivityInfo.SCREEN_ORIENTATION_PORTRAIT -> activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+
 
             // Priority 2: Navigate back in the WebView.
             activeTab.value.canGoBack -> {
@@ -3290,6 +3313,8 @@ fun BrowserScreen(
                                                     if (isUrlBarVisible) {
                                                         isUrlBarVisible = false
                                                     }
+                                                    if (isMediaControlPanelVisible.value )isMediaControlPanelVisible.value = false
+
 
                                                     if (contextMenuData != null) contextMenuData =
                                                         null
@@ -3319,6 +3344,30 @@ fun BrowserScreen(
 
 
                 if (!isPipMode) {
+                    MediaControlPanel(
+
+                        hapticFeedback = hapticFeedback,
+                        modifier = Modifier,
+                        isMediaControlPanelVisible = isMediaControlPanelVisible,
+                        isOnFullscreenVideo = isOnFullscreenVideo,
+                        browserSettings = browserSettings,
+                        descriptionContent = descriptionContent,
+                        geckoManager = geckoManager,
+                        onExitFullscreen = {
+                            activeSession.exitFullScreen()
+//                            isOnFullscreenVideo.value = false
+                        },
+                        gestureManager = gestureManager
+                    )
+//                    VideoGestureOverlay(
+//                        isOn = isOnFullscreenVideo.value,
+//                        geckoManager = geckoManager,
+//                        onExitFullscreen = {
+//                            activeSession.exitFullScreen()
+////                            isOnFullscreenVideo.value = false
+//                        }
+//
+//                    )
                     CursorPointer(
                         isCursorPadVisible = isCursorPadVisible,
                         position = cursorPointerPosition.value,
@@ -3934,23 +3983,6 @@ fun BrowserScreen(
         }
     }
 
-
-    // This appears on top of everything when customView is not null.
-    if (customView != null) {
-        @Suppress("COMPOSE_APPLIER_CALL_MISMATCH")
-        AndroidView(
-            factory = { customView!! as ViewGroup },
-            // This onRelease block is the KEY to preventing the crash.
-            // When this view is removed from composition (because customView becomes null),
-            // it guarantees the view is detached from its parent.
-            onRelease = { view ->
-                (view.parent as? ViewGroup)?.removeView(view)
-            },
-            modifier = Modifier.fillMaxSize()
-        )
-    }
-
-
 }
 
 @Composable
@@ -4447,6 +4479,198 @@ class ShakeDetector(context: Context, private val onShake: () -> Unit) : SensorE
 
                 shakeTimestamp = now
                 onShake()
+            }
+        }
+    }
+}
+
+
+//@Composable
+//fun VideoGestureOverlay(
+//    isOn: Boolean,
+//    onExitFullscreen: () -> Unit,
+//    geckoManager: GeckoManager
+//) {
+//    if (!isOn) return
+//
+//    val context = LocalContext.current
+//    val activity = context as Activity
+//    val gestureManager = remember { MediaGestureManager(activity) }
+//
+//    // UI State
+//    var showControls by remember { mutableStateOf(true) }
+//    var seekHUD by remember { mutableStateOf<String?>(null) }
+//    var brightnessHUD by remember { mutableStateOf<Float?>(null) }
+//    var volumeHUD by remember { mutableStateOf<Float?>(null) }
+//
+//    // Auto-hide controls
+//    LaunchedEffect(showControls) {
+//        if (showControls) {
+//            delay(3000)
+//            showControls = false
+//        }
+//    }
+//
+//    Box(
+//        modifier = Modifier
+//            .fillMaxSize()
+//            .background(if (showControls) Color.Black.copy(0.3f) else Color.Transparent)
+//            .pointerInput(Unit) {
+//                detectTapGestures(
+//                    onTap = { showControls = !showControls },
+//                    onDoubleTap = { offset ->
+//                        if (offset.x < size.width / 2) {
+//                            geckoManager.sendVideoCommand("prev_5")
+//                            seekHUD = "-5s"
+//                        } else {
+//                            geckoManager.sendVideoCommand("next_5")
+//                            seekHUD = "+5s"
+//                        }
+//                    }
+//                )
+//            }
+//            .pointerInput(Unit) {
+//                detectDragGestures(
+//                    onDragStart = { showControls = true },
+//                    onDragEnd = { seekHUD = null; brightnessHUD = null; volumeHUD = null },
+//                    onDrag = { change, dragAmount ->
+//                        change.consume()
+//
+//                        // Logic: Is the drag mostly Horizontal or Vertical?
+//                        if (abs(dragAmount.x) > abs(dragAmount.y)) {
+//                            // HORIZONTAL: Seeking
+//                            val seekDelta = dragAmount.x * 100 // Sensitivity
+//                            geckoManager.sendVideoCommand("seek_relative", seekDelta.toDouble())
+//                            seekHUD = if (dragAmount.x > 0) ">>" else "<<"
+//                        } else {
+//                            // VERTICAL: Brightness/Volume
+//                            val delta = -dragAmount.y / 1000f
+//                            if (change.position.x < size.width / 2) {
+//                                gestureManager.setBrightness(delta * 2)
+//                                brightnessHUD = gestureManager.getBrightness()
+//                            } else {
+//                                gestureManager.setVolume(delta)
+//                                volumeHUD = gestureManager.getVolumePercentage()
+//                            }
+//                        }
+//                    }
+//                )
+//            }
+//    ) {
+//        // --- Center Play/Pause ---
+//        AnimatedVisibility(showControls, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.align(Alignment.Center)) {
+//            IconButton(
+//                onClick = {
+//                    // Toggle logic: Check gecko state or just send both to be safe
+//                    if (geckoManager.isActiveMediaSessionPaused) {
+//                        geckoManager.sendVideoCommand("play")
+//                    } else {
+//                        geckoManager.sendVideoCommand("pause")
+//                    }
+//                },
+//                modifier = Modifier.size(80.dp).background(Color.Black.copy(0.5f), CircleShape)
+//            ) {
+//                Icon(
+//                    painterResource(if (geckoManager.isActiveMediaSessionPaused) R.drawable.ic_pause else R.drawable.ic_play_arrow),
+//                    null,
+//                    tint = Color.White,
+//                    modifier = Modifier.size(48.dp))
+//            }
+//        }
+//
+//        // --- Bottom Right Exit ---
+//        AnimatedVisibility(showControls, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.align(Alignment.BottomEnd)) {
+//            IconButton(
+//                onClick = onExitFullscreen,
+//                modifier = Modifier.padding(24.dp).size(56.dp).background(Color.Black.copy(0.5f), CircleShape)
+//            ) {
+//                Icon(painterResource(R.drawable.ic_fullscreen_exit), null, tint = Color.White)
+//            }
+//        }
+//
+//        // --- HUD Indicators ---
+//        if (seekHUD != null) CenterHUD(seekHUD!!)
+//        GestureIndicator(value = brightnessHUD, icon = R.drawable.ic_brightness_5, alignment = Alignment.CenterStart)
+//        GestureIndicator(value = volumeHUD, icon = R.drawable.ic_volume_up, alignment = Alignment.CenterEnd)
+//    }
+//}
+
+@Composable
+fun BoxScope.CenterHUD(text: String) {
+    Box(Modifier.align(Alignment.Center).clip(RoundedCornerShape(8.dp)).background(Color.Black.copy(0.6f)).padding(16.dp)) {
+        Text(text, color = Color.White,
+//            style = MaterialTheme.typography.headlineLarge
+        )
+    }
+}
+//@Composable
+//fun VideoGestureOverlay(
+//    isOn: Boolean,
+//    modifier: Modifier = Modifier
+//) {
+//    if (!isOn) return
+//
+//    val context = LocalContext.current
+//    val activity = context as Activity
+//    val gestureManager = remember { MediaGestureManager(activity) }
+//
+//    var brightnessHUD by remember { mutableStateOf<Float?>(null) }
+//    var volumeHUD by remember { mutableStateOf<Float?>(null) }
+//
+//    // Auto-hide HUD after 1 second of no activity
+//    LaunchedEffect(brightnessHUD, volumeHUD) {
+//        delay(1000)
+//        brightnessHUD = null
+//        volumeHUD = null
+//    }
+//
+//    Box(
+//        modifier = modifier
+//            .fillMaxSize()
+//            .pointerInput(Unit) {
+//                detectVerticalDragGestures { change, dragAmount ->
+//                    change.consume()
+//
+//                    // Sensitivity: Adjust the divisor to make it faster/slower
+//                    val delta = -dragAmount / 1000f
+//
+//                    if (change.position.x < size.width / 2) {
+//                        // LEFT SIDE: Brightness
+//                        gestureManager.setBrightness(delta * 2)
+//                        brightnessHUD = gestureManager.getBrightness()
+//                    } else {
+//                        // RIGHT SIDE: Volume
+//                        gestureManager.setVolume(delta)
+//                        volumeHUD = gestureManager.getVolumePercentage()
+//                    }
+//                }
+//            }
+//    ) {
+//        // --- Visual HUDs ---
+//        GestureIndicator(value = brightnessHUD, icon = R.drawable.ic_brightness_5, Alignment.CenterStart)
+//        GestureIndicator(value = volumeHUD, icon = R.drawable.ic_volume_up, Alignment.CenterEnd)
+//    }
+//}
+
+@Composable
+fun BoxScope.GestureIndicator(value: Float?, icon: Int, alignment: Alignment) {
+    AnimatedVisibility(
+        visible = value != null,
+        enter = fadeIn(),
+        exit = fadeOut(),
+        modifier = Modifier.align(alignment).padding(48.dp)
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                painter = painterResource(icon),
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(32.dp).background(Color.Black.copy(0.5f), CircleShape).padding(4.dp)
+            )
+            Spacer(Modifier.height(8.dp))
+            // Small vertical bar
+            Box(Modifier.width(4.dp).height(100.dp).background(Color.Gray.copy(0.5f), RoundedCornerShape(2.dp))) {
+                Box(Modifier.fillMaxWidth().fillMaxHeight(value ?: 0f).align(Alignment.BottomCenter).background(Color.White))
             }
         }
     }

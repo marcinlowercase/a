@@ -144,6 +144,19 @@ fun formatTimeRemaining(millis: Long): String {
     }
 }
 
+fun formatTime(seconds: Double): String {
+    if (seconds <= 0 || seconds.isNaN()) return "--:--"
+    val totalSeconds = seconds.toLong()
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    val secs = totalSeconds % 60
+
+    return if (hours > 0) {
+        String.format("%d:%02d:%02d", hours, minutes, secs)
+    } else {
+        String.format("%02d:%02d", minutes, secs)
+    }
+}
 
 fun formatSpeed(bytesPerSecond: Float): String {
     if (bytesPerSecond < 1024) return "%.0f B/s".format(bytesPerSecond)
