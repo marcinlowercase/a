@@ -72,7 +72,7 @@ class GeckoManager(private val context: Context) {
 
 
     init {
-        runtime.settings.consoleOutputEnabled
+        runtime.settings.consoleOutputEnabled = true
         setupExtensionPrompts()
         setupExtension(UBLOCK_NAME, UBLOCK_ID)
         installFaviconFetcher()
@@ -558,6 +558,7 @@ class GeckoManager(private val context: Context) {
             override fun onPageStart(session: GeckoSession, url: String) {
                 // This fires when the page actually starts loading content.
                 Log.d("GeckoView", "Page Started: $url")
+                if (url.startsWith("javascript:")) return
 
                 // Example: Show loading spinner, reset error states
                 onPageStartFun(eventTabId,session, url)
@@ -566,6 +567,22 @@ class GeckoManager(private val context: Context) {
 
             // 2. EQUIVALENT TO onPageFinished
             override fun onPageStop(session: GeckoSession, success: Boolean) {
+
+                if (success) {
+                    val radius = browserSettings.value.deviceCornerRadius
+
+                    val js = """
+        javascript:(function(){
+            document.documentElement.style.setProperty('--device-corner-radius', '${radius}px');
+            window.deviceCornerRadius = ${radius};
+            render(${radius});
+            alert("marc_console_log: Injection Success! Radius is " + window.deviceCornerRadius);
+        })()
+    """.trimIndent().replace("\n", " ")
+
+                    session.loadUri(js)
+                }
+
                 onPageStopFun(session, success)
                 Log.d("GeckoView", "Page Finished. Success: $success")
 
@@ -747,6 +764,16 @@ class GeckoManager(private val context: Context) {
                 prompt: GeckoSession.PromptDelegate.AlertPrompt
             ): GeckoResult<GeckoSession.PromptDelegate.PromptResponse>? {
                 val message = prompt.message ?: ""
+
+
+                if (message.startsWith("marc_console_log:")) {
+                    // Strip the prefix and print to Android Logcat
+                    val logContent = message.removePrefix("marc_console_log:")
+                    Log.d("marc_console_log", logContent)
+
+                    // Dismiss immediately without showing UI
+                    return GeckoResult.fromValue(prompt.dismiss())
+                }
 
                 // Show UI
                 onJsAlert(message)
@@ -950,6 +977,8 @@ class GeckoManager(private val context: Context) {
 
             }
         }
+
+
     }
 }
 

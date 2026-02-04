@@ -2365,7 +2365,11 @@ fun BrowserScreen(
                 isLoading = (int < 100)
             },
             onLocationChangeFun = { eventTabId, session, url, perms, userGesture ->
-                if (eventTabId == activeTab.value.id && url != null && url != "about:blank") {
+                if (eventTabId == activeTab.value.id
+                    && url != null
+                    && url != "about:blank"
+                    && !url.startsWith("javascript:")
+                ) {
                     if (!isFocusOnUrlTextField) {
                         textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
                     }
