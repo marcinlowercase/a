@@ -1845,9 +1845,7 @@ fun BrowserScreen(
     LaunchedEffect(suggestions) {
         if (suggestions.isNotEmpty()) activeMainPanel = ActivePanel.SUGGESTIONS
     }
-    LaunchedEffect(isNavPanelVisible) {
-        if (isNavPanelVisible) activeMainPanel = ActivePanel.NAVIGATION
-    }
+
     LaunchedEffect(isDownloadPanelVisible.value) {
         if (isDownloadPanelVisible.value) activeMainPanel = ActivePanel.DOWNLOADS
     }
@@ -1886,7 +1884,6 @@ fun BrowserScreen(
         val current = activeMainPanel // Capture the current state
 
         if (current != ActivePanel.APPS && isAppsPanelVisible.value) isAppsPanelVisible.value = false
-        if (current != ActivePanel.NAVIGATION && isNavPanelVisible) isNavPanelVisible = false
         if (current != ActivePanel.DOWNLOADS && isDownloadPanelVisible.value) isDownloadPanelVisible.value = false
         if (current != ActivePanel.CONTEXT_MENU && contextMenuData != null) contextMenuData = null
         if (current != ActivePanel.FIND_IN_PAGE && isFindInPageVisible.value) isFindInPageVisible.value = false
