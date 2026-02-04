@@ -30,6 +30,8 @@ import org.mozilla.geckoview.WebResponse
 import java.io.File
 import java.io.FileOutputStream
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableDoubleStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.setValue
 import kotlin.math.abs
 
@@ -45,11 +47,11 @@ class GeckoManager(private val context: Context) {
 //    var currentPosition: Double = 0.0
 //    var duration: Double = 0.0
 
-    var lastPositionSnapshot = mutableStateOf(INIT)
-    var lastPositionSnapshotByGecko = mutableStateOf(INIT)
-    var lastDuration = mutableStateOf(INIT)
-    var lastPlaybackRate = mutableStateOf(1.0)
-    var lastSnapshotTime = mutableStateOf(0L)
+    var lastPositionSnapshot = mutableDoubleStateOf(INIT)
+    var lastPositionSnapshotByGecko = mutableDoubleStateOf(INIT)
+    var lastDuration = mutableDoubleStateOf(INIT)
+    var lastPlaybackRate = mutableDoubleStateOf(1.0)
+    var lastSnapshotTime = mutableLongStateOf(0L)
 
     private var exitDuration: Double = INIT
     private var exitPosition: Double = INIT
@@ -79,12 +81,6 @@ class GeckoManager(private val context: Context) {
 
     }
 
-    // Set this up in your MediaSession.Delegate
-    fun updatePositionState(state: MediaSession.PositionState) {
-
-
-    }
-
     fun tickLivePosition() {
         if(lastPositionSnapshot.value >= 0.0) {
             val now = System.currentTimeMillis()
@@ -106,17 +102,6 @@ class GeckoManager(private val context: Context) {
         }
     }
 
-    // This calculates the "Live" position without asking Gecko again
-    fun getExtrapolatedPosition(): Double {
-        if (lastPlaybackRate.value == 0.0) {
-            return lastPositionSnapshot.value
-        }
-        val elapsedMillis = System.currentTimeMillis() - lastSnapshotTime.value
-        val elapsedSeconds = elapsedMillis / 1000.0
-        val livePos = lastPositionSnapshot.value + (elapsedSeconds * lastPlaybackRate.value)
-
-        return livePos.coerceIn(0.0, lastDuration.value)
-    }
     private fun installFaviconFetcher() {
         val uri = "resource://android/assets/extensions/favicon_fetcher/"
 
@@ -303,7 +288,7 @@ class GeckoManager(private val context: Context) {
     fun restoreStateFromString(stateString: String): GeckoSession.SessionState? {
         return try {
             GeckoSession.SessionState.fromString(stateString)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             null
         }
     }
@@ -320,19 +305,12 @@ class GeckoManager(private val context: Context) {
 
 
     fun startReset() {
-        Log.e("marcMGesture", "startReset")
         // Save exactly where Video A was when we left the page
         if (!isInit) {
-            Log.d("marcMGesture", "notinit")
-            if (lastDuration.value != RESET) exitDuration = lastDuration.value
-            if (lastPositionSnapshot.value != INIT) exitPosition = lastPositionSnapshot.value
-            lastDuration.value = RESET
-            lastPositionSnapshot.value = INIT
-//            isWaitingForFreshMedia = true
-            Log.e(
-                "marcMGesture",
-                "RESET: Fingerprint saved (Dur: $exitDuration, Pos: $exitPosition)"
-            )
+            if (lastDuration.doubleValue != RESET) exitDuration = lastDuration.doubleValue
+            if (lastPositionSnapshot.doubleValue != INIT) exitPosition = lastPositionSnapshot.doubleValue
+            lastDuration.doubleValue = RESET
+            lastPositionSnapshot.doubleValue = INIT
         } else {
             isInit = false
         }
@@ -340,8 +318,8 @@ class GeckoManager(private val context: Context) {
     fun sendVideoCommand(command: String, value: Double = 0.0) {
         val controller = activeGeckoMediaSession?: return
 
-        val currentLivePos = lastPositionSnapshot.value
-        val totalDuration = lastDuration.value
+        val currentLivePos = lastPositionSnapshot.doubleValue
+        val totalDuration = lastDuration.doubleValue
 
         when (command) {
             "play" -> controller.play()
@@ -372,8 +350,8 @@ class GeckoManager(private val context: Context) {
         }
     }
     private fun updateLocalSnapshotOptimistically(newTime: Double) {
-        lastPositionSnapshot.value = newTime
-        lastSnapshotTime.value = System.currentTimeMillis()
+        lastPositionSnapshot.doubleValue = newTime
+        lastSnapshotTime.longValue = System.currentTimeMillis()
     }
     fun setupDelegates(
         session: GeckoSession,
@@ -540,7 +518,7 @@ class GeckoManager(private val context: Context) {
                 session: GeckoSession,
                 uri: String?,
                 error: WebRequestError
-            ): GeckoResult<String>? {
+            ): GeckoResult<String> {
                 Log.e("GeckoNav", "Load Error: $uri (${error.category})")
 
                 // 1. Notify the UI to show the error screen
@@ -625,10 +603,6 @@ class GeckoManager(private val context: Context) {
                     // A standard modern Android User Agent
                     "Mozill9a/5.0 (Android 14; Mobile; rv:131.0) Gecko/131.0 Firefox/131.0"
                 }
-                Log.i("onExternalResponse", "url: $url")
-                Log.i("onExternalResponse", "contentDisposition: $contentDisposition")
-                Log.i("onExternalResponse", "mimeType: $mimeType")
-                Log.i("onExternalResponse", "userAgent: $userAgent")
 
 
                 // Pass it up to the UI layer
@@ -762,7 +736,7 @@ class GeckoManager(private val context: Context) {
             override fun onAlertPrompt(
                 session: GeckoSession,
                 prompt: GeckoSession.PromptDelegate.AlertPrompt
-            ): GeckoResult<GeckoSession.PromptDelegate.PromptResponse>? {
+            ): GeckoResult<GeckoSession.PromptDelegate.PromptResponse> {
                 val message = prompt.message ?: ""
 
 
@@ -791,7 +765,7 @@ class GeckoManager(private val context: Context) {
             override fun onButtonPrompt(
                 session: GeckoSession,
                 prompt: GeckoSession.PromptDelegate.ButtonPrompt
-            ): GeckoResult<GeckoSession.PromptDelegate.PromptResponse>? {
+            ): GeckoResult<GeckoSession.PromptDelegate.PromptResponse> {
                 val message = prompt.message ?: ""
 
                 // We create a GeckoResult that will be completed LATER by the UI
@@ -817,7 +791,7 @@ class GeckoManager(private val context: Context) {
             override fun onTextPrompt(
                 session: GeckoSession,
                 prompt: GeckoSession.PromptDelegate.TextPrompt
-            ): GeckoResult<GeckoSession.PromptDelegate.PromptResponse>? {
+            ): GeckoResult<GeckoSession.PromptDelegate.PromptResponse> {
 
                 val message = prompt.message ?: ""
                 val defaultValue = prompt.defaultValue ?: ""
@@ -908,8 +882,8 @@ class GeckoManager(private val context: Context) {
 
 
                 Log.d("marcMedia", "onPlay")
-                if(lastPositionSnapshot.value == INIT) {
-                    lastPositionSnapshot.value = 0.0
+                if(lastPositionSnapshot.doubleValue == INIT) {
+                    lastPositionSnapshot.doubleValue = 0.0
                 }
                 context.startService(Intent(context, MediaPlaybackService::class.java).apply {
                     putExtra("IS_PAUSED", false)
@@ -924,25 +898,15 @@ class GeckoManager(private val context: Context) {
 
 
             override fun onPositionState(session: GeckoSession, mediaSession: MediaSession, state: MediaSession.PositionState) {
-                if (lastDuration.value == RESET) {
-
-
-                    Log.i("marcMGesture", "checking reset + exitduration $exitDuration")
-                    Log.i("marcMGesture", "checking reset + state.duration ${state.duration}")
+                if (lastDuration.doubleValue == RESET) {
                     // 1. Is the duration different? (Strongest Signal)
                     val durationChanged = abs(state.duration - exitDuration) > 0.0001
-                    Log.d("marcMGesture", "checking reset + durationChanged $durationChanged")
 
                     // 2. Is the position at the very beginning? (Video B just started)
                     val isAtStart = state.position < 1.0
-                    Log.d("marcMGesture", "checking reset + isAtStart $isAtStart")
 
                     // 3. Did the position jump backwards significantly? (Video A was at 59s, now we are at 0s)
                     val positionJumpedBack = state.position < (exitPosition - 1.0)
-                    Log.d("marcMGesture", "checking reset + positionJumpedBack $positionJumpedBack")
-                    Log.d("marcMGesture", "")
-                    Log.d("marcMGesture", "")
-                    Log.d("marcMGesture", "")
 
                     // VALIDATION
                     val isDataFresh = durationChanged || isAtStart || positionJumpedBack
@@ -950,28 +914,23 @@ class GeckoManager(private val context: Context) {
                     if (!isDataFresh) {
                         // This is identical to Video A's last state or a continuation of it.
                         // Ignore it.
-                        Log.e("marcMGesture", "STALE DATA DETECTED: Still seeing Video A (${state.position})")
                         return
                     }
 
                     // UNLOCK
-                    Log.d("marcMGesture", "FRESH DATA DETECTED: Unlocking Media Controls")
                 }
 
                 // Update values normally
-                Log.e("marcMGesture", "updatePositionState")
-                if (state.position != lastPositionSnapshotByGecko.value || lastPositionSnapshot.value == INIT) {
-                    lastPositionSnapshotByGecko.value = state.position
-                    lastPositionSnapshot.value = state.position
+                if (state.position != lastPositionSnapshotByGecko.doubleValue || lastPositionSnapshot.doubleValue == INIT) {
+                    lastPositionSnapshotByGecko.doubleValue = state.position
+                    lastPositionSnapshot.doubleValue = state.position
                 }
-                lastSnapshotTime.value = System.currentTimeMillis()
+                lastSnapshotTime.longValue = System.currentTimeMillis()
 
-                lastPlaybackRate.value = state.playbackRate
+                lastPlaybackRate.doubleValue = state.playbackRate
 
-                Log.w("marcMGesture", "lastdiration ${lastDuration.value}")
-                Log.w("marcMGesture", "state ${state.duration}")
                 if (!state.duration.isNaN()) {
-                    lastDuration.value = state.duration
+                    lastDuration.doubleValue = state.duration
                     if ( exitDuration != state.duration) exitDuration = state.duration
                 }
 
