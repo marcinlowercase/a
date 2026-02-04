@@ -125,7 +125,7 @@ import kotlin.math.abs
 @Composable
 fun BottomPanel(
     updateCurrentRotation: ()-> Unit,
-    currentRotation: Float,
+//    currentRotation: Float,
     geckoManager: GeckoManager,
     geckoViewRef : MutableState<GeckoView?>,
     activeTab: MutableState<Tab>,
@@ -321,7 +321,7 @@ fun BottomPanel(
                 )
 
                 DownloadPanel(
-                    currentRotation = currentRotation,
+//                    currentRotation = currentRotation,
                     confirmationPopup = confirmationPopup,
                     isDownloadPanelVisible = isDownloadPanelVisible,
                     downloads = downloads,
@@ -349,7 +349,7 @@ fun BottomPanel(
                 )
 
                 FindInPagePanel(
-                    currentRotation = currentRotation,
+//                    currentRotation = currentRotation,
                     isVisible = isFindInPageVisible.value,
                     searchText = findInPageText.value,
                     searchResult = findInPageResult.value,
@@ -438,7 +438,7 @@ fun BottomPanel(
 
                     )
                 SettingsPanel(
-                    currentRotation = currentRotation,
+//                    currentRotation = currentRotation,
                     descriptionContent = descriptionContent,
                     isSettingsPanelVisible = isSettingsPanelVisible,
                     browserSettings = browserSettings,
@@ -451,7 +451,7 @@ fun BottomPanel(
 
                 )
                 TabDataPanel(
-                    currentRotation= currentRotation,
+//                    currentRotation= currentRotation,
                     geckoManager = geckoManager,
                     descriptionContent = descriptionContent,
                     //                onAddToHomeScreen = onAddToHomeScreen,
@@ -1198,7 +1198,7 @@ fun BottomPanel(
                 ) {
                     OptionsPanel(
                         updateCurrentRotation = updateCurrentRotation,
-                        currentRotation = currentRotation,
+//                        currentRotation = currentRotation,
                         draggableState = draggableState,
                         isPinningApp = isPinningApp,
                         bottomPanelPagerState = bottomPanelPagerState,
@@ -1224,7 +1224,7 @@ fun BottomPanel(
                     )
                 }
                 TextEditPanel(
-                    currentRotation =  currentRotation,
+//                    currentRotation =  currentRotation,
                     isPinningApp = isPinningApp,
                     isVisible = isPinningApp.value || (isFocusOnTextField && textFieldState.text.isBlank()),
                     browserSettings = browserSettings,

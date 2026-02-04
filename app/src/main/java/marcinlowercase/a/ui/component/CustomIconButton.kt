@@ -20,7 +20,7 @@ import marcinlowercase.a.core.function.buttonSettingsForLayer
 @Composable
 fun CustomIconButton(
     isLandscape : Boolean = false,
-    currentRotation: Float,
+//    currentRotation: Float,
     layer: Int,
     browserSettings: MutableState<BrowserSettings>,
     modifier: Modifier = Modifier,
@@ -62,7 +62,9 @@ fun CustomIconButton(
         contentAlignment = Alignment.Center
     ) {
         Icon(
-            modifier = Modifier.rotate(currentRotation),
+            modifier = Modifier
+//                .rotate(currentRotation)
+            ,
             painter = painterResource(id = painterId),
             contentDescription = buttonDescription,
             tint = if (isWhite) Color.Black else Color.White

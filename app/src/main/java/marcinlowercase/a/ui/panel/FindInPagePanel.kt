@@ -34,7 +34,7 @@ import marcinlowercase.a.ui.component.CustomIconButton
 
 @Composable
 fun FindInPagePanel(
-    currentRotation: Float,
+//    currentRotation: Float,
     isVisible: Boolean,
     searchText: String,
     searchResult: Pair<Int, Int>,
@@ -122,7 +122,7 @@ fun FindInPagePanel(
             ) {
 
                 CustomIconButton(
-                    currentRotation = currentRotation,
+//                    currentRotation = currentRotation,
                      layer = 2,
                     browserSettings = browserSettings,
                     modifier = Modifier.weight(1f),
@@ -133,7 +133,7 @@ fun FindInPagePanel(
                     isWhite = false,
                 )
                 CustomIconButton(
-                    currentRotation = currentRotation,
+//                    currentRotation = currentRotation,
                     layer = 2,
                     browserSettings = browserSettings,
                     modifier = Modifier.weight(1f),
@@ -157,7 +157,7 @@ fun FindInPagePanel(
                         )
                 }
                 CustomIconButton(
-                    currentRotation = currentRotation,
+//                    currentRotation = currentRotation,
                     layer = 2,
                     browserSettings = browserSettings,
                     modifier = Modifier.weight(1f),

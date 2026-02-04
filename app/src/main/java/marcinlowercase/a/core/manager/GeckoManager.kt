@@ -366,8 +366,8 @@ class GeckoManager(private val context: Context) {
                 updateLocalSnapshotOptimistically(target)
 
             }
-            "next_track" -> controller.nextTrack()
-            "prev_track" -> controller.previousTrack()
+//            "next_track" -> controller.nextTrack()
+//            "prev_track" -> controller.previousTrack()
 
         }
     }

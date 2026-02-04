@@ -35,9 +35,8 @@ import kotlin.math.roundToInt
 @SuppressLint("SuspiciousIndentation")
 @Composable
 fun OptionsPanel(
-    currentRotation: Float,
+//    currentRotation: Float,
     draggableState: AnchoredDraggableState<RevealState>,
-
     isPinningApp: MutableState<Boolean>,
     bottomPanelPagerState: PagerState,
     onCloseAllTabs: () -> Unit,
@@ -266,7 +265,7 @@ fun OptionsPanel(
                     // Create an IconButton for each option on the page
                     pageOptions.forEach { option ->
                         CustomIconButton(
-                            currentRotation = currentRotation,
+//                            currentRotation = currentRotation,
                             layer = 2,
                             browserSettings = browserSettings,
                             modifier = Modifier.weight(1f),

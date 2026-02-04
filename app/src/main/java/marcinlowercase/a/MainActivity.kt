@@ -172,6 +172,7 @@ import marcinlowercase.a.core.data_class.Tab
 import marcinlowercase.a.core.enum_class.BottomPanelMode
 import marcinlowercase.a.core.enum_class.DownloadStatus
 import marcinlowercase.a.core.enum_class.GestureNavAction
+import marcinlowercase.a.core.enum_class.MediaControlOption
 import marcinlowercase.a.core.enum_class.RevealState
 import marcinlowercase.a.core.enum_class.SearchEngine
 import marcinlowercase.a.core.enum_class.SuggestionSource
@@ -192,6 +193,7 @@ import marcinlowercase.a.ui.panel.BottomPanel
 import marcinlowercase.a.ui.panel.MediaControlPanel
 import marcinlowercase.a.ui.panel.SettingPanelView
 import marcinlowercase.a.ui.panel.SettingsPanel
+import marcinlowercase.a.ui.panel.VideoStatusPanel
 import marcinlowercase.a.ui.screen.ErrorScreen
 import marcinlowercase.a.ui.theme.Theme
 import org.json.JSONArray
@@ -332,6 +334,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+
     private fun handleIntent(intent: Intent?) {
         if (intent?.action == Intent.ACTION_VIEW) {
             intent.dataString?.let { urlFromIntent ->
@@ -387,33 +390,33 @@ class MainActivity : ComponentActivity() {
 }
 
 
-@Composable
-fun rememberDevicePhysicalRotation(): androidx.compose.runtime.State<Float> {
-    val context = LocalContext.current
-    val rotation = remember { mutableFloatStateOf(0f) }
-
-    DisposableEffect(context) {
-        val listener = object : OrientationEventListener(context, SensorManager.SENSOR_DELAY_NORMAL) {
-            override fun onOrientationChanged(orientation: Int) {
-                if (orientation == ORIENTATION_UNKNOWN) return
-
-                val newRotation = when (orientation) {
-                    in 45..134 -> -90f
-                    in 225..314 -> 90f
-                    else -> 0f
-                }
-
-                if (rotation.floatValue != newRotation) {
-                    rotation.floatValue = newRotation
-                }
-            }
-        }
-        listener.enable()
-        onDispose { listener.disable() }
-    }
-
-    return rotation
-}
+//@Composable
+//fun rememberDevicePhysicalRotation(): androidx.compose.runtime.State<Float> {
+//    val context = LocalContext.current
+//    val rotation = remember { mutableFloatStateOf(0f) }
+//
+//    DisposableEffect(context) {
+//        val listener = object : OrientationEventListener(context, SensorManager.SENSOR_DELAY_NORMAL) {
+//            override fun onOrientationChanged(orientation: Int) {
+//                if (orientation == ORIENTATION_UNKNOWN) return
+//
+//                val newRotation = when (orientation) {
+//                    in 45..134 -> -90f
+//                    in 225..314 -> 90f
+//                    else -> 0f
+//                }
+//
+//                if (rotation.floatValue != newRotation) {
+//                    rotation.floatValue = newRotation
+//                }
+//            }
+//        }
+//        listener.enable()
+//        onDispose { listener.disable() }
+//    }
+//
+//    return rotation
+//}
 @Composable
 fun BrowserScreen(
     innerPadding: PaddingValues,
@@ -654,6 +657,7 @@ fun BrowserScreen(
     val isSettingCornerRadius = remember { mutableStateOf(true) }
     val isOnFullscreenVideo = remember { mutableStateOf(false) }
     val isMediaControlPanelVisible = remember { mutableStateOf(false) }
+    val isLandscapeByButton = remember { mutableStateOf(false) }
 
 
     val offsetY = remember { Animatable(0f) }
@@ -971,23 +975,15 @@ fun BrowserScreen(
 
     val geckoViewRef = remember { mutableStateOf<GeckoView?>(null) }
 
-    val deviceRotationState = rememberDevicePhysicalRotation()
+//    val deviceRotationState = rememberDevicePhysicalRotation()
+//
+//    var currentRotationValue by rememberSaveable { mutableFloatStateOf(0f) }
+//    val currentRotation by animateFloatAsState(
+//        targetValue = currentRotationValue,
+//        animationSpec = spring(stiffness = Spring.StiffnessLow),
+//        label = "ScreenRotationAnim"
+//    )
 
-    var currentRotationValue by rememberSaveable { mutableFloatStateOf(0f) }
-
-
-    val currentRotation by animateFloatAsState(
-        targetValue = currentRotationValue,
-        animationSpec = spring(stiffness = Spring.StiffnessLow),
-        label = "ScreenRotationAnim"
-    )
-
-    val activeMediaCurrentPosition = remember { mutableStateOf(0.0) }
-    val activeMediaDuration = remember { mutableStateOf(0.0) }
-
-    LaunchedEffect(activeMediaCurrentPosition.value) {
-        Log.d("marcMGesture", "activeMediaCurrentPosition: ${activeMediaCurrentPosition.value}")
-    }
     //endregion
 
     //region Functions
@@ -1014,11 +1010,14 @@ fun BrowserScreen(
         squareAlpha.animateTo(idle, animationSpec = tween(400))
 
     }
-    val updateCurrentRotation = remember {
+    val updateCurrentRotation =  remember {
         {
-            val freshRotation = deviceRotationState.value
-            Log.i("Rotation", "Click! Snapping to: $freshRotation")
-            currentRotationValue = freshRotation
+//            val freshRotation = deviceRotationState.value
+//            Log.i("Rotation", "Click! Snapping to: $freshRotation")
+//            currentRotationValue = freshRotation
+
+            isLandscapeByButton.value = true
+//            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         }
     }
 
@@ -1809,6 +1808,13 @@ fun BrowserScreen(
     val lastPollData = remember { mutableMapOf<Long, PollData>() }
     val backgroundColor = remember { mutableStateOf(Color.Black) }
 
+    val insetsController = activity?.let {
+        WindowCompat.getInsetsController(
+            it.window,
+            it.window.decorView
+        )
+    }
+
 
     //endregion
 
@@ -1817,8 +1823,29 @@ fun BrowserScreen(
 
 
     //region LaunchedEffect
+
+    LaunchedEffect(isLandscapeByButton.value) {
+        if (isLandscapeByButton.value) {
+            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            isBottomPanelVisible = false
+        } else {
+            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        }
+        browserSettings.value = browserSettings.value.copy(isFullscreenMode = isLandscapeByButton.value)
+
+
+    }
     LaunchedEffect(isOnFullscreenVideo.value) {
         isMediaControlPanelVisible.value = isOnFullscreenVideo.value
+        browserSettings.value = browserSettings.value.copy(isFullscreenMode = isOnFullscreenVideo.value)
+
+        if (isOnFullscreenVideo.value) {
+            gestureManager.ensureFullscreenBrightness()
+        } else {
+            if (activity.requestedOrientation != ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) {
+                activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            }
+        }
 
     }
     LaunchedEffect(isFocusOnTextField, isPromptPanelVisible) {
@@ -1893,12 +1920,6 @@ fun BrowserScreen(
 
     }
 
-    val insetsController = activity?.let {
-        WindowCompat.getInsetsController(
-            it.window,
-            it.window.decorView
-        )
-    }
 
     LaunchedEffect(bottomPanelPagerState.currentPage) {
         if (bottomPanelPagerState.currentPage == BottomPanelMode.LOCK.ordinal) {
@@ -2936,6 +2957,7 @@ fun BrowserScreen(
 
 
     LaunchedEffect(browserSettings.value.isFullscreenMode) {
+        Log.e("FullScreenMODEChange", "browserSettinflskdfjlsdk ${browserSettings.value.isFullscreenMode}")
         if (browserSettings.value.isFullscreenMode) {
             insetsController?.hide(WindowInsetsCompat.Type.systemBars())
             insetsController?.systemBarsBehavior =
@@ -3131,7 +3153,13 @@ fun BrowserScreen(
 
             // Priority 1: Exit fullscreen video if it's active.
             isOnFullscreenVideo.value -> activeSession.exitFullScreen()
-            activity.requestedOrientation != ActivityInfo.SCREEN_ORIENTATION_PORTRAIT -> activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+
+            activity.requestedOrientation != ActivityInfo.SCREEN_ORIENTATION_PORTRAIT -> {
+                activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                if (isLandscapeByButton.value) {
+                    isLandscapeByButton.value = false
+                }
+            }
 
 
             // Priority 2: Navigate back in the WebView.
@@ -3218,7 +3246,7 @@ fun BrowserScreen(
                     .padding(bottom = browserSettings.value.padding.dp)
             ) {
                 SettingsPanel(
-                    currentRotation = currentRotation,
+//                    currentRotation = currentRotation,
                     descriptionContent = descriptionContent,
                     backgroundColor = backgroundColor,
                     isSettingsPanelVisible = isSettingsPanelVisible,
@@ -3342,12 +3370,45 @@ fun BrowserScreen(
                     }
                 }
 
+                val isControlsOnRight = remember { mutableStateOf(false) }
+                var isStatusAtTop = remember { mutableStateOf(false) }
 
                 if (!isPipMode) {
-                    MediaControlPanel(
 
+                    val controlOption = remember { mutableStateOf(MediaControlOption.TIME) }
+                    val pendingSeekSeconds = remember { mutableStateOf(0.0) }
+                    val interactionTrigger = remember { mutableStateOf(0) }
+
+                    if (isOnFullscreenVideo.value) {
+                        VideoStatusPanel(
+                            modifier = Modifier
+                                .align(
+                                    when {
+                                        isStatusAtTop.value && isControlsOnRight.value -> Alignment.TopStart
+                                        isStatusAtTop.value && !isControlsOnRight.value -> Alignment.TopEnd
+                                        !isStatusAtTop.value && isControlsOnRight.value -> Alignment.BottomStart
+                                        !isStatusAtTop.value && !isControlsOnRight.value -> Alignment.BottomEnd
+                                        else -> Alignment.TopStart
+                                    }
+                                )
+                                .padding(webViewPaddingValue), // Apply same inset padding as WebView
+                            isMediaControlPanelVisible = isMediaControlPanelVisible,
+                            browserSettings = browserSettings,
+                            geckoManager = geckoManager,
+                            gestureManager = gestureManager,
+                            controlOption = controlOption,
+                            pendingSeekSeconds = pendingSeekSeconds,
+                            interactionTrigger = interactionTrigger,
+                            onSwapLayout = { isControlsOnRight.value = !isControlsOnRight.value },
+                            isStatusAtTop = isStatusAtTop,
+                        )
+                    }
+
+                    MediaControlPanel(
                         hapticFeedback = hapticFeedback,
-                        modifier = Modifier,
+                        modifier = Modifier
+                            .align(if (isControlsOnRight.value) Alignment.CenterEnd else Alignment.CenterStart)
+                            .padding(webViewPaddingValue), // Apply same inset padding
                         isMediaControlPanelVisible = isMediaControlPanelVisible,
                         isOnFullscreenVideo = isOnFullscreenVideo,
                         browserSettings = browserSettings,
@@ -3355,19 +3416,13 @@ fun BrowserScreen(
                         geckoManager = geckoManager,
                         onExitFullscreen = {
                             activeSession.exitFullScreen()
-//                            isOnFullscreenVideo.value = false
                         },
-                        gestureManager = gestureManager
+                        gestureManager = gestureManager,
+                        controlOption = controlOption,
+                        pendingSeekSeconds = pendingSeekSeconds,
+                        interactionTrigger = interactionTrigger,
+
                     )
-//                    VideoGestureOverlay(
-//                        isOn = isOnFullscreenVideo.value,
-//                        geckoManager = geckoManager,
-//                        onExitFullscreen = {
-//                            activeSession.exitFullScreen()
-////                            isOnFullscreenVideo.value = false
-//                        }
-//
-//                    )
                     CursorPointer(
                         isCursorPadVisible = isCursorPadVisible,
                         position = cursorPointerPosition.value,
@@ -3438,7 +3493,7 @@ fun BrowserScreen(
         //                        currentRotationValue = realtimeRotation
         //                    },
                         updateCurrentRotation = updateCurrentRotation,
-                        currentRotation = currentRotation,
+//                        currentRotation = currentRotation,
                         geckoManager = geckoManager,
                         geckoViewRef = geckoViewRef,
                         activeTab = activeTab,
@@ -3677,7 +3732,7 @@ fun BrowserScreen(
 
                     // BackSquare
                     AnimatedVisibility(
-                        visible = !isBottomPanelVisible && !isOnFullscreenVideo.value,
+                        visible = !isBottomPanelVisible && !isOnFullscreenVideo.value && !isLandscapeByButton.value,
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(webViewPaddingValue)
@@ -4407,17 +4462,6 @@ fun CursorPad(
                         )
                     )
                     .background(Color.Black.copy(alpha = 0.4f))
-//                    .border(
-//                        2.dp,
-//                        Color.White.copy(alpha = 0.5f),
-//                        shape = RoundedCornerShape(
-//                            cornerRadiusForLayer(
-//                                1,
-//                                browserSettings.value.deviceCornerRadius,
-//                                browserSettings.value.padding
-//                            ).dp
-//                        )
-//                    )
                 ,
                 contentAlignment = Alignment.Center
             ) {
@@ -4483,197 +4527,4 @@ class ShakeDetector(context: Context, private val onShake: () -> Unit) : SensorE
         }
     }
 }
-
-
-//@Composable
-//fun VideoGestureOverlay(
-//    isOn: Boolean,
-//    onExitFullscreen: () -> Unit,
-//    geckoManager: GeckoManager
-//) {
-//    if (!isOn) return
-//
-//    val context = LocalContext.current
-//    val activity = context as Activity
-//    val gestureManager = remember { MediaGestureManager(activity) }
-//
-//    // UI State
-//    var showControls by remember { mutableStateOf(true) }
-//    var seekHUD by remember { mutableStateOf<String?>(null) }
-//    var brightnessHUD by remember { mutableStateOf<Float?>(null) }
-//    var volumeHUD by remember { mutableStateOf<Float?>(null) }
-//
-//    // Auto-hide controls
-//    LaunchedEffect(showControls) {
-//        if (showControls) {
-//            delay(3000)
-//            showControls = false
-//        }
-//    }
-//
-//    Box(
-//        modifier = Modifier
-//            .fillMaxSize()
-//            .background(if (showControls) Color.Black.copy(0.3f) else Color.Transparent)
-//            .pointerInput(Unit) {
-//                detectTapGestures(
-//                    onTap = { showControls = !showControls },
-//                    onDoubleTap = { offset ->
-//                        if (offset.x < size.width / 2) {
-//                            geckoManager.sendVideoCommand("prev_5")
-//                            seekHUD = "-5s"
-//                        } else {
-//                            geckoManager.sendVideoCommand("next_5")
-//                            seekHUD = "+5s"
-//                        }
-//                    }
-//                )
-//            }
-//            .pointerInput(Unit) {
-//                detectDragGestures(
-//                    onDragStart = { showControls = true },
-//                    onDragEnd = { seekHUD = null; brightnessHUD = null; volumeHUD = null },
-//                    onDrag = { change, dragAmount ->
-//                        change.consume()
-//
-//                        // Logic: Is the drag mostly Horizontal or Vertical?
-//                        if (abs(dragAmount.x) > abs(dragAmount.y)) {
-//                            // HORIZONTAL: Seeking
-//                            val seekDelta = dragAmount.x * 100 // Sensitivity
-//                            geckoManager.sendVideoCommand("seek_relative", seekDelta.toDouble())
-//                            seekHUD = if (dragAmount.x > 0) ">>" else "<<"
-//                        } else {
-//                            // VERTICAL: Brightness/Volume
-//                            val delta = -dragAmount.y / 1000f
-//                            if (change.position.x < size.width / 2) {
-//                                gestureManager.setBrightness(delta * 2)
-//                                brightnessHUD = gestureManager.getBrightness()
-//                            } else {
-//                                gestureManager.setVolume(delta)
-//                                volumeHUD = gestureManager.getVolumePercentage()
-//                            }
-//                        }
-//                    }
-//                )
-//            }
-//    ) {
-//        // --- Center Play/Pause ---
-//        AnimatedVisibility(showControls, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.align(Alignment.Center)) {
-//            IconButton(
-//                onClick = {
-//                    // Toggle logic: Check gecko state or just send both to be safe
-//                    if (geckoManager.isActiveMediaSessionPaused) {
-//                        geckoManager.sendVideoCommand("play")
-//                    } else {
-//                        geckoManager.sendVideoCommand("pause")
-//                    }
-//                },
-//                modifier = Modifier.size(80.dp).background(Color.Black.copy(0.5f), CircleShape)
-//            ) {
-//                Icon(
-//                    painterResource(if (geckoManager.isActiveMediaSessionPaused) R.drawable.ic_pause else R.drawable.ic_play_arrow),
-//                    null,
-//                    tint = Color.White,
-//                    modifier = Modifier.size(48.dp))
-//            }
-//        }
-//
-//        // --- Bottom Right Exit ---
-//        AnimatedVisibility(showControls, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.align(Alignment.BottomEnd)) {
-//            IconButton(
-//                onClick = onExitFullscreen,
-//                modifier = Modifier.padding(24.dp).size(56.dp).background(Color.Black.copy(0.5f), CircleShape)
-//            ) {
-//                Icon(painterResource(R.drawable.ic_fullscreen_exit), null, tint = Color.White)
-//            }
-//        }
-//
-//        // --- HUD Indicators ---
-//        if (seekHUD != null) CenterHUD(seekHUD!!)
-//        GestureIndicator(value = brightnessHUD, icon = R.drawable.ic_brightness_5, alignment = Alignment.CenterStart)
-//        GestureIndicator(value = volumeHUD, icon = R.drawable.ic_volume_up, alignment = Alignment.CenterEnd)
-//    }
-//}
-
-@Composable
-fun BoxScope.CenterHUD(text: String) {
-    Box(Modifier.align(Alignment.Center).clip(RoundedCornerShape(8.dp)).background(Color.Black.copy(0.6f)).padding(16.dp)) {
-        Text(text, color = Color.White,
-//            style = MaterialTheme.typography.headlineLarge
-        )
-    }
-}
-//@Composable
-//fun VideoGestureOverlay(
-//    isOn: Boolean,
-//    modifier: Modifier = Modifier
-//) {
-//    if (!isOn) return
-//
-//    val context = LocalContext.current
-//    val activity = context as Activity
-//    val gestureManager = remember { MediaGestureManager(activity) }
-//
-//    var brightnessHUD by remember { mutableStateOf<Float?>(null) }
-//    var volumeHUD by remember { mutableStateOf<Float?>(null) }
-//
-//    // Auto-hide HUD after 1 second of no activity
-//    LaunchedEffect(brightnessHUD, volumeHUD) {
-//        delay(1000)
-//        brightnessHUD = null
-//        volumeHUD = null
-//    }
-//
-//    Box(
-//        modifier = modifier
-//            .fillMaxSize()
-//            .pointerInput(Unit) {
-//                detectVerticalDragGestures { change, dragAmount ->
-//                    change.consume()
-//
-//                    // Sensitivity: Adjust the divisor to make it faster/slower
-//                    val delta = -dragAmount / 1000f
-//
-//                    if (change.position.x < size.width / 2) {
-//                        // LEFT SIDE: Brightness
-//                        gestureManager.setBrightness(delta * 2)
-//                        brightnessHUD = gestureManager.getBrightness()
-//                    } else {
-//                        // RIGHT SIDE: Volume
-//                        gestureManager.setVolume(delta)
-//                        volumeHUD = gestureManager.getVolumePercentage()
-//                    }
-//                }
-//            }
-//    ) {
-//        // --- Visual HUDs ---
-//        GestureIndicator(value = brightnessHUD, icon = R.drawable.ic_brightness_5, Alignment.CenterStart)
-//        GestureIndicator(value = volumeHUD, icon = R.drawable.ic_volume_up, Alignment.CenterEnd)
-//    }
-//}
-
-@Composable
-fun BoxScope.GestureIndicator(value: Float?, icon: Int, alignment: Alignment) {
-    AnimatedVisibility(
-        visible = value != null,
-        enter = fadeIn(),
-        exit = fadeOut(),
-        modifier = Modifier.align(alignment).padding(48.dp)
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(
-                painter = painterResource(icon),
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(32.dp).background(Color.Black.copy(0.5f), CircleShape).padding(4.dp)
-            )
-            Spacer(Modifier.height(8.dp))
-            // Small vertical bar
-            Box(Modifier.width(4.dp).height(100.dp).background(Color.Gray.copy(0.5f), RoundedCornerShape(2.dp))) {
-                Box(Modifier.fillMaxWidth().fillMaxHeight(value ?: 0f).align(Alignment.BottomCenter).background(Color.White))
-            }
-        }
-    }
-}
-
 //endregion
