@@ -713,6 +713,9 @@ fun BrowserScreen(
 
     }
 
+    val imeInsets = WindowInsets.ime.asPaddingValues()
+    val keyboardHeight = imeInsets.calculateBottomPadding()
+    val isKeyboardVisible = keyboardHeight > 0.dp
 
     val webViewBottomPaddingNormalScreen = if (browserSettings.value.isFullscreenMode) {
         webViewBottomPaddingFullscreen
@@ -724,11 +727,15 @@ fun BrowserScreen(
     val targetWebViewTopPadding =
         if (isSettingCornerRadius.value
             || isPipMode
-            ) 0.dp else webViewTopPaddingNormalScreen
+        ) 0.dp else webViewTopPaddingNormalScreen
     val targetWebViewBottomPadding =
         if (isSettingCornerRadius.value
             || isPipMode
-            ) 0.dp else webViewBottomPaddingNormalScreen
+        ) {
+            0.dp
+        } else if (isKeyboardVisible && !isFocusOnTextField) {
+            browserSettings.value.padding.dp
+        } else webViewBottomPaddingNormalScreen
 
 
     val paddingAnimationSpec = if (isPipMode) {
@@ -777,9 +784,7 @@ fun BrowserScreen(
         bottom = webViewBottomPadding
     )
 
-    val imeInsets = WindowInsets.ime.asPaddingValues()
-    val keyboardHeight = imeInsets.calculateBottomPadding()
-    val isKeyboardVisible = keyboardHeight > 0.dp
+
 
     val floatingPanelBottomPaddingNoKeyboard = if (browserSettings.value.isFullscreenMode) {
         webViewBottomPaddingFullscreen
@@ -3182,7 +3187,8 @@ fun BrowserScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(backgroundColor.value)
+//            .background(backgroundColor.value)
+            .background(Color.Blue)
 
     ) {
 
