@@ -169,6 +169,7 @@ import marcinlowercase.a.core.data_class.PollData
 import marcinlowercase.a.core.data_class.SiteSettings
 import marcinlowercase.a.core.data_class.Suggestion
 import marcinlowercase.a.core.data_class.Tab
+import marcinlowercase.a.core.enum_class.ActivePanel
 import marcinlowercase.a.core.enum_class.BottomPanelMode
 import marcinlowercase.a.core.enum_class.DownloadStatus
 import marcinlowercase.a.core.enum_class.GestureNavAction
@@ -631,7 +632,8 @@ fun BrowserScreen(
         }
     }
     var isLoading by remember { mutableStateOf(false) }
-    var isFocusOnTextField by remember { mutableStateOf(false) }
+    var isFocusOnUrlTextField by remember { mutableStateOf(false) }
+    val isFocusOnFindTextField = remember { mutableStateOf(false) }
     var isApplyImePaddingToWebView by remember { mutableStateOf(true) }
 
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -733,7 +735,7 @@ fun BrowserScreen(
             || isPipMode
         ) {
             0.dp
-        } else if (isKeyboardVisible && !isFocusOnTextField) {
+        } else if (isKeyboardVisible && !isFocusOnUrlTextField && !isFocusOnFindTextField.value) {
             browserSettings.value.padding.dp
         } else webViewBottomPaddingNormalScreen
 
@@ -1150,7 +1152,7 @@ fun BrowserScreen(
                     webViewToNavigate.goBackOrForward(stepsToNavigate)
 
                     val newUrl = webViewToNavigate.url ?: ""
-                    if (!isFocusOnTextField) textFieldState.setTextAndPlaceCursorAtEnd(newUrl.toDomain())
+                    if (!isFocusOnUrlTextField) textFieldState.setTextAndPlaceCursorAtEnd(newUrl.toDomain())
 //                    textFieldValue = TextFieldValue(newUrl, TextRange(newUrl.length))
 
                 }
@@ -1257,7 +1259,7 @@ fun BrowserScreen(
                             inspectingTabId = tabs[nextTabIndex].id
                             activeTabIndex.intValue = nextTabIndex
                             val nextUrl = tabs[nextTabIndex].currentURL
-                            if (!isFocusOnTextField) {
+                            if (!isFocusOnUrlTextField) {
                                 textFieldState.setTextAndPlaceCursorAtEnd(nextUrl.toDomain())
                             }
 
@@ -1620,7 +1622,7 @@ fun BrowserScreen(
 
 
 //        textFieldValue = TextFieldValue(url, TextRange(url.length))
-        if (!isFocusOnTextField) textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
+        if (!isFocusOnUrlTextField) textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
         saveTrigger++
 
 
@@ -1669,7 +1671,7 @@ fun BrowserScreen(
                     tabs[nextTabIndex].state = TabState.ACTIVE
 
                     val urlToLoad = tabs[nextTabIndex].currentURL
-                    if (!isFocusOnTextField) textFieldState.setTextAndPlaceCursorAtEnd(urlToLoad.toDomain())
+                    if (!isFocusOnUrlTextField) textFieldState.setTextAndPlaceCursorAtEnd(urlToLoad.toDomain())
                     saveTrigger++
                 } else {
 
@@ -1827,6 +1829,90 @@ fun BrowserScreen(
     // This effect now ONLY handles the very first restoration of state.
 
 
+
+
+    //region SINGLEPANELMANAGER
+
+
+
+    // 1. State to track the single "main" active panel
+    var activeMainPanel by remember { mutableStateOf<ActivePanel?>(null) }
+
+    // 2. Observers for MAIN panels: When a main panel opens, it claims focus.
+    LaunchedEffect(isAppsPanelVisible.value) {
+        if (isAppsPanelVisible.value) activeMainPanel = ActivePanel.APPS
+    }
+    LaunchedEffect(suggestions) {
+        if (suggestions.isNotEmpty()) activeMainPanel = ActivePanel.SUGGESTIONS
+    }
+    LaunchedEffect(isNavPanelVisible) {
+        if (isNavPanelVisible) activeMainPanel = ActivePanel.NAVIGATION
+    }
+    LaunchedEffect(isDownloadPanelVisible.value) {
+        if (isDownloadPanelVisible.value) activeMainPanel = ActivePanel.DOWNLOADS
+    }
+    LaunchedEffect(contextMenuData) {
+        if (contextMenuData != null) activeMainPanel = ActivePanel.CONTEXT_MENU
+    }
+    LaunchedEffect(isFindInPageVisible.value) {
+        if (isFindInPageVisible.value) activeMainPanel = ActivePanel.FIND_IN_PAGE
+    }
+    LaunchedEffect(jsDialogState) {
+        if (jsDialogState != null) activeMainPanel = ActivePanel.PROMPT
+    }
+    LaunchedEffect(isSettingsPanelVisible.value) {
+        if (isSettingsPanelVisible.value) activeMainPanel = ActivePanel.SETTINGS
+    }
+    LaunchedEffect(pendingPermissionRequest.value) {
+        if (pendingPermissionRequest.value != null) activeMainPanel = ActivePanel.PERMISSION
+    }
+    LaunchedEffect(confirmationState) {
+        if (confirmationState != null) activeMainPanel = ActivePanel.CONFIRMATION
+    }
+    LaunchedEffect(isTabsPanelVisible) {
+        // When TabsPanel opens, it becomes the main panel.
+        if (isTabsPanelVisible) activeMainPanel = ActivePanel.TABS
+    }
+    LaunchedEffect(isTabDataPanelVisible) {
+        // When TabDataPanel opens, it ensures Tabs is the main panel and forces it open.
+        if (isTabDataPanelVisible) {
+            activeMainPanel = ActivePanel.TABS
+            isTabsPanelVisible = true
+        }
+    }
+
+    // 3. Enforcer for MAIN panels: When focus changes, close all other main panels.
+    LaunchedEffect(activeMainPanel) {
+        val current = activeMainPanel // Capture the current state
+
+        if (current != ActivePanel.APPS && isAppsPanelVisible.value) isAppsPanelVisible.value = false
+        if (current != ActivePanel.NAVIGATION && isNavPanelVisible) isNavPanelVisible = false
+        if (current != ActivePanel.DOWNLOADS && isDownloadPanelVisible.value) isDownloadPanelVisible.value = false
+        if (current != ActivePanel.CONTEXT_MENU && contextMenuData != null) contextMenuData = null
+        if (current != ActivePanel.FIND_IN_PAGE && isFindInPageVisible.value) isFindInPageVisible.value = false
+        if (current != ActivePanel.PROMPT && jsDialogState != null) jsDialogState = null
+        if (current != ActivePanel.SETTINGS && isSettingsPanelVisible.value) isSettingsPanelVisible.value = false
+        if (current != ActivePanel.PERMISSION && pendingPermissionRequest.value != null) pendingPermissionRequest.value = null
+        if (current != ActivePanel.CONFIRMATION && confirmationState != null) confirmationState = null
+        if (current != ActivePanel.SUGGESTIONS && suggestions.isNotEmpty()) suggestions.clear()
+
+        // If the active panel is NOT TABS, close both TABS and TAB_DATA.
+        if (current != ActivePanel.TABS) {
+            if (isTabsPanelVisible) isTabsPanelVisible = false
+            if (tabsPanelLock) tabsPanelLock = false
+            if (isTabDataPanelVisible) isTabDataPanelVisible = false
+        }
+    }
+
+    // 4. Exception Rule: If TabsPanel is closed, TabDataPanel must also close.
+    // This enforces their parent-child relationship.
+    LaunchedEffect(isTabsPanelVisible) {
+        if (!isTabsPanelVisible && isTabDataPanelVisible) {
+            isTabDataPanelVisible = false
+        }
+    }
+    //endregion
+
     //region LaunchedEffect
 
     LaunchedEffect(isLandscapeByButton.value) {
@@ -1853,8 +1939,8 @@ fun BrowserScreen(
         }
 
     }
-    LaunchedEffect(isFocusOnTextField, isPromptPanelVisible) {
-        if (!isFocusOnTextField && !isPromptPanelVisible){
+    LaunchedEffect(isFocusOnUrlTextField, isPromptPanelVisible, isFocusOnFindTextField.value) {
+        if (!isFocusOnUrlTextField && !isPromptPanelVisible && !isFocusOnFindTextField.value){
             delay(300)
             isApplyImePaddingToWebView = true
         } else {
@@ -1902,10 +1988,10 @@ fun BrowserScreen(
         if (bottomPanelPagerState.currentPage == BottomPanelMode.SEARCH.ordinal) {
             isUrlOverlayBoxVisible = true
             if (isAppsPanelVisible.value) isAppsPanelVisible.value = false
-            if (tabsPanelLock && !isFocusOnTextField) isTabsPanelVisible = true
+            if (tabsPanelLock && !isFocusOnUrlTextField) isTabsPanelVisible = true
             if (inspectingAppId.longValue != 0L) inspectingAppId.longValue = 0L
         } else {
-            isFocusOnTextField = false
+            isFocusOnUrlTextField = false
             isDownloadPanelVisible.value = false
             isNavPanelVisible = false
             isTabsPanelVisible = false
@@ -1968,7 +2054,7 @@ fun BrowserScreen(
         }
     }
 
-    LaunchedEffect(textFieldState.text, isFocusOnTextField) {
+    LaunchedEffect(textFieldState.text, isFocusOnUrlTextField) {
 
         if (!browserSettings.value.showSuggestions || (textFieldState.text as String) == currentInspectingTab?.currentURL || textFieldState.text.isBlank() || isPinningApp.value) {
             suggestions.clear()
@@ -1977,7 +2063,7 @@ fun BrowserScreen(
 
         val query = (textFieldState.text as String).trim()
 
-        if (query.isNotBlank() && isFocusOnTextField) {
+        if (query.isNotBlank() && isFocusOnUrlTextField) {
 //            delay(50L) // Debounce
             if (query != textFieldState.text.trim()) return@LaunchedEffect
 
@@ -2081,7 +2167,7 @@ fun BrowserScreen(
 
             // C. Update the UI state
             suggestions.clear()
-            if (textFieldState.text.isNotEmpty() && isFocusOnTextField)
+            if (textFieldState.text.isNotEmpty() && isFocusOnUrlTextField)
                 suggestions.addAll(finalSuggestions.take(10)) // Limit to a reasonable number
         } else {
             suggestions.clear()
@@ -2283,7 +2369,7 @@ fun BrowserScreen(
             },
             onLocationChangeFun = { eventTabId, session, url, perms, userGesture ->
                 if (eventTabId == activeTab.value.id && url != null && url != "about:blank") {
-                    if (!isFocusOnTextField) {
+                    if (!isFocusOnUrlTextField) {
                         textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
                     }
 
@@ -2303,7 +2389,7 @@ fun BrowserScreen(
                 // fe:  change  tab A -> B, the textbox changed to A.url
 //                if (session == activeSession) {
                 if (eventTabId == activeTab.value.id && url.isNotBlank() && url != "about:blank") {
-                    if (!isFocusOnTextField) {
+                    if (!isFocusOnUrlTextField) {
                         textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
                     }
 
@@ -2390,7 +2476,7 @@ fun BrowserScreen(
                         activeTab.value = activeTab.value.copy(errorState = null)
                     }
 
-                    if (!isFocusOnTextField) textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
+                    if (!isFocusOnUrlTextField) textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
 
                 }
 
@@ -2720,7 +2806,7 @@ fun BrowserScreen(
 //
 //                },
 //                onDoUpdateVisitedHistoryFun = { view, url, _ ->
-//                    if (!isFocusOnTextField) view.url?.let {
+//                    if (!isFocusOnUrlTextField) view.url?.let {
 //                        textFieldState.setTextAndPlaceCursorAtEnd(it.toDomain())
 //                    }
 //                    if (url != null && activeTab.currentURL != url) {
@@ -2951,15 +3037,6 @@ fun BrowserScreen(
         isBottomPanelVisible =
             isUrlBarVisible || isPermissionPanelVisible || isPromptPanelVisible || (confirmationState != null || (contextMenuData != null))
     }
-    LaunchedEffect(isTabsPanelVisible) {
-        if (!isTabsPanelVisible) {
-            isTabDataPanelVisible = false
-        }
-    }
-
-
-
-
 
     LaunchedEffect(browserSettings.value.isFullscreenMode) {
         Log.e("FullScreenMODEChange", "browserSettinflskdfjlsdk ${browserSettings.value.isFullscreenMode}")
@@ -3187,8 +3264,7 @@ fun BrowserScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-//            .background(backgroundColor.value)
-            .background(Color.Blue)
+            .background(backgroundColor.value)
 
     ) {
 
@@ -3500,6 +3576,7 @@ fun BrowserScreen(
         //                        Log.i("Rotation", "realtimeRotation: $realtimeRotation")
         //                        currentRotationValue = realtimeRotation
         //                    },
+                        isFocusOnFindTextField = isFocusOnFindTextField,
                         updateCurrentRotation = updateCurrentRotation,
 //                        currentRotation = currentRotation,
                         geckoManager = geckoManager,
@@ -3551,7 +3628,7 @@ fun BrowserScreen(
                         contextMenuData = contextMenuData,
                         displayContextMenuData = displayContextMenuData,
                         onDismissContextMenu = { contextMenuData = null },
-                        isFocusOnTextField = isFocusOnTextField,
+                        isFocusOnUrlTextField = isFocusOnUrlTextField,
                         textFieldState = textFieldState,
                         onCloseAllTabs = {
                             confirmationPopup(
@@ -3678,7 +3755,7 @@ fun BrowserScreen(
                                 activeTabIndex.intValue = newIndex
                                 val urlToLoad = tabs[newIndex].currentURL
 
-                                if (!isFocusOnTextField) textFieldState.setTextAndPlaceCursorAtEnd(urlToLoad.toDomain())
+                                if (!isFocusOnUrlTextField) textFieldState.setTextAndPlaceCursorAtEnd(urlToLoad.toDomain())
                                 saveTrigger++
 
                                 inspectingTabId = tabs[newIndex].id
@@ -3716,7 +3793,7 @@ fun BrowserScreen(
                         onNewUrl = { newUrl ->
                             webViewLoad(activeSession, newUrl, browserSettings.value)
                         },
-                        setIsFocusOnTextField = { isFocusOnTextField = it },
+                        setIsFocusOnTextField = { isFocusOnUrlTextField = it },
                         handleHistoryNavigation = handleHistoryNavigation,
                         isFindInPageVisible = isFindInPageVisible,
 

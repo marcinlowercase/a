@@ -124,6 +124,7 @@ import kotlin.math.abs
 @SuppressLint("FrequentlyChangingValue")
 @Composable
 fun BottomPanel(
+    isFocusOnFindTextField: MutableState<Boolean>,
     updateCurrentRotation: ()-> Unit,
 //    currentRotation: Float,
     geckoManager: GeckoManager,
@@ -148,7 +149,7 @@ fun BottomPanel(
     contextMenuData: ContextMenuData?,
     displayContextMenuData: ContextMenuData?,
     onDismissContextMenu: () -> Unit,
-    isFocusOnTextField: Boolean,
+    isFocusOnUrlTextField: Boolean,
     textFieldState: TextFieldState,
     onCloseAllTabs: () -> Unit,
     suggestions: List<Suggestion>, // Changed from List<String>
@@ -282,8 +283,8 @@ fun BottomPanel(
                         state = draggableState,
                         orientation = Orientation.Vertical,
                         flingBehavior = flingBehavior,
-                        //                    enabled = !isFocusOnTextField && contextMenuData == null && !isPromptPanelVisible  && (!isPermissionPanelVisible || (isPermissionPanelVisible &&  isUrlBarVisible) )
-                        enabled = isUrlBarVisible && ((!isFocusOnTextField && contextMenuData == null && !isPromptPanelVisible && (!isPermissionPanelVisible)) || isUrlBarVisible)
+                        //                    enabled = !isFocusOnUrlTextField && contextMenuData == null && !isPromptPanelVisible  && (!isPermissionPanelVisible || (isPermissionPanelVisible &&  isUrlBarVisible) )
+                        enabled = isUrlBarVisible && ((!isFocusOnUrlTextField && contextMenuData == null && !isPromptPanelVisible && (!isPermissionPanelVisible)) || isUrlBarVisible)
                     )
 
             ) {
@@ -349,6 +350,7 @@ fun BottomPanel(
                 )
 
                 FindInPagePanel(
+                    isFocusOnFindTextField = isFocusOnFindTextField,
 //                    currentRotation = currentRotation,
                     isVisible = isFindInPageVisible.value,
                     searchText = findInPageText.value,
@@ -896,7 +898,7 @@ fun BottomPanel(
                                         state = textFieldState,
                                         textStyle = LocalTextStyle.current.copy(
                                             //                            fontFamily = FontFamily.Monospace,
-                                            textAlign = if (isFocusOnTextField) TextAlign.Start else TextAlign.Center
+                                            textAlign = if (isFocusOnUrlTextField) TextAlign.Start else TextAlign.Center
                                         ),
                                         //                        state = rememberTextFieldState("Hello"),
                                         lineLimits = TextFieldLineLimits.SingleLine,
@@ -1001,7 +1003,7 @@ fun BottomPanel(
                                         ),
                                     )
 
-                                    if (isUrlOverlayBoxVisible && !isFocusOnTextField) Box(
+                                    if (isUrlOverlayBoxVisible && !isFocusOnUrlTextField) Box(
                                         modifier = Modifier
                                             .background(
                                                 Color.Transparent, shape = RoundedCornerShape(
@@ -1115,7 +1117,7 @@ fun BottomPanel(
                                                                 horizontalDragAccumulator += change.position.x - change.previousPosition.x
                                                                 verticalDragAccumulator += change.position.y - change.previousPosition.y
 
-                                                                if (isFocusOnTextField) change.consume()
+                                                                if (isFocusOnUrlTextField) change.consume()
                                                                 if (abs(horizontalDragAccumulator) > abs(
                                                                         verticalDragAccumulator
                                                                     )
@@ -1226,7 +1228,7 @@ fun BottomPanel(
                 TextEditPanel(
 //                    currentRotation =  currentRotation,
                     isPinningApp = isPinningApp,
-                    isVisible = isPinningApp.value || (isFocusOnTextField && textFieldState.text.isBlank()),
+                    isVisible = isPinningApp.value || (isFocusOnUrlTextField && textFieldState.text.isBlank()),
                     browserSettings = browserSettings,
                     onCopyClick = {
                         val clipData = ClipData.newPlainText("url", activeTab.value.currentURL)

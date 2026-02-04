@@ -24,6 +24,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
@@ -43,7 +44,9 @@ fun FindInPagePanel(
     onFindPrevious: () -> Unit,
     onClose: () -> Unit,
     browserSettings: MutableState<BrowserSettings>,
-    descriptionContent: MutableState<String>
+    descriptionContent: MutableState<String>,
+    isFocusOnFindTextField: MutableState<Boolean>,
+
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
     AnimatedVisibility(
@@ -91,7 +94,12 @@ fun FindInPagePanel(
                     )
                     .height(
                         browserSettings.value.heightForLayer(2).dp
-                    ),
+                    )
+                    .onFocusChanged{focusState ->
+                        isFocusOnFindTextField.value = focusState.isFocused
+
+                    }
+                ,
                 shape = RoundedCornerShape(
                     browserSettings.value.cornerRadiusForLayer(2).dp
                 ),
