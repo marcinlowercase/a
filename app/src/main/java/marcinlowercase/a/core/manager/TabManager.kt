@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import androidx.core.content.edit
 import kotlinx.serialization.json.Json
+import marcinlowercase.a.core.constant.default_url
 import marcinlowercase.a.core.data_class.Tab
 import marcinlowercase.a.core.enum_class.TabState
 import kotlin.collections.forEach
@@ -14,6 +15,9 @@ class TabManager(context: Context) {
 
     private val tabsKey = "tabs_list_json"
     private val activeTabIndexKey = "active_tab_index"
+
+    private val settingsPrefs = context.getSharedPreferences("BrowserPrefs", Context.MODE_PRIVATE)
+
 
     fun getActiveTabIndex(): Int {
         return prefs.getInt(activeTabIndexKey, 0)
@@ -83,10 +87,12 @@ class TabManager(context: Context) {
     }
 
     private fun createDefaultTabs(): MutableList<Tab> {
+        val customUrl = settingsPrefs.getString("default_url", default_url) ?: default_url
 
         return mutableListOf(
             Tab(
                 state = TabState.ACTIVE,
+                currentURL = customUrl,
             )
         )
     }
