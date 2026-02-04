@@ -3379,30 +3379,32 @@ fun BrowserScreen(
                     val pendingSeekSeconds = remember { mutableStateOf(0.0) }
                     val interactionTrigger = remember { mutableStateOf(0) }
 
-                    if (isOnFullscreenVideo.value) {
-                        VideoStatusPanel(
-                            modifier = Modifier
-                                .align(
-                                    when {
-                                        isStatusAtTop.value && isControlsOnRight.value -> Alignment.TopStart
-                                        isStatusAtTop.value && !isControlsOnRight.value -> Alignment.TopEnd
-                                        !isStatusAtTop.value && isControlsOnRight.value -> Alignment.BottomStart
-                                        !isStatusAtTop.value && !isControlsOnRight.value -> Alignment.BottomEnd
-                                        else -> Alignment.TopStart
-                                    }
-                                )
-                                .padding(webViewPaddingValue), // Apply same inset padding as WebView
-                            isMediaControlPanelVisible = isMediaControlPanelVisible,
-                            browserSettings = browserSettings,
-                            geckoManager = geckoManager,
-                            gestureManager = gestureManager,
-                            controlOption = controlOption,
-                            pendingSeekSeconds = pendingSeekSeconds,
-                            interactionTrigger = interactionTrigger,
-                            onSwapLayout = { isControlsOnRight.value = !isControlsOnRight.value },
-                            isStatusAtTop = isStatusAtTop,
-                        )
+                    LaunchedEffect( pendingSeekSeconds.value) {
+                        Log.i("pendingSeekSeconds", "pendingSeekSeconds: ${pendingSeekSeconds.value}")
                     }
+                    VideoStatusPanel(
+                        modifier = Modifier
+                            .align(
+                                when {
+                                    isStatusAtTop.value && isControlsOnRight.value -> Alignment.TopStart
+                                    isStatusAtTop.value && !isControlsOnRight.value -> Alignment.TopEnd
+                                    !isStatusAtTop.value && isControlsOnRight.value -> Alignment.BottomStart
+                                    !isStatusAtTop.value && !isControlsOnRight.value -> Alignment.BottomEnd
+                                    else -> Alignment.TopStart
+                                }
+                            )
+                            .padding(webViewPaddingValue), // Apply same inset padding as WebView
+                        isMediaControlPanelVisible = isMediaControlPanelVisible,
+                        browserSettings = browserSettings,
+                        geckoManager = geckoManager,
+                        gestureManager = gestureManager,
+                        controlOption = controlOption,
+                        pendingSeekSeconds = pendingSeekSeconds,
+                        interactionTrigger = interactionTrigger,
+                        onSwapLayout = { isControlsOnRight.value = !isControlsOnRight.value },
+                        isStatusAtTop = isStatusAtTop,
+                        isOnFullscreenVideo = isOnFullscreenVideo,
+                    )
 
                     MediaControlPanel(
                         hapticFeedback = hapticFeedback,

@@ -55,10 +55,31 @@ fun VideoStatusPanel(
     pendingSeekSeconds: MutableState<Double>,
     interactionTrigger: MutableState<Int>, // Used to force recomposition when volume/brightness changes
     onSwapLayout: () -> Unit,
-    isStatusAtTop: MutableState<Boolean>
+    isStatusAtTop: MutableState<Boolean>,
+    isOnFullscreenVideo: MutableState<Boolean>,
 ) {
+    var isTemporarilyVisible by remember { mutableStateOf(false) }
+
+    LaunchedEffect(interactionTrigger.value) {
+        if (interactionTrigger.value > 0) {
+            isTemporarilyVisible = true
+            delay(2000) // Keep visible for 2 seconds after interaction
+            isTemporarilyVisible = false
+        }
+    }
+
+    // 2. Calculate if the panel should be visible (Alpha = 1.0)
+    val shouldShow by remember {
+        derivedStateOf {
+            isMediaControlPanelVisible.value || // Main panel is open
+                    pendingSeekSeconds.value != 0.0 ||  // User is Seeking
+                    isTemporarilyVisible                // User changed Vol/Bright
+        }
+    }
+
+    // 3. Update Animation based on 'shouldShow' instead of just 'isMediaControlPanelVisible'
     val opacity by animateFloatAsState(
-        targetValue = if (isMediaControlPanelVisible.value) 1.0f else 0.0f,
+        targetValue = if (shouldShow) 1.0f else 0.0f,
         animationSpec = spring(stiffness = Spring.StiffnessLow),
         label = "video status opacity"
     )
@@ -111,7 +132,8 @@ fun VideoStatusPanel(
     }
     var dragAccumulator by remember { mutableFloatStateOf(0f) }
 
-    Column (
+
+    if (isOnFullscreenVideo.value || shouldShow) Column (
         modifier = modifier
             .padding(browserSettings.value.padding.dp)
             .widthIn(min = browserSettings.value.heightForLayer(1).dp)
