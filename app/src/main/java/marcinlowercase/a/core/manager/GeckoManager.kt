@@ -551,9 +551,11 @@ class GeckoManager(private val context: Context) {
 
                     val js = """
         javascript:(function(){
-            document.documentElement.style.setProperty('--device-corner-radius', '${radius}px');
+            document.documentElement.style.setProperty('--device-corner-radius', '${browserSettings.value.deviceCornerRadius}px');
+            document.documentElement.style.setProperty('--padding', '${browserSettings.value.padding}px');
+            document.documentElement.style.setProperty('--single-line-height', '${browserSettings.value.singleLineHeight}px');
             window.deviceCornerRadius = ${radius};
-            render(${radius});
+            if (typeof window.render === 'function') window.render($radius);
             alert("marc_console_log: Injection Success! Radius is " + window.deviceCornerRadius);
         })()
     """.trimIndent().replace("\n", " ")
