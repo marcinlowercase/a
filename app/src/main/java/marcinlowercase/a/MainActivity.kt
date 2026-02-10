@@ -2380,6 +2380,7 @@ fun BrowserScreen(
 
 
             onFullScreenFun = { isFullscreen ->
+                isOnFullscreenVideo.value = isFullscreen
 
                 val inPip = mainActivity.isPipMode || mainActivity.isEnteringPip
 
