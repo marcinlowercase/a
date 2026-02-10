@@ -48,6 +48,7 @@ fun MediaControlPanel(
     hapticFeedback: HapticFeedback,
     modifier: Modifier,
     isMediaControlPanelVisible: MutableState<Boolean>,
+    isMediaControlPanelDisplayed: MutableState<Boolean>,
     isOnFullscreenVideo: MutableState<Boolean>,
     browserSettings: MutableState<BrowserSettings>,
     descriptionContent:  MutableState<String>,
@@ -88,7 +89,7 @@ fun MediaControlPanel(
         Log.i("marcMedia", "duration: ${geckoManager.lastDuration.doubleValue}")
     }
 
-    if (isOnFullscreenVideo.value) {
+    if (isOnFullscreenVideo.value && isMediaControlPanelDisplayed.value) {
         Column (
             modifier = modifier
                 .padding(browserSettings.value.padding.dp)
@@ -122,6 +123,10 @@ fun MediaControlPanel(
                     } else {
                         isMediaControlPanelVisible.value = true
                     }
+                },
+                onLongPress = {
+                    isMediaControlPanelDisplayed.value = false
+                    true
                 },
                 descriptionContent = descriptionContent,
                 buttonDescription = "plus/minus",

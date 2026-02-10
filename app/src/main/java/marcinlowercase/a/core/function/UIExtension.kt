@@ -79,6 +79,9 @@ fun Modifier.buttonSettingsForLayer(
 
 fun Modifier.buttonPointerInput(
     onTap: (() -> Unit),
+    onLongPress: () -> Boolean = {
+        false
+    },
     hapticFeedback: HapticFeedback,
     descriptionContent: MutableState<String>,
     buttonDescription: String,
@@ -100,8 +103,7 @@ fun Modifier.buttonPointerInput(
                     hapticFeedback.performHapticFeedback(
                         HapticFeedbackType.LongPress
                     )
-                    descriptionContent.value =
-                        buttonDescription
+                    if (!onLongPress()) descriptionContent.value = buttonDescription
 
 
                 }

@@ -44,6 +44,7 @@ import marcinlowercase.a.core.manager.MediaGestureManager
 fun VideoStatusPanel(
     modifier: Modifier = Modifier,
     isMediaControlPanelVisible: MutableState<Boolean>,
+    isMediaControlPanelDisplayed: MutableState<Boolean>,
     browserSettings: MutableState<BrowserSettings>,
     geckoManager: GeckoManager,
     gestureManager: MediaGestureManager,
@@ -129,7 +130,7 @@ fun VideoStatusPanel(
     var dragAccumulator by remember { mutableFloatStateOf(0f) }
 
 
-    if (isOnFullscreenVideo.value || shouldShow) Column (
+    if (isOnFullscreenVideo.value && isMediaControlPanelDisplayed.value || shouldShow) Column (
         modifier = modifier
             .padding(browserSettings.value.padding.dp)
             .widthIn(min = browserSettings.value.heightForLayer(1).dp)

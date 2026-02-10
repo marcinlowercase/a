@@ -556,6 +556,7 @@ fun BrowserScreen(
     val isSettingCornerRadius = remember { mutableStateOf(true) }
     val isOnFullscreenVideo = remember { mutableStateOf(false) }
     val isMediaControlPanelVisible = remember { mutableStateOf(false) }
+    val isMediaControlPanelDisplayed = remember { mutableStateOf(false) }
     val isLandscapeByButton = remember { mutableStateOf(false) }
     val isLandscape = remember { mutableStateOf(false) }
 
@@ -2381,6 +2382,7 @@ fun BrowserScreen(
 
             onFullScreenFun = { isFullscreen ->
                 isOnFullscreenVideo.value = isFullscreen
+                isMediaControlPanelDisplayed.value = isFullscreen
 
                 val inPip = mainActivity.isPipMode || mainActivity.isEnteringPip
 
@@ -3211,12 +3213,9 @@ fun BrowserScreen(
                                                     if (isUrlBarVisible) {
                                                         isUrlBarVisible = false
                                                     }
-                                                    if (isMediaControlPanelVisible.value) isMediaControlPanelVisible.value =
-                                                        false
+                                                    if (isMediaControlPanelVisible.value) isMediaControlPanelVisible.value = false
 
-
-                                                    if (contextMenuData != null) contextMenuData =
-                                                        null
+                                                    if (contextMenuData != null) contextMenuData = null
                                                 }
                                                 false
                                             }
@@ -3269,6 +3268,7 @@ fun BrowserScreen(
                             )
                             .padding(webViewPaddingValue), // Apply same inset padding as WebView
                         isMediaControlPanelVisible = isMediaControlPanelVisible,
+                        isMediaControlPanelDisplayed = isMediaControlPanelDisplayed,
                         browserSettings = browserSettings,
                         geckoManager = geckoManager,
                         gestureManager = gestureManager,
@@ -3297,6 +3297,7 @@ fun BrowserScreen(
                         controlOption = controlOption,
                         pendingSeekSeconds = pendingSeekSeconds,
                         interactionTrigger = interactionTrigger,
+                        isMediaControlPanelDisplayed = isMediaControlPanelDisplayed,
 
                         )
                     CursorPointer(

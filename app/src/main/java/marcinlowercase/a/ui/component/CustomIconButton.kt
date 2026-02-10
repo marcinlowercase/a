@@ -25,6 +25,9 @@ fun CustomIconButton(
     browserSettings: MutableState<BrowserSettings>,
     modifier: Modifier = Modifier,
     onTap: (() -> Unit),
+    onLongPress: () -> Boolean = {
+        false
+    },
     descriptionContent: MutableState<String>,
     buttonDescription: String,
     painterId: Int,
@@ -56,7 +59,8 @@ fun CustomIconButton(
                 onTap = onTap,
                 hapticFeedback = hapticFeedback,
                 descriptionContent = descriptionContent,
-                buttonDescription = buttonDescription
+                buttonDescription = buttonDescription,
+                onLongPress = onLongPress,
 
             ),
         contentAlignment = Alignment.Center
