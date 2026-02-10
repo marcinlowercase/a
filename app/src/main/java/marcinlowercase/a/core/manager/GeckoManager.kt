@@ -42,10 +42,9 @@ private var faviconExtension: WebExtension? = null
 
 private const val INIT = -1.0
 private const val RESET = -2.0
+
 class GeckoManager(private val context: Context) {
     var activeGeckoMediaSession: MediaSession? = null
-//    var currentPosition: Double = 0.0
-//    var duration: Double = 0.0
 
     var lastPositionSnapshot = mutableDoubleStateOf(INIT)
     var lastPositionSnapshotByGecko = mutableDoubleStateOf(INIT)
@@ -55,7 +54,8 @@ class GeckoManager(private val context: Context) {
 
     private var exitDuration: Double = INIT
     private var exitPosition: Double = INIT
-//    private var isWaitingForFreshMedia = false
+
+    //    private var isWaitingForFreshMedia = false
     private var isInit = true
 
     var lastTitle = mutableStateOf("")
@@ -82,23 +82,24 @@ class GeckoManager(private val context: Context) {
     }
 
     fun tickLivePosition() {
-        if(lastPositionSnapshot.value >= 0.0) {
+        if (lastPositionSnapshot.doubleValue >= 0.0) {
             val now = System.currentTimeMillis()
 
             // 1. Calculate how much time passed since the last tick (in seconds)
-            val elapsedMillis = now - lastSnapshotTime.value
+            val elapsedMillis = now - lastSnapshotTime.longValue
             val elapsedSeconds = elapsedMillis / 1000.0
 
             // 2. If playing, advance the position snapshot
-            if (lastPlaybackRate.value != 0.0) {
-                val newPos = lastPositionSnapshot.value + (elapsedSeconds * lastPlaybackRate.value)
+            if (lastPlaybackRate.doubleValue != 0.0) {
+                val newPos =
+                    lastPositionSnapshot.doubleValue + (elapsedSeconds * lastPlaybackRate.doubleValue)
                 // Update the snapshot and clamp it so it doesn't exceed duration
-                lastPositionSnapshot.value = newPos.coerceAtLeast(0.0)
+                lastPositionSnapshot.doubleValue = newPos.coerceAtLeast(0.0)
             }
 
             // 3. CRITICAL: Update the snapshot time to "now"
             // This ensures the NEXT tick only calculates the delta from this moment
-            lastSnapshotTime.value = now
+            lastSnapshotTime.longValue = now
         }
     }
 
@@ -116,8 +117,10 @@ class GeckoManager(private val context: Context) {
                 { e -> Log.e("GeckoExt", "Favicon Fetcher Failed", e) }
             )
     }
+
     private fun setupExtensionPrompts() {
-        runtime.webExtensionController.setPromptDelegate(object : WebExtensionController.PromptDelegate {
+        runtime.webExtensionController.setPromptDelegate(object :
+            WebExtensionController.PromptDelegate {
 
             // 1. MATCHING THE NEW SIGNATURE
             override fun onInstallPromptRequest(
@@ -127,8 +130,12 @@ class GeckoManager(private val context: Context) {
                 dataCollectionPermissions: Array<String>
             ): GeckoResult<WebExtension.PermissionPromptResponse> {
 
-                Log.i("GeckoExt", "Auto-confirming install for: ${extension.metaData
-                    .name}")
+                Log.i(
+                    "GeckoExt", "Auto-confirming install for: ${
+                        extension.metaData
+                            .name
+                    }"
+                )
 
                 // 2. BUILD THE RESPONSE
                 // true = Allow installation
@@ -158,6 +165,8 @@ class GeckoManager(private val context: Context) {
         })
 
     }
+
+    // use genetic function to add more extension later
     private fun setupExtension(extName: String, extId: String) {
         val extensionName = "$extName.xpi"
         val extensionFile = File(context.filesDir, extensionName)
@@ -174,7 +183,10 @@ class GeckoManager(private val context: Context) {
                 Log.e("GeckoExt", "CRITICAL: XPI file is empty or missing!")
                 return
             }
-            Log.i("GeckoExt", "XPI Ready at: ${extensionFile.absolutePath} (${extensionFile.length()} bytes)")
+            Log.i(
+                "GeckoExt",
+                "XPI Ready at: ${extensionFile.absolutePath} (${extensionFile.length()} bytes)"
+            )
         } catch (e: Exception) {
             Log.e("GeckoExt", "Failed to copy asset", e)
             return
@@ -221,7 +233,7 @@ class GeckoManager(private val context: Context) {
     private fun configureExtension(extension: WebExtension) {
         // 4. ENABLE (Critical)
         runtime.webExtensionController.enable(extension, WebExtensionController.EnableSource.APP)
-        
+
     }
 
     fun getSession(tab: Tab): GeckoSession {
@@ -246,6 +258,7 @@ class GeckoManager(private val context: Context) {
         return killedSessionIds.contains(tabId)
     }
 
+    // use for PiP mode later
     private var currentVideoWidth = 16
     private var currentVideoHeight = 9
     private fun createAndConfigureSession(tab: Tab): GeckoSession {
@@ -294,10 +307,7 @@ class GeckoManager(private val context: Context) {
     }
 
     private fun handleSessionDeath(session: GeckoSession, tabId: Long) {
-        // If the session is currently ACTIVE (visible), reload immediately.
-        // The user is looking at it, so we must fix it now.
-        // (Note: You might need to pass an 'isActive' flag to setupDelegates to know this for sure,
-        // or check session.isOpen if you manage open/close strictly).
+        //TODO if the active session is killed, reload immediately.
 
         // But for background tabs:
         killedSessionIds.add(tabId)
@@ -308,15 +318,17 @@ class GeckoManager(private val context: Context) {
         // Save exactly where Video A was when we left the page
         if (!isInit) {
             if (lastDuration.doubleValue != RESET) exitDuration = lastDuration.doubleValue
-            if (lastPositionSnapshot.doubleValue != INIT) exitPosition = lastPositionSnapshot.doubleValue
+            if (lastPositionSnapshot.doubleValue != INIT) exitPosition =
+                lastPositionSnapshot.doubleValue
             lastDuration.doubleValue = RESET
             lastPositionSnapshot.doubleValue = INIT
         } else {
             isInit = false
         }
     }
+
     fun sendVideoCommand(command: String, value: Double = 0.0) {
-        val controller = activeGeckoMediaSession?: return
+        val controller = activeGeckoMediaSession ?: return
 
         val currentLivePos = lastPositionSnapshot.doubleValue
         val totalDuration = lastDuration.doubleValue
@@ -331,12 +343,14 @@ class GeckoManager(private val context: Context) {
                 updateLocalSnapshotOptimistically(target)
 
             }
+
             "prev_5" -> {
                 val target = (currentLivePos - 5.0).coerceAtLeast(0.0)
                 controller.seekTo(target, false)
                 updateLocalSnapshotOptimistically(target)
 
             }
+
             "seek_relative" -> {
                 // value is the delta passed from the drag gesture
                 val target = (currentLivePos + value).coerceAtLeast(0.0)
@@ -349,10 +363,12 @@ class GeckoManager(private val context: Context) {
 
         }
     }
+
     private fun updateLocalSnapshotOptimistically(newTime: Double) {
         lastPositionSnapshot.doubleValue = newTime
         lastSnapshotTime.longValue = System.currentTimeMillis()
     }
+
     fun setupDelegates(
         session: GeckoSession,
         tab: MutableState<Tab>,
@@ -360,13 +376,13 @@ class GeckoManager(private val context: Context) {
         siteSettings: Map<String, SiteSettings>,
         browserSettings: MutableState<BrowserSettings>,
         onFaviconChanged: (Long, String) -> Unit,
-        onTitleChangeFun: (Long,GeckoSession, String) -> Unit,
+        onTitleChangeFun: (Long, GeckoSession, String) -> Unit,
         onNewSessionFun: (session: GeckoSession, uri: String) -> Unit,
         onProgressChange: (Int) -> Unit,
-        onLocationChangeFun: (eventTabId : Long, session: GeckoSession, url: String?, perms: MutableList<GeckoSession.PermissionDelegate.ContentPermission>, userGesture: Boolean) -> Unit,
+        onLocationChangeFun: (eventTabId: Long, session: GeckoSession, url: String?, perms: MutableList<GeckoSession.PermissionDelegate.ContentPermission>, userGesture: Boolean) -> Unit,
         onFullScreenFun: (Boolean) -> Unit,
         onHistoryStateChangeFun: (
-            eventTabId : Long,
+            eventTabId: Long,
             session: GeckoSession,
             realtimeHistory: GeckoSession.HistoryDelegate.HistoryList
         ) -> Unit,
@@ -377,10 +393,7 @@ class GeckoManager(private val context: Context) {
         onCanGoBackFun: (session: GeckoSession, canGoBack: Boolean) -> Unit,
         onCanGoForwardFun: (session: GeckoSession, canGoForward: Boolean) -> Unit,
         setPermissionDelegate: (request: CustomPermissionRequest) -> Unit,
-        onShowAndroidRequest: (
-            permissions: Array<out String>?,
-            callback: GeckoSession.PermissionDelegate.Callback
-        ) -> Unit,
+
         onPageStartFun: (eventTabId: Long, session: GeckoSession, url: String) -> Unit,
         onPageStopFun: (session: GeckoSession, success: Boolean) -> Unit,
         onContextMenuFun: (data: ContextMenuData) -> Unit,
@@ -393,27 +406,28 @@ class GeckoManager(private val context: Context) {
         val eventTabId = tab.value.id
 
         if (killedSessionIds.contains(eventTabId)) {
-            Log.i("GeckoManager", "Resurrecting killed session: ${eventTabId}")
+            Log.i("GeckoManager", "Resurrecting killed session: $eventTabId")
 
-            // A. Ensure session is open (in case the whole session closed)
+            // ensure session is open (in case the whole session closed)
             if (!session.isOpen) {
                 session.open(runtime)
             }
 
-            // B. Try to restore exact state from our memory cache first
+            // try to restore exact state from our memory cache first
             val cachedState = stateCache[eventTabId]
             if (cachedState != null) {
                 session.restoreState(cachedState)
             } else {
-                // Fallback: If no cache, just reload the URL
+                // fallback: If no cache, just reload the URL
                 session.reload()
             }
 
-            // C. Remove from the kill list so we don't restore loop
+            // remove from the kill list so we don't restore loop
             killedSessionIds.remove(eventTabId)
         }
 
-        // 1. Define the Message Delegate Logic (Keep this as is)
+        // message delegate to get favicon message from the web
+
         val messageDelegate = object : WebExtension.MessageDelegate {
             override fun onMessage(
                 nativeApp: String,
@@ -433,8 +447,7 @@ class GeckoManager(private val context: Context) {
             }
         }
 
-        // 2. ROBUST ATTACHMENT LOGIC
-        // We wrap this in a lambda so we can call it recursively/asynchronously if needed
+        // strengthen the extension logic (not too good)
         @SuppressLint("WrongThread")
         fun ensureDelegateAttached() {
             if (faviconExtension != null) {
@@ -468,10 +481,8 @@ class GeckoManager(private val context: Context) {
             }
         }
 
-        // 3. Call it immediately
         ensureDelegateAttached()
 
-        // 1. Navigation Delegate (Url changes, History)
         session.navigationDelegate = object : GeckoSession.NavigationDelegate {
             override fun onLocationChange(
                 session: GeckoSession,
@@ -479,30 +490,18 @@ class GeckoManager(private val context: Context) {
                 perms: MutableList<GeckoSession.PermissionDelegate.ContentPermission>,
                 userGesture: Boolean
             ) {
-                onLocationChangeFun(eventTabId,session, url, perms, userGesture)
+                onLocationChangeFun(eventTabId, session, url, perms, userGesture)
             }
 
             override fun onNewSession(
                 session: GeckoSession,
                 uri: String
             ): GeckoResult<GeckoSession>? {
-                // This is called when a link wants to open in a new tab.
-                // 1. You can choose to open it in the CURRENT session (redirect):
-                // return GeckoResult.fromValue(session)
-
-                // 2. OR (Better) tell your UI to create a new tab:
-                // We return 'null' to tell Gecko "We will handle the load ourselves manually"
-                // and then we trigger your App's "New Tab" logic.
-
-                // We run this on the main thread to interact with your Compose state
                 MainScope().launch {
-                    // CALL YOUR UI LOGIC HERE.
-                    // Ideally pass a callback 'onNewTabRequested(uri)' into setupDelegates
-                    // For now, let's assume you pass that callback.
                     onNewSessionFun(session, uri)
                 }
 
-                // Return null to prevent Gecko from creating a floating orphan session
+                // return null to handle manually
                 return null
             }
 
@@ -520,45 +519,40 @@ class GeckoManager(private val context: Context) {
                 error: WebRequestError
             ): GeckoResult<String> {
                 Log.e("GeckoNav", "Load Error: $uri (${error.category})")
-
-                // 1. Notify the UI to show the error screen
                 onLoadErrorFun(session, uri, error)
-
-                // 2. Return "about:blank" to stop the engine from showing a partial page
-                // or return null to just stop.
                 return GeckoResult.fromValue("about:blank")
             }
         }
 
-        // 2. Progress Delegate (Loading bar)
         session.progressDelegate = object : GeckoSession.ProgressDelegate {
-            // 1. EQUIVALENT TO onPageStarted
+            // EQUIVALENT TO onPageStarted on WebView
             override fun onPageStart(session: GeckoSession, url: String) {
-                // This fires when the page actually starts loading content.
                 Log.d("GeckoView", "Page Started: $url")
+
+                // ignore javascript injection
                 if (url.startsWith("javascript:")) return
 
-                // Example: Show loading spinner, reset error states
-                onPageStartFun(eventTabId,session, url)
+                onPageStartFun(eventTabId, session, url)
             }
 
 
-            // 2. EQUIVALENT TO onPageFinished
+            // EQUIVALENT TO onPageFinished
             override fun onPageStop(session: GeckoSession, success: Boolean) {
 
                 if (success) {
-                    val radius = browserSettings.value.deviceCornerRadius
-
+                    // inject js for design value
                     val js = """
-        javascript:(function(){
-            document.documentElement.style.setProperty('--device-corner-radius', '${browserSettings.value.deviceCornerRadius}px');
-            document.documentElement.style.setProperty('--padding', '${browserSettings.value.padding}px');
-            document.documentElement.style.setProperty('--single-line-height', '${browserSettings.value.singleLineHeight}px');
-            window.deviceCornerRadius = ${radius};
-            if (typeof window.render === 'function') window.render($radius);
-            alert("marc_console_log: Injection Success! Radius is " + window.deviceCornerRadius);
-        })()
-    """.trimIndent().replace("\n", " ")
+                            javascript:(function(){
+                            document.documentElement.style.setProperty('--device-corner-radius', '${browserSettings.value.deviceCornerRadius}px');
+                            document.documentElement.style.setProperty('--padding', '${browserSettings.value.padding}px');
+                            document.documentElement.style.setProperty('--single-line-height', '${browserSettings.value.singleLineHeight}px');
+                            window.deviceCornerRadius = ${browserSettings.value.deviceCornerRadius};
+                            if (typeof window.render === 'function') window.render($browserSettings.value.deviceCornerRadius);
+                            alert("marc_console_log: Injection Success! Radius is " + window.deviceCornerRadius);
+                            })()
+                            """
+                        .trimIndent()
+                        .replace("\n", " ")
 
                     session.loadUri(js)
                 }
@@ -576,22 +570,20 @@ class GeckoManager(private val context: Context) {
                 session: GeckoSession,
                 state: GeckoSession.SessionState
             ) {
-
+                // save state to restore every session state change
                 stateCache[eventTabId] = state
-                Log.d("onSessionStateChange", " state ${state}")
-                Log.i("onSessionStateChange", "saved state to session # ${eventTabId}")
+
                 onSessionStateChangeFun(session, state)
-
             }
-
         }
 
-        // 3. Content Delegate (Title, Fullscreen, Context Menu)
         session.contentDelegate = object : GeckoSession.ContentDelegate {
 
             override fun onFullScreen(session: GeckoSession, fullScreen: Boolean) {
                 onFullScreenFun(fullScreen)
             }
+
+            // handle download request
             override fun onExternalResponse(session: GeckoSession, response: WebResponse) {
                 // Extract metadata from the WebResponse object
                 val url = response.uri
@@ -606,41 +598,34 @@ class GeckoManager(private val context: Context) {
                     "Mozill9a/5.0 (Android 14; Mobile; rv:131.0) Gecko/131.0 Firefox/131.0"
                 }
 
-
-                // Pass it up to the UI layer
                 onDownloadRequested(url, userAgent, contentDisposition, mimeType)
             }
 
             override fun onTitleChange(session: GeckoSession, title: String?) {
                 title?.let { title ->
-                    onTitleChangeFun(eventTabId,session, title)
+                    onTitleChangeFun(eventTabId, session, title)
                 }
             }
 
-            // 1. Get High-Res Icons from Manifest
+            // FavIcon from Manifest
             override fun onWebAppManifest(session: GeckoSession, manifest: JSONObject) {
                 try {
                     if (manifest.has("icons")) {
                         val icons = manifest.getJSONArray("icons")
-                        // Grab the first icon (or loop to find the biggest one)
                         if (icons.length() > 0) {
                             val iconObj = icons.getJSONObject(0)
                             val iconPath = iconObj.getString("src")
 
-                            // Resolve relative paths
                             val fullUrl = if (iconPath.startsWith("http")) {
                                 iconPath
                             } else {
                                 java.net.URI(
                                     session.navigationDelegate?.toString() ?: ""
-                                ) // This is tricky, see Helper below
-                                // Easier: Just pass the path up and resolve it in UI against current tab URL
+                                )
                                 iconPath
                             }
-
-//                            onIconChangeFun(fullUrl)
+                            // pass the favicon url out
                             onFaviconChanged(eventTabId, fullUrl)
-
                         }
                     }
                 } catch (e: Exception) {
@@ -648,21 +633,19 @@ class GeckoManager(private val context: Context) {
                 }
             }
 
+
+            // This is the latest reason why We change from webview to geckoview
             override fun onContextMenu(
                 session: GeckoSession,
                 screenX: Int,
                 screenY: Int,
                 element: GeckoSession.ContentDelegate.ContextElement
             ) {
-                // GeckoView handles context menu detection differently.
-                // 'element' contains the type (IMAGE, VIDEO, LINK) and the URL.
-                // You can map this to your ContextMenuData.
-
                 val linkUri = element.linkUri
                 val srcUri = element.srcUri
                 val mediaType = element.type
 
-                // 1. Determine the Type
+                // determine the Type
                 val myType = when (mediaType) {
                     GeckoSession.ContentDelegate.ContextElement.TYPE_VIDEO ->
                         ContextMenuType.VIDEO
@@ -673,7 +656,7 @@ class GeckoManager(private val context: Context) {
                     }
 
                     GeckoSession.ContentDelegate.ContextElement.TYPE_AUDIO ->
-                        ContextMenuType.VIDEO // Treat Audio like Video for now (downloadable)
+                        ContextMenuType.VIDEO
 
                     else -> {
                         if (!linkUri.isNullOrEmpty()) ContextMenuType.LINK
@@ -682,7 +665,6 @@ class GeckoManager(private val context: Context) {
                 }
 
                 if (myType != ContextMenuType.NONE) {
-                    // 2. Create the clean data object
                     val data = ContextMenuData(
                         type = myType,
                         linkUrl = linkUri,
@@ -694,18 +676,14 @@ class GeckoManager(private val context: Context) {
             }
 
             override fun onCrash(session: GeckoSession) {
-                // The Content Process died (Crash or OOM Kill)
                 Log.e("GeckoManager", "Session $session Crashed: ${session.isOpen}")
-
-                // If this session is currently visible (Active), reload it immediately.
-                // If it's in the background, GeckoView will usually auto-reload it
-                // when it becomes active again (thanks to suspendMediaWhenInactive=true).
+                // TODO handle auto crash session
                 handleSessionDeath(session, eventTabId)
 
             }
 
             override fun onKill(session: GeckoSession) {
-                // Similar to onCrash, but specifically for OS kills
+                // TODO handle auto crash session
                 Log.e("GeckoManager", "Session $session Killed by OS")
                 handleSessionDeath(session, eventTabId)
             }
@@ -734,7 +712,6 @@ class GeckoManager(private val context: Context) {
 
         session.promptDelegate = object : GeckoSession.PromptDelegate {
 
-            // 1. ALERT
             override fun onAlertPrompt(
                 session: GeckoSession,
                 prompt: GeckoSession.PromptDelegate.AlertPrompt
@@ -742,8 +719,9 @@ class GeckoManager(private val context: Context) {
                 val message = prompt.message ?: ""
 
 
+                // Current way to shows log, just TEMPORARY
                 if (message.startsWith("marc_console_log:")) {
-                    // Strip the prefix and print to Android Logcat
+                    // print to Android Logcat
                     val logContent = message.removePrefix("marc_console_log:")
                     Log.d("marc_console_log", logContent)
 
@@ -754,33 +732,22 @@ class GeckoManager(private val context: Context) {
                 // Show UI
                 onJsAlert(message)
 
-                // GeckoView alerts are non-blocking in the UI sense,
-                // but we need to return a result to acknowledge it.
-                // We return 'dismiss()' immediately here because your Compose UI
-                // will just show a message. If you want to block the web thread until
-                // the user clicks OK, that's much harder in GeckoView's async model.
-                // Standard practice: Show the UI, but tell the engine "OK" immediately.
                 return GeckoResult.fromValue(prompt.dismiss())
             }
 
-            // 2. CONFIRM
             override fun onButtonPrompt(
                 session: GeckoSession,
                 prompt: GeckoSession.PromptDelegate.ButtonPrompt
             ): GeckoResult<GeckoSession.PromptDelegate.PromptResponse> {
                 val message = prompt.message ?: ""
 
-                // We create a GeckoResult that will be completed LATER by the UI
                 val result = GeckoResult<GeckoSession.PromptDelegate.PromptResponse>()
 
-                // Pass the message and a callback to the UI
                 onJsConfirm(message) { confirmed ->
                     val buttonType = if (confirmed)
                         GeckoSession.PromptDelegate.ButtonPrompt.Type.POSITIVE
                     else
                         GeckoSession.PromptDelegate.ButtonPrompt.Type.NEGATIVE
-
-                    // Complete the result when user clicks a button
                     result.complete(prompt.confirm(buttonType))
                 }
 
@@ -789,7 +756,6 @@ class GeckoManager(private val context: Context) {
                 return result
             }
 
-            // 3. PROMPT (Text Input)
             override fun onTextPrompt(
                 session: GeckoSession,
                 prompt: GeckoSession.PromptDelegate.TextPrompt
@@ -798,14 +764,12 @@ class GeckoManager(private val context: Context) {
                 val message = prompt.message ?: ""
                 val defaultValue = prompt.defaultValue ?: ""
 
-                // NORMAL CASE: Real website prompt
                 val result = GeckoResult<GeckoSession.PromptDelegate.PromptResponse>()
 
                 onJsPrompt(message, defaultValue) { input ->
                     if (input != null) {
                         result.complete(prompt.confirm(input))
                     } else {
-                        // User cancelled
                         result.complete(prompt.dismiss())
                     }
                 }
@@ -820,29 +784,26 @@ class GeckoManager(private val context: Context) {
                 activeGeckoMediaSession = mediaSession
 
                 isActiveMediaSessionPaused = false
-//                onActivatedFun()
-                // 1. Website started playing media! Start the background service.
+                // website started playing media! Start the background service.
                 val intent = Intent(context, MediaPlaybackService::class.java)
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                    context.startForegroundService(intent)
-                } else {
-                    context.startService(intent)
-                }
+                context.startForegroundService(intent)
             }
 
-            override fun onDeactivated(session: GeckoSession,  mediaSession: MediaSession) {
+            override fun onDeactivated(session: GeckoSession, mediaSession: MediaSession) {
                 activeGeckoMediaSession = null
                 isActiveMediaSessionPaused = true
 
-                // 2. Media stopped. Stop the background service.
+                // media stopped. Stop the background service.
                 context.stopService(Intent(context, MediaPlaybackService::class.java))
             }
 
-            override fun onMetadata(session: GeckoSession,  mediaSession: MediaSession, metadata: MediaSession.Metadata) {
-                // 3. Update the Android Media Controls with Title/Artist from the website
+            // this is the primary way to know when user change video
+            override fun onMetadata(
+                session: GeckoSession,
+                mediaSession: MediaSession,
+                metadata: MediaSession.Metadata
+            ) {
                 Log.i("marcMedia", "Playing: ${metadata.title} by ${metadata.artist}")
-//                currentPosition = mediaSession.
-
 
                 if (metadata.title != null && metadata.title != lastTitle.value) {
                     lastTitle.value = metadata.title.toString()
@@ -852,20 +813,28 @@ class GeckoManager(private val context: Context) {
                     mediaSession.play()
 
                 }
+
+                // pass value to android media control on notification panel
                 val intent = Intent(context, MediaPlaybackService::class.java).apply {
                     putExtra("TITLE", metadata.title)
                     putExtra("ARTIST", metadata.artist ?: "Web Browser")
                 }
                 context.startService(intent)
             }
-            override fun onFeatures(session: GeckoSession, mediaSession: MediaSession, features: Long) {
-                val isPaused = (features and MediaSession.Feature.PAUSE) == 0L
-                if (isPaused) mediaSession.pause() else mediaSession.play()
-                Log.d("marcMedia", "Is Paused: $isPaused")
-                context.startService(Intent(context, MediaPlaybackService::class.java).apply {
-                    putExtra("IS_PAUSED", isPaused)
-                })
-            }
+
+            // not work
+//            override fun onFeatures(
+//                session: GeckoSession,
+//                mediaSession: MediaSession,
+//                features: Long
+//            ) {
+//                val isPaused = (features and MediaSession.Feature.PAUSE) == 0L
+//                if (isPaused) mediaSession.pause() else mediaSession.play()
+//                Log.d("marcMedia", "Is Paused: $isPaused")
+//                context.startService(Intent(context, MediaPlaybackService::class.java).apply {
+//                    putExtra("IS_PAUSED", isPaused)
+//                })
+//            }
 
             override fun onPause(session: GeckoSession, mediaSession: MediaSession) {
                 activeGeckoMediaSession = mediaSession
@@ -884,7 +853,7 @@ class GeckoManager(private val context: Context) {
 
 
                 Log.d("marcMedia", "onPlay")
-                if(lastPositionSnapshot.doubleValue == INIT) {
+                if (lastPositionSnapshot.doubleValue == INIT) {
                     lastPositionSnapshot.doubleValue = 0.0
                 }
                 context.startService(Intent(context, MediaPlaybackService::class.java).apply {
@@ -899,27 +868,30 @@ class GeckoManager(private val context: Context) {
             }
 
 
-            override fun onPositionState(session: GeckoSession, mediaSession: MediaSession, state: MediaSession.PositionState) {
+            override fun onPositionState(
+                session: GeckoSession,
+                mediaSession: MediaSession,
+                state: MediaSession.PositionState
+            ) {
+                // checking if user change from video A -> B
                 if (lastDuration.doubleValue == RESET) {
-                    // 1. Is the duration different? (Strongest Signal)
+                    // is the duration different?
                     val durationChanged = abs(state.duration - exitDuration) > 0.0001
 
-                    // 2. Is the position at the very beginning? (Video B just started)
+                    // is the position at the very beginning? (Video B just started)
                     val isAtStart = state.position < 1.0
 
-                    // 3. Did the position jump backwards significantly? (Video A was at 59s, now we are at 0s)
+                    // did the position jump backwards significantly? (Video A was at 59s, now we are at 0s)
                     val positionJumpedBack = state.position < (exitPosition - 1.0)
 
                     // VALIDATION
                     val isDataFresh = durationChanged || isAtStart || positionJumpedBack
 
                     if (!isDataFresh) {
-                        // This is identical to Video A's last state or a continuation of it.
-                        // Ignore it.
+                        // the state now is identical to Video A's last state or a continuation of it.
+                        // ignore it.
                         return
                     }
-
-                    // UNLOCK
                 }
 
                 // Update values normally
@@ -933,13 +905,11 @@ class GeckoManager(private val context: Context) {
 
                 if (!state.duration.isNaN()) {
                     lastDuration.doubleValue = state.duration
-                    if ( exitDuration != state.duration) exitDuration = state.duration
+                    if (exitDuration != state.duration) exitDuration = state.duration
                 }
 
             }
         }
-
-
     }
 }
 
