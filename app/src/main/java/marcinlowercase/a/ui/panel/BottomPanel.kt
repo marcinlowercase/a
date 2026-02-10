@@ -155,7 +155,6 @@ fun BottomPanel(
     suggestions: List<Suggestion>, // Changed from List<String>
     onSuggestionClick: (Suggestion) -> Unit, // Changed from (String)
     onRemoveSuggestion: (Suggestion) -> Unit,
-    webViewManager: WebViewManager,
     isFindInPageVisible: MutableState<Boolean>,
     findInPageText: MutableState<String>,
     findInPageResult: MutableState<Pair<Int, Int>>,
