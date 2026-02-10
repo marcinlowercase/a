@@ -186,7 +186,6 @@ fun BottomPanel(
     updateInspectingTab: (Tab) -> Unit,
     isTabDataPanelVisible: Boolean,
     inspectingTab: Tab?,
-    handleHistoryNavigation: (tab: Tab, index: Int, webViewManager: WebViewManager) -> Unit,
     handleCloseInspectedTab: () -> Unit,
     handleClearInspectedTabData: () -> Unit,
     handlePermissionToggle: (domain: String?, permission: String, isGranted: Boolean) -> Unit,

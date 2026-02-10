@@ -1039,52 +1039,52 @@ fun BrowserScreen(
         confirmationDisplayState = confirmationState
     }
 
-
-    val handleHistoryNavigation =
-        { tabToNavigate: Tab, historyIndex: Int, webViewManager: WebViewManager ->
-            val tabIndexInMainList = tabs.indexOf(tabToNavigate)
-
-            // --- Use a positive case check ---
-            if (tabIndexInMainList != -1) {
-
-                isUrlBarVisible = false
-
-//                webViewManager.getWebView(tabToNavigate).goBackOrForward(1)
-
-                val webViewToNavigate = webViewManager.getWebView(tabToNavigate)
-
-                val stepsToNavigate =
-                    -1 * (webViewToNavigate.copyBackForwardList().currentIndex - historyIndex)
-
-
-                if (stepsToNavigate != 0 && webViewToNavigate.canGoBackOrForward(stepsToNavigate)) {
-
-                    // --- All checks passed, proceed with the logic ---
-
-                    // 1. Update the history state of the target tab
-
-
-                    // 2. Make the target tab the active tab
-
-
-                    webViewToNavigate.goBackOrForward(stepsToNavigate)
-
-                    val newUrl = webViewToNavigate.url ?: ""
-                    if (!isFocusOnUrlTextField) textFieldState.setTextAndPlaceCursorAtEnd(newUrl.toDomain())
-//                    textFieldValue = TextFieldValue(newUrl, TextRange(newUrl.length))
-
-                }
-                if (activeTabIndex.intValue != tabIndexInMainList) {
-                    activeTab.value.state = TabState.BACKGROUND
-                    activeTabIndex.intValue = tabIndexInMainList
-                    tabToNavigate.state = TabState.ACTIVE
-                }
-                // If the inner 'if' fails (bad history), nothing happens, which is correct.
-            }
-            // If the outer 'if' fails (tab not found), nothing happens, which is correct.
-
-
-        }
+//
+//    val handleHistoryNavigation =
+//        { tabToNavigate: Tab, historyIndex: Int, webViewManager: WebViewManager ->
+//            val tabIndexInMainList = tabs.indexOf(tabToNavigate)
+//
+//            // --- Use a positive case check ---
+//            if (tabIndexInMainList != -1) {
+//
+//                isUrlBarVisible = false
+//
+////                webViewManager.getWebView(tabToNavigate).goBackOrForward(1)
+//
+//                val webViewToNavigate = webViewManager.getWebView(tabToNavigate)
+//
+//                val stepsToNavigate =
+//                    -1 * (webViewToNavigate.copyBackForwardList().currentIndex - historyIndex)
+//
+//
+//                if (stepsToNavigate != 0 && webViewToNavigate.canGoBackOrForward(stepsToNavigate)) {
+//
+//                    // --- All checks passed, proceed with the logic ---
+//
+//                    // 1. Update the history state of the target tab
+//
+//
+//                    // 2. Make the target tab the active tab
+//
+//
+//                    webViewToNavigate.goBackOrForward(stepsToNavigate)
+//
+//                    val newUrl = webViewToNavigate.url ?: ""
+//                    if (!isFocusOnUrlTextField) textFieldState.setTextAndPlaceCursorAtEnd(newUrl.toDomain())
+////                    textFieldValue = TextFieldValue(newUrl, TextRange(newUrl.length))
+//
+//                }
+//                if (activeTabIndex.intValue != tabIndexInMainList) {
+//                    activeTab.value.state = TabState.BACKGROUND
+//                    activeTabIndex.intValue = tabIndexInMainList
+//                    tabToNavigate.state = TabState.ACTIVE
+//                }
+//                // If the inner 'if' fails (bad history), nothing happens, which is correct.
+//            }
+//            // If the outer 'if' fails (tab not found), nothing happens, which is correct.
+//
+//
+//        }
 
 
     val handlePermissionToggle = { domain: String?, permission: String, isGranted: Boolean ->
@@ -3615,7 +3615,7 @@ fun BrowserScreen(
                             webViewLoad(activeSession, newUrl, browserSettings.value)
                         },
                         setIsFocusOnTextField = { isFocusOnUrlTextField = it },
-                        handleHistoryNavigation = handleHistoryNavigation,
+//                        handleHistoryNavigation = handleHistoryNavigation,
                         isFindInPageVisible = isFindInPageVisible,
 
                         )

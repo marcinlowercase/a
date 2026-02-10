@@ -9,13 +9,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -85,7 +81,7 @@ fun VideoStatusPanel(
     )
 
     // Local tick for live position updates
-    var liveTick by remember { mutableStateOf(0) }
+    var liveTick by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(isMediaControlPanelVisible.value, geckoManager.isActiveMediaSessionPaused) {
         if (!geckoManager.isActiveMediaSessionPaused) {
@@ -103,10 +99,10 @@ fun VideoStatusPanel(
             val tick = liveTick
             when (controlOption.value) {
                 MediaControlOption.TIME -> {
-                    val duration = geckoManager.lastDuration.value
+                    val duration = geckoManager.lastDuration.doubleValue
                     // If we are currently dragging (pendingSeekSeconds != 0), calculate target
                     if (pendingSeekSeconds.value != 0.0) {
-                        val current = geckoManager.lastPositionSnapshot.value
+                        val current = geckoManager.lastPositionSnapshot.doubleValue
                         val targetTime = (current + pendingSeekSeconds.value).coerceIn(0.0, duration)
 
                         val sign = if (pendingSeekSeconds.value > 0) "+" else ""
@@ -114,7 +110,7 @@ fun VideoStatusPanel(
                         "${formatTime(targetTime)} ($sign${pendingSeekSeconds.value.toInt()}s)"
                     } else {
                         // Standard display
-                        val current = formatTime(geckoManager.lastPositionSnapshot.value)
+                        val current = formatTime(geckoManager.lastPositionSnapshot.doubleValue)
                         val total = formatTime(duration)
                         "$current / $total"
                     }
