@@ -873,6 +873,7 @@ class GeckoManager(private val context: Context) {
                 mediaSession: MediaSession,
                 state: MediaSession.PositionState
             ) {
+                Log.e("THEOTEMP", "${state.playbackRate}")
                 // checking if user change from video A -> B
                 if (lastDuration.doubleValue == RESET) {
                     // is the duration different?

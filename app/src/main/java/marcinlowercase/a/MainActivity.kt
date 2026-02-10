@@ -557,6 +557,7 @@ fun BrowserScreen(
     val isOnFullscreenVideo = remember { mutableStateOf(false) }
     val isMediaControlPanelVisible = remember { mutableStateOf(false) }
     val isLandscapeByButton = remember { mutableStateOf(false) }
+    val isLandscape = remember { mutableStateOf(false) }
 
 
     val offsetY = remember { Animatable(0f) }
@@ -585,12 +586,14 @@ fun BrowserScreen(
         spring(visibilityThreshold = Dp.VisibilityThreshold)
     }
     // Top Padding
-    val webViewTopPaddingFullscreen = if (browserSettings.value.isSharpMode && !isLandscapeByButton.value) {
+
+    val webViewTopPaddingFullscreen = if (browserSettings.value.isSharpMode && !isLandscape.value) {
         maxOf(cutoutTop, browserSettings.value.deviceCornerRadius.dp)
     } else {
         cutoutTop
     }
-    val webViewTopPaddingRegular = if (browserSettings.value.isSharpMode && !isLandscapeByButton.value) {
+
+    val webViewTopPaddingRegular = if (browserSettings.value.isSharpMode) {
         maxOf(
             maxOf(cutoutTop, browserSettings.value.deviceCornerRadius.dp),
             innerPadding.calculateTopPadding()
@@ -598,6 +601,7 @@ fun BrowserScreen(
     } else {
         innerPadding.calculateTopPadding()
     }
+
     val webViewTopPaddingNormalScreen = if (browserSettings.value.isFullscreenMode) {
         webViewTopPaddingFullscreen
     } else {
@@ -615,12 +619,12 @@ fun BrowserScreen(
         label = "WebView Top Padding Animation",
     )
     // Bottom Padding
-    val webViewBottomPaddingFullscreen = if (browserSettings.value.isSharpMode && !isLandscapeByButton.value) {
+    val webViewBottomPaddingFullscreen = if (browserSettings.value.isSharpMode && !isLandscape.value) {
         maxOf(cutoutBottom, browserSettings.value.deviceCornerRadius.dp)
     } else {
         cutoutBottom
     }
-    val webViewBottomPaddingRegular = if (browserSettings.value.isSharpMode && !isLandscapeByButton.value) {
+    val webViewBottomPaddingRegular = if (browserSettings.value.isSharpMode) {
         maxOf(
             maxOf(cutoutBottom, browserSettings.value.deviceCornerRadius.dp),
             innerPadding.calculateBottomPadding()
@@ -640,7 +644,7 @@ fun BrowserScreen(
             || isPipMode
         ) {
             0.dp
-        } else if (isKeyboardVisible && !isFocusOnUrlTextField && !isFocusOnFindTextField.value) {
+        } else if (isKeyboardVisible && !isFocusOnUrlTextField ) {
             browserSettings.value.padding.dp
         } else webViewBottomPaddingNormalScreen
 
@@ -653,7 +657,7 @@ fun BrowserScreen(
 
     // Start Padding
 
-    val webViewStartPaddingFullscreen = if (browserSettings.value.isSharpMode && isLandscapeByButton.value) {
+    val webViewStartPaddingFullscreen = if (browserSettings.value.isSharpMode && isLandscape.value) {
         maxOf(cutoutLeft, browserSettings.value.deviceCornerRadius.dp)
     } else {
         cutoutLeft
@@ -670,7 +674,7 @@ fun BrowserScreen(
 
     // End Padding
 
-    val webViewEndPaddingFullscreen = if (browserSettings.value.isSharpMode && isLandscapeByButton.value) {
+    val webViewEndPaddingFullscreen = if (browserSettings.value.isSharpMode && isLandscape.value) {
         maxOf(cutoutRight, browserSettings.value.deviceCornerRadius.dp)
     } else {
         cutoutRight
@@ -1051,54 +1055,6 @@ fun BrowserScreen(
         confirmationDisplayState = confirmationState
     }
 
-//
-//    val handleHistoryNavigation =
-//        { tabToNavigate: Tab, historyIndex: Int, webViewManager: WebViewManager ->
-//            val tabIndexInMainList = tabs.indexOf(tabToNavigate)
-//
-//            // --- Use a positive case check ---
-//            if (tabIndexInMainList != -1) {
-//
-//                isUrlBarVisible = false
-//
-////                webViewManager.getWebView(tabToNavigate).goBackOrForward(1)
-//
-//                val webViewToNavigate = webViewManager.getWebView(tabToNavigate)
-//
-//                val stepsToNavigate =
-//                    -1 * (webViewToNavigate.copyBackForwardList().currentIndex - historyIndex)
-//
-//
-//                if (stepsToNavigate != 0 && webViewToNavigate.canGoBackOrForward(stepsToNavigate)) {
-//
-//                    // --- All checks passed, proceed with the logic ---
-//
-//                    // 1. Update the history state of the target tab
-//
-//
-//                    // 2. Make the target tab the active tab
-//
-//
-//                    webViewToNavigate.goBackOrForward(stepsToNavigate)
-//
-//                    val newUrl = webViewToNavigate.url ?: ""
-//                    if (!isFocusOnUrlTextField) textFieldState.setTextAndPlaceCursorAtEnd(newUrl.toDomain())
-////                    textFieldValue = TextFieldValue(newUrl, TextRange(newUrl.length))
-//
-//                }
-//                if (activeTabIndex.intValue != tabIndexInMainList) {
-//                    activeTab.value.state = TabState.BACKGROUND
-//                    activeTabIndex.intValue = tabIndexInMainList
-//                    tabToNavigate.state = TabState.ACTIVE
-//                }
-//                // If the inner 'if' fails (bad history), nothing happens, which is correct.
-//            }
-//            // If the outer 'if' fails (tab not found), nothing happens, which is correct.
-//
-//
-//        }
-
-
     val handlePermissionToggle = { domain: String?, permission: String, isGranted: Boolean ->
 
 
@@ -1395,7 +1351,7 @@ fun BrowserScreen(
         pendingDownload = null
     }
 
-    // --- C. THE UI-FACING TRIGGER ---
+
     val startDownload =
         { url: String, userAgent: String, contentDisposition: String?, mimeType: String? ->
             val params = DownloadParams(url, userAgent, contentDisposition, mimeType)
@@ -1775,6 +1731,11 @@ fun BrowserScreen(
     //endregion
 
     //region LaunchedEffect
+
+
+    LaunchedEffect(isLandscapeByButton.value, isOnFullscreenVideo.value) {
+        isLandscape.value = isLandscapeByButton.value || isOnFullscreenVideo.value
+    }
 
     LaunchedEffect(isLandscapeByButton.value) {
         if (isLandscapeByButton.value) {
@@ -2419,7 +2380,6 @@ fun BrowserScreen(
 
 
             onFullScreenFun = { isFullscreen ->
-                isOnFullscreenVideo.value = isFullscreen
 
                 val inPip = mainActivity.isPipMode || mainActivity.isEnteringPip
 
@@ -2444,8 +2404,9 @@ fun BrowserScreen(
                         if (isBottomPanelVisible) isBottomPanelVisible = false
                     } else {
                         // Only exit landscape/immersive if NOT in PiP
-                        // TODO fix PiP Mode
                         if (!inPip) {
+
+                            if(isLandscapeByButton.value) isLandscapeByButton.value = false
                             gestureManager.resetBrightness()
 
                             activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
@@ -3092,7 +3053,8 @@ fun BrowserScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(backgroundColor.value)
+//            .background(backgroundColor.value)
+            .background(Color.Cyan)
 
     ) {
 
