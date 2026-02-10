@@ -585,12 +585,12 @@ fun BrowserScreen(
         spring(visibilityThreshold = Dp.VisibilityThreshold)
     }
     // Top Padding
-    val webViewTopPaddingFullscreen = if (browserSettings.value.isSharpMode) {
+    val webViewTopPaddingFullscreen = if (browserSettings.value.isSharpMode && !isLandscapeByButton.value) {
         maxOf(cutoutTop, browserSettings.value.deviceCornerRadius.dp)
     } else {
         cutoutTop
     }
-    val webViewTopPaddingRegular = if (browserSettings.value.isSharpMode) {
+    val webViewTopPaddingRegular = if (browserSettings.value.isSharpMode && !isLandscapeByButton.value) {
         maxOf(
             maxOf(cutoutTop, browserSettings.value.deviceCornerRadius.dp),
             innerPadding.calculateTopPadding()
@@ -615,12 +615,12 @@ fun BrowserScreen(
         label = "WebView Top Padding Animation",
     )
     // Bottom Padding
-    val webViewBottomPaddingFullscreen = if (browserSettings.value.isSharpMode) {
+    val webViewBottomPaddingFullscreen = if (browserSettings.value.isSharpMode && !isLandscapeByButton.value) {
         maxOf(cutoutBottom, browserSettings.value.deviceCornerRadius.dp)
     } else {
         cutoutBottom
     }
-    val webViewBottomPaddingRegular = if (browserSettings.value.isSharpMode) {
+    val webViewBottomPaddingRegular = if (browserSettings.value.isSharpMode && !isLandscapeByButton.value) {
         maxOf(
             maxOf(cutoutBottom, browserSettings.value.deviceCornerRadius.dp),
             innerPadding.calculateBottomPadding()
@@ -652,10 +652,16 @@ fun BrowserScreen(
     )
 
     // Start Padding
+
+    val webViewStartPaddingFullscreen = if (browserSettings.value.isSharpMode && isLandscapeByButton.value) {
+        maxOf(cutoutLeft, browserSettings.value.deviceCornerRadius.dp)
+    } else {
+        cutoutLeft
+    }
     val targetWebViewStartPadding =
         if (isSettingCornerRadius.value
             || isPipMode
-        ) 0.dp else cutoutLeft
+        ) 0.dp else webViewStartPaddingFullscreen
     val webViewStartPadding by animateDpAsState(
         targetValue = targetWebViewStartPadding,
         animationSpec = paddingAnimationSpec,
@@ -663,10 +669,16 @@ fun BrowserScreen(
     )
 
     // End Padding
+
+    val webViewEndPaddingFullscreen = if (browserSettings.value.isSharpMode && isLandscapeByButton.value) {
+        maxOf(cutoutRight, browserSettings.value.deviceCornerRadius.dp)
+    } else {
+        cutoutRight
+    }
     val targetWebViewEndPadding =
         if (isSettingCornerRadius.value
             || isPipMode
-        ) 0.dp else cutoutRight
+        ) 0.dp else webViewEndPaddingFullscreen
 
     val webViewEndPadding by animateDpAsState(
         targetValue = targetWebViewEndPadding,
@@ -1768,6 +1780,7 @@ fun BrowserScreen(
         if (isLandscapeByButton.value) {
             activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
             isBottomPanelVisible = false
+            isUrlBarVisible = false
         } else {
             activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         }
@@ -3668,8 +3681,6 @@ fun BrowserScreen(
 
                             Box(
                                 modifier = Modifier
-                                    //                            .align(squareAlignment)
-
                                     .offset {
                                         IntOffset(
                                             backSquareOffsetX.value.roundToInt(),
@@ -3683,8 +3694,6 @@ fun BrowserScreen(
                                         )
                                     )
                                     .size(squareBoxSize)
-                                    //                            .height(squareBoxSmallHeight)
-                                    //                            .width(screenSizeDp.width.dp * 0.45f)
                                     .graphicsLayer {
                                         alpha = squareAlpha.value
                                     }
@@ -3704,18 +3713,10 @@ fun BrowserScreen(
                                                 isCursorPadVisible = true
                                                 squareAlpha.snapTo(0f)
 
-                                                //
-                                                //                                        val initialCursorX =
-                                                //                                            if (squareAlignment == Alignment.BottomEnd) (
-                                                //                                                    screenSize.width - ((screenSize.width * 0.45f) + browserSettings.value.padding.dp.toPx()) + down.position.x
-                                                //                                                    )
-                                                //                                            else browserSettings.value.padding.dp.toPx() + down.position.x
-
 
                                                 val initialCursorX =
                                                     backSquareOffsetX.value + browserSettings.value.padding + down.position.x
 
-                                                //                                        val initialCursorY = screenSize.height - (squareBoxSmallHeight.toPx() - browserSettings.value.padding.dp.toPx()) + down.position.y - ((screenSize.height - cutoutTop.toPx()) / 2)
                                                 val initialCursorY =
                                                     ((screenSize.height - cutoutTop.toPx()) / 2) - (screenSize.height - backSquareOffsetY.value) + down.position.y + cutoutTop.toPx()
 
@@ -3875,9 +3876,7 @@ fun BrowserScreen(
                                                         longPressJob.cancel()
                                                         coroutineScope.launch {
                                                             geckoViewRef.value?.clearFocus()
-
-                                                            if (!isUrlBarVisible) isUrlBarVisible =
-                                                                true
+                                                            isUrlBarVisible = true
                                                         }
                                                     }
                                                 }
@@ -3903,7 +3902,7 @@ fun BrowserScreen(
                                             } else {
                                                 // TAP
                                                 coroutineScope.launch {
-                                                    if (!isUrlBarVisible) isUrlBarVisible = true
+                                                    isUrlBarVisible = true
                                                 }
                                             }
                                         }
