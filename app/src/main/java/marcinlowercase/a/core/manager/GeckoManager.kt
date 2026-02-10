@@ -258,7 +258,7 @@ class GeckoManager(private val context: Context) {
         return killedSessionIds.contains(tabId)
     }
 
-    // use for PiP mode later
+    // TODO use for PiP mode later
     private var currentVideoWidth = 16
     private var currentVideoHeight = 9
     private fun createAndConfigureSession(tab: Tab): GeckoSession {
