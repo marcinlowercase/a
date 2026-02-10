@@ -3053,9 +3053,7 @@ fun BrowserScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-//            .background(backgroundColor.value)
-            .background(Color.Cyan)
-
+            .background(backgroundColor.value)
     ) {
 
 
