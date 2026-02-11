@@ -124,6 +124,8 @@ import kotlin.math.abs
 @SuppressLint("FrequentlyChangingValue")
 @Composable
 fun BottomPanel(
+    onAppDoubleClick: (App) -> Unit = {},
+
     isFocusOnFindTextField: MutableState<Boolean>,
     updateCurrentRotation: ()-> Unit,
 //    currentRotation: Float,
@@ -302,9 +304,15 @@ fun BottomPanel(
                     visibility = isAppsPanelVisible,
                     browserSettings = browserSettings,
                     onAppClick = { app ->
-                        Log.e("WebViewLoad", "HERE9")
 
                         webViewLoad(activeSession, app.url, browserSettings.value)
+                        if (!isBottomPanelLock.value) {
+                            setIsBottomPanelVisible(false)
+                            setIsUrlBarVisible(false)
+                        }
+                    },
+                    onAppDoubleClick = { app ->
+                        onAppDoubleClick(app)
                         if (!isBottomPanelLock.value) {
                             setIsBottomPanelVisible(false)
                             setIsUrlBarVisible(false)

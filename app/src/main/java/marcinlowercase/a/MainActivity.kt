@@ -3388,7 +3388,6 @@ fun BrowserScreen(
                         }
                     }
                     BottomPanel(
-
                         modifier = Modifier
                             .padding(
                                 PaddingValues(
@@ -3400,6 +3399,10 @@ fun BrowserScreen(
                             )
                             .windowInsetsPadding(WindowInsets.ime)
                             .align(Alignment.BottomCenter),
+                        onAppDoubleClick = { app ->
+                            createNewTab(activeTabIndex.intValue + 1, app.url)
+
+                        },
                         isFocusOnFindTextField = isFocusOnFindTextField,
                         updateCurrentRotation = updateCurrentRotation,
                         geckoManager = geckoManager,
