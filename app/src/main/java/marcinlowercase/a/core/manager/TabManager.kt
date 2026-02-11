@@ -23,7 +23,7 @@ class TabManager(context: Context) {
         return prefs.getInt(activeTabIndexKey, 0)
     }
 
-    fun saveTabs(tabs: List<Tab>, activeTabIndex: Int) {
+    fun saveTabs(tabs: List<Tab> = emptyList(), activeTabIndex: Int) {
         // Convert the list of tabs into a single JSON string
         val jsonString = json.encodeToString(tabs)
         prefs.edit {
@@ -37,7 +37,7 @@ class TabManager(context: Context) {
     fun freezeAllTabs() {
         Log.e("marcPip", "freezeAllTabs")
 
-        val tabs = loadTabs() // Load the current state
+        val tabs = loadTabs(null) // Load the current state
         if (tabs.isNotEmpty()) {
             val activeIndex = prefs.getInt(activeTabIndexKey, 0)
 
@@ -58,16 +58,35 @@ class TabManager(context: Context) {
 
     }
 
-    fun loadTabs(): MutableList<Tab> {
+    fun loadTabs(intentUrl: String?): MutableList<Tab> {
+
         val jsonString = prefs.getString(tabsKey, null)
 
         return if (jsonString != null) {
             try {
                 val loadedTabs = json.decodeFromString<MutableList<Tab>>(jsonString)
+                if (intentUrl != null) {
+
+                    val activeTabIndex = (getActiveTabIndex() + 1).coerceIn(0, loadedTabs.size)
+
+                    loadedTabs.forEach { it.state = TabState.BACKGROUND }
+
+                    loadedTabs.add( activeTabIndex,
+                        Tab(
+                            state = TabState.ACTIVE,
+                            currentURL = intentUrl
+                        )
+                    )
+                    prefs.edit {
+                        putInt(activeTabIndexKey, activeTabIndex)
+                    }
+
+                }
+                Log.w("THEOTEMP", "loadTabs:  is loadedtabs empty${ loadedTabs.isEmpty()}")
 
 
                 if (loadedTabs.isEmpty()) {
-                    return createDefaultTabs()
+                    return createDefaultTabs(intentUrl)
                 }
 //                val activeIndex = prefs.getInt(activeTabIndexKey, 0)
 //                loadedTabs.forEachIndexed { index, tab ->
@@ -78,16 +97,17 @@ class TabManager(context: Context) {
                 return loadedTabs
 
             } catch (_: Exception) {
-                createDefaultTabs()
+                createDefaultTabs(intentUrl)
             }
         } else {
             // If no saved data, create a default tab list
-            createDefaultTabs()
+            createDefaultTabs(intentUrl)
         }
     }
 
-    private fun createDefaultTabs(): MutableList<Tab> {
-        val customUrl = settingsPrefs.getString("default_url", default_url) ?: default_url
+    private fun createDefaultTabs(intentUrl: String?): MutableList<Tab> {
+        val customUrl = intentUrl
+            ?: (settingsPrefs.getString("default_url", default_url) ?: default_url)
 
         return mutableListOf(
             Tab(

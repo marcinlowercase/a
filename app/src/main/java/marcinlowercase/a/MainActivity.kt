@@ -228,6 +228,8 @@ class MainActivity : ComponentActivity() {
 
         createNotificationChannel(this)
 
+        Log.e("THEOTEMP", "oncreate: ${intent?.action}")
+        Log.e("THEOTEMP", "oncreate: ${intent?.dataString}")
         setContent {
             Theme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
@@ -237,6 +239,7 @@ class MainActivity : ComponentActivity() {
                         newUrlFlow = newUrlFromIntent,
                         tabManager = tabManager,
                         geckoManager = geckoManager,
+                        initialIntentUrl = intent?.dataString
                     )
                 }
             }
@@ -267,6 +270,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        Log.d("THEOTEMP", "${intent.dataString}")
         handleIntent(intent)
     }
     //endregion
@@ -352,7 +356,7 @@ class MainActivity : ComponentActivity() {
         // If entering PiP, we MUST keep the session active and prevent Gecko from
         // interpreting this as a background event that stops media.
         if (isInPictureInPictureMode || isEnteringPip) {
-            val tabs = tabManager.loadTabs()
+            val tabs = tabManager.loadTabs(null)
             val index = tabManager.getActiveTabIndex()
             if (tabs.isNotEmpty() && index in tabs.indices) {
                 val activeTab = tabs[index]
@@ -412,6 +416,7 @@ fun BrowserScreen(
     newUrlFlow: StateFlow<String?>,
     tabManager: TabManager,
     geckoManager: GeckoManager,
+    initialIntentUrl: String? = null,
     modifier: Modifier = Modifier
 ) {
 
@@ -475,19 +480,48 @@ fun BrowserScreen(
     var savedPanelState by remember { mutableStateOf<PanelVisibilityState?>(null) }
     var initialLoadDone by rememberSaveable { mutableStateOf(false) }
 
+
+
+
     val tabs = remember {
-        mutableStateListOf<Tab>().apply {
-            addAll(tabManager.loadTabs())
-        }
+        Log.i("THEOTEMP", "$initialIntentUrl")
+
+        val loadedTabs = tabManager.loadTabs(initialIntentUrl)
+        Log.w("THEOTEMP", "tabs size: ${loadedTabs.size}")
+
+//        // COLD START LOGIC
+//        if (initialIntentUrl != null) {
+//            val lastActiveIndex = tabManager.getActiveTabIndex()
+//            val insertIndex = (lastActiveIndex + 1).coerceIn(0, loadedTabs.size)
+//
+//            // Background all existing tabs
+//            loadedTabs.forEach { it.state = TabState.BACKGROUND }
+//
+//            // Add the new Intent Tab
+//            loadedTabs.add(insertIndex, Tab(
+//                currentURL = initialIntentUrl,
+//                state = TabState.ACTIVE
+//            ))
+//
+//            Log.i("THEOTEMP", "tabs size: ${loadedTabs.size}")
+//            Log.i("THEOTEMP", "tabs current url: ${loadedTabs[insertIndex].currentURL}")
+//        }
+
+        mutableStateListOf<Tab>().apply { addAll(loadedTabs) }
     }
+
+
+    // active tab index must be declared after the tabs because inside loadTabs() there is logic to update the activeTabIndex
+    val activeTabIndex = remember {
+        mutableIntStateOf(tabManager.getActiveTabIndex().coerceAtLeast(0))
+    }
+    Log.i("THEOTEMP", "actve tabIndex ${activeTabIndex.intValue}")
 
     val appManager = remember { AppManager(context) }
     val apps = remember { mutableStateListOf<App>().apply { addAll(appManager.loadApps()) } }
 
 
-    val activeTabIndex = remember {
-        mutableIntStateOf(tabManager.getActiveTabIndex().coerceAtLeast(0))
-    }
+
 
     val recentlyClosedTabs = remember { mutableStateListOf<Tab>() }
     val activeTab = remember(tabs, activeTabIndex.intValue) {
@@ -1733,6 +1767,24 @@ fun BrowserScreen(
 
     //region LaunchedEffect
 
+    LaunchedEffect(Unit) {
+        newUrlFlow.collect { urlFromIntent ->
+            if (urlFromIntent != null) {
+
+                // 1. Calculate the index: Current Active + 1
+                // If list is empty, index is 0.
+                val currentActive = activeTabIndex.intValue
+                val nextIndex = if (tabs.isEmpty()) 0 else currentActive + 1
+
+                // 2. Perform creation
+                createNewTab(insertAtIndex = nextIndex, url = urlFromIntent)
+
+                // 3. Reset the flow so we don't re-open it on configuration change
+                context.newUrlFromIntent.value = null
+            }
+        }
+
+    }
 
     LaunchedEffect(isLandscapeByButton.value, isOnFullscreenVideo.value) {
         isLandscape.value = isLandscapeByButton.value || isOnFullscreenVideo.value
