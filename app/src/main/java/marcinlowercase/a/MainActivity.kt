@@ -2511,7 +2511,11 @@ fun BrowserScreen(
 
                 }
 
+            },
+            onSessionCrash = {
+                sessionRefreshTrigger++
             }
+
         )
 
 

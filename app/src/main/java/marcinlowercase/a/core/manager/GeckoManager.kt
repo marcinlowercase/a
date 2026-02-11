@@ -307,8 +307,9 @@ class GeckoManager(private val context: Context) {
     }
 
     private fun handleSessionDeath(session: GeckoSession, tabId: Long) {
-        //TODO if the active session is killed, reload immediately.
-
+        // if the active session is killed, reload immediately.
+        sessionPool.remove(tabId)
+        session.close()
         // But for background tabs:
         killedSessionIds.add(tabId)
     }
@@ -402,7 +403,9 @@ class GeckoManager(private val context: Context) {
         onJsConfirm: (String, (Boolean) -> Unit) -> Unit,
         onJsPrompt: (String, String, (String?) -> Unit) -> Unit,
         onLoadErrorFun: (session: GeckoSession, uri: String?, error: WebRequestError) -> Unit,
+        onSessionCrash: () -> Unit,
     ) {
+        Log.i("setupDelegates", "setupDelegates")
         val eventTabId = tab.value.id
 
         if (killedSessionIds.contains(eventTabId)) {
@@ -417,6 +420,10 @@ class GeckoManager(private val context: Context) {
             val cachedState = stateCache[eventTabId]
             if (cachedState != null) {
                 session.restoreState(cachedState)
+            } else if (tab.value.savedState != null) {
+                restoreStateFromString(tab.value.savedState!!)?.let {
+                    session.restoreState(it)
+                }
             } else {
                 // fallback: If no cache, just reload the URL
                 session.reload()
@@ -679,6 +686,7 @@ class GeckoManager(private val context: Context) {
                 Log.e("GeckoManager", "Session $session Crashed: ${session.isOpen}")
                 // TODO handle auto crash session
                 handleSessionDeath(session, eventTabId)
+                onSessionCrash()
 
             }
 
@@ -686,6 +694,7 @@ class GeckoManager(private val context: Context) {
                 // TODO handle auto crash session
                 Log.e("GeckoManager", "Session $session Killed by OS")
                 handleSessionDeath(session, eventTabId)
+                onSessionCrash()
             }
 
         }
@@ -712,6 +721,41 @@ class GeckoManager(private val context: Context) {
 
         session.promptDelegate = object : GeckoSession.PromptDelegate {
 
+            override fun onSharePrompt(
+                session: GeckoSession,
+                prompt: GeckoSession.PromptDelegate.SharePrompt
+            ): GeckoResult<GeckoSession.PromptDelegate.PromptResponse> {
+
+                val uri = prompt.uri
+                val text = prompt.text
+                val title = prompt.title
+
+                // link or text
+                val isLink =
+                    !uri.isNullOrBlank() || (text != null && android.webkit.URLUtil.isNetworkUrl(
+                        text
+                    ))
+                val shareContent = uri ?: text ?: ""
+
+                val displayTitle = title ?: if (isLink) "Share Link" else "Share Text"
+
+                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TITLE, displayTitle)
+                    putExtra(Intent.EXTRA_TEXT, shareContent)
+                }
+
+                try {
+                    val chooser = Intent.createChooser(shareIntent, null)
+                    chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    chooser.addFlags(Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
+
+                    context.startActivity(chooser)
+                } catch (e: Exception) {
+                    Log.e("GeckoShare", "Failed to start share sheet", e)
+                }
+                return GeckoResult.fromValue(prompt.dismiss())
+            }
             override fun onAlertPrompt(
                 session: GeckoSession,
                 prompt: GeckoSession.PromptDelegate.AlertPrompt
@@ -873,7 +917,6 @@ class GeckoManager(private val context: Context) {
                 mediaSession: MediaSession,
                 state: MediaSession.PositionState
             ) {
-                Log.e("THEOTEMP", "${state.playbackRate}")
                 // checking if user change from video A -> B
                 if (lastDuration.doubleValue == RESET) {
                     // is the duration different?
