@@ -1,5 +1,6 @@
 package marcinlowercase.a.ui.panel
 
+import JsChoiceState
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.ClipData
@@ -124,6 +125,7 @@ import kotlin.math.abs
 @SuppressLint("FrequentlyChangingValue")
 @Composable
 fun BottomPanel(
+    choiceState: MutableState<JsChoiceState?>,
     onAppDoubleClick: (App) -> Unit = {},
 
     isFocusOnFindTextField: MutableState<Boolean>,
@@ -523,6 +525,8 @@ fun BottomPanel(
                         onPermissionDeny()
                     }
                 )
+
+
                 AnimatedVisibility(visible = suggestions.isNotEmpty()) {
                     LazyColumn(
                         modifier = Modifier

@@ -1,5 +1,6 @@
 package marcinlowercase.a
 
+import JsChoiceState
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
@@ -178,6 +179,7 @@ import marcinlowercase.a.core.manager.TabManager
 import marcinlowercase.a.core.manager.VisitedUrlManager
 import marcinlowercase.a.core.manager.WebViewManager
 import marcinlowercase.a.ui.panel.BottomPanel
+import marcinlowercase.a.ui.panel.ChoicePanel
 import marcinlowercase.a.ui.panel.MediaControlPanel
 import marcinlowercase.a.ui.panel.SettingPanelView
 import marcinlowercase.a.ui.panel.SettingsPanel
@@ -930,6 +932,13 @@ fun BrowserScreen(
 //        animationSpec = spring(stiffness = Spring.StiffnessLow),
 //        label = "ScreenRotationAnim"
 //    )
+
+    val choiceState = remember { mutableStateOf<JsChoiceState?>(null) }
+    val choiceDisplayState = remember { mutableStateOf<JsChoiceState?>(null) }
+    LaunchedEffect(choiceState.value) {
+        if (choiceState.value != null)
+            choiceDisplayState.value = choiceState.value
+    }
 
     //endregion
 
@@ -2514,7 +2523,9 @@ fun BrowserScreen(
             },
             onSessionCrash = {
                 sessionRefreshTrigger++
-            }
+            },
+            onChoicePromptFun = { choiceState.value = it },
+
 
         )
 
@@ -2896,10 +2907,16 @@ fun BrowserScreen(
         isPermissionPanelVisible,
         isPromptPanelVisible,
         confirmationState,
-        contextMenuData
+        contextMenuData,
+        choiceState.value
     ) {
         isBottomPanelVisible =
-            isUrlBarVisible || isPermissionPanelVisible || isPromptPanelVisible || (confirmationState != null || (contextMenuData != null))
+            isUrlBarVisible
+                    || isPermissionPanelVisible
+                    || isPromptPanelVisible
+                    || confirmationState != null
+                    || contextMenuData != null
+                    || choiceState.value != null
     }
 
     LaunchedEffect(browserSettings.value.isFullscreenMode) {
@@ -2927,9 +2944,6 @@ fun BrowserScreen(
             && !isLandscape.value
             && !isBottomPanelVisible
         ) {
-
-
-            Log.e("THEOTEMP", "WRONG UPDATE ")
             // Clamp Y to screen bounds
             val targetY = backSquareOffsetY.value.coerceIn(
                 paddingPx,
@@ -3274,6 +3288,7 @@ fun BrowserScreen(
                                                     if (isMediaControlPanelVisible.value) isMediaControlPanelVisible.value = false
 
                                                     if (contextMenuData != null) contextMenuData = null
+                                                    if (choiceState.value != null) choiceState.value = null
                                                 }
                                                 false
                                             }
@@ -3302,6 +3317,26 @@ fun BrowserScreen(
                 val isStatusAtTop = remember { mutableStateOf(false) }
 
                 if (!isPipMode) {
+
+
+                    AnimatedVisibility(
+                        visible = choiceState.value != null,
+                        enter = slideInVertically { (it * 1.5).toInt() },
+                        exit = slideOutVertically { (it * 1.5).toInt() },
+                        modifier = Modifier
+                            .windowInsetsPadding(WindowInsets.ime)
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = browserSettings.value.padding.dp)
+                            .padding(bottom = floatingPanelBottomPadding)
+
+                    ) {
+                        ChoicePanel(
+                            choiceState = choiceDisplayState,
+                            browserSettings = browserSettings,
+                            onDismiss = { choiceState.value = null },
+                            descriptionContent = descriptionContent,
+                        )
+                    }
 
                     val controlOption = remember { mutableStateOf(MediaControlOption.TIME) }
                     val pendingSeekSeconds = remember { mutableDoubleStateOf(0.0) }
@@ -3432,11 +3467,13 @@ fun BrowserScreen(
                                 )
                             )
                             .windowInsetsPadding(WindowInsets.ime)
-                            .align(Alignment.BottomCenter),
+                            .align(Alignment.BottomCenter)
+                        ,
                         onAppDoubleClick = { app ->
                             createNewTab(activeTabIndex.intValue + 1, app.url)
 
                         },
+                        choiceState = choiceState,
                         isFocusOnFindTextField = isFocusOnFindTextField,
                         updateCurrentRotation = updateCurrentRotation,
                         geckoManager = geckoManager,

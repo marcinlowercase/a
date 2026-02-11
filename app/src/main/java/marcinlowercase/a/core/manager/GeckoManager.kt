@@ -1,6 +1,8 @@
 package marcinlowercase.a.core.manager
 
+import JsChoiceState
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.util.Log
@@ -382,6 +384,7 @@ class GeckoManager(private val context: Context) {
         onProgressChange: (Int) -> Unit,
         onLocationChangeFun: (eventTabId: Long, session: GeckoSession, url: String?, perms: MutableList<GeckoSession.PermissionDelegate.ContentPermission>, userGesture: Boolean) -> Unit,
         onFullScreenFun: (Boolean) -> Unit,
+        onChoicePromptFun: (JsChoiceState) -> Unit,
         onHistoryStateChangeFun: (
             eventTabId: Long,
             session: GeckoSession,
@@ -720,6 +723,25 @@ class GeckoManager(private val context: Context) {
         )
 
         session.promptDelegate = object : GeckoSession.PromptDelegate {
+
+            override fun onChoicePrompt(
+                session: GeckoSession,
+                prompt: GeckoSession.PromptDelegate.ChoicePrompt
+            ): GeckoResult<GeckoSession.PromptDelegate.PromptResponse> {
+
+                val result = GeckoResult<GeckoSession.PromptDelegate.PromptResponse>()
+
+                Log.e("ChoicePrompt", "promtp type: ${prompt.type}")
+                Log.e("ChoicePrompt", "promtp message: ${prompt.message}")
+                Log.e("ChoicePrompt", "promtp title: ${prompt.title}")
+                for (choice in prompt.choices) {
+                    Log.e("ChoicePrompt", "promtp choice: ${choice.label}")
+
+                }
+
+                onChoicePromptFun(JsChoiceState(prompt, result))
+                return result
+            }
 
             override fun onSharePrompt(
                 session: GeckoSession,
