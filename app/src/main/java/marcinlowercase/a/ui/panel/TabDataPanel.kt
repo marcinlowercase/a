@@ -155,6 +155,7 @@ fun TabDataPanel(
     onPermissionToggle: (domain: String?, permission: String, isGranted: Boolean) -> Unit,
     onClearSiteData: () -> Unit,
     onCloseTab: () -> Unit,
+    onDuplicateTab: () -> Unit,
 //    onAddToHomeScreen: () -> Unit,
 //    onHistoryItemClicked: (tab: Tab, index: Int, webViewManager: WebViewManager) -> Unit
 ) {
@@ -454,6 +455,18 @@ fun TabDataPanel(
                         )
 
                     }
+
+                    // DUPLICATE
+                    CustomIconButton(
+//                        currentRotation = currentRotation,
+                        layer = 3,
+                        browserSettings = browserSettings,
+                        modifier = Modifier.weight(1f),
+                        onTap = onDuplicateTab,
+                        descriptionContent = descriptionContent,
+                        buttonDescription = "duplicate tab",
+                        painterId = R.drawable.ic_tab_duplicate
+                    )
 
                     CustomIconButton(
 //                        currentRotation = currentRotation,

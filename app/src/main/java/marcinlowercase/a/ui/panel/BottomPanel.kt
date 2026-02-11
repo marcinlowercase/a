@@ -189,6 +189,7 @@ fun BottomPanel(
     isTabDataPanelVisible: Boolean,
     inspectingTab: Tab?,
     handleCloseInspectedTab: () -> Unit,
+    handleDuplicateInspectedTab: () -> Unit,
     handleClearInspectedTabData: () -> Unit,
     handlePermissionToggle: (domain: String?, permission: String, isGranted: Boolean) -> Unit,
     siteSettings: Map<String, SiteSettings>,
@@ -471,6 +472,7 @@ fun BottomPanel(
                     onPermissionToggle = handlePermissionToggle,
                     onClearSiteData = handleClearInspectedTabData,
                     onCloseTab = handleCloseInspectedTab,
+                    onDuplicateTab = handleDuplicateInspectedTab,
                     //                onHistoryItemClicked = handleHistoryNavigation,
                     //                webViewManager = webViewManager,
                 )

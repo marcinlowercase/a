@@ -1123,7 +1123,37 @@ fun BrowserScreen(
         }
 
     }
+    val handleDuplicateInspectedTab = {
+        val originalTab = currentInspectingTab
+        if (originalTab != null) {
 
+            val liveState = geckoManager.getSessionStateString(originalTab.id)
+                ?: originalTab.savedState
+
+
+            val clonedTab = originalTab.copy(
+                id = System.currentTimeMillis(), // new id
+                savedState = liveState,
+                state = TabState.BACKGROUND
+            )
+
+            // 3. Find where the original is in the list
+            val originalIndex = tabs.indexOf(originalTab)
+            val insertIndex = (originalIndex + 1).coerceIn(0, tabs.size)
+
+            // 4. Deactivate the current active tab
+            if (activeTabIndex.intValue in tabs.indices) {
+                tabs[activeTabIndex.intValue] = tabs[activeTabIndex.intValue].copy(state = TabState.BACKGROUND)
+            }
+
+            // 5. Insert the clone and jump to it
+            tabs.add(insertIndex, clonedTab)
+            activeTabIndex.intValue = insertIndex
+            tabs[insertIndex] = tabs[insertIndex].copy(state = TabState.ACTIVE)
+            isTabDataPanelVisible = false
+            saveTrigger++
+        }
+    }
     val handleCloseInspectedTab = {
         val tabToClose = currentInspectingTab
         if (tabToClose != null && tabs.indexOf(tabToClose) > -1) {
@@ -3540,6 +3570,7 @@ fun BrowserScreen(
                         isTabDataPanelVisible = isTabDataPanelVisible,
                         inspectingTab = currentInspectingTab,
                         handleCloseInspectedTab = handleCloseInspectedTab,
+                        handleDuplicateInspectedTab = handleDuplicateInspectedTab,
                         handleClearInspectedTabData = handleClearInspectedTabData,
                         handlePermissionToggle = handlePermissionToggle,
                         siteSettings = siteSettings,
