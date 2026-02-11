@@ -228,8 +228,6 @@ class MainActivity : ComponentActivity() {
 
         createNotificationChannel(this)
 
-        Log.e("THEOTEMP", "oncreate: ${intent?.action}")
-        Log.e("THEOTEMP", "oncreate: ${intent?.dataString}")
         setContent {
             Theme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
@@ -270,7 +268,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        Log.d("THEOTEMP", "${intent.dataString}")
         handleIntent(intent)
     }
     //endregion
@@ -484,30 +481,7 @@ fun BrowserScreen(
 
 
     val tabs = remember {
-        Log.i("THEOTEMP", "$initialIntentUrl")
-
-        val loadedTabs = tabManager.loadTabs(initialIntentUrl)
-        Log.w("THEOTEMP", "tabs size: ${loadedTabs.size}")
-
-//        // COLD START LOGIC
-//        if (initialIntentUrl != null) {
-//            val lastActiveIndex = tabManager.getActiveTabIndex()
-//            val insertIndex = (lastActiveIndex + 1).coerceIn(0, loadedTabs.size)
-//
-//            // Background all existing tabs
-//            loadedTabs.forEach { it.state = TabState.BACKGROUND }
-//
-//            // Add the new Intent Tab
-//            loadedTabs.add(insertIndex, Tab(
-//                currentURL = initialIntentUrl,
-//                state = TabState.ACTIVE
-//            ))
-//
-//            Log.i("THEOTEMP", "tabs size: ${loadedTabs.size}")
-//            Log.i("THEOTEMP", "tabs current url: ${loadedTabs[insertIndex].currentURL}")
-//        }
-
-        mutableStateListOf<Tab>().apply { addAll(loadedTabs) }
+        mutableStateListOf<Tab>().apply { addAll(tabManager.loadTabs(initialIntentUrl)) }
     }
 
 
@@ -515,7 +489,6 @@ fun BrowserScreen(
     val activeTabIndex = remember {
         mutableIntStateOf(tabManager.getActiveTabIndex().coerceAtLeast(0))
     }
-    Log.i("THEOTEMP", "actve tabIndex ${activeTabIndex.intValue}")
 
     val appManager = remember { AppManager(context) }
     val apps = remember { mutableStateListOf<App>().apply { addAll(appManager.loadApps()) } }

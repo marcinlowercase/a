@@ -82,8 +82,6 @@ class TabManager(context: Context) {
                     }
 
                 }
-                Log.w("THEOTEMP", "loadTabs:  is loadedtabs empty${ loadedTabs.isEmpty()}")
-
 
                 if (loadedTabs.isEmpty()) {
                     return createDefaultTabs(intentUrl)
