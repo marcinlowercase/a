@@ -9,6 +9,5 @@ enum class ActivePanel {
     SETTINGS,
     TABS,
     PERMISSION,
-    CONFIRMATION,
     SUGGESTIONS
 }

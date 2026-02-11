@@ -1713,9 +1713,6 @@ fun BrowserScreen(
     LaunchedEffect(pendingPermissionRequest.value) {
         if (pendingPermissionRequest.value != null) activeMainPanel = ActivePanel.PERMISSION
     }
-    LaunchedEffect(confirmationState) {
-        if (confirmationState != null) activeMainPanel = ActivePanel.CONFIRMATION
-    }
     LaunchedEffect(isTabsPanelVisible) {
         // When TabsPanel opens, it becomes the main panel.
         if (isTabsPanelVisible) activeMainPanel = ActivePanel.TABS
@@ -1744,8 +1741,7 @@ fun BrowserScreen(
             false
         if (current != ActivePanel.PERMISSION && pendingPermissionRequest.value != null) pendingPermissionRequest.value =
             null
-        if (current != ActivePanel.CONFIRMATION && confirmationState != null) confirmationState =
-            null
+
         if (current != ActivePanel.SUGGESTIONS && suggestions.isNotEmpty()) suggestions.clear()
 
         // If the active panel is NOT TABS, close both TABS and TAB_DATA.
