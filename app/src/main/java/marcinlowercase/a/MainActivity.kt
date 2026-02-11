@@ -2890,9 +2890,12 @@ fun BrowserScreen(
 
         if (screenSize.height.toFloat() > (squareBoxSizePx - paddingPx)
             && backSquareOffsetY.value > screenSize.height.toFloat() - squareBoxSizePx - paddingPx
+            && !isLandscape.value
+            && !isBottomPanelVisible
         ) {
 
 
+            Log.e("THEOTEMP", "WRONG UPDATE ")
             // Clamp Y to screen bounds
             val targetY = backSquareOffsetY.value.coerceIn(
                 paddingPx,
@@ -3634,7 +3637,7 @@ fun BrowserScreen(
 
                     // BackSquare
                     AnimatedVisibility(
-                        visible = !isBottomPanelVisible && !isOnFullscreenVideo.value && !isLandscapeByButton.value,
+                        visible = !isBottomPanelVisible && !isLandscape.value,
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(webViewPaddingValue)
@@ -3812,11 +3815,11 @@ fun BrowserScreen(
                                                         }
                                                     }
 
-                                                    // --- SNAP LOGIC (Release) ---
+                                                    // snap logic
                                                     val screenWidth = screenSize.width.toFloat()
                                                     val currentX = backSquareOffsetX.value
 
-                                                    // Determine snap target (Left or Right edge)
+                                                    // snap back square to left or right side of the screen
                                                     val targetX =
                                                         if (currentX + (squareBoxSizePx / 2) < screenWidth / 2) {
                                                             paddingPx // Snap Left
