@@ -214,7 +214,6 @@ class MainActivity : ComponentActivity() {
 
     val newUrlFromIntent = MutableStateFlow<String?>(null)
 
-
     @SuppressLint(
         "SetJavaScriptEnabled",
 //        configure orientation manually
