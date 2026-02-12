@@ -35,6 +35,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.setValue
+import marcinlowercase.a.core.data_class.JsColorState
 import kotlin.math.abs
 
 private const val UBLOCK_ID = "uBlock0@raymondhill.net"
@@ -409,6 +410,7 @@ class GeckoManager(private val context: Context) {
         onSessionCrash: () -> Unit,
 
         onFilePromptFun:(prompt: GeckoSession.PromptDelegate.FilePrompt, result: GeckoResult<GeckoSession.PromptDelegate.PromptResponse>) -> Unit,
+        onColorPromptFun:(JsColorState) -> Unit,
     ) {
         Log.i("setupDelegates", "setupDelegates")
         val eventTabId = tab.value.id
@@ -725,6 +727,20 @@ class GeckoManager(private val context: Context) {
         )
 
         session.promptDelegate = object : GeckoSession.PromptDelegate {
+
+            override fun onColorPrompt(
+                session: GeckoSession,
+                prompt: GeckoSession.PromptDelegate.ColorPrompt
+            ): GeckoResult<GeckoSession.PromptDelegate.PromptResponse> {
+                val result = GeckoResult<GeckoSession.PromptDelegate.PromptResponse>()
+
+                // Pass the prompt to the UI layer
+                onColorPromptFun(JsColorState(prompt, result))
+
+                return result
+            }
+
+
             override fun onFilePrompt(
                 session: GeckoSession,
                 prompt: GeckoSession.PromptDelegate.FilePrompt

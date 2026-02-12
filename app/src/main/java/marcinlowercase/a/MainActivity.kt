@@ -151,6 +151,7 @@ import marcinlowercase.a.core.data_class.DownloadItem
 import marcinlowercase.a.core.data_class.DownloadParams
 import marcinlowercase.a.core.data_class.ErrorState
 import marcinlowercase.a.core.data_class.JsAlert
+import marcinlowercase.a.core.data_class.JsColorState
 import marcinlowercase.a.core.data_class.JsConfirm
 import marcinlowercase.a.core.data_class.JsDialogState
 import marcinlowercase.a.core.data_class.JsPrompt
@@ -182,6 +183,7 @@ import marcinlowercase.a.core.manager.VisitedUrlManager
 import marcinlowercase.a.core.manager.WebViewManager
 import marcinlowercase.a.ui.panel.BottomPanel
 import marcinlowercase.a.ui.panel.ChoicePanel
+import marcinlowercase.a.ui.panel.ColorPickerPanel
 import marcinlowercase.a.ui.panel.MediaControlPanel
 import marcinlowercase.a.ui.panel.SettingPanelView
 import marcinlowercase.a.ui.panel.SettingsPanel
@@ -1054,6 +1056,8 @@ fun BrowserScreen(
         if (choiceState.value != null)
             choiceDisplayState.value = choiceState.value
     }
+
+    val colorState = remember { mutableStateOf<JsColorState?>(null) }
 
     //endregion
 
@@ -2642,7 +2646,11 @@ fun BrowserScreen(
             onChoicePromptFun = { choiceState.value = it },
             onFilePromptFun = { prompt, result ->
                 mainActivity.openFilePicker(prompt, result)
+            },
+            onColorPromptFun = {
+                colorState.value = it
             }
+
 
 
         )
@@ -3454,6 +3462,21 @@ fun BrowserScreen(
                             onDismiss = { choiceState.value = null },
                             descriptionContent = descriptionContent,
                         )
+                    }
+
+                    AnimatedVisibility(
+                        visible = colorState.value != null,
+                        enter = slideInVertically { it },
+                        exit = slideOutVertically { it },
+                        modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = floatingPanelBottomPadding)
+                    ) {
+                        ColorPickerPanel(
+                            colorState = colorState,
+                            browserSettings = browserSettings,
+                            onDismiss = { colorState.value = null },
+                            descriptionContent= descriptionContent
+                        )
+
                     }
 
                     val controlOption = remember { mutableStateOf(MediaControlOption.TIME) }
