@@ -407,6 +407,8 @@ class GeckoManager(private val context: Context) {
         onJsPrompt: (String, String, (String?) -> Unit) -> Unit,
         onLoadErrorFun: (session: GeckoSession, uri: String?, error: WebRequestError) -> Unit,
         onSessionCrash: () -> Unit,
+
+        onFilePromptFun:(prompt: GeckoSession.PromptDelegate.FilePrompt, result: GeckoResult<GeckoSession.PromptDelegate.PromptResponse>) -> Unit,
     ) {
         Log.i("setupDelegates", "setupDelegates")
         val eventTabId = tab.value.id
@@ -723,6 +725,17 @@ class GeckoManager(private val context: Context) {
         )
 
         session.promptDelegate = object : GeckoSession.PromptDelegate {
+            override fun onFilePrompt(
+                session: GeckoSession,
+                prompt: GeckoSession.PromptDelegate.FilePrompt
+            ): GeckoResult<GeckoSession.PromptDelegate.PromptResponse> {
+                val result = GeckoResult<GeckoSession.PromptDelegate.PromptResponse>()
+
+                // Pass the request to the Activity to handle the Intent
+                onFilePromptFun(prompt, result)
+
+                return result
+            }
 
             override fun onChoicePrompt(
                 session: GeckoSession,

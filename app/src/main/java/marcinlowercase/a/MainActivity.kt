@@ -20,6 +20,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
+import android.provider.OpenableColumns
 import android.util.Log
 import android.view.MotionEvent
 import android.view.ViewGroup
@@ -129,6 +130,7 @@ import androidx.core.net.toUri
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -196,6 +198,7 @@ import org.mozilla.geckoview.PanZoomController
 import org.mozilla.geckoview.ScreenLength
 import org.mozilla.geckoview.StorageController
 import java.io.File
+import java.io.FileOutputStream
 import java.net.URL
 import java.net.URLDecoder
 import java.net.URLEncoder
@@ -214,6 +217,116 @@ class MainActivity : ComponentActivity() {
 
     val newUrlFromIntent = MutableStateFlow<String?>(null)
 
+    private var pendingFilePrompt: GeckoSession.PromptDelegate.FilePrompt? = null
+    private var pendingFileResult: GeckoResult<GeckoSession.PromptDelegate.PromptResponse>? = null
+
+    private val filePickerLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val prompt = pendingFilePrompt
+        val geckoResult = pendingFileResult
+
+        if (result.resultCode == Activity.RESULT_OK && prompt != null && geckoResult != null) {
+            val data = result.data
+            val uri = data?.data
+            val clipData = data?.clipData
+
+            // We use a Coroutine to handle file copying so we don't block the UI thread
+            lifecycleScope.launch(Dispatchers.IO) {
+                try {
+                    val response = when {
+                        clipData != null -> {
+                            val uris = mutableListOf<Uri>()
+                            for (i in 0 until clipData.itemCount) {
+                                // Copy each file to cache
+                                val localUri = copyFileToCache(clipData.getItemAt(i).uri)
+                                if (localUri != null) uris.add(localUri)
+                            }
+                            prompt.confirm(this@MainActivity, uris.toTypedArray())
+                        }
+                        uri != null -> {
+                            // Copy single file to cache
+                            val localUri = copyFileToCache(uri)
+                            if (localUri != null) {
+                                prompt.confirm(this@MainActivity, localUri)
+                            } else {
+                                prompt.dismiss()
+                            }
+                        }
+                        else -> prompt.dismiss()
+                    }
+
+                    withContext(Dispatchers.Main) {
+                        geckoResult.complete(response)
+                    }
+                } catch (e: Exception) {
+                    Log.e("FilePicker", "Error processing file", e)
+                    withContext(Dispatchers.Main) {
+                        geckoResult.complete(prompt.dismiss())
+                    }
+                }
+            }
+        } else {
+            geckoResult?.complete(prompt?.dismiss() )
+        }
+        pendingFilePrompt = null
+        pendingFileResult = null
+    }
+
+    /**
+     * Copies a content:// URI to a local file in the app cache and returns a file:// URI.
+     * This is required because GeckoView often fails to resolve modern Android content URIs.
+     */
+    private fun copyFileToCache(contentUri: Uri): Uri? {
+        return try {
+            val fileName = getFileName(contentUri)
+            val tempFile = File(cacheDir, fileName)
+
+            contentResolver.openInputStream(contentUri)?.use { input ->
+                FileOutputStream(tempFile).use { output ->
+                    input.copyTo(output)
+                }
+            }
+            Uri.fromFile(tempFile)
+        } catch (e: Exception) {
+            Log.e("FilePicker", "Failed to cache file", e)
+            null
+        }
+    }
+
+    private fun getFileName(uri: Uri): String {
+        var name = "upload_${System.currentTimeMillis()}"
+        contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            if (cursor.moveToFirst() && nameIndex != -1) {
+                name = cursor.getString(nameIndex)
+            }
+        }
+        return name
+    }
+
+    fun openFilePicker(
+        prompt: GeckoSession.PromptDelegate.FilePrompt,
+        result: GeckoResult<GeckoSession.PromptDelegate.PromptResponse>
+    ) {
+        pendingFilePrompt = prompt
+        pendingFileResult = result
+
+        // Use GET_CONTENT for widest compatibility with standard web uploads
+        val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = if (!prompt.mimeTypes.isNullOrEmpty()) prompt.mimeTypes!![0] else "*/*"
+
+            if (prompt.mimeTypes != null && prompt.mimeTypes!!.size > 1) {
+                putExtra(Intent.EXTRA_MIME_TYPES, prompt.mimeTypes)
+            }
+            if (prompt.type == GeckoSession.PromptDelegate.FilePrompt.Type.MULTIPLE) {
+                putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+            }
+        }
+        filePickerLauncher.launch(Intent.createChooser(intent, "Select File"))
+    }
+
     @SuppressLint(
         "SetJavaScriptEnabled",
 //        configure orientation manually
@@ -223,6 +336,9 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
+        lifecycleScope.launch(Dispatchers.IO) {
+            cacheDir.listFiles()?.forEach { it.delete() }
+        }
         GeckoRuntime.getDefault(applicationContext)
 
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
@@ -274,7 +390,7 @@ class MainActivity : ComponentActivity() {
     //endregion
 
     //region Pip
-    // currently not working for youtube yet, other platform work fine
+    // currently not working for YouTube yet, other platform work fine
     fun updatePipParams(isDataFullscreen: Boolean) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             isEnteringPip = true
@@ -2524,6 +2640,9 @@ fun BrowserScreen(
                 sessionRefreshTrigger++
             },
             onChoicePromptFun = { choiceState.value = it },
+            onFilePromptFun = { prompt, result ->
+                mainActivity.openFilePicker(prompt, result)
+            }
 
 
         )
