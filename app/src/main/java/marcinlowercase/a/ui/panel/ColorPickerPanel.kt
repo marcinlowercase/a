@@ -1,5 +1,9 @@
 package marcinlowercase.a.ui.panel
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -44,31 +48,52 @@ import kotlin.String
 // marcinlowercase.a.ui.panel.ColorPickerPanel.kt
 import android.graphics.Color as AndroidColor // Alias to avoid confusion with Compose Color
 
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextAlign
+
 @Composable
 fun ColorPickerPanel(
     colorState: MutableState<JsColorState?>,
     browserSettings: MutableState<BrowserSettings>,
     descriptionContent: MutableState<String>,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    isFocusOnTextField: MutableState<Boolean>
 ) {
     val state = colorState.value ?: return
     val prompt = state.prompt
     val result = state.result
 
-    // Convert initial Hex to HSV
+    // --- 1. Core HSV States ---
     val initialHsv = remember(prompt.defaultValue) {
         val hsv = FloatArray(3)
         AndroidColor.colorToHSV(AndroidColor.parseColor(prompt.defaultValue), hsv)
         hsv
     }
-
     var hue by remember { mutableFloatStateOf(initialHsv[0]) }
     var saturation by remember { mutableFloatStateOf(initialHsv[1]) }
     var value by remember { mutableFloatStateOf(initialHsv[2]) }
 
-    // Derive the final color
     val selectedColorInt = remember(hue, saturation, value) {
         AndroidColor.HSVToColor(floatArrayOf(hue, saturation, value))
+    }
+
+    // --- 2. Hex Text State ---
+    // We maintain a separate string state for the TextField so typing isn't interrupted
+    var hexText by remember { mutableStateOf(String.format("#%06X", 0xFFFFFF and selectedColorInt)) }
+
+    // Sync Text with Sliders (whenever sliders move, update the text)
+    LaunchedEffect(selectedColorInt) {
+        val currentHex = String.format("#%06X", 0xFFFFFF and selectedColorInt)
+        // Only update text if it's significantly different (prevents cursor jumping)
+        if (hexText.uppercase() != currentHex.uppercase() && hexText.length >= 7) {
+            hexText = currentHex
+        }
     }
 
     Box(
@@ -76,78 +101,133 @@ fun ColorPickerPanel(
             .fillMaxWidth()
             .padding(horizontal = browserSettings.value.padding.dp)
             .clip(RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(1).dp))
+            .background(Color(selectedColorInt))
+            .padding(browserSettings.value.padding.dp)
+            .clip(RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(2).dp))
+
             .background(Color.Black)
-//            .padding(browserSettings.value.padding.dp)
+
+
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp),
-            modifier = Modifier
-                .padding(browserSettings.value.padding.dp)
-                .clip(RoundedCornerShape(
-                    browserSettings.value.cornerRadiusForLayer(2).dp
-                ))
-//                .background(Color.Magenta)
+            modifier = Modifier.padding(browserSettings.value.padding.dp)
         ) {
-            // 1. BIG PREVIEW BOX
+            // --- 1. BIG PREVIEW BOX / EDITABLE TEXT FIELD ---
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(browserSettings.value.heightForLayer(2).dp)
+                    .height(browserSettings.value.heightForLayer(3).dp)
                     .clip(RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(2).dp))
                     .background(Color(selectedColorInt)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = String.format("#%06X", (0xFFFFFF and selectedColorInt)),
-                    color = if (isColorDark(selectedColorInt)) Color.White else Color.Black,
-                    fontFamily = FontFamily.Monospace
+                val textColor = if (isColorDark(selectedColorInt)) Color.White else Color.Black
+
+                BasicTextField(
+                    value = hexText,
+                    onValueChange = { newText ->
+                        // Only allow valid hex characters and limit length
+                        val filtered = newText.filter { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' || it == '#' }
+                        if (filtered.length <= 7) {
+                            hexText = filtered
+
+                            // Try to parse and update sliders if it's a complete hex code
+                            try {
+                                val parsedColor = AndroidColor.parseColor(if (filtered.startsWith("#")) filtered else "#$filtered")
+                                val hsv = FloatArray(3)
+                                AndroidColor.colorToHSV(parsedColor, hsv)
+                                hue = hsv[0]
+                                saturation = hsv[1]
+                                value = hsv[2]
+                            } catch (_: Exception) {
+                                // Ignore invalid/incomplete hex while typing
+                            }
+                        }
+                    },
+                    textStyle = TextStyle(
+                        color = textColor,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    ),
+                    cursorBrush = SolidColor(textColor),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Characters,
+                        autoCorrectEnabled = false
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onFocusChanged({ focusState ->
+                            isFocusOnTextField.value = focusState.hasFocus
+                            if (focusState.hasFocus) {
+                                hexText = ""
+                            }
+                        })
                 )
             }
 
-            // 2. HUE SLIDER (The Rainbow)
-            val rainbowBrush = remember {
-                Brush.horizontalGradient(
-                    listOf(Color.Red, Color.Yellow, Color.Green, Color.Cyan, Color.Blue, Color.Magenta, Color.Red)
-                )
-            }
-            Box (
-                contentAlignment = Alignment.Center
+
+            AnimatedVisibility(
+                visible = !isFocusOnTextField.value,
+
+                enter = expandVertically(tween(browserSettings.value.animationSpeedForLayer(1))),
+                exit = shrinkVertically(tween(browserSettings.value.animationSpeedForLayer(1)))
+
             ) {
-                Box(modifier = Modifier.fillMaxWidth().height(16.dp).clip(CircleShape).background(rainbowBrush))
-                Slider(
-                    value = hue,
-                    onValueChange = { hue = it },
-                    valueRange = 0f..360f,
-                    colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = Color.Transparent, inactiveTrackColor = Color.Transparent)
-                )
+
+                Column() {
+                    val rainbowBrush = remember {
+                        Brush.horizontalGradient(
+                            listOf(Color.Red, Color.Yellow, Color.Green, Color.Cyan, Color.Blue, Color.Magenta, Color.Red)
+                        )
+                    }
+                    Box(contentAlignment = Alignment.Center) {
+                        Box(modifier = Modifier
+                            .fillMaxWidth()
+                            .height(16.dp)
+                            .clip(CircleShape)
+                            .background(rainbowBrush))
+                        Slider(
+                            value = hue,
+                            onValueChange = { hue = it },
+                            valueRange = 0f..360f,
+                            colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = Color.Transparent, inactiveTrackColor = Color.Transparent)
+                        )
+                    }
+
+                    // --- 3. SATURATION SLIDER ---
+                    Slider(
+                        value = saturation,
+                        onValueChange = { saturation = it },
+                        valueRange = 0f..1f,
+                        colors = SliderDefaults.colors(
+                            thumbColor = Color.White,
+                            activeTrackColor = Color(selectedColorInt).copy(alpha = 1f)
+                        )
+                    )
+
+                    // --- 4. BRIGHTNESS SLIDER ---
+                    Slider(
+                        value = value,
+                        onValueChange = { value = it },
+                        valueRange = 0f..1f,
+                        colors = SliderDefaults.colors(
+                            thumbColor = Color.White,
+                            activeTrackColor = Color.White.copy(alpha = value)
+                        )
+                    )
+                }
             }
 
-            // 3. SATURATION SLIDER
-            Column {
-//                Text("saturation", color = Color.Gray, fontSize = 12.sp)
-                Slider(
-                    value = saturation,
-                    onValueChange = { saturation = it },
-                    valueRange = 0f..1f,
-                    colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = Color(selectedColorInt).copy(alpha = saturation))
-                )
-            }
 
-            // 4. BRIGHTNESS SLIDER
-            Column {
-//                Text("brightness", color = Color.Gray, fontSize = 12.sp)
-                Slider(
-                    value = value,
-                    onValueChange = { value = it },
-                    valueRange = 0f..1f,
-                    colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = Color.White.copy(alpha = value))
-                )
-            }
 
-            // 5. ACTION BUTTONS
+            // --- 5. ACTION BUTTONS ---
             Row(horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)) {
                 CustomIconButton(
-                    layer = 2,
+                    layer = 3,
                     browserSettings = browserSettings,
                     modifier = Modifier.weight(1f),
                     onTap = {
@@ -156,15 +236,16 @@ fun ColorPickerPanel(
                     },
                     buttonDescription = "cancel",
                     descriptionContent = descriptionContent,
-                    painterId = R.drawable.ic_tab_close
+                    painterId = R.drawable.ic_close
                 )
                 CustomIconButton(
-                    layer = 2,
+                    layer = 3,
                     browserSettings = browserSettings,
                     modifier = Modifier.weight(1f),
                     onTap = {
-                        val hexColor = String.format("#%06x", 0xFFFFFF and selectedColorInt)
-                        result.complete(prompt.confirm(hexColor))
+                        // Return lowercase hex to Gecko
+                        val finalHex = String.format("#%06x", 0xFFFFFF and selectedColorInt)
+                        result.complete(prompt.confirm(finalHex))
                         onDismiss()
                     },
                     buttonDescription = "confirm",

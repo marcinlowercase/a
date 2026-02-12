@@ -656,7 +656,7 @@ fun BrowserScreen(
     }
 
     var isLoading by remember { mutableStateOf(false) }
-    var isFocusOnUrlTextField by remember { mutableStateOf(false) }
+    var isFocusOnTextField = remember { mutableStateOf(false) }
     val isFocusOnFindTextField = remember { mutableStateOf(false) }
     var isApplyImePaddingToWebView by remember { mutableStateOf(true) }
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -771,7 +771,7 @@ fun BrowserScreen(
             || isPipMode
         ) {
             0.dp
-        } else if (isKeyboardVisible && !isFocusOnUrlTextField ) {
+        } else if (isKeyboardVisible && !isFocusOnTextField.value ) {
             browserSettings.value.padding.dp
         } else webViewBottomPaddingNormalScreen
 
@@ -1317,7 +1317,7 @@ fun BrowserScreen(
                             inspectingTabId = tabs[nextTabIndex].id
                             activeTabIndex.intValue = nextTabIndex
                             val nextUrl = tabs[nextTabIndex].currentURL
-                            if (!isFocusOnUrlTextField) {
+                            if (!isFocusOnTextField.value) {
                                 textFieldState.setTextAndPlaceCursorAtEnd(nextUrl.toDomain())
                             }
 
@@ -1605,7 +1605,7 @@ fun BrowserScreen(
 
 
 //        textFieldValue = TextFieldValue(url, TextRange(url.length))
-        if (!isFocusOnUrlTextField) textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
+        if (!isFocusOnTextField.value) textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
         saveTrigger++
 
 
@@ -1654,7 +1654,7 @@ fun BrowserScreen(
                     tabs[nextTabIndex].state = TabState.ACTIVE
 
                     val urlToLoad = tabs[nextTabIndex].currentURL
-                    if (!isFocusOnUrlTextField) textFieldState.setTextAndPlaceCursorAtEnd(urlToLoad.toDomain())
+                    if (!isFocusOnTextField.value) textFieldState.setTextAndPlaceCursorAtEnd(urlToLoad.toDomain())
                     saveTrigger++
                 } else {
 
@@ -1944,8 +1944,8 @@ fun BrowserScreen(
         }
 
     }
-    LaunchedEffect(isFocusOnUrlTextField, isPromptPanelVisible, isFocusOnFindTextField.value) {
-        if (!isFocusOnUrlTextField && !isPromptPanelVisible && !isFocusOnFindTextField.value) {
+    LaunchedEffect(isFocusOnTextField.value, isPromptPanelVisible, isFocusOnFindTextField.value) {
+        if (!isFocusOnTextField.value && !isPromptPanelVisible && !isFocusOnFindTextField.value) {
             delay(300)
             isApplyImePaddingToWebView = true
         } else {
@@ -1993,10 +1993,10 @@ fun BrowserScreen(
         if (bottomPanelPagerState.currentPage == BottomPanelMode.SEARCH.ordinal) {
             isUrlOverlayBoxVisible = true
             if (isAppsPanelVisible.value) isAppsPanelVisible.value = false
-            if (tabsPanelLock && !isFocusOnUrlTextField) isTabsPanelVisible = true
+            if (tabsPanelLock && !isFocusOnTextField.value) isTabsPanelVisible = true
             if (inspectingAppId.longValue != 0L) inspectingAppId.longValue = 0L
         } else {
-            isFocusOnUrlTextField = false
+            isFocusOnTextField.value = false
             isDownloadPanelVisible.value = false
             isNavPanelVisible = false
             isTabsPanelVisible = false
@@ -2060,7 +2060,7 @@ fun BrowserScreen(
         }
     }
 
-    LaunchedEffect(textFieldState.text, isFocusOnUrlTextField) {
+    LaunchedEffect(textFieldState.text, isFocusOnTextField.value) {
 
         if (!browserSettings.value.showSuggestions || (textFieldState.text as String) == currentInspectingTab?.currentURL || textFieldState.text.isBlank() || isPinningApp.value) {
             suggestions.clear()
@@ -2069,7 +2069,7 @@ fun BrowserScreen(
 
         val query = (textFieldState.text as String).trim()
 
-        if (query.isNotBlank() && isFocusOnUrlTextField) {
+        if (query.isNotBlank() && isFocusOnTextField.value) {
 //            delay(50L) // Debounce
             if (query != textFieldState.text.trim()) return@LaunchedEffect
 
@@ -2173,7 +2173,7 @@ fun BrowserScreen(
 
             // C. Update the UI state
             suggestions.clear()
-            if (textFieldState.text.isNotEmpty() && isFocusOnUrlTextField)
+            if (textFieldState.text.isNotEmpty() && isFocusOnTextField.value)
                 suggestions.addAll(finalSuggestions.take(10)) // Limit to a reasonable number
         } else {
             suggestions.clear()
@@ -2379,7 +2379,7 @@ fun BrowserScreen(
                     && url != "about:blank"
                     && !url.startsWith("javascript:")
                 ) {
-                    if (!isFocusOnUrlTextField) {
+                    if (!isFocusOnTextField.value) {
                         textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
                     }
 
@@ -2399,7 +2399,7 @@ fun BrowserScreen(
                 // fe:  change  tab A -> B, the textbox changed to A.url
 //                if (session == activeSession) {
                 if (eventTabId == activeTab.value.id && url.isNotBlank() && url != "about:blank") {
-                    if (!isFocusOnUrlTextField) {
+                    if (!isFocusOnTextField.value) {
                         textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
                     }
 
@@ -2480,7 +2480,7 @@ fun BrowserScreen(
                         activeTab.value = activeTab.value.copy(errorState = null)
                     }
 
-                    if (!isFocusOnUrlTextField) textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
+                    if (!isFocusOnTextField.value) textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
 
                 }
 
@@ -2807,7 +2807,7 @@ fun BrowserScreen(
 //
 //                },
 //                onDoUpdateVisitedHistoryFun = { view, url, _ ->
-//                    if (!isFocusOnUrlTextField) view.url?.let {
+//                    if (!isFocusOnTextField.value) view.url?.let {
 //                        textFieldState.setTextAndPlaceCursorAtEnd(it.toDomain())
 //                    }
 //                    if (url != null && activeTab.currentURL != url) {
@@ -3478,7 +3478,8 @@ fun BrowserScreen(
                             colorState = colorState,
                             browserSettings = browserSettings,
                             onDismiss = { colorState.value = null },
-                            descriptionContent= descriptionContent
+                            descriptionContent= descriptionContent,
+                            isFocusOnTextField = isFocusOnTextField
                         )
 
                     }
@@ -3666,7 +3667,7 @@ fun BrowserScreen(
                         contextMenuData = contextMenuData,
                         displayContextMenuData = displayContextMenuData,
                         onDismissContextMenu = { contextMenuData = null },
-                        isFocusOnUrlTextField = isFocusOnUrlTextField,
+                        isFocusOnTextField = isFocusOnTextField,
                         textFieldState = textFieldState,
                         onCloseAllTabs = {
                             confirmationPopup(
@@ -3793,7 +3794,7 @@ fun BrowserScreen(
                                 activeTabIndex.intValue = newIndex
                                 val urlToLoad = tabs[newIndex].currentURL
 
-                                if (!isFocusOnUrlTextField) textFieldState.setTextAndPlaceCursorAtEnd(
+                                if (!isFocusOnTextField.value) textFieldState.setTextAndPlaceCursorAtEnd(
                                     urlToLoad.toDomain()
                                 )
                                 saveTrigger++
@@ -3833,7 +3834,7 @@ fun BrowserScreen(
                         onNewUrl = { newUrl ->
                             webViewLoad(activeSession, newUrl, browserSettings.value)
                         },
-                        setIsFocusOnTextField = { isFocusOnUrlTextField = it },
+                        setIsFocusOnTextField = { isFocusOnTextField.value = it },
 //                        handleHistoryNavigation = handleHistoryNavigation,
                         isFindInPageVisible = isFindInPageVisible,
 

@@ -153,7 +153,7 @@ fun BottomPanel(
     contextMenuData: ContextMenuData?,
     displayContextMenuData: ContextMenuData?,
     onDismissContextMenu: () -> Unit,
-    isFocusOnUrlTextField: Boolean,
+    isFocusOnTextField: MutableState<Boolean>,
     textFieldState: TextFieldState,
     onCloseAllTabs: () -> Unit,
     suggestions: List<Suggestion>, // Changed from List<String>
@@ -286,8 +286,8 @@ fun BottomPanel(
                         state = draggableState,
                         orientation = Orientation.Vertical,
                         flingBehavior = flingBehavior,
-                        //                    enabled = !isFocusOnUrlTextField && contextMenuData == null && !isPromptPanelVisible  && (!isPermissionPanelVisible || (isPermissionPanelVisible &&  isUrlBarVisible) )
-                        enabled = isUrlBarVisible && ((!isFocusOnUrlTextField && contextMenuData == null && !isPromptPanelVisible && (!isPermissionPanelVisible)) || isUrlBarVisible)
+                        //                    enabled = !isFocusOnTextField && contextMenuData == null && !isPromptPanelVisible  && (!isPermissionPanelVisible || (isPermissionPanelVisible &&  isUrlBarVisible) )
+                        enabled = isUrlBarVisible && ((!isFocusOnTextField.value && contextMenuData == null && !isPromptPanelVisible && (!isPermissionPanelVisible)) || isUrlBarVisible)
                     )
 
             ) {
@@ -910,7 +910,7 @@ fun BottomPanel(
                                         state = textFieldState,
                                         textStyle = LocalTextStyle.current.copy(
                                             //                            fontFamily = FontFamily.Monospace,
-                                            textAlign = if (isFocusOnUrlTextField) TextAlign.Start else TextAlign.Center
+                                            textAlign = if (isFocusOnTextField.value) TextAlign.Start else TextAlign.Center
                                         ),
                                         //                        state = rememberTextFieldState("Hello"),
                                         lineLimits = TextFieldLineLimits.SingleLine,
@@ -1015,7 +1015,7 @@ fun BottomPanel(
                                         ),
                                     )
 
-                                    if (isUrlOverlayBoxVisible && !isFocusOnUrlTextField) Box(
+                                    if (isUrlOverlayBoxVisible && !isFocusOnTextField.value) Box(
                                         modifier = Modifier
                                             .background(
                                                 Color.Transparent, shape = RoundedCornerShape(
@@ -1129,7 +1129,7 @@ fun BottomPanel(
                                                                 horizontalDragAccumulator += change.position.x - change.previousPosition.x
                                                                 verticalDragAccumulator += change.position.y - change.previousPosition.y
 
-                                                                if (isFocusOnUrlTextField) change.consume()
+                                                                if (isFocusOnTextField.value) change.consume()
                                                                 if (abs(horizontalDragAccumulator) > abs(
                                                                         verticalDragAccumulator
                                                                     )
@@ -1240,7 +1240,7 @@ fun BottomPanel(
                 TextEditPanel(
 //                    currentRotation =  currentRotation,
                     isPinningApp = isPinningApp,
-                    isVisible = isPinningApp.value || (isFocusOnUrlTextField && textFieldState.text.isBlank()),
+                    isVisible = isPinningApp.value || (isFocusOnTextField.value && textFieldState.text.isBlank()),
                     browserSettings = browserSettings,
                     onCopyClick = {
                         val clipData = ClipData.newPlainText("url", activeTab.value.currentURL)
