@@ -14,10 +14,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -25,9 +28,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import marcinlowercase.a.R
 import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.JsColorState
@@ -40,7 +46,7 @@ import android.graphics.Color as AndroidColor // Alias to avoid confusion with C
 
 @Composable
 fun ColorPickerPanel(
-    colorState: MutableState<JsColorState?>, // Use MutableState for consistency with your other panels
+    colorState: MutableState<JsColorState?>,
     browserSettings: MutableState<BrowserSettings>,
     descriptionContent: MutableState<String>,
     onDismiss: () -> Unit
@@ -49,24 +55,21 @@ fun ColorPickerPanel(
     val prompt = state.prompt
     val result = state.result
 
-    // 1. Parse the string defaultValue to an Int
-    val initialColorInt = remember(prompt.defaultValue) {
-        try {
-            // prompt.defaultValue is "#RRGGBB"
-            android.graphics.Color.parseColor(prompt.defaultValue)
-        } catch (e: Exception) {
-            android.graphics.Color.BLACK
-        }
+    // Convert initial Hex to HSV
+    val initialHsv = remember(prompt.defaultValue) {
+        val hsv = FloatArray(3)
+        AndroidColor.colorToHSV(AndroidColor.parseColor(prompt.defaultValue), hsv)
+        hsv
     }
 
-    var selectedColor by remember { mutableIntStateOf(initialColorInt) }
+    var hue by remember { mutableFloatStateOf(initialHsv[0]) }
+    var saturation by remember { mutableFloatStateOf(initialHsv[1]) }
+    var value by remember { mutableFloatStateOf(initialHsv[2]) }
 
-    val presetColors = listOf(
-        0xFF000000.toInt(), 0xFFFFFFFF.toInt(), 0xFFF44336.toInt(), 0xFFE91E63.toInt(),
-        0xFF9C27B0.toInt(), 0xFF673AB7.toInt(), 0xFF3F51B5.toInt(), 0xFF2196F3.toInt(),
-        0xFF03A9F4.toInt(), 0xFF00BCD4.toInt(), 0xFF009688.toInt(), 0xFF4CAF50.toInt(),
-        0xFF8BC34A.toInt(), 0xFFCDDC39.toInt(), 0xFFFFEB3B.toInt(), 0xFFFFC107.toInt()
-    )
+    // Derive the final color
+    val selectedColorInt = remember(hue, saturation, value) {
+        AndroidColor.HSVToColor(floatArrayOf(hue, saturation, value))
+    }
 
     Box(
         modifier = Modifier
@@ -74,50 +77,77 @@ fun ColorPickerPanel(
             .padding(horizontal = browserSettings.value.padding.dp)
             .clip(RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(1).dp))
             .background(Color.Black)
-            .padding(browserSettings.value.padding.dp)
+//            .padding(browserSettings.value.padding.dp)
     ) {
         Column(
-            modifier = Modifier.clip(RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(2).dp)),
-            verticalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
+            verticalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp),
+            modifier = Modifier
+                .padding(browserSettings.value.padding.dp)
+                .clip(RoundedCornerShape(
+                    browserSettings.value.cornerRadiusForLayer(2).dp
+                ))
+//                .background(Color.Magenta)
         ) {
-            // Preview
+            // 1. BIG PREVIEW BOX
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(browserSettings.value.heightForLayer(2).dp)
                     .clip(RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(2).dp))
-                    .background(Color(selectedColor)),
+                    .background(Color(selectedColorInt)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = String.format("#%06X", (0xFFFFFF and selectedColor)),
-                    color = if (isColorDark(selectedColor)) Color.White else Color.Black,
-                    fontWeight = FontWeight.Bold
+                    text = String.format("#%06X", (0xFFFFFF and selectedColorInt)),
+                    color = if (isColorDark(selectedColorInt)) Color.White else Color.Black,
+                    fontFamily = FontFamily.Monospace
                 )
             }
 
-            // Grid using .size and index to avoid import issues
-            androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
-                columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(4),
-                modifier = Modifier.heightIn(max = browserSettings.value.maxContainerSizeForLayer(2).dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+            // 2. HUE SLIDER (The Rainbow)
+            val rainbowBrush = remember {
+                Brush.horizontalGradient(
+                    listOf(Color.Red, Color.Yellow, Color.Green, Color.Cyan, Color.Blue, Color.Magenta, Color.Red)
+                )
+            }
+            Box (
+                contentAlignment = Alignment.Center
             ) {
-                items(presetColors.size) { index ->
-                    val colorInt = presetColors[index]
-                    Box(
-                        modifier = Modifier
-                            .aspectRatio(1f)
-                            .clip(CircleShape)
-                            .background(Color(colorInt))
-                            .clickable { selectedColor = colorInt }
-                    )
-                }
+                Box(modifier = Modifier.fillMaxWidth().height(16.dp).clip(CircleShape).background(rainbowBrush))
+                Slider(
+                    value = hue,
+                    onValueChange = { hue = it },
+                    valueRange = 0f..360f,
+                    colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = Color.Transparent, inactiveTrackColor = Color.Transparent)
+                )
             }
 
+            // 3. SATURATION SLIDER
+            Column {
+//                Text("saturation", color = Color.Gray, fontSize = 12.sp)
+                Slider(
+                    value = saturation,
+                    onValueChange = { saturation = it },
+                    valueRange = 0f..1f,
+                    colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = Color(selectedColorInt).copy(alpha = saturation))
+                )
+            }
+
+            // 4. BRIGHTNESS SLIDER
+            Column {
+//                Text("brightness", color = Color.Gray, fontSize = 12.sp)
+                Slider(
+                    value = value,
+                    onValueChange = { value = it },
+                    valueRange = 0f..1f,
+                    colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = Color.White.copy(alpha = value))
+                )
+            }
+
+            // 5. ACTION BUTTONS
             Row(horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)) {
                 CustomIconButton(
-                    layer = 3,
+                    layer = 2,
                     browserSettings = browserSettings,
                     modifier = Modifier.weight(1f),
                     onTap = {
@@ -129,14 +159,11 @@ fun ColorPickerPanel(
                     painterId = R.drawable.ic_tab_close
                 )
                 CustomIconButton(
-                    layer = 3,
+                    layer = 2,
                     browserSettings = browserSettings,
                     modifier = Modifier.weight(1f),
                     onTap = {
-                        // Convert the Int (e.g., -16777216) to a Hex String (e.g., "#000000")
-                        // We mask with 0xFFFFFF to remove the Alpha channel, as HTML colors are usually 6 chars.
-                        val hexColor = String.format("#%06X", 0xFFFFFF and selectedColor)
-
+                        val hexColor = String.format("#%06x", 0xFFFFFF and selectedColorInt)
                         result.complete(prompt.confirm(hexColor))
                         onDismiss()
                     },

@@ -3466,9 +3466,13 @@ fun BrowserScreen(
 
                     AnimatedVisibility(
                         visible = colorState.value != null,
-                        enter = slideInVertically { it },
-                        exit = slideOutVertically { it },
-                        modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = floatingPanelBottomPadding)
+                        enter = slideInVertically { (it * 1.5).toInt() },
+                        exit = slideOutVertically { (it * 1.5).toInt() },
+                        modifier = Modifier
+                            .windowInsetsPadding(WindowInsets.ime)
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = browserSettings.value.padding.dp)
+                            .padding(bottom = floatingPanelBottomPadding)
                     ) {
                         ColorPickerPanel(
                             colorState = colorState,
