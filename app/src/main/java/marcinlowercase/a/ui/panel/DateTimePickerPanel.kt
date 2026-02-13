@@ -137,7 +137,7 @@ fun DateTimePickerPanel(
                 todayContentColor = Color.White,
                 dayContentColor = Color.White,
                 currentYearContentColor = Color.White,
-                weekdayContentColor = Color.Gray
+                weekdayContentColor = Color.White
             )
         ) {
             DatePicker(state = datePickerState)
@@ -163,19 +163,19 @@ fun DateTimePickerPanel(
                     TimePicker(
                         state = timePickerState,
                         colors = TimePickerDefaults.colors(
-                            clockDialColor = Color.DarkGray,
+                            clockDialColor = Color.Black,
                             clockDialSelectedContentColor = Color.Black,
                             clockDialUnselectedContentColor = Color.White,
                             selectorColor = Color.White,
                             periodSelectorBorderColor = Color.White,
-                            periodSelectorSelectedContainerColor = Color.White.copy(0.3f),
+                            periodSelectorSelectedContainerColor = Color.Black,
                             periodSelectorUnselectedContainerColor = Color.Transparent,
                             periodSelectorSelectedContentColor = Color.White,
-                            periodSelectorUnselectedContentColor = Color.Gray,
+                            periodSelectorUnselectedContentColor = Color.White,
                             timeSelectorSelectedContainerColor = Color.White.copy(0.3f),
                             timeSelectorUnselectedContainerColor = Color.Transparent,
                             timeSelectorSelectedContentColor = Color.White,
-                            timeSelectorUnselectedContentColor = Color.Gray
+                            timeSelectorUnselectedContentColor = Color.White
                         )
                     )
                 }
