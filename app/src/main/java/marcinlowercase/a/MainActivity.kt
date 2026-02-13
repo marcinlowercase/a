@@ -1071,12 +1071,21 @@ fun BrowserScreen(
             colorDisplayState.value = colorState.value
     }
 
+    val dateTimeState = remember { mutableStateOf<JsDateTimeState?>(null) }
+    val dateTimeDisplayState = remember { mutableStateOf<JsDateTimeState?>(null) }
+
+    LaunchedEffect(dateTimeState.value) {
+        if (dateTimeState.value != null)
+            dateTimeDisplayState.value = dateTimeState.value
+    }
+
     LaunchedEffect(choiceState.value,  colorState.value) {
         isOtherPanelVisible.value = choiceState.value != null
                 || colorState.value != null
+                || dateTimeState.value != null
+
     }
 
-    val dateTimeState = remember { mutableStateOf<JsDateTimeState?>(null) }
 
     LaunchedEffect(isOtherPanelVisible.value) {
         if (isOtherPanelVisible.value) isBottomPanelVisible = false
@@ -3491,7 +3500,7 @@ fun BrowserScreen(
 
                     ) {
                         DateTimePickerPanel(
-                            dateTimeState = dateTimeState,
+                            dateTimeState = dateTimeDisplayState,
                             onDismiss = { dateTimeState.value = null },
                             browserSettings = browserSettings,
                             descriptionContent = descriptionContent,

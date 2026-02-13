@@ -32,7 +32,7 @@ import org.mozilla.geckoview.GeckoSession.PromptDelegate.DateTimePrompt
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
-import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.temporal.IsoFields
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -47,64 +47,61 @@ fun DateTimePickerPanel(
     val prompt = state.prompt
     val result = state.result
 
-    // 0 = Date, 1 = Time
-    var step by remember { mutableIntStateOf(0) }
+    // --- 1. INITIALIZATION (Calculate starting values synchronously) ---
 
+    val initialValues = remember(prompt) {
+        val defaultVal = prompt.defaultValue
+        var date = LocalDate.now()
+        var time = LocalTime.now()
 
-    // Selections
-    var selectedDate by remember { mutableStateOf<LocalDate?>(null) }
-    var selectedTime by remember { mutableStateOf<LocalTime?>(null) }
+        if (!defaultVal.isNullOrBlank()) {
+            try {
+                when (prompt.type) {
+                    DateTimePrompt.Type.TIME -> {
+                        time = LocalTime.parse(defaultVal)
+                    }
+                    DateTimePrompt.Type.DATETIME_LOCAL -> {
+                        val parts = defaultVal.split("T")
+                        if (parts.size >= 1) date = LocalDate.parse(parts[0])
+                        if (parts.size >= 2) time = LocalTime.parse(parts[1])
+                    }
+                    else -> {
+                        // Date, Month, Week
+                        date = LocalDate.parse(defaultVal)
+                    }
+                }
+            } catch (e: Exception) {
+                // If parsing fails, fallbacks are already set to .now()
+            }
+        }
+        Pair(date, time)
+    }
+
+    var step by remember(prompt) {
+        mutableIntStateOf(if (prompt.type == DateTimePrompt.Type.TIME) 1 else 0)
+    }
+
+    var selectedDate by remember(initialValues) { mutableStateOf(initialValues.first) }
+    var selectedTime by remember(initialValues) { mutableStateOf(initialValues.second) }
 
     // --- Logic Helpers ---
     fun confirm() {
         val finalString = when (prompt.type) {
-            DateTimePrompt.Type.DATE -> selectedDate?.toString() ?: ""
-            DateTimePrompt.Type.MONTH -> selectedDate?.let { "${it.year}-${it.monthValue.toString().padStart(2, '0')}" } ?: ""
-            DateTimePrompt.Type.WEEK -> selectedDate?.let {
-                val week = it.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR)
-                val year = it.get(IsoFields.WEEK_BASED_YEAR)
+            DateTimePrompt.Type.DATE -> selectedDate.toString()
+            DateTimePrompt.Type.MONTH -> "${selectedDate.year}-${selectedDate.monthValue.toString().padStart(2, '0')}"
+            DateTimePrompt.Type.WEEK -> {
+                val week = selectedDate.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR)
+                val year = selectedDate.get(IsoFields.WEEK_BASED_YEAR)
                 "${year}-W${week.toString().padStart(2, '0')}"
-            } ?: ""
-            DateTimePrompt.Type.TIME -> selectedTime?.toString() ?: ""
-            DateTimePrompt.Type.DATETIME_LOCAL -> {
-                if (selectedDate != null && selectedTime != null) "${selectedDate}T${selectedTime}" else ""
             }
+            DateTimePrompt.Type.TIME -> selectedTime.toString()
+            DateTimePrompt.Type.DATETIME_LOCAL -> "${selectedDate}T${selectedTime}"
             else -> ""
         }
         result.complete(prompt.confirm(finalString))
         onDismiss()
     }
 
-// --- INITIALIZATION ---
-    LaunchedEffect(prompt) {
-        if (prompt.type == DateTimePrompt.Type.TIME) {
-            step = 1
-        } else {
-            step = 0
-        }
-
-        // 1. Capture the value locally to avoid "Smart cast impossible" error
-        val defaultVal = prompt.defaultValue
-
-        // 2. Use the local variable 'defaultVal' instead of 'prompt.defaultValue'
-        if (!defaultVal.isNullOrBlank()) {
-            try {
-                if (prompt.type == DateTimePrompt.Type.TIME) {
-                    selectedTime = LocalTime.parse(defaultVal)
-                } else if (prompt.type == DateTimePrompt.Type.DATETIME_LOCAL) {
-                    // Split "2023-10-25T14:30"
-                    val parts = defaultVal.split("T")
-                    if (parts.size == 2) {
-                        selectedDate = LocalDate.parse(parts[0])
-                        selectedTime = LocalTime.parse(parts[1])
-                    }
-                } else {
-                    // Date, Month, Week
-                    selectedDate = LocalDate.parse(defaultVal)
-                }
-            } catch (_: Exception) { }
-        }
-    }
     // --- UI CONTAINER ---
     Box(
         modifier = Modifier
@@ -119,14 +116,13 @@ fun DateTimePickerPanel(
             verticalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
         ) {
 
-            // Use AnimatedContent to slide between Calendar and Clock
             AnimatedContent(
                 targetState = step,
                 transitionSpec = {
                     if (targetState > initialState) {
-                        (slideInHorizontally { width -> width } + fadeIn()).togetherWith(slideOutHorizontally { width -> -width } + fadeOut())
+                        (slideInHorizontally { it } + fadeIn()).togetherWith(slideOutHorizontally { -it } + fadeOut())
                     } else {
-                        (slideInHorizontally { width -> -width } + fadeIn()).togetherWith(slideOutHorizontally { width -> width } + fadeOut())
+                        (slideInHorizontally { -it } + fadeIn()).togetherWith(slideOutHorizontally { it } + fadeOut())
                     }
                 },
                 label = "DateToTimeAnim"
@@ -134,7 +130,6 @@ fun DateTimePickerPanel(
 
                 Column(
                     modifier = Modifier
-                        // Make it scrollable because DatePicker is tall
                         .fillMaxWidth()
                         .verticalScroll(rememberScrollState()),
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -142,14 +137,15 @@ fun DateTimePickerPanel(
                 ) {
                     if (currentStep == 0) {
                         // --- DATE PICKER ---
+                        // Use ZoneOffset.UTC to ensure millisecond selection matches the date object exactly
                         val datePickerState = rememberDatePickerState(
-                            initialSelectedDateMillis = selectedDate?.atStartOfDay(ZoneId.systemDefault())?.toInstant()?.toEpochMilli()
+                            initialSelectedDateMillis = selectedDate.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
                         )
 
-                        // Sync state change
+                        // Sync state change back to selectedDate
                         LaunchedEffect(datePickerState.selectedDateMillis) {
                             datePickerState.selectedDateMillis?.let {
-                                selectedDate = Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate()
+                                selectedDate = Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate()
                             }
                         }
 
@@ -163,30 +159,33 @@ fun DateTimePickerPanel(
                                 subheadContentColor = Color.White,
                                 yearContentColor = Color.White,
                                 currentYearContentColor = Color.White,
-                                selectedYearContentColor = Color.White,
-                                selectedYearContainerColor = Color.DarkGray,
+                                selectedYearContentColor = Color.Black,
+                                selectedYearContainerColor = Color.White,
                                 dayContentColor = Color.White,
                                 selectedDayContainerColor = Color.White,
                                 selectedDayContentColor = Color.Black,
                                 todayContentColor = Color.White,
-                                todayDateBorderColor = Color.White
+                                todayDateBorderColor = Color.White,
+                                dividerColor = Color.Transparent
                             ),
                             showModeToggle = false,
-                            title = null,
+                            title = null, // Removes "Select date"
                             modifier = Modifier
-                                .padding(top= browserSettings.value.padding.dp)
+                                .padding(top = browserSettings.value.padding.dp)
                                 .padding(horizontal = browserSettings.value.padding.dp)
                         )
                     } else {
                         // --- TIME PICKER ---
                         val timePickerState = rememberTimePickerState(
-                            initialHour = selectedTime?.hour ?: 12,
-                            initialMinute = selectedTime?.minute ?: 0,
+                            initialHour = selectedTime.hour,
+                            initialMinute = selectedTime.minute,
                             is24Hour = true
                         )
 
-                        // Sync state
-                        selectedTime = LocalTime.of(timePickerState.hour, timePickerState.minute)
+                        // Sync state continuously
+                        LaunchedEffect(timePickerState.hour, timePickerState.minute) {
+                            selectedTime = LocalTime.of(timePickerState.hour, timePickerState.minute)
+                        }
 
                         TimePicker(
                             state = timePickerState,
@@ -203,7 +202,8 @@ fun DateTimePickerPanel(
                                 timeSelectorSelectedContentColor = Color.Black,
                                 timeSelectorUnselectedContainerColor = Color.DarkGray,
                                 timeSelectorUnselectedContentColor = Color.White
-                            )
+                            ),
+                            modifier = Modifier.padding(vertical = browserSettings.value.padding.dp)
                         )
                     }
                 }
@@ -211,14 +211,13 @@ fun DateTimePickerPanel(
 
             // --- ACTION BUTTONS ---
             Row(horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)) {
-                // Left Button (Back or Cancel)
                 CustomIconButton(
                     layer = 2,
                     browserSettings = browserSettings,
                     modifier = Modifier.weight(1f),
                     onTap = {
                         if (step == 1 && prompt.type == DateTimePrompt.Type.DATETIME_LOCAL) {
-                            step = 0 // Go back to Date
+                            step = 0
                         } else {
                             result.complete(prompt.dismiss())
                             onDismiss()
@@ -230,16 +229,15 @@ fun DateTimePickerPanel(
                     isWhite = (step == 1 && prompt.type == DateTimePrompt.Type.DATETIME_LOCAL)
                 )
 
-                // Right Button (Next or Confirm)
                 CustomIconButton(
                     layer = 2,
                     browserSettings = browserSettings,
                     modifier = Modifier.weight(1f),
                     onTap = {
                         if (step == 0 && prompt.type == DateTimePrompt.Type.DATETIME_LOCAL) {
-                            step = 1 // Go to Time
+                            step = 1
                         } else {
-                            confirm() // Finish
+                            confirm()
                         }
                     },
                     buttonDescription = if (step == 0 && prompt.type == DateTimePrompt.Type.DATETIME_LOCAL) "next" else "confirm",
