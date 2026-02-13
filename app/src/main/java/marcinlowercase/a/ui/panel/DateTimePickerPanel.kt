@@ -50,6 +50,7 @@ fun DateTimePickerPanel(
     // 0 = Date, 1 = Time
     var step by remember { mutableIntStateOf(0) }
 
+
     // Selections
     var selectedDate by remember { mutableStateOf<LocalDate?>(null) }
     var selectedTime by remember { mutableStateOf<LocalTime?>(null) }
@@ -170,7 +171,11 @@ fun DateTimePickerPanel(
                                 todayContentColor = Color.White,
                                 todayDateBorderColor = Color.White
                             ),
-                            showModeToggle = false // Remove the pencil icon to keep it clean
+                            showModeToggle = false,
+                            title = null,
+                            modifier = Modifier
+                                .padding(top= browserSettings.value.padding.dp)
+                                .padding(horizontal = browserSettings.value.padding.dp)
                         )
                     } else {
                         // --- TIME PICKER ---
