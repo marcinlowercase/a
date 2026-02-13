@@ -75,6 +75,7 @@ class GeckoManager(private val context: Context) {
     private val sessionPool = mutableMapOf<Long, GeckoSession>()
     private val killedSessionIds = mutableSetOf<Long>()
 
+    private var faviconExtensionFuture: GeckoResult<WebExtension>? = null
 
     init {
         runtime.settings.consoleOutputEnabled = true
@@ -109,9 +110,12 @@ class GeckoManager(private val context: Context) {
     private fun installFaviconFetcher() {
         val uri = "resource://android/assets/extensions/favicon_fetcher/"
 
-        runtime.webExtensionController
+        faviconExtensionFuture = runtime.webExtensionController
             .ensureBuiltIn(uri, FAVICON_ID)
-            .accept(
+
+//        runtime.webExtensionController
+//            .ensureBuiltIn(uri, FAVICON_ID)
+            faviconExtensionFuture?.accept(
                 { ext ->
                     Log.i("GeckoExt", "Favicon Fetcher Installed")
                     // SAVE THE REFERENCE
@@ -461,36 +465,54 @@ class GeckoManager(private val context: Context) {
             }
         }
 
-        // strengthen the extension logic (not too good)
+//        // strengthen the extension logic (not too good)
+//        @SuppressLint("WrongThread")
+//        fun ensureDelegateAttached() {
+//            if (faviconExtension != null) {
+//                // Best Case: Extension already loaded
+//                session.webExtensionController.setMessageDelegate(
+//                    faviconExtension!!,
+//                    messageDelegate,
+//                    "browser"
+//                )
+//            } else {
+//                // Race Condition: Extension installing. Fetch list.
+//                runtime.webExtensionController.list().accept { extensions ->
+//                    val ext = extensions?.find { it.id == FAVICON_ID }
+//
+//                    if (ext != null) {
+//                        // Found it! Save for later tabs
+//                        faviconExtension = ext
+//                        // Attach to THIS session
+//                        session.webExtensionController.setMessageDelegate(
+//                            ext,
+//                            messageDelegate,
+//                            "browser"
+//                        )
+//                    } else {
+//                        // Still not installed??
+//                        // This shouldn't happen if installFaviconFetcher() was called in init.
+//                        // But we can verify installation here if needed.
+//                        Log.e("GeckoFavicon", "Extension not found in list!")
+//                    }
+//                }
+//            }
+//        }
+
         @SuppressLint("WrongThread")
         fun ensureDelegateAttached() {
-            if (faviconExtension != null) {
-                // Best Case: Extension already loaded
-                session.webExtensionController.setMessageDelegate(
-                    faviconExtension!!,
-                    messageDelegate,
-                    "browser"
-                )
-            } else {
-                // Race Condition: Extension installing. Fetch list.
-                runtime.webExtensionController.list().accept { extensions ->
-                    val ext = extensions?.find { it.id == FAVICON_ID }
-
-                    if (ext != null) {
-                        // Found it! Save for later tabs
-                        faviconExtension = ext
-                        // Attach to THIS session
-                        session.webExtensionController.setMessageDelegate(
-                            ext,
-                            messageDelegate,
-                            "browser"
-                        )
-                    } else {
-                        // Still not installed??
-                        // This shouldn't happen if installFaviconFetcher() was called in init.
-                        // But we can verify installation here if needed.
-                        Log.e("GeckoFavicon", "Extension not found in list!")
-                    }
+            // Use the future we stored in init.
+            // If installed: runs immediately.
+            // If installing: runs when done.
+            faviconExtensionFuture?.accept { ext ->
+                if (ext != null) {
+                    // Critical: Attach to the current session provided in the argument
+                    session.webExtensionController.setMessageDelegate(
+                        ext,
+                        messageDelegate,
+                        "browser"
+                    )
+                    Log.i("GeckoFavicon", "Delegate successfully attached to session ${session.isOpen}")
                 }
             }
         }
