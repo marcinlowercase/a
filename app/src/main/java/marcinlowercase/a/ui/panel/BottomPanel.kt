@@ -457,7 +457,8 @@ fun BottomPanel(
                     resetBrowserSettings = resetBrowserSettings,
                     confirmationPopup = confirmationPopup,
                     targetSetting = initialSettingPanelView,
-                    isSettingCornerRadius = isSettingCornerRadius
+                    isSettingCornerRadius = isSettingCornerRadius,
+                    isFocusOnTextField = isFocusOnTextField,
 
 
                 )

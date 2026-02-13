@@ -56,6 +56,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
+const val sliderHeight = 16
 
 @Composable
 fun ColorPickerPanel(
@@ -148,8 +149,6 @@ fun ColorPickerPanel(
                     textStyle = TextStyle(
                         color = textColor,
                         fontFamily = FontFamily.Monospace,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center
                     ),
                     cursorBrush = SolidColor(textColor),
@@ -187,7 +186,7 @@ fun ColorPickerPanel(
                     Box(contentAlignment = Alignment.Center) {
                         Box(modifier = Modifier
                             .fillMaxWidth()
-                            .height(16.dp)
+                            .height(sliderHeight.dp)
                             .clip(CircleShape)
                             .background(rainbowBrush))
                         Slider(
@@ -198,7 +197,6 @@ fun ColorPickerPanel(
                         )
                     }
 
-                    // --- 3. SATURATION SLIDER ---
                     Slider(
                         value = saturation,
                         onValueChange = { saturation = it },
@@ -209,7 +207,6 @@ fun ColorPickerPanel(
                         )
                     )
 
-                    // --- 4. BRIGHTNESS SLIDER ---
                     Slider(
                         value = value,
                         onValueChange = { value = it },
@@ -222,9 +219,6 @@ fun ColorPickerPanel(
                 }
             }
 
-
-
-            // --- 5. ACTION BUTTONS ---
             Row(horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)) {
                 CustomIconButton(
                     layer = 3,
@@ -236,7 +230,8 @@ fun ColorPickerPanel(
                     },
                     buttonDescription = "cancel",
                     descriptionContent = descriptionContent,
-                    painterId = R.drawable.ic_close
+                    painterId = R.drawable.ic_close,
+                    isWhite = false
                 )
                 CustomIconButton(
                     layer = 3,

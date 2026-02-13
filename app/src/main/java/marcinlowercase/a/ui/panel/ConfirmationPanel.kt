@@ -85,7 +85,8 @@ fun ConfirmationPanel(
             ) {
                 Text(
                     text = state.message,
-                    color = Color.Yellow,
+//                    color = Color.Yellow,
+                    color = Color(browserSettings.value.highlightColor),
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.CenterHorizontally),
@@ -94,7 +95,8 @@ fun ConfirmationPanel(
 
                 if (state.url.isNotBlank()) Text(
                     text = state.url,
-                    color = Color.Yellow,
+//                    color = Color.Yellow,
+                    color = Color(browserSettings.value.highlightColor),
                     textAlign = TextAlign.Center,
                     maxLines = 1,
                     overflow = TextOverflow.Visible,

@@ -589,6 +589,7 @@ fun BrowserScreen(
                 maxListHeight = sharedPrefs.getFloat("max_list_height", 2.5f),
                 searchEngine = sharedPrefs.getInt("search_engine", SearchEngine.GOOGLE.ordinal),
                 isFullscreenMode = sharedPrefs.getBoolean("is_fullscreen_mode", false),
+                highlightColor = sharedPrefs.getInt("highlight_color", 0xFFFFFF00.toInt())
             )
         )
     }
@@ -685,6 +686,7 @@ fun BrowserScreen(
     val isMediaControlPanelDisplayed = remember { mutableStateOf(false) }
     val isLandscapeByButton = remember { mutableStateOf(false) }
     val isLandscape = remember { mutableStateOf(false) }
+    val isOtherPanelVisible = remember { mutableStateOf(false) }
 
 
     val offsetY = remember { Animatable(0f) }
@@ -1058,7 +1060,19 @@ fun BrowserScreen(
     }
 
     val colorState = remember { mutableStateOf<JsColorState?>(null) }
+    val colorDisplayState = remember { mutableStateOf<JsColorState?>(null) }
+    LaunchedEffect(colorState.value) {
+        if (colorState.value != null)
+            colorDisplayState.value = colorState.value
+    }
 
+    LaunchedEffect(choiceState.value,  colorState.value) {
+        isOtherPanelVisible.value = choiceState.value != null
+                || colorState.value != null
+    }
+    LaunchedEffect(isOtherPanelVisible.value) {
+        if (isOtherPanelVisible.value) isBottomPanelVisible = false
+    }
     //endregion
 
     //region Functions
@@ -2648,6 +2662,7 @@ fun BrowserScreen(
                 mainActivity.openFilePicker(prompt, result)
             },
             onColorPromptFun = {
+                Log.e("ColorPicker", "${it.prompt}")
                 colorState.value = it
             }
 
@@ -3216,6 +3231,7 @@ fun BrowserScreen(
             putFloat("max_list_height", browserSettings.value.maxListHeight)
             putInt("search_engine", browserSettings.value.searchEngine)
             putBoolean("is_fullscreen_mode", browserSettings.value.isFullscreenMode)
+            putInt("highlight_color", browserSettings.value.highlightColor)
         }
     }
     LaunchedEffect(Unit) {
@@ -3317,6 +3333,7 @@ fun BrowserScreen(
                     .padding(bottom = browserSettings.value.padding.dp)
             ) {
                 SettingsPanel(
+                    isFocusOnTextField = isFocusOnTextField,
 //                    currentRotation = currentRotation,
                     descriptionContent = descriptionContent,
                     backgroundColor = backgroundColor,
@@ -3415,6 +3432,11 @@ fun BrowserScreen(
 
                                                     if (contextMenuData != null) contextMenuData = null
                                                     if (choiceState.value != null) choiceState.value = null
+                                                    if (colorState.value != null) {
+                                                        colorState.value?.result?.complete(colorState.value?.prompt?.dismiss())
+
+                                                        colorState.value = null
+                                                    }
                                                 }
                                                 false
                                             }
@@ -3475,7 +3497,7 @@ fun BrowserScreen(
                             .padding(bottom = floatingPanelBottomPadding)
                     ) {
                         ColorPickerPanel(
-                            colorState = colorState,
+                            colorState = colorDisplayState,
                             browserSettings = browserSettings,
                             onDismiss = { colorState.value = null },
                             descriptionContent= descriptionContent,
@@ -3858,7 +3880,7 @@ fun BrowserScreen(
 
                     // BackSquare
                     AnimatedVisibility(
-                        visible = !isBottomPanelVisible && !isLandscape.value,
+                        visible = !isBottomPanelVisible && !isLandscape.value && !isOtherPanelVisible.value,
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(webViewPaddingValue)

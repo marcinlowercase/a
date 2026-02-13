@@ -1,5 +1,6 @@
 package marcinlowercase.a.ui.panel
 
+import android.graphics.Color as AndroidColor
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -34,6 +36,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -41,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.KeyEventType
@@ -49,6 +53,8 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -62,6 +68,7 @@ import marcinlowercase.a.ui.component.CustomIconButton
 import kotlin.collections.chunked
 import kotlin.collections.forEach
 import kotlin.math.roundToInt
+import androidx.core.graphics.toColorInt
 
 enum class SettingPanelView {
     MAIN,
@@ -76,7 +83,8 @@ enum class SettingPanelView {
     CLOSED_TAB_HISTORY_SIZE,
     MAX_LIST_HEIGHT,
     SEARCH_ENGINE,
-    SINGLE_LINE_HEIGHT
+    SINGLE_LINE_HEIGHT,
+    HIGHLIGHT_COLOR,
 
 }
 
@@ -193,7 +201,7 @@ fun SliderSetting(
                             if (event.type == KeyEventType.KeyUp) {
                                 // --- THIS IS THE CORRECTED LOGIC ---
 
-                                // 1. Get the unicode character as an Int.
+                                // 1. Get the UniCode character as an Int.
                                 val unicodeChar = event.nativeKeyEvent.unicodeChar
 
                                 // 2. Check if it's a valid character (not 0) and then convert it to a Char.
@@ -432,6 +440,7 @@ fun TextSetting(
 @Composable
 fun SettingsPanel(
 //    currentRotation: Float,
+    isFocusOnTextField : MutableState<Boolean>,
     isSettingCornerRadius: MutableState<Boolean>,
     descriptionContent: MutableState<String>,
     backgroundColor: MutableState<Color>,
@@ -495,6 +504,9 @@ fun SettingsPanel(
                 currentView = SettingPanelView.SINGLE_LINE_HEIGHT
 
             },
+            OptionItem(R.drawable.ic_colors, "min height") {
+                currentView = SettingPanelView.HIGHLIGHT_COLOR
+            },
             OptionItem(R.drawable.ic_animation, "animation speed") {
                 currentView = SettingPanelView.ANIMATION_SPEED
 
@@ -549,11 +561,11 @@ fun SettingsPanel(
                 .padding(horizontal = browserSettings.value.padding.dp)
                 .padding(top = browserSettings.value.padding.dp)
                 .fillMaxWidth()
-                .clip(
-                    RoundedCornerShape(
-                        browserSettings.value.cornerRadiusForLayer(2).dp
-                    )
-                )
+//                .clip(
+//                    RoundedCornerShape(
+//                        browserSettings.value.cornerRadiusForLayer(2).dp
+//                    )
+//                )
                 .animateContentSize(
                     tween(
                         browserSettings.value.animationSpeedForLayer(1)
@@ -691,6 +703,227 @@ fun SettingsPanel(
                     )
                 }
 
+                SettingPanelView.HIGHLIGHT_COLOR -> {
+
+
+
+                    val initialHsv = remember(browserSettings.value.highlightColor) {
+                        val hsv = FloatArray(3)
+                        AndroidColor.colorToHSV(browserSettings.value.highlightColor, hsv)
+                        hsv
+                    }
+                    var hue by remember { mutableFloatStateOf(initialHsv[0]) }
+                    var saturation by remember { mutableFloatStateOf(initialHsv[1]) }
+                    var value by remember { mutableFloatStateOf(initialHsv[2]) }
+
+                    val selectedColorInt = remember(hue, saturation, value) {
+                        AndroidColor.HSVToColor(floatArrayOf(hue, saturation, value))
+
+                    }
+
+                    var hexText by remember { mutableStateOf(String.format("#%06X", 0xFFFFFF and selectedColorInt)) }
+
+                    // Sync Text with Sliders (whenever sliders move, update the text)
+                    LaunchedEffect(selectedColorInt) {
+                        val currentHex = String.format("#%06X", 0xFFFFFF and selectedColorInt)
+                        // Only update text if it's significantly different (prevents cursor jumping)
+                        if (hexText.uppercase() != currentHex.uppercase() && hexText.length >= 7) {
+                            hexText = currentHex
+                        }
+                        browserSettings.value = browserSettings.value.copy(highlightColor = selectedColorInt)
+
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(browserSettings.value.padding.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(
+                                    browserSettings.value.heightForLayer( 3).dp
+                                )
+                            ,
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
+                        ) {
+
+                            IconButton(
+                                onClick = { if (!browserSettings.value.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
+                                modifier = Modifier
+                                    .clip(
+                                        RoundedCornerShape(
+                                            browserSettings.value.cornerRadiusForLayer(3).dp
+                                        )
+                                    )
+                                    .fillMaxHeight()
+                                    .background(Color.White)
+                                    .defaultMinSize(
+                                        minWidth = browserSettings.value.heightForLayer(3).dp
+                                    )
+
+
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = if(browserSettings.value.isFirstAppLoad) R.drawable.ic_check else R.drawable.ic_arrow_back),
+                                    contentDescription = "Back to Settings",
+                                    tint = Color.Black
+                                )
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
+                                    .clip(RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(3).dp))
+                                    .background(Color(selectedColorInt))
+                                ,
+                                contentAlignment = Alignment.Center // 2. Center the content of the Box
+                            ) {
+                                val textColor = if (isColorDark(selectedColorInt)) Color.White else Color.Black
+
+                                val keyboardController = LocalSoftwareKeyboardController.current
+                                val focusManager = LocalFocusManager.current
+                                BasicTextField(
+                                    value = hexText,
+                                    onValueChange = { newText ->
+                                        // Only allow valid hex characters and limit length
+                                        val filtered = newText.filter { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' || it == '#' }
+                                        if (filtered.length <= 7) {
+                                            hexText = filtered
+
+                                            // Try to parse and update sliders if it's a complete hex code
+                                            try {
+                                                val parsedColor = AndroidColor.parseColor(if (filtered.startsWith("#")) filtered else "#$filtered")
+                                                val hsv = FloatArray(3)
+                                                AndroidColor.colorToHSV(parsedColor, hsv)
+                                                hue = hsv[0]
+                                                saturation = hsv[1]
+                                                value = hsv[2]
+                                            } catch (_: Exception) {
+                                                // Ignore invalid/incomplete hex while typing
+                                            }
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .onFocusChanged{ focusState ->
+                                            isFocusOnTextField.value = focusState.hasFocus
+                                            if (focusState.hasFocus) {
+                                                hexText = ""
+                                            }
+                                        },
+                                    cursorBrush = SolidColor(Color.Transparent),
+
+                                    textStyle = TextStyle(
+                                        color = textColor,
+                                        fontFamily = FontFamily.Monospace,
+                                        textAlign = TextAlign.Center
+                                    ),
+                                    keyboardOptions = KeyboardOptions(
+                                        imeAction = ImeAction.Done // Show a "Done" button
+                                    ),
+                                    keyboardActions = KeyboardActions(
+                                        onDone = {
+                                            val finalFormat = if (hexText.startsWith("#")) hexText else "#$hexText"
+
+                                            try {
+                                                finalFormat.toColorInt()
+                                                hexText = finalFormat.uppercase()
+                                            } catch (_: Exception) {
+                                                hexText = String.format("#%06X", 0xFFFFFF and selectedColorInt)
+                                            }
+
+                                            focusManager.clearFocus()
+                                            keyboardController?.hide()
+                                        }
+                                    ),
+                                    singleLine = true
+                                )
+                            }
+                            IconButton(
+                                onClick = { },
+                                modifier = Modifier
+                                    .clip(
+                                        RoundedCornerShape(
+                                            browserSettings.value.cornerRadiusForLayer(3).dp
+                                        )
+                                    )
+                                    .fillMaxHeight()
+                                    .defaultMinSize(
+                                        minWidth = browserSettings.value.heightForLayer(3).dp
+                                    )
+
+
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_colors),
+                                    contentDescription = "Back to Settings",
+                                    tint = Color.White
+                                )
+                            }
+
+
+
+                        }
+                        AnimatedVisibility(
+                            visible = !isFocusOnTextField.value,
+
+                            enter = expandVertically(tween(browserSettings.value.animationSpeedForLayer(1))),
+                            exit = shrinkVertically(tween(browserSettings.value.animationSpeedForLayer(1)))
+
+                        ) {
+
+                            Column {
+                                val rainbowBrush = remember {
+                                    Brush.horizontalGradient(
+                                        listOf(Color.Red, Color.Yellow, Color.Green, Color.Cyan, Color.Blue, Color.Magenta, Color.Red)
+                                    )
+                                }
+                                Box(contentAlignment = Alignment.Center) {
+                                    Box(modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(sliderHeight.dp)
+                                        .clip(CircleShape)
+                                        .background(rainbowBrush))
+                                    Slider(
+                                        value = hue,
+                                        onValueChange = { hue = it },
+                                        valueRange = 0f..360f,
+                                        colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = Color.Transparent, inactiveTrackColor = Color.Transparent)
+                                    )
+                                }
+
+                                Slider(
+                                    value = saturation,
+                                    onValueChange = { saturation = it },
+                                    valueRange = 0f..1f,
+                                    colors = SliderDefaults.colors(
+                                        thumbColor = Color.White,
+                                        activeTrackColor = Color(selectedColorInt).copy(alpha = 1f)
+                                    )
+                                )
+
+                                Slider(
+                                    value = value,
+                                    onValueChange = { value = it },
+                                    valueRange = 0f..1f,
+                                    colors = SliderDefaults.colors(
+                                        thumbColor = Color.White,
+                                        activeTrackColor = Color.White.copy(alpha = value)
+                                    ),
+                                )
+                            }
+                        }
+
+
+                    }
+
+                }
 
                 SettingPanelView.CURSOR_CONTAINER_SIZE -> {
                     SliderSetting(

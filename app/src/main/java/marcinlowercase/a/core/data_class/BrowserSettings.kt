@@ -26,6 +26,7 @@ data class BrowserSettings(
     val maxListHeight: Float = 2.5f,
     val searchEngine: Int = 0,
     val isFullscreenMode: Boolean,
+    val highlightColor: Int = 0xFFFFFF00.toInt()
 ) {
     fun cornerRadiusForLayer(layer: Int): Float {
         if (layer == 0) return deviceCornerRadius
