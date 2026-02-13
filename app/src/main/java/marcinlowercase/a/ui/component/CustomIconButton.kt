@@ -33,6 +33,7 @@ fun CustomIconButton(
     painterId: Int,
     isWhite: Boolean = true,
 
+    useLongPress: Boolean = true,
 
     ) {
     val  hapticFeedback = LocalHapticFeedback.current
@@ -61,6 +62,7 @@ fun CustomIconButton(
                 descriptionContent = descriptionContent,
                 buttonDescription = buttonDescription,
                 onLongPress = onLongPress,
+                useLongPress = useLongPress,
 
             ),
         contentAlignment = Alignment.Center

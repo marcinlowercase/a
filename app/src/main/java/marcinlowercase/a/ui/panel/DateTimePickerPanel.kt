@@ -40,7 +40,6 @@ import java.time.temporal.IsoFields
 fun DateTimePickerPanel(
     dateTimeState: MutableState<JsDateTimeState?>,
     browserSettings: MutableState<BrowserSettings>,
-    descriptionContent: MutableState<String>,
     onDismiss: () -> Unit
 ) {
     val state = dateTimeState.value ?: return
@@ -210,6 +209,8 @@ fun DateTimePickerPanel(
             }
 
             // --- ACTION BUTTONS ---
+            val localDescription = remember { mutableStateOf("") }
+
             Row(horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)) {
                 CustomIconButton(
                     layer = 2,
@@ -224,10 +225,12 @@ fun DateTimePickerPanel(
                         }
                     },
                     buttonDescription = if (step == 1 && prompt.type == DateTimePrompt.Type.DATETIME_LOCAL) "back" else "cancel",
-                    descriptionContent = descriptionContent,
+                    descriptionContent = localDescription,
                     painterId = if (step == 1 && prompt.type == DateTimePrompt.Type.DATETIME_LOCAL) R.drawable.ic_arrow_back else R.drawable.ic_close,
-                    isWhite = (step == 1 && prompt.type == DateTimePrompt.Type.DATETIME_LOCAL)
-                )
+                    isWhite = (step == 1 && prompt.type == DateTimePrompt.Type.DATETIME_LOCAL),
+                            useLongPress = false,
+
+                    )
 
                 CustomIconButton(
                     layer = 2,
@@ -241,9 +244,10 @@ fun DateTimePickerPanel(
                         }
                     },
                     buttonDescription = if (step == 0 && prompt.type == DateTimePrompt.Type.DATETIME_LOCAL) "next" else "confirm",
-                    descriptionContent = descriptionContent,
+                    descriptionContent = localDescription,
                     painterId = if (step == 0 && prompt.type == DateTimePrompt.Type.DATETIME_LOCAL) R.drawable.ic_arrow_forward else R.drawable.ic_check,
-                    isWhite = true
+                    isWhite = true,
+                    useLongPress = false,
                 )
             }
         }

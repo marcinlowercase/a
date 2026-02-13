@@ -5,7 +5,10 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
 import androidx.compose.foundation.gestures.drag
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Modifier
@@ -85,6 +88,7 @@ fun Modifier.buttonPointerInput(
     hapticFeedback: HapticFeedback,
     descriptionContent: MutableState<String>,
     buttonDescription: String,
+    useLongPress: Boolean = true,
     ): Modifier = this.then(
     Modifier
         .pointerInput(Unit) {
@@ -100,10 +104,13 @@ fun Modifier.buttonPointerInput(
                     delay(viewConfiguration.longPressTimeoutMillis)
 
                     // LONG PRESS CONFIRMED
-                    hapticFeedback.performHapticFeedback(
-                        HapticFeedbackType.LongPress
-                    )
-                    if (!onLongPress()) descriptionContent.value = buttonDescription
+                    if (useLongPress) {
+                        hapticFeedback.performHapticFeedback(
+                            HapticFeedbackType.LongPress
+                        )
+                        if (!onLongPress()) descriptionContent.value = buttonDescription
+
+                    }
 
 
                 }

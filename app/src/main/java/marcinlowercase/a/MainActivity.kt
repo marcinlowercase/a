@@ -1079,7 +1079,11 @@ fun BrowserScreen(
             dateTimeDisplayState.value = dateTimeState.value
     }
 
-    LaunchedEffect(choiceState.value,  colorState.value) {
+    LaunchedEffect(
+        choiceState.value,
+        colorState.value,
+        dateTimeState.value,
+    ) {
         isOtherPanelVisible.value = choiceState.value != null
                 || colorState.value != null
                 || dateTimeState.value != null
@@ -3503,7 +3507,6 @@ fun BrowserScreen(
                             dateTimeState = dateTimeDisplayState,
                             onDismiss = { dateTimeState.value = null },
                             browserSettings = browserSettings,
-                            descriptionContent = descriptionContent,
                         )
                     }
 
