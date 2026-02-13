@@ -1318,6 +1318,29 @@ fun BrowserScreen(
             saveTrigger++
         }
     }
+    val closeTabById = { idToClose: Long ->
+        val tabToClose = tabs.find { it.id == idToClose }
+        if (tabToClose != null) {
+            val indexToClose = tabs.indexOf(tabToClose)
+            val wasActive = (indexToClose == activeTabIndex.intValue)
+
+            geckoManager.closeSession(tabToClose)
+            tabs.removeAt(indexToClose)
+
+            if (wasActive) {
+                // If we closed the current tab, go to the previous one (the opener)
+                val nextIndex = (indexToClose - 1).coerceAtLeast(0)
+                if (tabs.isNotEmpty()) {
+                    activeTabIndex.intValue = nextIndex
+                    tabs[nextIndex].state = TabState.ACTIVE
+                }
+            } else if (indexToClose < activeTabIndex.intValue) {
+                activeTabIndex.intValue -= 1
+            }
+            saveTrigger++
+        }
+    }
+
     val handleCloseInspectedTab = {
         val tabToClose = currentInspectingTab
         if (tabToClose != null && tabs.indexOf(tabToClose) > -1) {
@@ -2428,10 +2451,38 @@ fun BrowserScreen(
                     }
                 }
             },
-            onNewSessionFun = { session, url ->
-                createNewTab(activeTabIndex.intValue + 1, url)
+//            onNewSessionFun = { session, url ->
+//                createNewTab(activeTabIndex.intValue + 1, url)
+//            },
+            onNewSessionFunWithId = { id, uri ->
+                // 1. Deactivate the current tab (Figma)
+                if (activeTabIndex.intValue in tabs.indices) {
+                    tabs[activeTabIndex.intValue] = tabs[activeTabIndex.intValue].copy(state = TabState.BACKGROUND)
+                }
+
+                // 2. Create the new tab with the 'ACTIVE' state
+                val newTab = Tab(
+                    id = id,
+                    currentURL = uri,
+                    state = TabState.ACTIVE
+                )
+
+                // 3. Insert the tab next to the current one
+                val insertIndex = (activeTabIndex.intValue + 1).coerceIn(0, tabs.size)
+                tabs.add(insertIndex, newTab)
+
+                // 4. Update the active index to point to the new tab
+                // This triggers Compose to switch the view to the Google Login session
+                activeTabIndex.intValue = insertIndex
+
+                // 5. Update the URL bar text immediately
+                if (!isFocusOnTextField.value) {
+                    textFieldState.setTextAndPlaceCursorAtEnd(uri.toDomain())
+                }
+
+                saveTrigger++
             },
-            onHistoryStateChangeFun = { eventTabId, session, realtimeHistory ->
+                    onHistoryStateChangeFun = { eventTabId, session, realtimeHistory ->
 
                 val url = realtimeHistory[realtimeHistory.lastIndex].uri
 
@@ -2690,7 +2741,9 @@ fun BrowserScreen(
                 colorState.value = it
             },
             onDateTimePromptFun = { dateTimeState.value = it },
-
+            onCloseTabFun = { id ->
+                closeTabById(id)
+            },
 
 
             )
