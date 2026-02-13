@@ -3479,10 +3479,22 @@ fun BrowserScreen(
                 if (!isPipMode) {
 
 
-                    if (dateTimeState.value != null) {
+                    AnimatedVisibility(
+                        visible = dateTimeState.value != null,
+                        enter = slideInVertically { (it * 1.5).toInt() },
+                        exit = slideOutVertically { (it * 1.5).toInt() },
+                        modifier = Modifier
+                            .windowInsetsPadding(WindowInsets.ime)
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = browserSettings.value.padding.dp)
+                            .padding(bottom = floatingPanelBottomPadding)
+
+                    ) {
                         DateTimePickerPanel(
                             dateTimeState = dateTimeState,
-                            onDismiss = { dateTimeState.value = null }
+                            onDismiss = { dateTimeState.value = null },
+                            browserSettings = browserSettings,
+                            descriptionContent = descriptionContent,
                         )
                     }
 

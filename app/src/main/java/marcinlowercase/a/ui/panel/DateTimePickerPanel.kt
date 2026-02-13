@@ -1,11 +1,33 @@
 package marcinlowercase.a.ui.panel
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import marcinlowercase.a.R
+import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.JsDateTimeState
+import marcinlowercase.a.ui.component.CustomIconButton
 import org.mozilla.geckoview.GeckoSession.PromptDelegate.DateTimePrompt
 import java.time.Instant
 import java.time.LocalDate
@@ -17,59 +39,42 @@ import java.time.temporal.IsoFields
 @Composable
 fun DateTimePickerPanel(
     dateTimeState: MutableState<JsDateTimeState?>,
+    browserSettings: MutableState<BrowserSettings>,
+    descriptionContent: MutableState<String>,
     onDismiss: () -> Unit
 ) {
     val state = dateTimeState.value ?: return
     val prompt = state.prompt
     val result = state.result
 
-    // 0 = Date Picker, 1 = Time Picker
+    // 0 = Date, 1 = Time
     var step by remember { mutableIntStateOf(0) }
 
+    // Selections
     var selectedDate by remember { mutableStateOf<LocalDate?>(null) }
     var selectedTime by remember { mutableStateOf<LocalTime?>(null) }
 
-    // Logic to format the data exactly how HTML expects it
+    // --- Logic Helpers ---
     fun confirm() {
         val finalString = when (prompt.type) {
-            DateTimePrompt.Type.DATE -> selectedDate?.toString() ?: "" // "yyyy-MM-dd"
-
-            DateTimePrompt.Type.MONTH -> {
-                // "yyyy-MM"
-                selectedDate?.let { "${it.year}-${it.monthValue.toString().padStart(2, '0')}" } ?: ""
-            }
-
-            DateTimePrompt.Type.WEEK -> {
-                // "yyyy-Www" (e.g., 2023-W05)
-                selectedDate?.let {
-                    val week = it.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR)
-                    val year = it.get(IsoFields.WEEK_BASED_YEAR)
-                    "${year}-W${week.toString().padStart(2, '0')}"
-                } ?: ""
-            }
-
-            DateTimePrompt.Type.TIME -> selectedTime?.toString() ?: "" // "HH:mm"
-
+            DateTimePrompt.Type.DATE -> selectedDate?.toString() ?: ""
+            DateTimePrompt.Type.MONTH -> selectedDate?.let { "${it.year}-${it.monthValue.toString().padStart(2, '0')}" } ?: ""
+            DateTimePrompt.Type.WEEK -> selectedDate?.let {
+                val week = it.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR)
+                val year = it.get(IsoFields.WEEK_BASED_YEAR)
+                "${year}-W${week.toString().padStart(2, '0')}"
+            } ?: ""
+            DateTimePrompt.Type.TIME -> selectedTime?.toString() ?: ""
             DateTimePrompt.Type.DATETIME_LOCAL -> {
-                // "yyyy-MM-ddTHH:mm"
-                if (selectedDate != null && selectedTime != null) {
-                    "${selectedDate}T${selectedTime}"
-                } else ""
+                if (selectedDate != null && selectedTime != null) "${selectedDate}T${selectedTime}" else ""
             }
-
             else -> ""
         }
-
         result.complete(prompt.confirm(finalString))
         onDismiss()
     }
 
-    fun cancel() {
-        result.complete(prompt.dismiss())
-        onDismiss()
-    }
-
-    // --- INITIALIZATION ---
+// --- INITIALIZATION ---
     LaunchedEffect(prompt) {
         if (prompt.type == DateTimePrompt.Type.TIME) {
             step = 1
@@ -99,104 +104,145 @@ fun DateTimePickerPanel(
             } catch (_: Exception) { }
         }
     }
-    // --- STEP 0: DATE PICKER ---
-    // Used for: DATE, MONTH, WEEK, DATETIME_LOCAL
-    if (step == 0) {
-        val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = selectedDate?.atStartOfDay(ZoneId.systemDefault())?.toInstant()?.toEpochMilli()
-                ?: System.currentTimeMillis()
-        )
-
-        DatePickerDialog(
-            onDismissRequest = { cancel() },
-            confirmButton = {
-                TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let { millis ->
-                        selectedDate = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate()
-                    }
-
-                    // If it is DATETIME_LOCAL, we need to go to Step 1 (Time).
-                    // For DATE, MONTH, WEEK, we are done.
-                    if (prompt.type == DateTimePrompt.Type.DATETIME_LOCAL) {
-                        step = 1
-                    } else {
-                        confirm()
-                    }
-                }) { Text("OK", color = Color.White) }
-            },
-            dismissButton = {
-                TextButton(onClick = { cancel() }) { Text("Cancel", color = Color.White) }
-            },
-            colors = DatePickerDefaults.colors(
-                containerColor = Color.Black,
-                yearContentColor = Color.White,
-                navigationContentColor = Color.White,
-                headlineContentColor = Color.White,
-                selectedDayContainerColor = Color.White,
-                selectedDayContentColor = Color.Black,
-                todayContentColor = Color.White,
-                dayContentColor = Color.White,
-                currentYearContentColor = Color.White,
-                weekdayContentColor = Color.White
-            )
+    // --- UI CONTAINER ---
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = browserSettings.value.padding.dp)
+            .clip(RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(1).dp))
+            .background(Color.Black)
+            .padding(browserSettings.value.padding.dp)
+    ) {
+        Column(
+            modifier = Modifier.clip(RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(2).dp)),
+            verticalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
         ) {
-            DatePicker(state = datePickerState)
-        }
-    }
 
-    // --- STEP 1: TIME PICKER ---
-    // Used for: TIME, DATETIME_LOCAL
-    if (step == 1) {
-        val initialHour = selectedTime?.hour ?: 12
-        val initialMinute = selectedTime?.minute ?: 0
-        val timePickerState = rememberTimePickerState(
-            initialHour = initialHour,
-            initialMinute = initialMinute,
-            is24Hour = true
-        )
-
-        AlertDialog(
-            onDismissRequest = { cancel() },
-            containerColor = Color.Black,
-            text = {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    TimePicker(
-                        state = timePickerState,
-                        colors = TimePickerDefaults.colors(
-                            clockDialColor = Color.Black,
-                            clockDialSelectedContentColor = Color.Black,
-                            clockDialUnselectedContentColor = Color.White,
-                            selectorColor = Color.White,
-                            periodSelectorBorderColor = Color.White,
-                            periodSelectorSelectedContainerColor = Color.Black,
-                            periodSelectorUnselectedContainerColor = Color.Transparent,
-                            periodSelectorSelectedContentColor = Color.White,
-                            periodSelectorUnselectedContentColor = Color.White,
-                            timeSelectorSelectedContainerColor = Color.White.copy(0.3f),
-                            timeSelectorUnselectedContainerColor = Color.Transparent,
-                            timeSelectorSelectedContentColor = Color.White,
-                            timeSelectorUnselectedContentColor = Color.White
-                        )
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    selectedTime = LocalTime.of(timePickerState.hour, timePickerState.minute)
-                    confirm()
-                }) { Text("OK", color = Color.White) }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    // If this was a combined prompt, Back goes to Date.
-                    // If this was just a Time prompt, Back cancels.
-                    if (prompt.type == DateTimePrompt.Type.DATETIME_LOCAL) {
-                        step = 0
+            // Use AnimatedContent to slide between Calendar and Clock
+            AnimatedContent(
+                targetState = step,
+                transitionSpec = {
+                    if (targetState > initialState) {
+                        (slideInHorizontally { width -> width } + fadeIn()).togetherWith(slideOutHorizontally { width -> -width } + fadeOut())
                     } else {
-                        cancel()
+                        (slideInHorizontally { width -> -width } + fadeIn()).togetherWith(slideOutHorizontally { width -> width } + fadeOut())
                     }
-                }) { Text("Back", color = Color.White) }
+                },
+                label = "DateToTimeAnim"
+            ) { currentStep ->
+
+                Column(
+                    modifier = Modifier
+                        // Make it scrollable because DatePicker is tall
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    if (currentStep == 0) {
+                        // --- DATE PICKER ---
+                        val datePickerState = rememberDatePickerState(
+                            initialSelectedDateMillis = selectedDate?.atStartOfDay(ZoneId.systemDefault())?.toInstant()?.toEpochMilli()
+                        )
+
+                        // Sync state change
+                        LaunchedEffect(datePickerState.selectedDateMillis) {
+                            datePickerState.selectedDateMillis?.let {
+                                selectedDate = Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate()
+                            }
+                        }
+
+                        DatePicker(
+                            state = datePickerState,
+                            colors = DatePickerDefaults.colors(
+                                containerColor = Color.Black,
+                                titleContentColor = Color.White,
+                                headlineContentColor = Color.White,
+                                weekdayContentColor = Color.Gray,
+                                subheadContentColor = Color.White,
+                                yearContentColor = Color.White,
+                                currentYearContentColor = Color.White,
+                                selectedYearContentColor = Color.White,
+                                selectedYearContainerColor = Color.DarkGray,
+                                dayContentColor = Color.White,
+                                selectedDayContainerColor = Color.White,
+                                selectedDayContentColor = Color.Black,
+                                todayContentColor = Color.White,
+                                todayDateBorderColor = Color.White
+                            ),
+                            showModeToggle = false // Remove the pencil icon to keep it clean
+                        )
+                    } else {
+                        // --- TIME PICKER ---
+                        val timePickerState = rememberTimePickerState(
+                            initialHour = selectedTime?.hour ?: 12,
+                            initialMinute = selectedTime?.minute ?: 0,
+                            is24Hour = true
+                        )
+
+                        // Sync state
+                        selectedTime = LocalTime.of(timePickerState.hour, timePickerState.minute)
+
+                        TimePicker(
+                            state = timePickerState,
+                            colors = TimePickerDefaults.colors(
+                                clockDialColor = Color.DarkGray,
+                                clockDialSelectedContentColor = Color.Black,
+                                clockDialUnselectedContentColor = Color.White,
+                                selectorColor = Color.White,
+                                periodSelectorBorderColor = Color.White,
+                                periodSelectorSelectedContainerColor = Color.White,
+                                periodSelectorSelectedContentColor = Color.Black,
+                                periodSelectorUnselectedContentColor = Color.Gray,
+                                timeSelectorSelectedContainerColor = Color.White,
+                                timeSelectorSelectedContentColor = Color.Black,
+                                timeSelectorUnselectedContainerColor = Color.DarkGray,
+                                timeSelectorUnselectedContentColor = Color.White
+                            )
+                        )
+                    }
+                }
             }
-        )
+
+            // --- ACTION BUTTONS ---
+            Row(horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)) {
+                // Left Button (Back or Cancel)
+                CustomIconButton(
+                    layer = 2,
+                    browserSettings = browserSettings,
+                    modifier = Modifier.weight(1f),
+                    onTap = {
+                        if (step == 1 && prompt.type == DateTimePrompt.Type.DATETIME_LOCAL) {
+                            step = 0 // Go back to Date
+                        } else {
+                            result.complete(prompt.dismiss())
+                            onDismiss()
+                        }
+                    },
+                    buttonDescription = if (step == 1 && prompt.type == DateTimePrompt.Type.DATETIME_LOCAL) "back" else "cancel",
+                    descriptionContent = descriptionContent,
+                    painterId = if (step == 1 && prompt.type == DateTimePrompt.Type.DATETIME_LOCAL) R.drawable.ic_arrow_back else R.drawable.ic_close,
+                    isWhite = (step == 1 && prompt.type == DateTimePrompt.Type.DATETIME_LOCAL)
+                )
+
+                // Right Button (Next or Confirm)
+                CustomIconButton(
+                    layer = 2,
+                    browserSettings = browserSettings,
+                    modifier = Modifier.weight(1f),
+                    onTap = {
+                        if (step == 0 && prompt.type == DateTimePrompt.Type.DATETIME_LOCAL) {
+                            step = 1 // Go to Time
+                        } else {
+                            confirm() // Finish
+                        }
+                    },
+                    buttonDescription = if (step == 0 && prompt.type == DateTimePrompt.Type.DATETIME_LOCAL) "next" else "confirm",
+                    descriptionContent = descriptionContent,
+                    painterId = if (step == 0 && prompt.type == DateTimePrompt.Type.DATETIME_LOCAL) R.drawable.ic_arrow_forward else R.drawable.ic_check,
+                    isWhite = true
+                )
+            }
+        }
     }
 }
