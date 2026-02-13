@@ -2,7 +2,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
+//    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
 }
@@ -13,11 +13,11 @@ android {
 
     ndkVersion = "29.0.14206865"
     defaultConfig {
-        applicationId = "marcinlowercase.a"
+//        applicationId = "marcinlowercase.a"
         minSdk = 28 // android 9
         targetSdk = 36
-        versionCode = 15
-        versionName = "zero[15]"
+        versionCode = 1
+        versionName = "0.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -33,6 +33,25 @@ android {
 
     }
 
+
+    // 1. Define the dimensions
+    flavorDimensions.add("distribution")
+
+    // 2. Define the versions
+    productFlavors {
+        create("foss") { // The GitHub / Open Source version
+            dimension = "distribution"
+            applicationId = "marcinlowercase.a"
+            versionNameSuffix = "+1"
+        }
+
+        create("playstore") { // The Google Play version
+            dimension = "distribution"
+            applicationId = "studio.oo1.browser"
+            // You can even add a different app name for the Play Store here
+            // manifestPlaceholders["appLabel"] = "OO1 Browser"
+        }
+    }
 
     buildTypes {
         release {
@@ -50,6 +69,17 @@ android {
 
         }
     }
+
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            // INCLUDE these two architectures
+            include("arm64-v8a")
+            isUniversalApk = false
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21
@@ -57,14 +87,14 @@ android {
     buildFeatures {
         compose = true
     }
-    kotlin {
-        target {
-            compilerOptions {
-                optIn.add("kotlin.RequiresOptIn")
-                jvmTarget.set(JvmTarget.JVM_21)
-            }
-        }
-    }
+//    kotlin {
+//        target {
+//            compilerOptions {
+//                optIn.add("kotlin.RequiresOptIn")
+//                jvmTarget.set(JvmTarget.JVM_21)
+//            }
+//        }
+//    }
 }
 
 dependencies {
