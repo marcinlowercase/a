@@ -1,7 +1,6 @@
 package marcinlowercase.a.ui.panel
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -61,7 +60,7 @@ fun DateTimePickerPanel(
                     }
                     DateTimePrompt.Type.DATETIME_LOCAL -> {
                         val parts = defaultVal.split("T")
-                        if (parts.size >= 1) date = LocalDate.parse(parts[0])
+                        if (parts.isNotEmpty()) date = LocalDate.parse(parts[0])
                         if (parts.size >= 2) time = LocalTime.parse(parts[1])
                     }
                     else -> {
@@ -69,7 +68,7 @@ fun DateTimePickerPanel(
                         date = LocalDate.parse(defaultVal)
                     }
                 }
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 // If parsing fails, fallbacks are already set to .now()
             }
         }

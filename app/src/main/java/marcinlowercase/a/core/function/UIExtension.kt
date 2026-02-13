@@ -5,10 +5,7 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
 import androidx.compose.foundation.gestures.drag
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Modifier
@@ -27,6 +24,7 @@ import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.enum_class.DragDirection
 
 import java.net.URL
+import java.util.Locale
 import kotlin.math.abs
 
 fun Modifier.consumeChangePointerInput(dragDirection: DragDirection = DragDirection.Both) : Modifier = this.then(
@@ -161,9 +159,9 @@ fun formatTime(seconds: Double): String {
     val secs = totalSeconds % 60
 
     return if (hours > 0) {
-        String.format("%d:%02d:%02d", hours, minutes, secs)
+        String.format(Locale.US,"%d:%02d:%02d", hours, minutes, secs)
     } else {
-        String.format("%02d:%02d", minutes, secs)
+        String.format(Locale.US,"%02d:%02d", minutes, secs)
     }
 }
 

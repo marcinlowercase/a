@@ -181,7 +181,6 @@ import marcinlowercase.a.core.manager.MediaGestureManager
 import marcinlowercase.a.core.manager.SiteSettingsManager
 import marcinlowercase.a.core.manager.TabManager
 import marcinlowercase.a.core.manager.VisitedUrlManager
-import marcinlowercase.a.core.manager.WebViewManager
 import marcinlowercase.a.ui.panel.BottomPanel
 import marcinlowercase.a.ui.panel.ChoicePanel
 import marcinlowercase.a.ui.panel.ColorPickerPanel
@@ -230,7 +229,7 @@ class MainActivity : ComponentActivity() {
         val prompt = pendingFilePrompt
         val geckoResult = pendingFileResult
 
-        if (result.resultCode == Activity.RESULT_OK && prompt != null && geckoResult != null) {
+        if (result.resultCode == RESULT_OK && prompt != null && geckoResult != null) {
             val data = result.data
             val uri = data?.data
             val clipData = data?.clipData
@@ -530,12 +529,12 @@ class MainActivity : ComponentActivity() {
 @SuppressLint("SourceLockedOrientationActivity", "ClickableViewAccessibility")
 @Composable
 fun BrowserScreen(
+    modifier: Modifier = Modifier,
     innerPadding: PaddingValues,
     newUrlFlow: StateFlow<String?>,
     tabManager: TabManager,
     geckoManager: GeckoManager,
     initialIntentUrl: String? = null,
-    modifier: Modifier = Modifier
 ) {
 
     //region Variables
@@ -3739,7 +3738,6 @@ fun BrowserScreen(
                         },
                         isFocusOnSettingTextField = isFocusOnSettingTextField,
                         isFocusOnTextField = isFocusOnTextField,
-                        choiceState = choiceState,
                         isFocusOnFindTextField = isFocusOnFindTextField,
                         updateCurrentRotation = updateCurrentRotation,
                         geckoManager = geckoManager,

@@ -2,7 +2,6 @@ package marcinlowercase.a.core.manager
 
 import JsChoiceState
 import android.annotation.SuppressLint
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.util.Log
@@ -37,7 +36,6 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.setValue
 import marcinlowercase.a.core.data_class.JsColorState
 import marcinlowercase.a.core.data_class.JsDateTimeState
-import marcinlowercase.a.core.enum_class.TabState
 import kotlin.math.abs
 
 private const val UBLOCK_ID = "uBlock0@raymondhill.net"

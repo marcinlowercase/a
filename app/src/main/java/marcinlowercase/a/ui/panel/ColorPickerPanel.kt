@@ -5,27 +5,21 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -35,9 +29,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import marcinlowercase.a.R
 import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.JsColorState
@@ -56,6 +48,8 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
+import androidx.core.graphics.toColorInt
+
 const val sliderHeight = 16
 
 @Composable
@@ -73,7 +67,8 @@ fun ColorPickerPanel(
     // --- 1. Core HSV States ---
     val initialHsv = remember(prompt.defaultValue) {
         val hsv = FloatArray(3)
-        AndroidColor.colorToHSV(AndroidColor.parseColor(prompt.defaultValue), hsv)
+        // prompt.defaultValue is a String, so we use the extension function
+        AndroidColor.colorToHSV(prompt.defaultValue?.toColorInt()?: 0xFFFF0000.toInt(), hsv)
         hsv
     }
     var hue by remember { mutableFloatStateOf(initialHsv[0]) }
@@ -135,7 +130,9 @@ fun ColorPickerPanel(
 
                             // Try to parse and update sliders if it's a complete hex code
                             try {
-                                val parsedColor = AndroidColor.parseColor(if (filtered.startsWith("#")) filtered else "#$filtered")
+                                val parsedColor = (if (filtered.startsWith("#")) filtered else "#$filtered").toColorInt()
+
+
                                 val hsv = FloatArray(3)
                                 AndroidColor.colorToHSV(parsedColor, hsv)
                                 hue = hsv[0]
@@ -159,12 +156,12 @@ fun ColorPickerPanel(
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .onFocusChanged({ focusState ->
+                        .onFocusChanged{ focusState ->
                             isFocusOnSettingTextField.value = focusState.hasFocus
                             if (focusState.hasFocus) {
                                 hexText = ""
                             }
-                        })
+                        }
                 )
             }
 
@@ -177,7 +174,7 @@ fun ColorPickerPanel(
 
             ) {
 
-                Column() {
+                Column{
                     val rainbowBrush = remember {
                         Brush.horizontalGradient(
                             listOf(Color.Red, Color.Yellow, Color.Green, Color.Cyan, Color.Blue, Color.Magenta, Color.Red)

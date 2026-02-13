@@ -1,11 +1,8 @@
 package marcinlowercase.a.ui.panel
 
-import JsChoiceState
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.ClipData
-import android.content.res.Configuration
-import android.util.Log
 import android.util.Patterns
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.compose.animation.AnimatedVisibility
@@ -57,10 +54,6 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -75,7 +68,6 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalClipboard
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.SoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
@@ -84,7 +76,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -113,7 +104,6 @@ import marcinlowercase.a.core.function.toDomain
 import marcinlowercase.a.core.function.webViewLoad
 import marcinlowercase.a.core.manager.AppManager
 import marcinlowercase.a.core.manager.GeckoManager
-import marcinlowercase.a.core.manager.WebViewManager
 import org.mozilla.geckoview.GeckoResult
 import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.GeckoView
@@ -125,7 +115,6 @@ import kotlin.math.abs
 @SuppressLint("FrequentlyChangingValue")
 @Composable
 fun BottomPanel(
-    choiceState: MutableState<JsChoiceState?>,
     onAppDoubleClick: (App) -> Unit = {},
 
     isFocusOnFindTextField: MutableState<Boolean>,
