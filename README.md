@@ -1,7 +1,5 @@
-# the browser of oo1 studio
+# [the browser of oo1 studio](https://browser.oo1.studio/)
 
-### Requirements
-- Android 10 or higher.
+[releases](../../releases/latest)
 
-### Downloads
-- [Release Page](../../releases/latest)
+by [oo1.studio](https://oo1.studio/)
