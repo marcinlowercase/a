@@ -129,6 +129,7 @@ fun BottomPanel(
     onAppDoubleClick: (App) -> Unit = {},
 
     isFocusOnFindTextField: MutableState<Boolean>,
+    isFocusOnSettingTextField: MutableState<Boolean>,
     updateCurrentRotation: ()-> Unit,
 //    currentRotation: Float,
     geckoManager: GeckoManager,
@@ -153,7 +154,7 @@ fun BottomPanel(
     contextMenuData: ContextMenuData?,
     displayContextMenuData: ContextMenuData?,
     onDismissContextMenu: () -> Unit,
-    isFocusOnTextField: MutableState<Boolean>,
+    isFocusOnUrlTextField: MutableState<Boolean>,
     textFieldState: TextFieldState,
     onCloseAllTabs: () -> Unit,
     suggestions: List<Suggestion>, // Changed from List<String>
@@ -239,7 +240,6 @@ fun BottomPanel(
     toggleIsTabsPanelVisible: () -> Unit = {},
     onNewUrl: (String) -> Unit = {},
     setTextFieldHeightPx: (Int) -> Unit = {},
-    setIsFocusOnTextField: (Boolean) -> Unit = {},
     inspectingAppId: MutableState<Long>,
     isPinningApp: MutableState<Boolean>,
 ) {
@@ -287,7 +287,7 @@ fun BottomPanel(
                         orientation = Orientation.Vertical,
                         flingBehavior = flingBehavior,
                         //                    enabled = !isFocusOnTextField && contextMenuData == null && !isPromptPanelVisible  && (!isPermissionPanelVisible || (isPermissionPanelVisible &&  isUrlBarVisible) )
-                        enabled = isUrlBarVisible && ((!isFocusOnTextField.value && contextMenuData == null && !isPromptPanelVisible && (!isPermissionPanelVisible)) || isUrlBarVisible)
+                        enabled = isUrlBarVisible && ((!isFocusOnUrlTextField.value && contextMenuData == null && !isPromptPanelVisible && (!isPermissionPanelVisible)) || isUrlBarVisible)
                     )
 
             ) {
@@ -458,7 +458,7 @@ fun BottomPanel(
                     confirmationPopup = confirmationPopup,
                     targetSetting = initialSettingPanelView,
                     isSettingCornerRadius = isSettingCornerRadius,
-                    isFocusOnTextField = isFocusOnTextField,
+                    isFocusOnTextField = isFocusOnSettingTextField,
 
 
                 )
@@ -841,7 +841,7 @@ fun BottomPanel(
                                             //                            .padding(horizontal = browserSettings.value.padding.dp, vertical = browserSettings.value.padding.dp / 2)
                                             .onFocusChanged {
                                                 val resetUrl = activeTab.value.currentURL
-                                                setIsFocusOnTextField(it.isFocused)
+                                                isFocusOnUrlTextField.value = it.isFocused
                                                 if (it.isFocused) {
 
                                                     //                                                geckoViewRef.value?.clearFocus()
@@ -911,7 +911,7 @@ fun BottomPanel(
                                         state = textFieldState,
                                         textStyle = LocalTextStyle.current.copy(
                                             //                            fontFamily = FontFamily.Monospace,
-                                            textAlign = if (isFocusOnTextField.value) TextAlign.Start else TextAlign.Center
+                                            textAlign = if (isFocusOnUrlTextField.value) TextAlign.Start else TextAlign.Center
                                         ),
                                         //                        state = rememberTextFieldState("Hello"),
                                         lineLimits = TextFieldLineLimits.SingleLine,
@@ -941,7 +941,7 @@ fun BottomPanel(
 
                                                 textFieldState.setTextAndPlaceCursorAtEnd(resetUrl.toDomain())
 
-                                                setIsFocusOnTextField(false)
+                                                isFocusOnUrlTextField.value = false
 
                                                 return@TextField
                                             }
@@ -996,7 +996,7 @@ fun BottomPanel(
                                             focusManager.clearFocus()
                                             keyboardController?.hide()
 
-                                            setIsFocusOnTextField(false)
+                                            isFocusOnUrlTextField.value = false
                                         },
                                         shape = RoundedCornerShape(
                                             browserSettings.value.cornerRadiusForLayer(2).dp
@@ -1016,7 +1016,7 @@ fun BottomPanel(
                                         ),
                                     )
 
-                                    if (isUrlOverlayBoxVisible && !isFocusOnTextField.value) Box(
+                                    if (isUrlOverlayBoxVisible && !isFocusOnUrlTextField.value) Box(
                                         modifier = Modifier
                                             .background(
                                                 Color.Transparent, shape = RoundedCornerShape(
@@ -1130,7 +1130,7 @@ fun BottomPanel(
                                                                 horizontalDragAccumulator += change.position.x - change.previousPosition.x
                                                                 verticalDragAccumulator += change.position.y - change.previousPosition.y
 
-                                                                if (isFocusOnTextField.value) change.consume()
+                                                                if (isFocusOnUrlTextField.value) change.consume()
                                                                 if (abs(horizontalDragAccumulator) > abs(
                                                                         verticalDragAccumulator
                                                                     )
@@ -1241,7 +1241,7 @@ fun BottomPanel(
                 TextEditPanel(
 //                    currentRotation =  currentRotation,
                     isPinningApp = isPinningApp,
-                    isVisible = isPinningApp.value || (isFocusOnTextField.value && textFieldState.text.isBlank()),
+                    isVisible = isPinningApp.value || (isFocusOnUrlTextField.value && textFieldState.text.isBlank()),
                     browserSettings = browserSettings,
                     onCopyClick = {
                         val clipData = ClipData.newPlainText("url", activeTab.value.currentURL)
@@ -1259,7 +1259,7 @@ fun BottomPanel(
                         keyboardController?.show()
                     },
                     onDismiss = {
-                        setIsFocusOnTextField(false)
+                        isFocusOnUrlTextField.value = false
                         focusManager.clearFocus()
                     },
                     activeWebViewTitle = activeTab.value.currentTitle,

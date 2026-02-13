@@ -657,8 +657,11 @@ fun BrowserScreen(
     }
 
     var isLoading by remember { mutableStateOf(false) }
-    var isFocusOnTextField = remember { mutableStateOf(false) }
+    val isFocusOnUrlTextField = remember { mutableStateOf(false) }
+    val isFocusOnSettingTextField = remember { mutableStateOf(false) }
     val isFocusOnFindTextField = remember { mutableStateOf(false) }
+    val isFocusOnTextField = remember { mutableStateOf(false) }
+
     var isApplyImePaddingToWebView by remember { mutableStateOf(true) }
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
@@ -1331,7 +1334,7 @@ fun BrowserScreen(
                             inspectingTabId = tabs[nextTabIndex].id
                             activeTabIndex.intValue = nextTabIndex
                             val nextUrl = tabs[nextTabIndex].currentURL
-                            if (!isFocusOnTextField.value) {
+                            if (!isFocusOnUrlTextField.value) {
                                 textFieldState.setTextAndPlaceCursorAtEnd(nextUrl.toDomain())
                             }
 
@@ -1619,7 +1622,7 @@ fun BrowserScreen(
 
 
 //        textFieldValue = TextFieldValue(url, TextRange(url.length))
-        if (!isFocusOnTextField.value) textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
+        if (!isFocusOnUrlTextField.value) textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
         saveTrigger++
 
 
@@ -1668,7 +1671,7 @@ fun BrowserScreen(
                     tabs[nextTabIndex].state = TabState.ACTIVE
 
                     val urlToLoad = tabs[nextTabIndex].currentURL
-                    if (!isFocusOnTextField.value) textFieldState.setTextAndPlaceCursorAtEnd(urlToLoad.toDomain())
+                    if (!isFocusOnUrlTextField.value) textFieldState.setTextAndPlaceCursorAtEnd(urlToLoad.toDomain())
                     saveTrigger++
                 } else {
 
@@ -1907,6 +1910,9 @@ fun BrowserScreen(
     //endregion
 
     //region LaunchedEffect
+    LaunchedEffect(isFocusOnSettingTextField.value, isFocusOnUrlTextField.value, isFocusOnFindTextField.value) {
+        isFocusOnTextField.value = isFocusOnFindTextField.value || isFocusOnUrlTextField.value || isFocusOnSettingTextField.value
+    }
 
     LaunchedEffect(Unit) {
         newUrlFlow.collect { urlFromIntent ->
@@ -1958,8 +1964,8 @@ fun BrowserScreen(
         }
 
     }
-    LaunchedEffect(isFocusOnTextField.value, isPromptPanelVisible, isFocusOnFindTextField.value) {
-        if (!isFocusOnTextField.value && !isPromptPanelVisible && !isFocusOnFindTextField.value) {
+    LaunchedEffect(isFocusOnTextField.value, isPromptPanelVisible) {
+        if (!isFocusOnTextField.value && !isPromptPanelVisible) {
             delay(300)
             isApplyImePaddingToWebView = true
         } else {
@@ -2007,10 +2013,10 @@ fun BrowserScreen(
         if (bottomPanelPagerState.currentPage == BottomPanelMode.SEARCH.ordinal) {
             isUrlOverlayBoxVisible = true
             if (isAppsPanelVisible.value) isAppsPanelVisible.value = false
-            if (tabsPanelLock && !isFocusOnTextField.value) isTabsPanelVisible = true
+            if (tabsPanelLock && !isFocusOnUrlTextField.value) isTabsPanelVisible = true
             if (inspectingAppId.longValue != 0L) inspectingAppId.longValue = 0L
         } else {
-            isFocusOnTextField.value = false
+            isFocusOnUrlTextField.value = false
             isDownloadPanelVisible.value = false
             isNavPanelVisible = false
             isTabsPanelVisible = false
@@ -2074,7 +2080,7 @@ fun BrowserScreen(
         }
     }
 
-    LaunchedEffect(textFieldState.text, isFocusOnTextField.value) {
+    LaunchedEffect(textFieldState.text, isFocusOnUrlTextField.value) {
 
         if (!browserSettings.value.showSuggestions || (textFieldState.text as String) == currentInspectingTab?.currentURL || textFieldState.text.isBlank() || isPinningApp.value) {
             suggestions.clear()
@@ -2083,7 +2089,7 @@ fun BrowserScreen(
 
         val query = (textFieldState.text as String).trim()
 
-        if (query.isNotBlank() && isFocusOnTextField.value) {
+        if (query.isNotBlank() && isFocusOnUrlTextField.value) {
 //            delay(50L) // Debounce
             if (query != textFieldState.text.trim()) return@LaunchedEffect
 
@@ -2187,7 +2193,7 @@ fun BrowserScreen(
 
             // C. Update the UI state
             suggestions.clear()
-            if (textFieldState.text.isNotEmpty() && isFocusOnTextField.value)
+            if (textFieldState.text.isNotEmpty() && isFocusOnUrlTextField.value)
                 suggestions.addAll(finalSuggestions.take(10)) // Limit to a reasonable number
         } else {
             suggestions.clear()
@@ -2393,7 +2399,7 @@ fun BrowserScreen(
                     && url != "about:blank"
                     && !url.startsWith("javascript:")
                 ) {
-                    if (!isFocusOnTextField.value) {
+                    if (!isFocusOnUrlTextField.value) {
                         textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
                     }
 
@@ -2413,7 +2419,7 @@ fun BrowserScreen(
                 // fe:  change  tab A -> B, the textbox changed to A.url
 //                if (session == activeSession) {
                 if (eventTabId == activeTab.value.id && url.isNotBlank() && url != "about:blank") {
-                    if (!isFocusOnTextField.value) {
+                    if (!isFocusOnUrlTextField.value) {
                         textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
                     }
 
@@ -2494,7 +2500,7 @@ fun BrowserScreen(
                         activeTab.value = activeTab.value.copy(errorState = null)
                     }
 
-                    if (!isFocusOnTextField.value) textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
+                    if (!isFocusOnUrlTextField.value) textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
 
                 }
 
@@ -2822,7 +2828,7 @@ fun BrowserScreen(
 //
 //                },
 //                onDoUpdateVisitedHistoryFun = { view, url, _ ->
-//                    if (!isFocusOnTextField.value) view.url?.let {
+//                    if (!isFocusOnUrlTextField.value) view.url?.let {
 //                        textFieldState.setTextAndPlaceCursorAtEnd(it.toDomain())
 //                    }
 //                    if (url != null && activeTab.currentURL != url) {
@@ -3333,7 +3339,7 @@ fun BrowserScreen(
                     .padding(bottom = browserSettings.value.padding.dp)
             ) {
                 SettingsPanel(
-                    isFocusOnTextField = isFocusOnTextField,
+                    isFocusOnTextField = isFocusOnSettingTextField,
 //                    currentRotation = currentRotation,
                     descriptionContent = descriptionContent,
                     backgroundColor = backgroundColor,
@@ -3501,7 +3507,7 @@ fun BrowserScreen(
                             browserSettings = browserSettings,
                             onDismiss = { colorState.value = null },
                             descriptionContent= descriptionContent,
-                            isFocusOnTextField = isFocusOnTextField
+                            isFocusOnSettingTextField = isFocusOnSettingTextField
                         )
 
                     }
@@ -3641,6 +3647,7 @@ fun BrowserScreen(
                             createNewTab(activeTabIndex.intValue + 1, app.url)
 
                         },
+                        isFocusOnSettingTextField = isFocusOnSettingTextField,
                         choiceState = choiceState,
                         isFocusOnFindTextField = isFocusOnFindTextField,
                         updateCurrentRotation = updateCurrentRotation,
@@ -3689,7 +3696,7 @@ fun BrowserScreen(
                         contextMenuData = contextMenuData,
                         displayContextMenuData = displayContextMenuData,
                         onDismissContextMenu = { contextMenuData = null },
-                        isFocusOnTextField = isFocusOnTextField,
+                        isFocusOnUrlTextField = isFocusOnUrlTextField,
                         textFieldState = textFieldState,
                         onCloseAllTabs = {
                             confirmationPopup(
@@ -3816,7 +3823,7 @@ fun BrowserScreen(
                                 activeTabIndex.intValue = newIndex
                                 val urlToLoad = tabs[newIndex].currentURL
 
-                                if (!isFocusOnTextField.value) textFieldState.setTextAndPlaceCursorAtEnd(
+                                if (!isFocusOnUrlTextField.value) textFieldState.setTextAndPlaceCursorAtEnd(
                                     urlToLoad.toDomain()
                                 )
                                 saveTrigger++
@@ -3856,8 +3863,6 @@ fun BrowserScreen(
                         onNewUrl = { newUrl ->
                             webViewLoad(activeSession, newUrl, browserSettings.value)
                         },
-                        setIsFocusOnTextField = { isFocusOnTextField.value = it },
-//                        handleHistoryNavigation = handleHistoryNavigation,
                         isFindInPageVisible = isFindInPageVisible,
 
                         )

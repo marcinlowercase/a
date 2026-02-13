@@ -64,7 +64,7 @@ fun ColorPickerPanel(
     browserSettings: MutableState<BrowserSettings>,
     descriptionContent: MutableState<String>,
     onDismiss: () -> Unit,
-    isFocusOnTextField: MutableState<Boolean>
+    isFocusOnSettingTextField: MutableState<Boolean>
 ) {
     val state = colorState.value ?: return
     val prompt = state.prompt
@@ -160,7 +160,7 @@ fun ColorPickerPanel(
                     modifier = Modifier
                         .fillMaxWidth()
                         .onFocusChanged({ focusState ->
-                            isFocusOnTextField.value = focusState.hasFocus
+                            isFocusOnSettingTextField.value = focusState.hasFocus
                             if (focusState.hasFocus) {
                                 hexText = ""
                             }
@@ -170,7 +170,7 @@ fun ColorPickerPanel(
 
 
             AnimatedVisibility(
-                visible = !isFocusOnTextField.value,
+                visible = !isFocusOnSettingTextField.value,
 
                 enter = expandVertically(tween(browserSettings.value.animationSpeedForLayer(1))),
                 exit = shrinkVertically(tween(browserSettings.value.animationSpeedForLayer(1)))

@@ -69,6 +69,7 @@ import kotlin.collections.chunked
 import kotlin.collections.forEach
 import kotlin.math.roundToInt
 import androidx.core.graphics.toColorInt
+import kotlin.Boolean
 
 enum class SettingPanelView {
     MAIN,
@@ -90,6 +91,7 @@ enum class SettingPanelView {
 
 @Composable
 fun SliderSetting(
+    isFocusOnTextField: MutableState<Boolean>,
     browserSettings: MutableState<BrowserSettings>,
     updateBrowserSettingsForSpecificValue: (Float) -> Unit,
     valueRange: ClosedFloatingPointRange<Float>,
@@ -228,6 +230,7 @@ fun SliderSetting(
                             false // Event not handled
                         }
                         .onFocusChanged {
+                            isFocusOnTextField.value = it.hasFocus
 
                             commitTextFieldValue()
                         },
@@ -243,10 +246,7 @@ fun SliderSetting(
                     ),
                     keyboardActions = KeyboardActions(
                         onDone = {
-
-//                            updateBrowserSettingsForSpecificValue(sliderValue.coerceIn(valueRange))
                             commitTextFieldValue()
-                            // When the user presses "Done", hide the keyboard and clear focus.
                             keyboardController?.hide()
                             focusManager.clearFocus()
                         }
@@ -321,7 +321,9 @@ fun TextSetting(
     onBackClick: () -> Unit,
     iconID: Int,
     currentSettingOriginalValue: String,
-) {
+    isFocusOnTextField: MutableState<Boolean>,
+
+    ) {
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
 
@@ -405,7 +407,11 @@ fun TextSetting(
                 .padding(top = browserSettings.value.padding.dp)
                 .height(
                     browserSettings.value.heightForLayer(3).dp
-                ),
+                )
+                .onFocusChanged{
+                    isFocusOnTextField.value = it.hasFocus
+                }
+            ,
             shape = RoundedCornerShape(
                 browserSettings.value.cornerRadiusForLayer(3).dp
             ),
@@ -634,6 +640,7 @@ fun SettingsPanel(
                             src.take(2) + "." + src.substring(2, 4)
                         },
                         iconID = R.drawable.ic_adjust_corner_radius,
+                        isFocusOnTextField = isFocusOnTextField,
                     )
                 }
 
@@ -655,8 +662,9 @@ fun SettingsPanel(
                             src
                         },
                         afterDecimal = false,
-                        iconID = R.drawable.ic_animation
-                    )
+                        iconID = R.drawable.ic_animation,
+                        isFocusOnTextField = isFocusOnTextField,
+                        )
                 }
                 SettingPanelView.SINGLE_LINE_HEIGHT -> {
 
@@ -676,8 +684,9 @@ fun SettingsPanel(
                             src
                         },
                         afterDecimal = false,
-                        iconID = R.drawable.ic_expand
-                    )
+                        iconID = R.drawable.ic_expand,
+                        isFocusOnTextField = isFocusOnTextField,
+                        )
                 }
 
                 SettingPanelView.PADDING -> {
@@ -700,7 +709,8 @@ fun SettingsPanel(
                         afterDecimal = false,
                         iconID = R.drawable.ic_padding,
                         digitCount = 2,
-                    )
+                        isFocusOnTextField = isFocusOnTextField,
+                        )
                 }
 
                 SettingPanelView.HIGHLIGHT_COLOR -> {
@@ -944,7 +954,8 @@ fun SettingsPanel(
                         afterDecimal = false,
                         iconID = R.drawable.ic_cursor_size,
                         digitCount = 2,
-                    )
+                        isFocusOnTextField = isFocusOnTextField,
+                        )
                 }
 
                 SettingPanelView.CURSOR_TRACKING_SPEED -> {
@@ -966,7 +977,8 @@ fun SettingsPanel(
                         afterDecimal = true,
                         iconID = R.drawable.ic_cursor_speed,
                         digitCount = 4,
-                    )
+                        isFocusOnTextField = isFocusOnTextField,
+                        )
                 }
 
                 SettingPanelView.DEFAULT_URL -> {
@@ -977,8 +989,9 @@ fun SettingsPanel(
                         },
                         onBackClick = { if (!browserSettings.value.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
                         iconID = R.drawable.ic_link,
-                        currentSettingOriginalValue = browserSettings.value.defaultUrl
-                    )
+                        currentSettingOriginalValue = browserSettings.value.defaultUrl,
+                        isFocusOnTextField = isFocusOnTextField,
+                        )
                 }
 
                 SettingPanelView.INFO -> {
@@ -1011,8 +1024,10 @@ fun SettingsPanel(
                         textFieldValueFun = { src -> src },
                         afterDecimal = false, // We are dealing with whole numbers
                         iconID = R.drawable.ic_history,
-                        digitCount = 2 // Allow up to 99
-                    )
+                        digitCount = 2 ,
+                        isFocusOnTextField = isFocusOnTextField,
+
+                        )
                 }
 
                 SettingPanelView.BACK_SQUARE_OPACITY -> {
@@ -1034,8 +1049,9 @@ fun SettingsPanel(
                         },
                         iconID = R.drawable.ic_opacity,
                         digitCount = 4,
-                        afterDecimal = true
-                    )
+                        afterDecimal = true,
+                        isFocusOnTextField = isFocusOnTextField,
+                        )
                 }
                 SettingPanelView.MAX_LIST_HEIGHT -> {
                     SliderSetting(
@@ -1055,8 +1071,9 @@ fun SettingsPanel(
                         },
                         iconID = R.drawable.ic_max_list_height,
                         digitCount = 4,
-                        afterDecimal = true
-                    )
+                        afterDecimal = true,
+                        isFocusOnTextField = isFocusOnTextField,
+                        )
                 }
                 SettingPanelView.SEARCH_ENGINE -> {
                     SliderSetting(
@@ -1080,8 +1097,9 @@ fun SettingsPanel(
                         },
                         iconID = R.drawable.ic_search,
                         digitCount = 4,
-                        afterDecimal = true
-                    )
+                        afterDecimal = true,
+                        isFocusOnTextField = isFocusOnTextField,
+                        )
                 }
 
             }
