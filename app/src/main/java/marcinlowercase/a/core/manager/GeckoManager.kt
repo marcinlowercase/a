@@ -36,6 +36,7 @@ import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.setValue
 import marcinlowercase.a.core.data_class.JsColorState
+import marcinlowercase.a.core.data_class.JsDateTimeState
 import kotlin.math.abs
 
 private const val UBLOCK_ID = "uBlock0@raymondhill.net"
@@ -415,7 +416,9 @@ class GeckoManager(private val context: Context) {
 
         onFilePromptFun:(prompt: GeckoSession.PromptDelegate.FilePrompt, result: GeckoResult<GeckoSession.PromptDelegate.PromptResponse>) -> Unit,
         onColorPromptFun:(JsColorState) -> Unit,
-    ) {
+        onDateTimePromptFun: (JsDateTimeState) -> Unit,
+
+        ) {
         Log.i("setupDelegates", "setupDelegates")
         val eventTabId = tab.value.id
 
@@ -749,6 +752,15 @@ class GeckoManager(private val context: Context) {
         )
 
         session.promptDelegate = object : GeckoSession.PromptDelegate {
+
+            override fun onDateTimePrompt(
+                session: GeckoSession,
+                prompt: GeckoSession.PromptDelegate.DateTimePrompt
+            ): GeckoResult<GeckoSession.PromptDelegate.PromptResponse> {
+                val result = GeckoResult<GeckoSession.PromptDelegate.PromptResponse>()
+                onDateTimePromptFun(JsDateTimeState(prompt, result))
+                return result
+            }
 
             override fun onColorPrompt(
                 session: GeckoSession,

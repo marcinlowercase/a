@@ -153,6 +153,7 @@ import marcinlowercase.a.core.data_class.ErrorState
 import marcinlowercase.a.core.data_class.JsAlert
 import marcinlowercase.a.core.data_class.JsColorState
 import marcinlowercase.a.core.data_class.JsConfirm
+import marcinlowercase.a.core.data_class.JsDateTimeState
 import marcinlowercase.a.core.data_class.JsDialogState
 import marcinlowercase.a.core.data_class.JsPrompt
 import marcinlowercase.a.core.data_class.PanelVisibilityState
@@ -184,6 +185,7 @@ import marcinlowercase.a.core.manager.WebViewManager
 import marcinlowercase.a.ui.panel.BottomPanel
 import marcinlowercase.a.ui.panel.ChoicePanel
 import marcinlowercase.a.ui.panel.ColorPickerPanel
+import marcinlowercase.a.ui.panel.DateTimePickerPanel
 import marcinlowercase.a.ui.panel.MediaControlPanel
 import marcinlowercase.a.ui.panel.SettingPanelView
 import marcinlowercase.a.ui.panel.SettingsPanel
@@ -1073,9 +1075,13 @@ fun BrowserScreen(
         isOtherPanelVisible.value = choiceState.value != null
                 || colorState.value != null
     }
+
+    val dateTimeState = remember { mutableStateOf<JsDateTimeState?>(null) }
+
     LaunchedEffect(isOtherPanelVisible.value) {
         if (isOtherPanelVisible.value) isBottomPanelVisible = false
     }
+
     //endregion
 
     //region Functions
@@ -2668,13 +2674,13 @@ fun BrowserScreen(
                 mainActivity.openFilePicker(prompt, result)
             },
             onColorPromptFun = {
-                Log.e("ColorPicker", "${it.prompt}")
                 colorState.value = it
-            }
+            },
+            onDateTimePromptFun = { dateTimeState.value = it },
 
 
 
-        )
+            )
 
 
         if (activeTab.value.state == TabState.FROZEN && !initialLoadDone) {
@@ -3472,6 +3478,13 @@ fun BrowserScreen(
 
                 if (!isPipMode) {
 
+
+                    if (dateTimeState.value != null) {
+                        DateTimePickerPanel(
+                            dateTimeState = dateTimeState,
+                            onDismiss = { dateTimeState.value = null }
+                        )
+                    }
 
                     AnimatedVisibility(
                         visible = choiceState.value != null,
