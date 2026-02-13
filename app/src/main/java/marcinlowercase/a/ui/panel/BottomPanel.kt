@@ -155,6 +155,7 @@ fun BottomPanel(
     displayContextMenuData: ContextMenuData?,
     onDismissContextMenu: () -> Unit,
     isFocusOnUrlTextField: MutableState<Boolean>,
+    isFocusOnTextField: MutableState<Boolean>,
     textFieldState: TextFieldState,
     onCloseAllTabs: () -> Unit,
     suggestions: List<Suggestion>, // Changed from List<String>
@@ -286,8 +287,8 @@ fun BottomPanel(
                         state = draggableState,
                         orientation = Orientation.Vertical,
                         flingBehavior = flingBehavior,
-                        //                    enabled = !isFocusOnTextField && contextMenuData == null && !isPromptPanelVisible  && (!isPermissionPanelVisible || (isPermissionPanelVisible &&  isUrlBarVisible) )
-                        enabled = isUrlBarVisible && ((!isFocusOnUrlTextField.value && contextMenuData == null && !isPromptPanelVisible && (!isPermissionPanelVisible)) || isUrlBarVisible)
+//                                            enabled = !isFocusOnTextField && contextMenuData == null && !isPromptPanelVisible  && (!isPermissionPanelVisible || (isPermissionPanelVisible &&  isUrlBarVisible) )
+                        enabled = isUrlBarVisible && (!isFocusOnTextField.value && contextMenuData == null && !isPromptPanelVisible && (!isPermissionPanelVisible))
                     )
 
             ) {

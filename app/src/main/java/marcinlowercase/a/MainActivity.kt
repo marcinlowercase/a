@@ -3648,6 +3648,7 @@ fun BrowserScreen(
 
                         },
                         isFocusOnSettingTextField = isFocusOnSettingTextField,
+                        isFocusOnTextField = isFocusOnTextField,
                         choiceState = choiceState,
                         isFocusOnFindTextField = isFocusOnFindTextField,
                         updateCurrentRotation = updateCurrentRotation,

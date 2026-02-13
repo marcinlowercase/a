@@ -62,25 +62,16 @@ fun ConfirmationPanel(
                         browserSettings.value.cornerRadiusForLayer(2).dp
                     )
                 )
-//                .border(
-//                    width = 1.dp,
-//                    color = Color.White,
-//                    shape = RoundedCornerShape(
-//                        cornerRadiusForLayer(
-//                            2,
-//                            browserSettings.value.deviceCornerRadius,
-//                            browserSettings.value.padding
-//                        ).dp
-//                    )
-//                )
         ) {
 
             Column (
                 modifier = Modifier
-                    .heightIn(min = browserSettings.value.heightForLayer(3).dp)
+//                    .heightIn(min = browserSettings.value.heightForLayer(3).dp)
                     .padding(browserSettings.value.padding.dp)
                     .padding(browserSettings.value.padding.dp)
                     .padding(horizontal = browserSettings.value.cornerRadiusForLayer(3).dp)
+//                    .background(Color.Cyan),
+
 
             ) {
                 Text(
