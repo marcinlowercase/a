@@ -300,17 +300,6 @@ class GeckoManager(private val context: Context) {
             if (stateToRestore != null)
                 session.restoreState(stateToRestore)
         }
-
-//        // Connect the session to the engine
-//        session.open(runtime)
-//        session.setActive(true)
-//
-//
-//        // If it's a new tab without state, load the URL
-//        if (session.navigationDelegate == null && tab.savedState == null) {
-//            session.load(GeckoSession.Loader().uri(tab.currentURL))
-//        }
-
         return session
     }
 
@@ -516,36 +505,6 @@ class GeckoManager(private val context: Context) {
                 onLocationChangeFun(eventTabId, session, url, perms, userGesture)
             }
 
-            //            override fun onNewSession(session: GeckoSession, uri: String): GeckoResult<GeckoSession>? {
-//                // 1. Create the Tab data for your UI
-//                val newTabId = System.currentTimeMillis() // Generate a unique ID
-//
-//                // 2. Create the Session Settings (match your createAndConfigureSession logic)
-//                val settings = GeckoSessionSettings.Builder()
-//                    .usePrivateMode(false)
-//                    .userAgentMode(GeckoSessionSettings.USER_AGENT_MODE_MOBILE)
-//                    .suspendMediaWhenInactive(false)
-//                    .allowJavascript(true)
-//                    .build()
-//
-//                // 3. Create a BRAND NEW, UNOPENED session
-//                val newSession = GeckoSession(settings)
-//
-//                // 4. Add this session to your pool manually so that
-//                // when the UI asks for it later, it gets this specific instance
-//                sessionPool[newTabId] = newSession
-//
-//                // 5. Tell the UI to add a new Tab with this specific ID
-//                MainScope().launch {
-//                    // You might need to update onNewSessionFun to accept the generated ID
-//                    // so the UI Tab and this Session in the pool are synced.
-//                    onNewSessionFun(session, uri)
-//                }
-//
-//                // 6. RETURN the unopened session.
-//                // GeckoView will call .open() on it internally and link it to the caller.
-//                return GeckoResult.fromValue(newSession)
-//            }
             override fun onNewSession(
                 session: GeckoSession,
                 uri: String
