@@ -247,6 +247,7 @@ class MainActivity : ComponentActivity() {
                             }
                             prompt.confirm(this@MainActivity, uris.toTypedArray())
                         }
+
                         uri != null -> {
                             // Copy single file to cache
                             val localUri = copyFileToCache(uri)
@@ -256,6 +257,7 @@ class MainActivity : ComponentActivity() {
                                 prompt.dismiss()
                             }
                         }
+
                         else -> prompt.dismiss()
                     }
 
@@ -270,7 +272,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
         } else {
-            geckoResult?.complete(prompt?.dismiss() )
+            geckoResult?.complete(prompt?.dismiss())
         }
         pendingFilePrompt = null
         pendingFileResult = null
@@ -599,8 +601,6 @@ fun BrowserScreen(
     var initialLoadDone by rememberSaveable { mutableStateOf(false) }
 
 
-
-
     val tabs = remember {
         mutableStateListOf<Tab>().apply { addAll(tabManager.loadTabs(initialIntentUrl)) }
     }
@@ -613,8 +613,6 @@ fun BrowserScreen(
 
     val appManager = remember { AppManager(context) }
     val apps = remember { mutableStateListOf<App>().apply { addAll(appManager.loadApps()) } }
-
-
 
 
     val recentlyClosedTabs = remember { mutableStateListOf<Tab>() }
@@ -752,11 +750,12 @@ fun BrowserScreen(
         label = "WebView Top Padding Animation",
     )
     // Bottom Padding
-    val webViewBottomPaddingFullscreen = if (browserSettings.value.isSharpMode && !isLandscape.value) {
-        maxOf(cutoutBottom, browserSettings.value.deviceCornerRadius.dp)
-    } else {
-        cutoutBottom
-    }
+    val webViewBottomPaddingFullscreen =
+        if (browserSettings.value.isSharpMode && !isLandscape.value) {
+            maxOf(cutoutBottom, browserSettings.value.deviceCornerRadius.dp)
+        } else {
+            cutoutBottom
+        }
     val webViewBottomPaddingRegular = if (browserSettings.value.isSharpMode) {
         maxOf(
             maxOf(cutoutBottom, browserSettings.value.deviceCornerRadius.dp),
@@ -777,7 +776,7 @@ fun BrowserScreen(
             || isPipMode
         ) {
             0.dp
-        } else if (isKeyboardVisible && !isFocusOnTextField.value ) {
+        } else if (isKeyboardVisible && !isFocusOnTextField.value) {
             browserSettings.value.padding.dp
         } else webViewBottomPaddingNormalScreen
 
@@ -790,11 +789,12 @@ fun BrowserScreen(
 
     // Start Padding
 
-    val webViewStartPaddingFullscreen = if (browserSettings.value.isSharpMode && isLandscape.value) {
-        maxOf(cutoutLeft, browserSettings.value.deviceCornerRadius.dp)
-    } else {
-        cutoutLeft
-    }
+    val webViewStartPaddingFullscreen =
+        if (browserSettings.value.isSharpMode && isLandscape.value) {
+            maxOf(cutoutLeft, browserSettings.value.deviceCornerRadius.dp)
+        } else {
+            cutoutLeft
+        }
     val targetWebViewStartPadding =
         if (isSettingCornerRadius.value
             || isPipMode
@@ -1306,7 +1306,8 @@ fun BrowserScreen(
 
             // 4. Deactivate the current active tab
             if (activeTabIndex.intValue in tabs.indices) {
-                tabs[activeTabIndex.intValue] = tabs[activeTabIndex.intValue].copy(state = TabState.BACKGROUND)
+                tabs[activeTabIndex.intValue] =
+                    tabs[activeTabIndex.intValue].copy(state = TabState.BACKGROUND)
             }
 
             // 5. Insert the clone and jump to it
@@ -1712,7 +1713,9 @@ fun BrowserScreen(
                     tabs[nextTabIndex].state = TabState.ACTIVE
 
                     val urlToLoad = tabs[nextTabIndex].currentURL
-                    if (!isFocusOnUrlTextField.value) textFieldState.setTextAndPlaceCursorAtEnd(urlToLoad.toDomain())
+                    if (!isFocusOnUrlTextField.value) textFieldState.setTextAndPlaceCursorAtEnd(
+                        urlToLoad.toDomain()
+                    )
                     saveTrigger++
                 } else {
 
@@ -1951,8 +1954,13 @@ fun BrowserScreen(
     //endregion
 
     //region LaunchedEffect
-    LaunchedEffect(isFocusOnSettingTextField.value, isFocusOnUrlTextField.value, isFocusOnFindTextField.value) {
-        isFocusOnTextField.value = isFocusOnFindTextField.value || isFocusOnUrlTextField.value || isFocusOnSettingTextField.value
+    LaunchedEffect(
+        isFocusOnSettingTextField.value,
+        isFocusOnUrlTextField.value,
+        isFocusOnFindTextField.value
+    ) {
+        isFocusOnTextField.value =
+            isFocusOnFindTextField.value || isFocusOnUrlTextField.value || isFocusOnSettingTextField.value
     }
 
     LaunchedEffect(Unit) {
@@ -2395,15 +2403,14 @@ fun BrowserScreen(
 
         activeSession.setActive(true)
 
-
-        // If we are resuming the app and the active session was killed/closed
         if (!activeSession.isOpen) {
-            activeSession.open(geckoManager.runtime)
-            val stateToRestore =
-                geckoManager.restoreStateFromString(activeTab.value.savedState ?: "")
-            if (stateToRestore != null) activeSession.restoreState(stateToRestore)
+            try {
+                Log.d("InitFlow", "open active session")
+                activeSession.open(geckoManager.runtime)
+            } catch (e: Exception) {
+                Log.w("BrowserScreen", "Session open ignored (likely engine-managed): ${e.message}")
+            }
         }
-
         geckoManager.setupDelegates(
             session = activeSession,
             tab = activeTab,
@@ -2450,38 +2457,36 @@ fun BrowserScreen(
                     }
                 }
             },
-//            onNewSessionFun = { session, url ->
-//                createNewTab(activeTabIndex.intValue + 1, url)
-//            },
+
             onNewSessionFunWithId = { id, uri ->
-                // 1. Deactivate the current tab (Figma)
+                // set current tab to background
+                Log.d("NewTabFlow", "onNewSessionFunWithId")
+
                 if (activeTabIndex.intValue in tabs.indices) {
-                    tabs[activeTabIndex.intValue] = tabs[activeTabIndex.intValue].copy(state = TabState.BACKGROUND)
+                    tabs[activeTabIndex.intValue] =
+                        tabs[activeTabIndex.intValue].copy(state = TabState.BACKGROUND)
                 }
 
-                // 2. Create the new tab with the 'ACTIVE' state
+                // add new tab with engine id
                 val newTab = Tab(
                     id = id,
                     currentURL = uri,
                     state = TabState.ACTIVE
                 )
-
-                // 3. Insert the tab next to the current one
                 val insertIndex = (activeTabIndex.intValue + 1).coerceIn(0, tabs.size)
                 tabs.add(insertIndex, newTab)
 
-                // 4. Update the active index to point to the new tab
-                // This triggers Compose to switch the view to the Google Login session
+                // switch tab to new open tab
                 activeTabIndex.intValue = insertIndex
 
-                // 5. Update the URL bar text immediately
+                // Update the URL bar text immediately
                 if (!isFocusOnTextField.value) {
                     textFieldState.setTextAndPlaceCursorAtEnd(uri.toDomain())
                 }
 
                 saveTrigger++
             },
-                    onHistoryStateChangeFun = { eventTabId, session, realtimeHistory ->
+            onHistoryStateChangeFun = { eventTabId, session, realtimeHistory ->
 
                 val url = realtimeHistory[realtimeHistory.lastIndex].uri
 
@@ -2677,7 +2682,7 @@ fun BrowserScreen(
                         // Only exit landscape/immersive if NOT in PiP
                         if (!inPip) {
 
-                            if(isLandscapeByButton.value) isLandscapeByButton.value = false
+                            if (isLandscapeByButton.value) isLandscapeByButton.value = false
                             gestureManager.resetBrightness()
 
                             activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
@@ -2747,45 +2752,40 @@ fun BrowserScreen(
 
             )
 
+        if (!initialLoadDone && initialIntentUrl != null && activeTab.value.currentURL == initialIntentUrl) {
+            Log.d("InitFlow", "open app by link")
 
-        if (activeTab.value.state == TabState.FROZEN && !initialLoadDone) {
+            webViewLoad(activeSession, initialIntentUrl, browserSettings.value)
+            initialLoadDone = true
 
-            if (activeTab.value.savedState != null) {
-                try {
+        } else if (activeTab.value.savedState != null ) {
+            Log.d("InitFlow", "savestate")
 
-                    val stateToRestore =
-                        geckoManager.restoreStateFromString(activeTab.value.savedState ?: "")
-
-                    if (stateToRestore != null) {
-
-                        try {
-                            activeSession.restoreState(stateToRestore)
-                        } catch (_: Exception) {
-
-                        }
-                        // one time assignment
-                        initialLoadDone = true
-
-                        stateToRestore[stateToRestore.currentIndex].uri.let { restoredUrl ->
-
-                            textFieldState.setTextAndPlaceCursorAtEnd(restoredUrl.toDomain())
-                        }
-
-
-                        //  Clear the state so it's not restored again on config change
-                        activeTab.value.savedState = null
-                        saveTrigger++
-                    }
-
-                } catch (_: Exception) {
-                    // Fallback to loading the URL if restore fails
-                    val urlToLoad =
-                        activeTab.value.currentURL.ifBlank { browserSettings.value.defaultUrl }
-
-                    webViewLoad(activeSession, urlToLoad, browserSettings.value)
-                }
+            // Only restore if the session hasn't loaded anything yet
+            val stateToRestore = geckoManager.restoreStateFromString(activeTab.value.savedState!!)
+            if (stateToRestore != null) {
+                activeSession.restoreState(stateToRestore)
             } else {
-                webViewLoad(activeSession, browserSettings.value.defaultUrl, browserSettings.value)
+                // State corruption fallback
+                val url = activeTab.value.currentURL.ifBlank { browserSettings.value.defaultUrl }
+                webViewLoad(activeSession, url, browserSettings.value)
+            }
+            // Mark initial load done so we don't restore again on rotate
+            if (!initialLoadDone) initialLoadDone = true
+        }
+        //  Standard Load (New Tab / Link Click)
+        else {
+            Log.d("InitFlow", "standard")
+
+            // If the session is empty (no navigation history) and not being restored, load the URL.
+            // This covers "New Tab" clicks and "Target Blank" where engine didn't auto-load.
+            if (activeTab.value.savedState == null) {
+                val urlToLoad = activeTab.value.currentURL.ifBlank { browserSettings.value.defaultUrl }
+                // Avoid reloading if it's already on that page (prevents loop)
+                // But since historyState is null, we are safe to load.
+                Log.d("InitFlow", "url $urlToLoad")
+
+                webViewLoad(activeSession, urlToLoad, browserSettings.value)
             }
         }
     }
@@ -3505,12 +3505,17 @@ fun BrowserScreen(
                                                     if (isUrlBarVisible) {
                                                         isUrlBarVisible = false
                                                     }
-                                                    if (isMediaControlPanelVisible.value) isMediaControlPanelVisible.value = false
+                                                    if (isMediaControlPanelVisible.value) isMediaControlPanelVisible.value =
+                                                        false
 
-                                                    if (contextMenuData != null) contextMenuData = null
-                                                    if (choiceState.value != null) choiceState.value = null
+                                                    if (contextMenuData != null) contextMenuData =
+                                                        null
+                                                    if (choiceState.value != null) choiceState.value =
+                                                        null
                                                     if (colorState.value != null) {
-                                                        colorState.value?.result?.complete(colorState.value?.prompt?.dismiss())
+                                                        colorState.value?.result?.complete(
+                                                            colorState.value?.prompt?.dismiss()
+                                                        )
 
                                                         colorState.value = null
                                                     }
@@ -3595,7 +3600,7 @@ fun BrowserScreen(
                             colorState = colorDisplayState,
                             browserSettings = browserSettings,
                             onDismiss = { colorState.value = null },
-                            descriptionContent= descriptionContent,
+                            descriptionContent = descriptionContent,
                             isFocusOnSettingTextField = isFocusOnSettingTextField
                         )
 
@@ -3730,8 +3735,7 @@ fun BrowserScreen(
                                 )
                             )
                             .windowInsetsPadding(WindowInsets.ime)
-                            .align(Alignment.BottomCenter)
-                        ,
+                            .align(Alignment.BottomCenter),
                         onAppDoubleClick = { app ->
                             createNewTab(activeTabIndex.intValue + 1, app.url)
 

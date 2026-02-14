@@ -71,6 +71,9 @@ class GeckoManager(private val context: Context) {
 
     private val stateCache = mutableMapOf<Long, GeckoSession.SessionState>()
 
+    private val engineManagedSessionIds = mutableSetOf<Long>()
+
+
 
     private val sessionPool = mutableMapOf<Long, GeckoSession>()
     private val killedSessionIds = mutableSetOf<Long>()
@@ -249,7 +252,18 @@ class GeckoManager(private val context: Context) {
         }
 
         if (!session.isOpen) {
-            session.open(runtime)
+            val isManagedByEngine = engineManagedSessionIds.contains(tab.id)
+
+            if (isManagedByEngine) {
+                Log.d("GeckoManager", "Skipping manual open for engine-managed session: ${tab.id}")
+
+            } else {
+                try {
+                    session.open(runtime)
+                } catch (e: IllegalStateException) {
+                    Log.d("NewTabFlow", "Session already opening or attached: ${e.message}")
+                }
+            }
         }
         return session
     }
@@ -259,6 +273,7 @@ class GeckoManager(private val context: Context) {
         sessionPool.remove(tab.id)?.apply {
             close()
         }
+        engineManagedSessionIds.remove(tab.id)
     }
 
     fun isSessionKilled(tabId: Long): Boolean {
@@ -286,15 +301,15 @@ class GeckoManager(private val context: Context) {
                 session.restoreState(stateToRestore)
         }
 
-        // Connect the session to the engine
-        session.open(runtime)
-        session.setActive(true)
-
-
-        // If it's a new tab without state, load the URL
-        if (session.navigationDelegate == null && tab.savedState == null) {
-            session.load(GeckoSession.Loader().uri(tab.currentURL))
-        }
+//        // Connect the session to the engine
+//        session.open(runtime)
+//        session.setActive(true)
+//
+//
+//        // If it's a new tab without state, load the URL
+//        if (session.navigationDelegate == null && tab.savedState == null) {
+//            session.load(GeckoSession.Loader().uri(tab.currentURL))
+//        }
 
         return session
     }
@@ -419,7 +434,7 @@ class GeckoManager(private val context: Context) {
         onCloseTabFun: (Long) -> Unit,
 
         ) {
-        Log.i("setupDelegates", "setupDelegates")
+        Log.i("NewTabFlow", "setupDelegates")
         val eventTabId = tab.value.id
 
         if (killedSessionIds.contains(eventTabId)) {
@@ -468,40 +483,6 @@ class GeckoManager(private val context: Context) {
             }
         }
 
-//        // strengthen the extension logic (not too good)
-//        @SuppressLint("WrongThread")
-//        fun ensureDelegateAttached() {
-//            if (faviconExtension != null) {
-//                // Best Case: Extension already loaded
-//                session.webExtensionController.setMessageDelegate(
-//                    faviconExtension!!,
-//                    messageDelegate,
-//                    "browser"
-//                )
-//            } else {
-//                // Race Condition: Extension installing. Fetch list.
-//                runtime.webExtensionController.list().accept { extensions ->
-//                    val ext = extensions?.find { it.id == FAVICON_ID }
-//
-//                    if (ext != null) {
-//                        // Found it! Save for later tabs
-//                        faviconExtension = ext
-//                        // Attach to THIS session
-//                        session.webExtensionController.setMessageDelegate(
-//                            ext,
-//                            messageDelegate,
-//                            "browser"
-//                        )
-//                    } else {
-//                        // Still not installed??
-//                        // This shouldn't happen if installFaviconFetcher() was called in init.
-//                        // But we can verify installation here if needed.
-//                        Log.e("GeckoFavicon", "Extension not found in list!")
-//                    }
-//                }
-//            }
-//        }
-
         @SuppressLint("WrongThread")
         fun ensureDelegateAttached() {
             // Use the future we stored in init.
@@ -535,7 +516,7 @@ class GeckoManager(private val context: Context) {
                 onLocationChangeFun(eventTabId, session, url, perms, userGesture)
             }
 
-//            override fun onNewSession(session: GeckoSession, uri: String): GeckoResult<GeckoSession>? {
+            //            override fun onNewSession(session: GeckoSession, uri: String): GeckoResult<GeckoSession>? {
 //                // 1. Create the Tab data for your UI
 //                val newTabId = System.currentTimeMillis() // Generate a unique ID
 //
@@ -565,38 +546,47 @@ class GeckoManager(private val context: Context) {
 //                // GeckoView will call .open() on it internally and link it to the caller.
 //                return GeckoResult.fromValue(newSession)
 //            }
-override fun onNewSession(session: GeckoSession, uri: String): GeckoResult<GeckoSession>? {
-    // 1. Create a unique ID that BOTH the Session and the UI Tab will share
-    val newTabId = System.currentTimeMillis()
+            override fun onNewSession(
+                session: GeckoSession,
+                uri: String
+            ): GeckoResult<GeckoSession> {
+                Log.d("NewTabFlow", "onNewSession")
+                val newTabId = System.currentTimeMillis()
 
-    val settings = GeckoSessionSettings.Builder()
-        .usePrivateMode(false)
-        .userAgentMode(GeckoSessionSettings.USER_AGENT_MODE_MOBILE)
-        .suspendMediaWhenInactive(false)
-        .allowJavascript(true)
-        .build()
 
-    val newSession = GeckoSession(settings)
+                val settings = GeckoSessionSettings.Builder()
+                    .usePrivateMode(false)
+                    .userAgentMode(GeckoSessionSettings.USER_AGENT_MODE_MOBILE)
+                    .suspendMediaWhenInactive(false)
+                    .allowJavascript(true)
+                    .build()
 
-    // 2. IMMEDIATE CLOSE LISTENER
-    // This ensures that even if the UI is slow to load the new tab,
-    // the session can still close itself.
-    newSession.contentDelegate = object : GeckoSession.ContentDelegate {
-        override fun onCloseRequest(s: GeckoSession) {
-            onCloseTabFun(newTabId)
-        }
-    }
+                val newSession = GeckoSession(settings)
 
-    // 3. Register the session in the pool before telling the UI
-    sessionPool[newTabId] = newSession
+                // This ensures that even if the UI is slow to load the new tab,
+                // the session can still close itself.
+                newSession.contentDelegate = object : GeckoSession.ContentDelegate {
+                    override fun onCloseRequest(s: GeckoSession) {
+                        Log.d("NewTabFlow", "onCloseRequest")
 
-    MainScope().launch {
-        // Pass the ID to the UI so it doesn't generate a random one
-        onNewSessionFunWithId(newTabId, uri)
-    }
+                        onCloseTabFun(newTabId)
+                    }
+                }
+                engineManagedSessionIds.add(newTabId)
 
-    return GeckoResult.fromValue(newSession)
-}
+                // Register the session in the pool before telling the UI
+                sessionPool[newTabId] = newSession
+
+                MainScope().launch {
+                    // Pass the ID to the UI so it doesn't generate a random one
+                    onNewSessionFunWithId(newTabId, uri)
+                }
+
+                return GeckoResult.fromValue(newSession)
+            }
+
+
+
             override fun onCanGoBack(session: GeckoSession, canGoBack: Boolean) {
                 onCanGoBackFun(session, canGoBack)
             }
