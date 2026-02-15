@@ -1,6 +1,5 @@
 package marcinlowercase.a
 
-import JsChoiceState
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
@@ -151,6 +150,7 @@ import marcinlowercase.a.core.data_class.DownloadItem
 import marcinlowercase.a.core.data_class.DownloadParams
 import marcinlowercase.a.core.data_class.ErrorState
 import marcinlowercase.a.core.data_class.JsAlert
+import marcinlowercase.a.core.data_class.JsChoiceState
 import marcinlowercase.a.core.data_class.JsColorState
 import marcinlowercase.a.core.data_class.JsConfirm
 import marcinlowercase.a.core.data_class.JsDateTimeState
@@ -214,6 +214,8 @@ import kotlin.system.exitProcess
 //region Composable
 
 class MainActivity : ComponentActivity() {
+
+
 
     private val tabManager by lazy { TabManager(this) }
     private val geckoManager by lazy { (application as CustomApplication).geckoManager }

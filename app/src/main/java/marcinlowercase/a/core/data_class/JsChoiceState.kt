@@ -1,4 +1,4 @@
-// marcinlowercase.a.core.data_class.JsChoiceState.kt
+package marcinlowercase.a.core.data_class
 import org.mozilla.geckoview.GeckoSession.PromptDelegate.ChoicePrompt
 import org.mozilla.geckoview.GeckoResult
 import org.mozilla.geckoview.GeckoSession.PromptDelegate.PromptResponse

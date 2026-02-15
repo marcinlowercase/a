@@ -1,6 +1,5 @@
 package marcinlowercase.a.core.manager
 
-import JsChoiceState
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
@@ -34,6 +33,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.setValue
+import marcinlowercase.a.core.data_class.JsChoiceState
 import marcinlowercase.a.core.data_class.JsColorState
 import marcinlowercase.a.core.data_class.JsDateTimeState
 import kotlin.math.abs
@@ -802,13 +802,6 @@ class GeckoManager(private val context: Context) {
 
                 val result = GeckoResult<GeckoSession.PromptDelegate.PromptResponse>()
 
-                Log.e("ChoicePrompt", "promtp type: ${prompt.type}")
-                Log.e("ChoicePrompt", "promtp message: ${prompt.message}")
-                Log.e("ChoicePrompt", "promtp title: ${prompt.title}")
-                for (choice in prompt.choices) {
-                    Log.e("ChoicePrompt", "promtp choice: ${choice.label}")
-
-                }
 
                 onChoicePromptFun(JsChoiceState(prompt, result))
                 return result
