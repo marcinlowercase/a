@@ -1,6 +1,6 @@
 package marcinlowercase.a.ui.panel
 
-import JsChoiceState
+import marcinlowercase.a.core.data_class.JsChoiceState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
