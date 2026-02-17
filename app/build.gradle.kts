@@ -114,6 +114,7 @@ dependencies {
     implementation(libs.coil.svg)
     implementation(libs.androidx.compose.material3)
     implementation(libs.mozilla.geckoview.nightly)
+    implementation(libs.androidx.compose.runtime)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

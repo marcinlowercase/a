@@ -1,0 +1,17 @@
+package marcinlowercase.a.core.enum_class
+
+enum class BrowserSettingField {
+    CORNER_RADIUS,
+    PADDING,
+    ANIMATION_SPEED,
+    CURSOR_CONTAINER_SIZE,
+    CURSOR_TRACKING_SPEED,
+    BACK_SQUARE_OPACITY,
+    DEFAULT_URL,
+    INFO,
+    CLOSED_TAB_HISTORY_SIZE,
+    MAX_LIST_HEIGHT,
+    SEARCH_ENGINE,
+    SINGLE_LINE_HEIGHT,
+    HIGHLIGHT_COLOR,
+}

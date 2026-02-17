@@ -17,6 +17,7 @@ import marcinlowercase.a.core.constant.pixel_9_corner_radius
 import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.Tab
 import marcinlowercase.a.core.enum_class.ActivePanel
+import marcinlowercase.a.core.enum_class.BrowserSettingField
 import marcinlowercase.a.core.enum_class.TabState
 import marcinlowercase.a.core.manager.AppManager
 import marcinlowercase.a.core.manager.BrowserDownloadManager
@@ -260,6 +261,66 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         saveSettingsToPrefs(newSettings)
     }
 
+    fun updateField(field: BrowserSettingField, value: Any) {
+        val current = _browserSettings.value
+        val next = when (field) {
+            BrowserSettingField.CORNER_RADIUS ->
+                current.copy(deviceCornerRadius = value as Float)
+
+            BrowserSettingField.PADDING ->
+                current.copy(padding = value as Float)
+
+            BrowserSettingField.ANIMATION_SPEED ->
+                current.copy(animationSpeed = value as Float)
+
+            BrowserSettingField.CURSOR_CONTAINER_SIZE ->
+                current.copy(cursorContainerSize = value as Float)
+
+            BrowserSettingField.CURSOR_TRACKING_SPEED ->
+                current.copy(cursorTrackingSpeed = value as Float)
+
+            BrowserSettingField.BACK_SQUARE_OPACITY ->
+                current.copy(backSquareIdleOpacity = value as Float)
+
+            BrowserSettingField.DEFAULT_URL ->
+                current.copy(defaultUrl = value as String)
+
+            BrowserSettingField.CLOSED_TAB_HISTORY_SIZE ->
+                current.copy(closedTabHistorySize = value as Float)
+
+            BrowserSettingField.MAX_LIST_HEIGHT ->
+                current.copy(maxListHeight = value as Float)
+
+            BrowserSettingField.SINGLE_LINE_HEIGHT ->
+                current.copy(singleLineHeight = value as Float)
+
+            BrowserSettingField.SEARCH_ENGINE -> {
+                // Converts Float from slider to Int for the data class
+                val index = when(value) {
+                    is Float -> value.toInt()
+                    is Int -> value
+                    else -> current.searchEngine
+                }
+                current.copy(searchEngine = index)
+            }
+
+            BrowserSettingField.HIGHLIGHT_COLOR -> {
+                // Handles both Int and Long (hex) color values
+                val color = when(value) {
+                    is Int -> value
+                    is Long -> value.toInt()
+                    else -> current.highlightColor
+                }
+                current.copy(highlightColor = color)
+            }
+
+            BrowserSettingField.INFO -> current // "Info" is read-only, return current state
+        }
+
+        // Calls your existing updateSettings function to trigger StateFlow update and Save
+        updateSettings(next)
+    }
+
     fun resetSettings() {
         // Create default settings object (copied from your Activity logic)
         val defaults = _browserSettings.value.copy(
@@ -279,28 +340,28 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     private fun saveSettingsToPrefs(settings: BrowserSettings) {
         sharedPrefs.edit().apply {
-            putBoolean("is_first_app_load", browserSettings.value.isFirstAppLoad)
-            putFloat("padding", browserSettings.value.padding)
-            putFloat("device_corner_radius", browserSettings.value.deviceCornerRadius)
-            putString("default_url", browserSettings.value.defaultUrl)
-            putFloat("animation_speed", browserSettings.value.animationSpeed)
-            putFloat("single_line_height", browserSettings.value.singleLineHeight)
-//            putInt("desktop_mode_width", browserSettings.value.desktopModeWidth)
-            putBoolean("is_sharp_mode", browserSettings.value.isSharpMode)
-//            putFloat("top_sharp_edge", browserSettings.value.topSharpEdge)
-//            putFloat("bottom_sharp_edge", browserSettings.value.bottomSharpEdge)
-            putFloat("cursor_container_size", browserSettings.value.cursorContainerSize)
-            putFloat("cursor_pointer_size", browserSettings.value.cursorPointerSize)
-            putFloat("cursor_tracking_speed", browserSettings.value.cursorTrackingSpeed)
-            putBoolean("show_suggestions", browserSettings.value.showSuggestions)
-            putFloat("closed_tab_history_size", browserSettings.value.closedTabHistorySize)
-            putFloat("back_square_offset_x", browserSettings.value.backSquareOffsetX)
-            putFloat("back_square_offset_y", browserSettings.value.backSquareOffsetY)
-            putFloat("back_square_idle_opacity", browserSettings.value.backSquareIdleOpacity)
-            putFloat("max_list_height", browserSettings.value.maxListHeight)
-            putInt("search_engine", browserSettings.value.searchEngine)
-            putBoolean("is_fullscreen_mode", browserSettings.value.isFullscreenMode)
-            putInt("highlight_color", browserSettings.value.highlightColor)
+            putBoolean("is_first_app_load", settings.isFirstAppLoad)
+            putFloat("padding", settings.padding)
+            putFloat("device_corner_radius", settings.deviceCornerRadius)
+            putString("default_url", settings.defaultUrl)
+            putFloat("animation_speed", settings.animationSpeed)
+            putFloat("single_line_height", settings.singleLineHeight)
+//            putInt("desktop_mode_width", settings.desktopModeWidth)
+            putBoolean("is_sharp_mode", settings.isSharpMode)
+//            putFloat("top_sharp_edge", settings.topSharpEdge)
+//            putFloat("bottom_sharp_edge", settings.bottomSharpEdge)
+            putFloat("cursor_container_size", settings.cursorContainerSize)
+            putFloat("cursor_pointer_size", settings.cursorPointerSize)
+            putFloat("cursor_tracking_speed", settings.cursorTrackingSpeed)
+            putBoolean("show_suggestions", settings.showSuggestions)
+            putFloat("closed_tab_history_size", settings.closedTabHistorySize)
+            putFloat("back_square_offset_x", settings.backSquareOffsetX)
+            putFloat("back_square_offset_y", settings.backSquareOffsetY)
+            putFloat("back_square_idle_opacity", settings.backSquareIdleOpacity)
+            putFloat("max_list_height", settings.maxListHeight)
+            putInt("search_engine", settings.searchEngine)
+            putBoolean("is_fullscreen_mode", settings.isFullscreenMode)
+            putInt("highlight_color", settings.highlightColor)
 
             apply()
         }

@@ -386,7 +386,7 @@ class GeckoManager(private val context: Context) {
         tab: MutableState<Tab>,
         siteSettingsManager: SiteSettingsManager,
         siteSettings: Map<String, SiteSettings>,
-        browserSettings: MutableState<BrowserSettings>,
+        browserSettings: androidx.compose.runtime.State<BrowserSettings>,
         onFaviconChanged: (Long, String) -> Unit,
         onTitleChangeFun: (Long, GeckoSession, String) -> Unit,
         onNewSessionFunWithId: (id: Long, uri: String) -> Unit,

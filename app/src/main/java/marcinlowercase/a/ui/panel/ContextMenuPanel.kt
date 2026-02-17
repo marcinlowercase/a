@@ -1,8 +1,6 @@
 package marcinlowercase.a.ui.panel
 
 import android.content.ClipData
-import android.content.Intent
-import android.webkit.WebView
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
@@ -19,14 +17,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -52,10 +48,10 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import marcinlowercase.a.R
-import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.ContextMenuData
 import marcinlowercase.a.core.enum_class.ContextMenuType
 import marcinlowercase.a.core.function.copyImageToClipboard
+import marcinlowercase.a.ui.composition.LocalBrowserSettings
 //import marcinlowercase.a.core.function.shareImage
 import kotlin.math.roundToInt
 
@@ -64,11 +60,12 @@ fun ContextMenuPanel(
     descriptionContent: MutableState<String>,
     isVisible: Boolean,
     data: ContextMenuData?,
-    browserSettings: MutableState<BrowserSettings>,
     onDismiss: () -> Unit,
     onOpenInNewTab: (String) -> Unit,
     onDownload: (String) -> Unit,
 ) {
+    val settingsController = LocalBrowserSettings.current
+    val settings = settingsController.current
     val clipboard = LocalClipboard.current
     val context = LocalContext.current
     val hapticFeedback = LocalHapticFeedback.current
@@ -76,8 +73,8 @@ fun ContextMenuPanel(
 
     AnimatedVisibility(
         visible = isVisible,
-        enter = expandVertically(tween(browserSettings.value.animationSpeed.roundToInt())) + fadeIn(),
-        exit = shrinkVertically(tween(browserSettings.value.animationSpeed.roundToInt())) + fadeOut()
+        enter = expandVertically(tween(settings.animationSpeed.roundToInt())) + fadeIn(),
+        exit = shrinkVertically(tween(settings.animationSpeed.roundToInt())) + fadeOut()
     ) {
 
 
@@ -92,12 +89,12 @@ fun ContextMenuPanel(
 
         Column(
             modifier = Modifier
-                .padding(top = browserSettings.value.padding.dp)
+                .padding(top = settings.padding.dp)
                 .fillMaxWidth()
         ) {
             // 1. Header (URL or "Image")
 
-            var actionIcon = when (data.type) {
+            val actionIcon = when (data.type) {
                 ContextMenuType.LINK -> R.drawable.ic_link
                 ContextMenuType.IMAGE, ContextMenuType.IMAGE_LINK -> R.drawable.ic_image
                 ContextMenuType.VIDEO -> R.drawable.ic_video_camera_back
@@ -145,7 +142,7 @@ fun ContextMenuPanel(
 
                     isOnlyOneUrl = false
 
-                    targetUrl = data.linkUrl?: ""
+                    targetUrl = data.linkUrl
                     actions.add(Triple(R.drawable.ic_add, "open link in new tab") {
                         onOpenInNewTab(targetUrl)
                     })
@@ -162,7 +159,7 @@ fun ContextMenuPanel(
                         clipboard.nativeClipboard.setPrimaryClip(clip)
                         onDismiss()
                     })
-                    secondTargetUrl = data.srcUrl?: ""
+                    secondTargetUrl = data.srcUrl
                     secondActions.add(Triple(R.drawable.ic_add, "open media in new tab") {
                         onOpenInNewTab(secondTargetUrl)
                     })
@@ -194,7 +191,7 @@ fun ContextMenuPanel(
 
                 } else {
                     // only media
-                    targetUrl = data.srcUrl ?: ""
+                    targetUrl = data.srcUrl
                     actions.add(Triple(R.drawable.ic_add, "open media in new tab") {
                         onOpenInNewTab(targetUrl)
                     })
@@ -240,14 +237,14 @@ fun ContextMenuPanel(
                     Box (
                         modifier = Modifier
                             .weight(1f)
-//                            .height(browserSettings.value.heightForLayer(2).dp)
+//                            .height(settings.heightForLayer(2).dp)
 
                             ,
                         contentAlignment = Alignment.CenterEnd
                     ){
                         Box(
                             modifier = Modifier
-                                .padding(browserSettings.value.padding.dp)
+                                .padding(settings.padding.dp)
                                 .size(30.dp)
                                 .clip(CircleShape)
                                 .background(
@@ -274,13 +271,13 @@ fun ContextMenuPanel(
                     Box(
                         modifier = Modifier
                             .weight(1f)
-//                            .height(browserSettings.value.heightForLayer(2).dp)
+//                            .height(settings.heightForLayer(2).dp)
                            ,
                         contentAlignment = Alignment.CenterStart
                     ) {
                         Box(
                             modifier = Modifier
-                                .padding(browserSettings.value.padding.dp)
+                                .padding(settings.padding.dp)
                                 .size(30.dp)
                                 .clip(CircleShape)
 
@@ -320,13 +317,13 @@ fun ContextMenuPanel(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = browserSettings.value.padding.dp)
+                            .padding(bottom = settings.padding.dp)
                             .clip(
                                 RoundedCornerShape(
-                                    browserSettings.value.cornerRadiusForLayer(2).dp
+                                    settings.cornerRadiusForLayer(2).dp
                                 )
                             )
-                            .padding(browserSettings.value.padding.dp * 2)
+                            .padding(settings.padding.dp * 2)
 //                            .clickable(onClick = {
 //                                val clip = ClipData.newPlainText("Link", urlSrc)
 //                                clipboard.nativeClipboard.setPrimaryClip(clip)
@@ -343,7 +340,7 @@ fun ContextMenuPanel(
                                 tint = Color.White,
                                 modifier = Modifier.size(20.dp)
                             )
-                            Spacer(Modifier.width(browserSettings.value.padding.dp))
+                            Spacer(Modifier.width(settings.padding.dp))
                         }
                         Text(
                             text = urlSrc,
@@ -360,24 +357,24 @@ fun ContextMenuPanel(
                             .fillMaxWidth()
                             .clip(
                                 RoundedCornerShape(
-                                    browserSettings.value.cornerRadiusForLayer(2).dp
+                                    settings.cornerRadiusForLayer(2).dp
                                 )
                             )
-                            .padding(horizontal = browserSettings.value.padding.dp)
-                            .padding(bottom = browserSettings.value.padding.dp)
+                            .padding(horizontal = settings.padding.dp)
+                            .padding(bottom = settings.padding.dp)
                         ,
-                        horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
+                        horizontalArrangement = Arrangement.spacedBy(settings.padding.dp)
                     ) {
                         buttonSrc.forEach { (icon, desc, action) ->
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(
-                                        browserSettings.value.heightForLayer(2).dp
+                                        settings.heightForLayer(2).dp
                                     )
                                     .clip(
                                         RoundedCornerShape(
-                                            browserSettings.value.cornerRadiusForLayer(2).dp
+                                            settings.cornerRadiusForLayer(2).dp
                                         )
                                     )
                                     .background(Color.White)

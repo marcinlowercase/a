@@ -18,7 +18,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -27,47 +26,48 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import marcinlowercase.a.R
-import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.ConfirmationDialogState
 import marcinlowercase.a.core.function.buttonSettingsForLayer
+import marcinlowercase.a.ui.composition.LocalBrowserSettings
 
 @Composable
 fun ConfirmationPanel(
     isConfirmationPanelVisible: Boolean,
     isUrlBarVisible: Boolean,
-    browserSettings: MutableState<BrowserSettings>,
     state: ConfirmationDialogState?,
 ) {
+    val settingsController = LocalBrowserSettings.current
+    val settings = settingsController.current
     AnimatedVisibility(
         visible = isConfirmationPanelVisible,
-        enter = expandVertically(tween(browserSettings.value.animationSpeedForLayer(1))),
-        exit = shrinkVertically(tween(browserSettings.value.animationSpeedForLayer(1))) +
-                fadeOut(tween(browserSettings.value.animationSpeedForLayer(1)))
+        enter = expandVertically(tween(settings.animationSpeedForLayer(1))),
+        exit = shrinkVertically(tween(settings.animationSpeedForLayer(1))) +
+                fadeOut(tween(settings.animationSpeedForLayer(1)))
     ) {
 
         if (state == null) return@AnimatedVisibility
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = browserSettings.value.padding.dp)
+                .padding(horizontal = settings.padding.dp)
                 .padding(
-                    top = browserSettings.value.padding.dp,
-                    bottom = if (isUrlBarVisible) 0.dp else browserSettings.value.padding.dp
+                    top = settings.padding.dp,
+                    bottom = if (isUrlBarVisible) 0.dp else settings.padding.dp
                 )
                 .background(
                     Color.Black,
                     shape = RoundedCornerShape(
-                        browserSettings.value.cornerRadiusForLayer(2).dp
+                        settings.cornerRadiusForLayer(2).dp
                     )
                 )
         ) {
 
             Column (
                 modifier = Modifier
-//                    .heightIn(min = browserSettings.value.heightForLayer(3).dp)
-                    .padding(browserSettings.value.padding.dp)
-                    .padding(browserSettings.value.padding.dp)
-                    .padding(horizontal = browserSettings.value.cornerRadiusForLayer(3).dp)
+//                    .heightIn(min = settings.heightForLayer(3).dp)
+                    .padding(settings.padding.dp)
+                    .padding(settings.padding.dp)
+                    .padding(horizontal = settings.cornerRadiusForLayer(3).dp)
 //                    .background(Color.Cyan),
 
 
@@ -75,7 +75,7 @@ fun ConfirmationPanel(
                 Text(
                     text = state.message,
 //                    color = Color.Yellow,
-                    color = Color(browserSettings.value.highlightColor),
+                    color = Color(settings.highlightColor),
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.CenterHorizontally),
@@ -85,7 +85,7 @@ fun ConfirmationPanel(
                 if (state.url.isNotBlank()) Text(
                     text = state.url,
 //                    color = Color.Yellow,
-                    color = Color(browserSettings.value.highlightColor),
+                    color = Color(settings.highlightColor),
                     textAlign = TextAlign.Center,
                     maxLines = 1,
                     overflow = TextOverflow.Visible,
@@ -99,21 +99,21 @@ fun ConfirmationPanel(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(browserSettings.value.padding.dp),
-                horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
+                    .padding(settings.padding.dp),
+                horizontalArrangement = Arrangement.spacedBy(settings.padding.dp)
             ) {
                 // Cancel Button
                 IconButton(
                     modifier = Modifier
                         .buttonSettingsForLayer(
                             3,
-                            browserSettings.value,
+                            settings,
                             false
                         )
                         .weight(1f)
                     ,
                     shape = RoundedCornerShape(
-                        browserSettings.value.cornerRadiusForLayer(3).dp
+                        settings.cornerRadiusForLayer(3).dp
                     ),
                     onClick = state.onCancel
                 ) {
@@ -129,11 +129,11 @@ fun ConfirmationPanel(
                     modifier = Modifier
                         .buttonSettingsForLayer(
                             3,
-                            browserSettings.value,
+                            settings,
                         )
                         .weight(1f),
                     shape = RoundedCornerShape(
-                        browserSettings.value.cornerRadiusForLayer(2).dp
+                        settings.cornerRadiusForLayer(2).dp
                     ),
                     onClick = state.onConfirm
                 ) {

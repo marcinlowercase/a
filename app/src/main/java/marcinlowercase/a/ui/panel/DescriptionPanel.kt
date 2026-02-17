@@ -14,40 +14,40 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import marcinlowercase.a.core.data_class.BrowserSettings
+import marcinlowercase.a.ui.composition.LocalBrowserSettings
 
 @Composable
 fun DescriptionPanel(
     isVisible: Boolean,
     description: String,
-    browserSettings: MutableState<BrowserSettings>,
     onDismiss: () -> Unit
 ) {
+    val settingsController = LocalBrowserSettings.current
+    val settings = settingsController.current
     AnimatedVisibility(
         visible = isVisible,
         enter = expandVertically(
             tween(
-                browserSettings.value.animationSpeedForLayer(2)
+                settings.animationSpeedForLayer(2)
             )
         ) + fadeIn(
             tween(
-                browserSettings.value.animationSpeedForLayer(2)
+                settings.animationSpeedForLayer(2)
             )
         ),
         exit = shrinkVertically(
             tween(
-                browserSettings.value.animationSpeedForLayer(2)
+                settings.animationSpeedForLayer(2)
             )
         ) + fadeOut(
             tween(
-                browserSettings.value.animationSpeedForLayer(2)
+                settings.animationSpeedForLayer(2)
             )
         )
     ) {
@@ -55,7 +55,7 @@ fun DescriptionPanel(
             modifier = Modifier
 
                 .fillMaxWidth()
-                .padding(horizontal = browserSettings.value.padding.dp * 4)
+                .padding(horizontal = settings.padding.dp * 4)
                 .clickable(onClick = onDismiss),
             contentAlignment = Alignment.Center
         ) {
@@ -66,8 +66,8 @@ fun DescriptionPanel(
                 maxLines = 1,
                 overflow = TextOverflow.Visible,
                 modifier = Modifier
-                    .padding(horizontal = browserSettings.value.padding.dp)
-                    .padding(top = browserSettings.value.padding.dp)
+                    .padding(horizontal = settings.padding.dp)
+                    .padding(top = settings.padding.dp)
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState())
             )

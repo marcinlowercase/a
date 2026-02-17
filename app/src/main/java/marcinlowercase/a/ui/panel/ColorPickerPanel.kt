@@ -31,7 +31,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import marcinlowercase.a.R
-import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.JsColorState
 import marcinlowercase.a.ui.component.CustomIconButton
 import kotlin.String
@@ -49,17 +48,20 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.core.graphics.toColorInt
+import marcinlowercase.a.ui.composition.LocalBrowserSettings
 
 const val sliderHeight = 16
 
 @Composable
 fun ColorPickerPanel(
     colorState: MutableState<JsColorState?>,
-    browserSettings: MutableState<BrowserSettings>,
     descriptionContent: MutableState<String>,
     onDismiss: () -> Unit,
     isFocusOnSettingTextField: MutableState<Boolean>
 ) {
+    val settingsController = LocalBrowserSettings.current
+    val settings = settingsController.current
+    
     val state = colorState.value ?: return
     val prompt = state.prompt
     val result = state.result
@@ -95,26 +97,26 @@ fun ColorPickerPanel(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = browserSettings.value.padding.dp)
-            .clip(RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(1).dp))
+            .padding(horizontal = settings.padding.dp)
+            .clip(RoundedCornerShape(settings.cornerRadiusForLayer(1).dp))
             .background(Color(selectedColorInt))
-            .padding(browserSettings.value.padding.dp)
-            .clip(RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(2).dp))
+            .padding(settings.padding.dp)
+            .clip(RoundedCornerShape(settings.cornerRadiusForLayer(2).dp))
 
             .background(Color.Black)
 
 
     ) {
         Column(
-            verticalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp),
-            modifier = Modifier.padding(browserSettings.value.padding.dp)
+            verticalArrangement = Arrangement.spacedBy(settings.padding.dp),
+            modifier = Modifier.padding(settings.padding.dp)
         ) {
             // --- 1. BIG PREVIEW BOX / EDITABLE TEXT FIELD ---
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(browserSettings.value.heightForLayer(3).dp)
-                    .clip(RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(2).dp))
+                    .height(settings.heightForLayer(3).dp)
+                    .clip(RoundedCornerShape(settings.cornerRadiusForLayer(2).dp))
                     .background(Color(selectedColorInt)),
                 contentAlignment = Alignment.Center
             ) {
@@ -169,8 +171,8 @@ fun ColorPickerPanel(
             AnimatedVisibility(
                 visible = !isFocusOnSettingTextField.value,
 
-                enter = expandVertically(tween(browserSettings.value.animationSpeedForLayer(1))),
-                exit = shrinkVertically(tween(browserSettings.value.animationSpeedForLayer(1)))
+                enter = expandVertically(tween(settings.animationSpeedForLayer(1))),
+                exit = shrinkVertically(tween(settings.animationSpeedForLayer(1)))
 
             ) {
 
@@ -216,10 +218,9 @@ fun ColorPickerPanel(
                 }
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(settings.padding.dp)) {
                 CustomIconButton(
                     layer = 3,
-                    browserSettings = browserSettings,
                     modifier = Modifier.weight(1f),
                     onTap = {
                         result.complete(prompt.dismiss())
@@ -232,7 +233,6 @@ fun ColorPickerPanel(
                 )
                 CustomIconButton(
                     layer = 3,
-                    browserSettings = browserSettings,
                     modifier = Modifier.weight(1f),
                     onTap = {
                         // Return lowercase hex to Gecko

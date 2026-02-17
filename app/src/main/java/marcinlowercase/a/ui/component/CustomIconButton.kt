@@ -15,13 +15,13 @@ import androidx.compose.ui.unit.dp
 import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.function.buttonPointerInput
 import marcinlowercase.a.core.function.buttonSettingsForLayer
+import marcinlowercase.a.ui.composition.LocalBrowserSettings
 
 @Composable
 fun CustomIconButton(
     modifier: Modifier = Modifier,
     isLandscape : Boolean = false,
     layer: Int,
-    browserSettings: MutableState<BrowserSettings>,
     onTap: (() -> Unit),
     onLongPress: () -> Boolean = {
         false
@@ -34,23 +34,23 @@ fun CustomIconButton(
     useLongPress: Boolean = true,
 
     ) {
+    val settingsController = LocalBrowserSettings.current
+    val settings = settingsController.current
+
     val  hapticFeedback = LocalHapticFeedback.current
     val sizeModifier = if (isLandscape) {
-        Modifier.width(browserSettings.value.heightForLayer(layer).dp)
+        Modifier.width(settings.heightForLayer(layer).dp)
     } else {
-        Modifier.height(browserSettings.value.heightForLayer(layer).dp)
+        Modifier.height(settings.heightForLayer(layer).dp)
     }
     Box(
         modifier = modifier
 
             .then(sizeModifier)
-//            .height(
-//                browserSettings.value.heightForLayer(layer).dp
-//            )
 
             .buttonSettingsForLayer(
                 layer,
-                browserSettings.value,
+                settings,
                 isWhite
             )
 

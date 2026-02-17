@@ -43,12 +43,12 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import marcinlowercase.a.R
-import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.DownloadItem
 import marcinlowercase.a.core.enum_class.DownloadStatus
 import marcinlowercase.a.core.function.formatSpeed
 import marcinlowercase.a.core.function.formatTimeRemaining
 import marcinlowercase.a.ui.component.CustomIconButton
+import marcinlowercase.a.ui.composition.LocalBrowserSettings
 
 @Composable
 fun DownloadPanel(
@@ -56,34 +56,35 @@ fun DownloadPanel(
     confirmationPopup: (message: String,url: String, onConfirm: () -> Unit, onCancel: () -> Unit) -> Unit,
     isDownloadPanelVisible: MutableState<Boolean>,
     downloads: List<DownloadItem>,
-    browserSettings: MutableState<BrowserSettings>,
     onDownloadRowClicked: (DownloadItem) -> Unit,
     onDeleteClicked: (DownloadItem) -> Unit,
     onOpenFolderClicked: () -> Unit,
     onClearAllClicked: () -> Unit,
     descriptionContent: MutableState<String>
 ) {
+    val settingsController = LocalBrowserSettings.current
+    val settings = settingsController.current
     AnimatedVisibility(
         visible = isDownloadPanelVisible.value,
         enter = expandVertically(
             tween(
-                browserSettings.value.animationSpeedForLayer(1)
+                settings.animationSpeedForLayer(1)
             )
         ) + fadeIn(
-            tween(browserSettings.value.animationSpeedForLayer(1))
+            tween(settings.animationSpeedForLayer(1))
         ),
         exit = shrinkVertically(
             tween(
-                browserSettings.value.animationSpeedForLayer(1)
+                settings.animationSpeedForLayer(1)
             )
         ) + fadeOut(
-            tween(browserSettings.value.animationSpeedForLayer(1))
+            tween(settings.animationSpeedForLayer(1))
         )
     ) {
         Column(
             modifier = Modifier
-                .padding(horizontal = browserSettings.value.padding.dp)
-                .padding(top = browserSettings.value.padding.dp)
+                .padding(horizontal = settings.padding.dp)
+                .padding(top = settings.padding.dp)
 
                 .fillMaxWidth()
 
@@ -93,7 +94,7 @@ fun DownloadPanel(
                 ) // Set a max height to prevent it from getting too tall
                 .clip(
                     RoundedCornerShape(
-                        browserSettings.value.cornerRadiusForLayer(2).dp
+                        settings.cornerRadiusForLayer(2).dp
                     )
                 )
         ) {
@@ -101,16 +102,16 @@ fun DownloadPanel(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = browserSettings.value.padding.dp)
-                        .padding(top = browserSettings.value.padding.dp)
+                        .padding(horizontal = settings.padding.dp)
+                        .padding(top = settings.padding.dp)
                         .background(Color.Transparent)
                         .clip(
                             RoundedCornerShape(
-                                browserSettings.value.cornerRadiusForLayer(3).dp
+                                settings.cornerRadiusForLayer(3).dp
                             )
                         )
                         .height(
-                            browserSettings.value.heightForLayer(3).dp
+                            settings.heightForLayer(3).dp
                         ),
                     contentAlignment = Alignment.Center
                 ) {
@@ -121,14 +122,14 @@ fun DownloadPanel(
             } else {
                 LazyColumn(
                     modifier = Modifier
-                        .heightIn(max = browserSettings.value.maxContainerSizeForLayer(3).dp)
+                        .heightIn(max = settings.maxContainerSizeForLayer(3).dp)
 
-                        .padding(top = browserSettings.value.padding.dp)
-                        .padding(horizontal = browserSettings.value.padding.dp)
+                        .padding(top = settings.padding.dp)
+                        .padding(horizontal = settings.padding.dp)
 
                         .clip(
                             RoundedCornerShape(
-                                browserSettings.value.cornerRadiusForLayer(3).dp
+                                settings.cornerRadiusForLayer(3).dp
                             )
                         ),
                     reverseLayout = true,
@@ -137,7 +138,6 @@ fun DownloadPanel(
                         DownloadRow(
                             index = index,
                             item = downloads[index],
-                            browserSettings = browserSettings,
                             onClick = { onDownloadRowClicked(downloads[index]) },
                             onDeleteClicked = { onDeleteClicked(downloads[index]) }
                         )
@@ -148,21 +148,20 @@ fun DownloadPanel(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(browserSettings.value.padding.dp)
+                    .padding(settings.padding.dp)
                     .clip(
                         RoundedCornerShape(
-                            browserSettings.value.cornerRadiusForLayer(3).dp
+                            settings.cornerRadiusForLayer(3).dp
                         )
                     )
                     .height(
-                        browserSettings.value.heightForLayer(3).dp
+                        settings.heightForLayer(3).dp
                     ),
-                horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
+                horizontalArrangement = Arrangement.spacedBy(settings.padding.dp)
             ) {
                 //  Show Download Folder Button
                 CustomIconButton(
                     layer = 3,
-                    browserSettings = browserSettings,
                     modifier = Modifier.weight(1f),
                     onTap = onOpenFolderClicked,
                     descriptionContent = descriptionContent,
@@ -174,7 +173,6 @@ fun DownloadPanel(
                     CustomIconButton(
 //                        currentRotation = currentRotation,
                         layer = 3,
-                        browserSettings = browserSettings,
                         modifier = Modifier.weight(1f),
                         onTap = {
                             confirmationPopup(
@@ -204,26 +202,27 @@ fun DownloadPanel(
 fun DownloadRow(
     index: Int,
     item: DownloadItem,
-    browserSettings: MutableState<BrowserSettings>,
     onClick: () -> Unit,
     onDeleteClicked: () -> Unit
 ) {
+    val settingsController = LocalBrowserSettings.current
+    val settings = settingsController.current
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
     // 1. The root is now a Box to allow layering.
     // The clip and overall modifier are applied here.
     Box(
         modifier = Modifier
-            .padding(bottom = if (index != 0) browserSettings.value.padding.dp else 0.dp)
+            .padding(bottom = if (index != 0) settings.padding.dp else 0.dp)
 
             .fillMaxWidth()
 
-            .heightIn(min = browserSettings.value.heightForLayer(3).dp)
+            .heightIn(min = settings.heightForLayer(3).dp)
 
 
             .clip(
                 RoundedCornerShape(
-                    browserSettings.value.cornerRadiusForLayer(3).dp
+                    settings.cornerRadiusForLayer(3).dp
                 )
             )
             .clickable(enabled = item.status == DownloadStatus.SUCCESSFUL) {
@@ -236,8 +235,8 @@ fun DownloadRow(
 //                shape = RoundedCornerShape(
 //                    cornerRadiusForLayer(
 //                        3,
-//                        browserSettings.value.deviceCornerRadius,
-//                        browserSettings.value.padding
+//                        settings.deviceCornerRadius,
+//                        settings.padding
 //                    ).dp
 //                )
 //            )
@@ -285,14 +284,14 @@ fun DownloadRow(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(browserSettings.value.padding.dp)
+                .padding(settings.padding.dp)
 
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
-                    .heightIn(min = browserSettings.value.heightForLayer(4).dp)
-                    .padding(horizontal = browserSettings.value.padding.dp)
+                    .heightIn(min = settings.heightForLayer(4).dp)
+                    .padding(horizontal = settings.padding.dp)
             ) {
                 Box(
                     modifier = Modifier
@@ -318,7 +317,7 @@ fun DownloadRow(
 
                     )
                 }
-                Spacer(Modifier.width(browserSettings.value.padding.dp))
+                Spacer(Modifier.width(settings.padding.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         item.filename,
@@ -373,7 +372,7 @@ fun DownloadRow(
                 modifier = Modifier
                     .fillMaxSize()
                     .matchParentSize()
-                    .heightIn(min = browserSettings.value.heightForLayer(4).dp)
+                    .heightIn(min = settings.heightForLayer(4).dp)
                     .background(Color.Red.copy(alpha = 0.8f))
                     // 3. This pointerInput is ONLY on the delete overlay.
                     .pointerInput(Unit) {

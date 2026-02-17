@@ -30,8 +30,8 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import marcinlowercase.a.R
-import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.ui.component.CustomIconButton
+import marcinlowercase.a.ui.composition.LocalBrowserSettings
 
 @Composable
 fun FindInPagePanel(
@@ -43,30 +43,31 @@ fun FindInPagePanel(
     onFindNext: () -> Unit,
     onFindPrevious: () -> Unit,
     onClose: () -> Unit,
-    browserSettings: MutableState<BrowserSettings>,
     descriptionContent: MutableState<String>,
     isFocusOnFindTextField: MutableState<Boolean>,
 
 ) {
+    val settingsController = LocalBrowserSettings.current
+    val settings = settingsController.current
     val keyboardController = LocalSoftwareKeyboardController.current
     AnimatedVisibility(
         visible = isVisible,
         enter = expandVertically(
             tween(
-                browserSettings.value.animationSpeedForLayer(1)
+                settings.animationSpeedForLayer(1)
             )
         ) + fadeIn(
             tween(
-                browserSettings.value.animationSpeedForLayer(1)
+                settings.animationSpeedForLayer(1)
             )
         ),
         exit = shrinkVertically(
             tween(
-                browserSettings.value.animationSpeedForLayer(1)
+                settings.animationSpeedForLayer(1)
             )
         ) + fadeOut(
             tween(
-                browserSettings.value.animationSpeedForLayer(1)
+                settings.animationSpeedForLayer(1)
             )
         )
     ) {
@@ -75,11 +76,11 @@ fun FindInPagePanel(
             modifier = Modifier
                 .clip(
                     RoundedCornerShape(
-                        browserSettings.value.cornerRadiusForLayer(1).dp
+                        settings.cornerRadiusForLayer(1).dp
                     )
                 )
-                .padding(horizontal = browserSettings.value.padding.dp)
-                .padding(top = browserSettings.value.padding.dp)
+                .padding(horizontal = settings.padding.dp)
+                .padding(top = settings.padding.dp)
 
         ) {
             TextField(
@@ -89,11 +90,11 @@ fun FindInPagePanel(
                     .fillMaxWidth()
                     .clip(
                         RoundedCornerShape(
-                            browserSettings.value.cornerRadiusForLayer(2).dp
+                            settings.cornerRadiusForLayer(2).dp
                         )
                     )
                     .height(
-                        browserSettings.value.heightForLayer(2).dp
+                        settings.heightForLayer(2).dp
                     )
                     .onFocusChanged{focusState ->
                         isFocusOnFindTextField.value = focusState.isFocused
@@ -101,7 +102,7 @@ fun FindInPagePanel(
                     }
                 ,
                 shape = RoundedCornerShape(
-                    browserSettings.value.cornerRadiusForLayer(2).dp
+                    settings.cornerRadiusForLayer(2).dp
                 ),
                 placeholder = { Text("find in page") },
                 singleLine = true,
@@ -124,15 +125,13 @@ fun FindInPagePanel(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = browserSettings.value.padding.dp),
+                    .padding(top = settings.padding.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
+                horizontalArrangement = Arrangement.spacedBy(settings.padding.dp)
             ) {
 
                 CustomIconButton(
-//                    currentRotation = currentRotation,
                      layer = 2,
-                    browserSettings = browserSettings,
                     modifier = Modifier.weight(1f),
                     onTap = onClose,
                     descriptionContent = descriptionContent,
@@ -141,9 +140,7 @@ fun FindInPagePanel(
                     isWhite = false,
                 )
                 CustomIconButton(
-//                    currentRotation = currentRotation,
                     layer = 2,
-                    browserSettings = browserSettings,
                     modifier = Modifier.weight(1f),
                     onTap = onFindNext,
                     descriptionContent = descriptionContent,
@@ -165,9 +162,7 @@ fun FindInPagePanel(
                         )
                 }
                 CustomIconButton(
-//                    currentRotation = currentRotation,
                     layer = 2,
-                    browserSettings = browserSettings,
                     modifier = Modifier.weight(1f),
                     onTap = onFindPrevious,
                     descriptionContent = descriptionContent,

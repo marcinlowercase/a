@@ -17,14 +17,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import marcinlowercase.a.R
-import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.ui.component.CustomIconButton
+import marcinlowercase.a.ui.composition.LocalBrowserSettings
 
 @Composable
 fun TextEditPanel(
 //    currentRotation: Float,
     isVisible: Boolean,
-    browserSettings: MutableState<BrowserSettings>,
     onCopyClick: () -> Unit,
     onEditClick: () -> Unit,
     isPinningApp: MutableState<Boolean>,
@@ -32,37 +31,38 @@ fun TextEditPanel(
     activeWebViewTitle: String,
     descriptionContent: MutableState<String>,
 ) {
+    val settingsController = LocalBrowserSettings.current
+    val settings = settingsController.current
     AnimatedVisibility(
         visible = isVisible,
         enter = expandVertically(
             animationSpec = tween(
-                browserSettings.value.animationSpeedForLayer(2)
+                settings.animationSpeedForLayer(2)
             )
         ) +
-                fadeIn(tween(browserSettings.value.animationSpeedForLayer(2))),
+                fadeIn(tween(settings.animationSpeedForLayer(2))),
         exit = shrinkVertically(
             animationSpec = tween(
-                browserSettings.value.animationSpeedForLayer(2)
+                settings.animationSpeedForLayer(2)
             )
         ) +
-                fadeOut(tween(browserSettings.value.animationSpeedForLayer(2)))
+                fadeOut(tween(settings.animationSpeedForLayer(2)))
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = browserSettings.value.padding.dp)
-                .padding(bottom = browserSettings.value.padding.dp)
+                .padding(horizontal = settings.padding.dp)
+                .padding(bottom = settings.padding.dp)
                 .clip(RoundedCornerShape(
-                    browserSettings.value.cornerRadiusForLayer(2).dp
+                    settings.cornerRadiusForLayer(2).dp
                 ))
-                .padding(browserSettings.value.padding.dp),
-            horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
+                .padding(settings.padding.dp),
+            horizontalArrangement = Arrangement.spacedBy(settings.padding.dp)
         ) {
             // Dismiss
             CustomIconButton(
 //                currentRotation = currentRotation,
                 layer = 3,
-                browserSettings = browserSettings,
                 modifier = Modifier.weight(1f),
                 onTap = onDismiss,
                 descriptionContent = descriptionContent,
@@ -77,7 +77,6 @@ fun TextEditPanel(
                     CustomIconButton(
 //                        currentRotation = currentRotation,
                         layer = 3,
-                        browserSettings = browserSettings,
                         modifier = Modifier.weight(1f),
                         onTap = onEditClick,
                         descriptionContent = descriptionContent,
@@ -91,7 +90,6 @@ fun TextEditPanel(
                 CustomIconButton(
 //                    currentRotation = currentRotation,
                     layer = 3,
-                    browserSettings = browserSettings,
                     modifier = Modifier.weight(1f),
                     onTap = onCopyClick,
                     descriptionContent = descriptionContent,
@@ -104,7 +102,6 @@ fun TextEditPanel(
                 CustomIconButton(
 //                    currentRotation = currentRotation,
                     layer = 3,
-                    browserSettings = browserSettings,
                     modifier = Modifier.weight(1f),
                     onTap = onEditClick,
                     descriptionContent = descriptionContent,

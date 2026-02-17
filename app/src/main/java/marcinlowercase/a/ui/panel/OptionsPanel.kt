@@ -23,19 +23,16 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Job
 import marcinlowercase.a.R
-import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.OptionItem
 import marcinlowercase.a.core.enum_class.RevealState
 import marcinlowercase.a.ui.component.CustomIconButton
+import marcinlowercase.a.ui.composition.LocalBrowserSettings
 import org.mozilla.geckoview.GeckoSession
-import kotlin.collections.chunked
-import kotlin.collections.forEach
 import kotlin.math.roundToInt
 
 @SuppressLint("SuspiciousIndentation")
 @Composable
 fun OptionsPanel(
-//    currentRotation: Float,
     draggableState: AnchoredDraggableState<RevealState>,
     isPinningApp: MutableState<Boolean>,
     bottomPanelPagerState: PagerState,
@@ -47,7 +44,6 @@ fun OptionsPanel(
     isSettingsPanelVisible: MutableState<Boolean>,
     setIsOptionsPanelVisible: (Boolean) -> Job,
     toggleIsTabsPanelVisible: () -> Unit,
-    browserSettings: MutableState<BrowserSettings>,
     tabsPanelLock: Boolean,
     isDownloadPanelVisible: MutableState<Boolean>,
     isCursorPadVisible: Boolean,
@@ -57,11 +53,13 @@ fun OptionsPanel(
     addAppToPin: () -> Unit,
     updateCurrentRotation: ()-> Unit,
 ) {
+    val settingsController = LocalBrowserSettings.current
+    val settings = settingsController.current
 
     // This remains the same
     val allOptions =
         remember(
-            browserSettings.value,
+            settings,
             tabsPanelLock,
             isDownloadPanelVisible,
             isCursorPadVisible,
@@ -85,11 +83,11 @@ fun OptionsPanel(
                 },
 
 //                OptionItem(
-//                    if (browserSettings.value.isDesktopMode) R.drawable.ic_mobile else R.drawable.ic_desktop,
+//                    if (settings.isDesktopMode) R.drawable.ic_mobile else R.drawable.ic_desktop,
 //                    "Desktop layout",
-//                    browserSettings.value.isDesktopMode
+//                    settings.isDesktopMode
 //                ) {
-//                    updateBrowserSettings(browserSettings.value.copy(isDesktopMode = !browserSettings.value.isDesktopMode))
+//                    updateBrowserSettings(settings.copy(isDesktopMode = !settings.isDesktopMode))
 //                },
                 OptionItem(
                     R.drawable.ic_tabs, // You'll need an icon for this
@@ -101,11 +99,11 @@ fun OptionsPanel(
 
                 },
                 OptionItem(
-                    if (browserSettings.value.isSharpMode) R.drawable.ic_rounded_corner else R.drawable.ic_sharp_corner,
+                    if (settings.isSharpMode) R.drawable.ic_rounded_corner else R.drawable.ic_sharp_corner,
                     "sharp mode",
-                    browserSettings.value.isSharpMode,
+                    settings.isSharpMode,
                 ) {
-                    browserSettings.value = browserSettings.value.copy(isSharpMode = !browserSettings.value.isSharpMode)
+                    settingsController.update(settings.copy(isSharpMode = !settings.isSharpMode))
                     setIsOptionsPanelVisible(false)
 
                 },
@@ -156,11 +154,11 @@ fun OptionsPanel(
                 OptionItem(
                     iconRes = R.drawable.ic_lightbulb, // Or a more specific icon like ic_manage_search
                     contentDescription = "suggestions",
-                    enabled = browserSettings.value.showSuggestions // The button is "active" when suggestions are on
+                    enabled = settings.showSuggestions // The button is "active" when suggestions are on
                 ) {
                     // When clicked, create a new settings object with the toggled value
 
-                    browserSettings.value = browserSettings.value.copy(showSuggestions = !browserSettings.value.showSuggestions)
+                    settingsController.update(settings.copy(showSuggestions = !settings.showSuggestions))
                     setIsOptionsPanelVisible(false)
 
                 },
@@ -229,12 +227,12 @@ fun OptionsPanel(
 
         Box(
             modifier = Modifier
-                .padding(horizontal = browserSettings.value.padding.dp)
-                .padding(bottom = browserSettings.value.padding.dp)
+                .padding(horizontal = settings.padding.dp)
+                .padding(bottom = settings.padding.dp)
                 .fillMaxWidth()
                 .clip(
                     RoundedCornerShape(
-                        browserSettings.value.cornerRadiusForLayer(2).dp
+                        settings.cornerRadiusForLayer(2).dp
                     )
                 )
 
@@ -253,11 +251,11 @@ fun OptionsPanel(
                         .background(
                             Color.Black.copy(alpha = 0.3f),
                             shape = RoundedCornerShape(
-                                browserSettings.value.cornerRadiusForLayer(2).dp
+                                settings.cornerRadiusForLayer(2).dp
                             )
                         ),
 
-                    horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
+                    horizontalArrangement = Arrangement.spacedBy(settings.padding.dp)
                 ) {
                     // Get the options for the current page
                     val pageOptions = optionPages[pageIndex]
@@ -267,7 +265,6 @@ fun OptionsPanel(
                         CustomIconButton(
 //                            currentRotation = currentRotation,
                             layer = 2,
-                            browserSettings = browserSettings,
                             modifier = Modifier.weight(1f),
                             onTap = option.onClick,
                             descriptionContent = descriptionContent,

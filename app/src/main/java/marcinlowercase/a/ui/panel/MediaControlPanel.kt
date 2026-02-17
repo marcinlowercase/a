@@ -33,11 +33,11 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import marcinlowercase.a.R
-import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.enum_class.MediaControlOption
 import marcinlowercase.a.core.manager.GeckoManager
 import marcinlowercase.a.core.manager.MediaGestureManager
 import marcinlowercase.a.ui.component.CustomIconButton
+import marcinlowercase.a.ui.composition.LocalBrowserSettings
 import kotlin.math.abs
 
 @SuppressLint("UnusedBoxWithConstraintsScope")
@@ -50,7 +50,6 @@ fun MediaControlPanel(
     isMediaControlPanelVisible: MutableState<Boolean>,
     isMediaControlPanelDisplayed: MutableState<Boolean>,
     isOnFullscreenVideo: MutableState<Boolean>,
-    browserSettings: MutableState<BrowserSettings>,
     descriptionContent:  MutableState<String>,
     onExitFullscreen: () -> Unit,
     geckoManager: GeckoManager,
@@ -60,6 +59,9 @@ fun MediaControlPanel(
     interactionTrigger: MutableState<Int>
 ) {
 
+    val settingsController = LocalBrowserSettings.current
+    val settings = settingsController.current
+    
     val opacity by animateFloatAsState(
         targetValue = if (isMediaControlPanelVisible.value) 1.0f else 0.0f,
         animationSpec = spring(stiffness = Spring.StiffnessLow),
@@ -92,8 +94,8 @@ fun MediaControlPanel(
     if (isOnFullscreenVideo.value && isMediaControlPanelDisplayed.value) {
         Column (
             modifier = modifier
-                .padding(browserSettings.value.padding.dp)
-                .clip(RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(1).dp))
+                .padding(settings.padding.dp)
+                .clip(RoundedCornerShape(settings.cornerRadiusForLayer(1).dp))
                 .alpha(opacity)
                 .clickable(
                     enabled = true,
@@ -103,8 +105,8 @@ fun MediaControlPanel(
                     }
                 )
                 .background(Color.Black)
-                .width(browserSettings.value.heightForLayer(1).dp)
-                .clip(RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(1).dp))
+                .width(settings.heightForLayer(1).dp)
+                .clip(RoundedCornerShape(settings.cornerRadiusForLayer(1).dp))
             ,
             horizontalAlignment = Alignment.CenterHorizontally
 
@@ -113,10 +115,9 @@ fun MediaControlPanel(
             CustomIconButton(
                 isLandscape = true,
                 layer = 2,
-                browserSettings = browserSettings,
                 modifier = Modifier
                     .weight(1f)
-                    .padding(browserSettings.value.padding.dp),
+                    .padding(settings.padding.dp),
                 onTap = {
                     if (isMediaControlPanelVisible.value) {
                         onExitFullscreen()
@@ -138,11 +139,11 @@ fun MediaControlPanel(
             BoxWithConstraints(
                 modifier = Modifier
                     .weight(2f)
-                    .padding(horizontal = browserSettings.value.padding.dp)
-//                    .padding(vertical = browserSettings.value.padding.dp)
-                    .clip(RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(2).dp))
+                    .padding(horizontal = settings.padding.dp)
+//                    .padding(vertical = settings.padding.dp)
+                    .clip(RoundedCornerShape(settings.cornerRadiusForLayer(2).dp))
                     .fillMaxHeight()
-                    .width(browserSettings.value.heightForLayer(2).dp)
+                    .width(settings.heightForLayer(2).dp)
                     .background(Color.Red)
                     .pointerInput(Unit) {
                         detectVerticalDragGestures(
@@ -312,10 +313,9 @@ fun MediaControlPanel(
                 isLandscape = true,
 //                        currentRotation = 0f,
                 layer = 2,
-                browserSettings = browserSettings,
                 modifier = Modifier
                     .weight(1f)
-                    .padding( browserSettings.value.padding.dp),
+                    .padding( settings.padding.dp),
                 onTap = {
                     if (isMediaControlPanelVisible.value) {
                         val nextIndex = (controlOption.value.ordinal + 1) % MediaControlOption.entries.size

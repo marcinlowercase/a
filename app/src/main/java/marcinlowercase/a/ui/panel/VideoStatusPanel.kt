@@ -34,18 +34,17 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
-import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.enum_class.MediaControlOption
 import marcinlowercase.a.core.function.formatTime
 import marcinlowercase.a.core.manager.GeckoManager
 import marcinlowercase.a.core.manager.MediaGestureManager
+import marcinlowercase.a.ui.composition.LocalBrowserSettings
 
 @Composable
 fun VideoStatusPanel(
     modifier: Modifier = Modifier,
     isMediaControlPanelVisible: MutableState<Boolean>,
     isMediaControlPanelDisplayed: MutableState<Boolean>,
-    browserSettings: MutableState<BrowserSettings>,
     geckoManager: GeckoManager,
     gestureManager: MediaGestureManager,
     controlOption: MutableState<MediaControlOption>,
@@ -55,6 +54,10 @@ fun VideoStatusPanel(
     isStatusAtTop: MutableState<Boolean>,
     isOnFullscreenVideo: MutableState<Boolean>,
 ) {
+
+    val settingsController = LocalBrowserSettings.current
+    val settings = settingsController.current
+    
     var isTemporarilyVisible by remember { mutableStateOf(false) }
 
     LaunchedEffect(interactionTrigger.value) {
@@ -132,10 +135,10 @@ fun VideoStatusPanel(
 
     if (isOnFullscreenVideo.value && isMediaControlPanelDisplayed.value || shouldShow) Column (
         modifier = modifier
-            .padding(browserSettings.value.padding.dp)
-            .widthIn(min = browserSettings.value.heightForLayer(1).dp)
-            .heightIn(min = browserSettings.value.heightForLayer(1).dp)
-            .clip(RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(1).dp))
+            .padding(settings.padding.dp)
+            .widthIn(min = settings.heightForLayer(1).dp)
+            .heightIn(min = settings.heightForLayer(1).dp)
+            .clip(RoundedCornerShape(settings.cornerRadiusForLayer(1).dp))
             .alpha(opacity)
             .background(Color.Black)
             .clickable {
@@ -177,7 +180,7 @@ fun VideoStatusPanel(
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .animateContentSize()
-                .padding(horizontal = browserSettings.value.cornerRadiusForLayer(1).dp)
+                .padding(horizontal = settings.cornerRadiusForLayer(1).dp)
         )
     }
 }

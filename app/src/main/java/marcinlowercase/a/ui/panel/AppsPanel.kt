@@ -31,11 +31,10 @@ import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import marcinlowercase.a.R
 import marcinlowercase.a.core.data_class.App
-import marcinlowercase.a.core.data_class.BrowserSettings
+import marcinlowercase.a.ui.composition.LocalBrowserSettings
 
 @Composable
 fun AppsPanel(
-    browserSettings: MutableState<BrowserSettings>,
     visibility: MutableState<Boolean>,
     apps: MutableList<App>,
     onAppClick: (App) -> Unit = {},
@@ -43,10 +42,11 @@ fun AppsPanel(
     inspectingAppId: MutableState<Long>
 
 ) {
-
+    val settingsController = LocalBrowserSettings.current
+    val settings = settingsController.current
 
     val maxPanelHeight =
-        (browserSettings.value.heightForLayer(2).dp * 2.5f) + (browserSettings.value.padding.dp * 2)
+        (settings.heightForLayer(2).dp * 2.5f) + (settings.padding.dp * 2)
 
     AnimatedVisibility(
         visible = visibility.value,
@@ -57,8 +57,8 @@ fun AppsPanel(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(browserSettings.value.heightForLayer(2).dp)
-                    .clip(RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(2).dp)),
+                    .height(settings.heightForLayer(2).dp)
+                    .clip(RoundedCornerShape(settings.cornerRadiusForLayer(2).dp)),
                 contentAlignment = Alignment.Center
 
 
@@ -75,26 +75,25 @@ fun AppsPanel(
                     .fillMaxWidth()
                     // This ensures it grows up to 3 rows, then becomes scrollable
                     .heightIn(
-                        min = browserSettings.value.heightForLayer(2).dp,
+                        min = settings.heightForLayer(2).dp,
                         max = maxPanelHeight
                     )
-                    .padding(top = if (apps.isNotEmpty()) browserSettings.value.padding.dp else 0.dp)
-                    .padding(horizontal = browserSettings.value.padding.dp)
-                    .clip(RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(2).dp))
+                    .padding(top = if (apps.isNotEmpty()) settings.padding.dp else 0.dp)
+                    .padding(horizontal = settings.padding.dp)
+                    .clip(RoundedCornerShape(settings.cornerRadiusForLayer(2).dp))
 
 //                .background(Color.Magenta)
 
                 ,
-//            contentPadding = PaddingValues(browserSettings.value.padding.dp),
-                horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp),
-                verticalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp),
+//            contentPadding = PaddingValues(settings.padding.dp),
+                horizontalArrangement = Arrangement.spacedBy(settings.padding.dp),
+                verticalArrangement = Arrangement.spacedBy(settings.padding.dp),
                 reverseLayout = true
             ) {
 
                 items(apps) { app ->
                     AppIcon(
                         app = app,
-                        browserSettings = browserSettings,
                         inspectingAppId = inspectingAppId,
 
                         onClick = {
@@ -131,16 +130,18 @@ fun AppsPanel(
 fun AppIcon(
     inspectingAppId: MutableState<Long>,
     app: App,
-    browserSettings: MutableState<BrowserSettings>,
     onClick: () -> Unit,
     onDoubleClick: () -> Unit,
     modifier: Modifier = Modifier,
     onLongClick: () -> Unit = {}
 ) {
+    val settingsController = LocalBrowserSettings.current
+    val settings = settingsController.current
+
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(2).dp))
-            .height(browserSettings.value.heightForLayer(2).dp)
+            .clip(RoundedCornerShape(settings.cornerRadiusForLayer(2).dp))
+            .height(settings.heightForLayer(2).dp)
             .background(Color.White)
             .padding(2.dp)
             .fillMaxWidth()
@@ -153,7 +154,7 @@ fun AppIcon(
             .border(
                 width = 2.dp,
                 color = if (inspectingAppId.value == app.id) Color.Red else Color.Transparent,
-                shape = RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(2).dp)
+                shape = RoundedCornerShape(settings.cornerRadiusForLayer(2).dp)
             ),
         contentAlignment = Alignment.Center
 

@@ -28,51 +28,52 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import marcinlowercase.a.R
-import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.Tab
 import marcinlowercase.a.core.enum_class.GestureNavAction
+import marcinlowercase.a.ui.composition.LocalBrowserSettings
 
 @Composable
 fun NavigationPanel(
     activeTab : MutableState<Tab>,
     isNavPanelVisible: Boolean,
     modifier: Modifier = Modifier,
-    browserSettings: MutableState<BrowserSettings>,
     activeAction: GestureNavAction,
 
     ) {
+    val settingsController = LocalBrowserSettings.current
+    val settings = settingsController.current
     AnimatedVisibility(
         visible = isNavPanelVisible,
         enter = expandVertically(
             tween(
-                browserSettings.value.animationSpeedForLayer(1)
+                settings.animationSpeedForLayer(1)
             )
         ) + fadeIn(
             tween(
-                browserSettings.value.animationSpeedForLayer(1)
+                settings.animationSpeedForLayer(1)
             )
         ),
         exit = shrinkVertically(
             tween(
-                browserSettings.value.animationSpeedForLayer(1)
+                settings.animationSpeedForLayer(1)
             )
         ) + fadeOut(
             tween(
-                browserSettings.value.animationSpeedForLayer(1)
+                settings.animationSpeedForLayer(1)
             )
         )
     ) {
         Box(
             modifier = Modifier
-                .padding(horizontal = browserSettings.value.padding.dp)
-                .padding(top = browserSettings.value.padding.dp)
+                .padding(horizontal = settings.padding.dp)
+                .padding(top = settings.padding.dp)
         ) {
             Column(
                 modifier = modifier
 
                     .clip(
                         RoundedCornerShape(
-                            browserSettings.value.cornerRadiusForLayer(2).dp
+                            settings.cornerRadiusForLayer(2).dp
                         )
                     )
                     .background(Color.Black.copy(0.3f)),
@@ -81,8 +82,8 @@ fun NavigationPanel(
                 Row(
                     modifier = modifier
                         .fillMaxWidth()
-                        .padding(top = browserSettings.value.padding.dp)
-                        .padding(horizontal = browserSettings.value.padding.dp),
+                        .padding(top = settings.padding.dp)
+                        .padding(horizontal = settings.padding.dp),
 
 
                     horizontalArrangement = Arrangement.SpaceEvenly,
@@ -94,7 +95,6 @@ fun NavigationPanel(
                         activeAction = activeAction,
                         gestureNavAction = GestureNavAction.CLOSE_TAB,
                         actionIcon = painterResource(R.drawable.ic_close),
-                        browserSettings = browserSettings,
                     )
 
 
@@ -104,7 +104,6 @@ fun NavigationPanel(
                         activeAction = activeAction,
                         gestureNavAction = GestureNavAction.REFRESH,
                         actionIcon = painterResource(R.drawable.ic_refresh),
-                        browserSettings = browserSettings,
                     )
 
                     NavigationItem(
@@ -112,15 +111,14 @@ fun NavigationPanel(
                         activeAction = activeAction,
                         gestureNavAction = GestureNavAction.NEW_TAB,
                         actionIcon = painterResource(R.drawable.ic_add),
-                        browserSettings = browserSettings,
                     )
                 }
                 Row(
                     modifier = modifier
                         .fillMaxWidth()
 
-                        .padding(browserSettings.value.padding.dp),
-                    horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp),
+                        .padding(settings.padding.dp),
+                    horizontalArrangement = Arrangement.spacedBy(settings.padding.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Back Icon
@@ -130,8 +128,6 @@ fun NavigationPanel(
                         gestureNavAction = GestureNavAction.BACK,
                         actionIcon = painterResource(R.drawable.ic_arrow_back),
                         visibility = activeTab.value.canGoBack,
-                        browserSettings = browserSettings,
-
                         )
 
                     // Cancel Icon
@@ -140,7 +136,6 @@ fun NavigationPanel(
                         activeAction = activeAction,
                         gestureNavAction = GestureNavAction.NONE,
                         actionIcon = painterResource(R.drawable.ic_minimize),
-                        browserSettings = browserSettings,
                     )
 
                     // Forward Icon
@@ -151,8 +146,6 @@ fun NavigationPanel(
                         gestureNavAction = GestureNavAction.FORWARD,
                         actionIcon = painterResource(R.drawable.ic_arrow_forward),
                         visibility = activeTab.value.canGoForward,
-                        browserSettings = browserSettings,
-
                         )
                 }
             }
@@ -166,18 +159,20 @@ fun NavigationItem(
     gestureNavAction: GestureNavAction,
     actionIcon: Painter,
     visibility: Boolean = true,
-    browserSettings: MutableState<BrowserSettings>
-) {
+
+    ) {
+    val settingsController = LocalBrowserSettings.current
+    val settings = settingsController.current
     // Cancel Icon
     val refreshColor by animateColorAsState(if (activeAction == gestureNavAction) Color.White else Color.Transparent)
     Box(
         modifier = modifier
             .height(
-                browserSettings.value.heightForLayer(3).dp
+                settings.heightForLayer(3).dp
             )
             .clip(
                 RoundedCornerShape(
-                    browserSettings.value.cornerRadiusForLayer(3).dp
+                    settings.cornerRadiusForLayer(3).dp
                 )
             )
             .background(refreshColor)

@@ -4,41 +4,36 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import marcinlowercase.a.R
-import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.ErrorState
+import marcinlowercase.a.ui.composition.LocalBrowserSettings
 import org.mozilla.geckoview.WebRequestError
 
 @Composable
 fun ErrorScreen(
     modifier: Modifier = Modifier,
     errorState: ErrorState,
-    browserSettings: MutableState<BrowserSettings>,
     onRetry: () -> Unit,
     onHome: () -> Unit
 ) {
 
+    val settingsController = LocalBrowserSettings.current
+    val settings = settingsController.current
+    
     val userMessage = when (errorState.error.category) {
         WebRequestError.ERROR_CATEGORY_NETWORK -> "no connection"
         WebRequestError.ERROR_CATEGORY_SECURITY -> "this site is not secure"
@@ -58,7 +53,7 @@ fun ErrorScreen(
         modifier = modifier
             .fillMaxSize()
             .clickable(enabled = false) {} // Prevent clicking through to WebView
-            .clip(RoundedCornerShape(browserSettings.value.deviceCornerRadius.dp))
+            .clip(RoundedCornerShape(settings.deviceCornerRadius.dp))
             .background(Color.White) // Or dynamic theme color
     ) {
         Column(
@@ -86,7 +81,7 @@ fun ErrorScreen(
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(browserSettings.value.padding.dp))
+            Spacer(modifier = Modifier.height(settings.padding.dp))
 
             // URL (Optional, make it smaller)
             Text(

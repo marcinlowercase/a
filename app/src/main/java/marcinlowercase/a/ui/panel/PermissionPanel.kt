@@ -17,7 +17,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,15 +26,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.CustomPermissionRequest
 import marcinlowercase.a.core.function.buttonSettingsForLayer
+import marcinlowercase.a.ui.composition.LocalBrowserSettings
 import kotlin.math.roundToInt
 
 @Composable
 fun PermissionPanel(
     isUrlBarVisible: Boolean,
-    browserSettings: MutableState<BrowserSettings>,
     // The pending request, which also controls visibility. Null means hidden.
     request: CustomPermissionRequest?,
     // Event for when the user clicks "Allow" on our panel.
@@ -45,6 +43,8 @@ fun PermissionPanel(
     isPermissionPanelVisible: Boolean = false,
 
     ) {
+    val settingsController = LocalBrowserSettings.current
+    val settings = settingsController.current
     var requestToShow by remember { mutableStateOf(request) }
 
     LaunchedEffect(request) {
@@ -56,11 +56,11 @@ fun PermissionPanel(
 
     AnimatedVisibility(
         visible = isPermissionPanelVisible,
-        enter = expandVertically(animationSpec = tween(browserSettings.value.animationSpeed.roundToInt())) + fadeIn(
-            tween(browserSettings.value.animationSpeed.roundToInt())
+        enter = expandVertically(animationSpec = tween(settings.animationSpeed.roundToInt())) + fadeIn(
+            tween(settings.animationSpeed.roundToInt())
         ),
-        exit = shrinkVertically(animationSpec = tween(browserSettings.value.animationSpeed.roundToInt())) + fadeOut(
-            tween(browserSettings.value.animationSpeed.roundToInt())
+        exit = shrinkVertically(animationSpec = tween(settings.animationSpeed.roundToInt())) + fadeOut(
+            tween(settings.animationSpeed.roundToInt())
         )
     ) {
 
@@ -69,17 +69,17 @@ fun PermissionPanel(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = browserSettings.value.padding.dp)
+                .padding(horizontal = settings.padding.dp)
                 .padding(
-                    bottom = if (!isUrlBarVisible) browserSettings.value.padding.dp else 0.dp,
-                    top = browserSettings.value.padding.dp,
+                    bottom = if (!isUrlBarVisible) settings.padding.dp else 0.dp,
+                    top = settings.padding.dp,
                 )
 
 
                 .background(
                     color = Color.Black.copy(0.3f),
                     shape = RoundedCornerShape(
-                        browserSettings.value.cornerRadiusForLayer(2).dp
+                        settings.cornerRadiusForLayer(2).dp
                     )
                 ),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -89,14 +89,14 @@ fun PermissionPanel(
             // Action buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
+                horizontalArrangement = Arrangement.spacedBy(settings.padding.dp)
             ) {
                 // --- Deny Button ---
                 IconButton(
                     onClick = onDeny,
                     modifier = Modifier.buttonSettingsForLayer(
                         layer = 2,
-                        browserSettings.value,
+                        settings,
                         white = false // false = transparent background, white border
                     )
                         .weight(1f),
@@ -115,7 +115,7 @@ fun PermissionPanel(
                     modifier = Modifier
                         .buttonSettingsForLayer(
                         layer = 2,
-                        browserSettings.value,
+                        settings,
                         white = true // true = white background
                     )
                         .weight(1f),

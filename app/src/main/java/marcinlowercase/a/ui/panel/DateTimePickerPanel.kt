@@ -24,9 +24,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import marcinlowercase.a.R
-import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.JsDateTimeState
 import marcinlowercase.a.ui.component.CustomIconButton
+import marcinlowercase.a.ui.composition.LocalBrowserSettings
 import org.mozilla.geckoview.GeckoSession.PromptDelegate.DateTimePrompt
 import java.time.Instant
 import java.time.LocalDate
@@ -38,9 +38,12 @@ import java.time.temporal.IsoFields
 @Composable
 fun DateTimePickerPanel(
     dateTimeState: MutableState<JsDateTimeState?>,
-    browserSettings: MutableState<BrowserSettings>,
     onDismiss: () -> Unit
 ) {
+
+    val settingsController = LocalBrowserSettings.current
+    val settings = settingsController.current
+    
     val state = dateTimeState.value ?: return
     val prompt = state.prompt
     val result = state.result
@@ -104,14 +107,14 @@ fun DateTimePickerPanel(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = browserSettings.value.padding.dp)
-            .clip(RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(1).dp))
+            .padding(horizontal = settings.padding.dp)
+            .clip(RoundedCornerShape(settings.cornerRadiusForLayer(1).dp))
             .background(Color.Black)
-            .padding(browserSettings.value.padding.dp)
+            .padding(settings.padding.dp)
     ) {
         Column(
-            modifier = Modifier.clip(RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(2).dp)),
-            verticalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
+            modifier = Modifier.clip(RoundedCornerShape(settings.cornerRadiusForLayer(2).dp)),
+            verticalArrangement = Arrangement.spacedBy(settings.padding.dp)
         ) {
 
             AnimatedContent(
@@ -169,8 +172,8 @@ fun DateTimePickerPanel(
                             showModeToggle = false,
                             title = null, // Removes "Select date"
                             modifier = Modifier
-                                .padding(top = browserSettings.value.padding.dp)
-                                .padding(horizontal = browserSettings.value.padding.dp)
+                                .padding(top = settings.padding.dp)
+                                .padding(horizontal = settings.padding.dp)
                         )
                     } else {
                         // --- TIME PICKER ---
@@ -201,7 +204,7 @@ fun DateTimePickerPanel(
                                 timeSelectorUnselectedContainerColor = Color.DarkGray,
                                 timeSelectorUnselectedContentColor = Color.White
                             ),
-                            modifier = Modifier.padding(vertical = browserSettings.value.padding.dp)
+                            modifier = Modifier.padding(vertical = settings.padding.dp)
                         )
                     }
                 }
@@ -210,10 +213,9 @@ fun DateTimePickerPanel(
             // --- ACTION BUTTONS ---
             val localDescription = remember { mutableStateOf("") }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(settings.padding.dp)) {
                 CustomIconButton(
                     layer = 2,
-                    browserSettings = browserSettings,
                     modifier = Modifier.weight(1f),
                     onTap = {
                         if (step == 1 && prompt.type == DateTimePrompt.Type.DATETIME_LOCAL) {
@@ -233,7 +235,6 @@ fun DateTimePickerPanel(
 
                 CustomIconButton(
                     layer = 2,
-                    browserSettings = browserSettings,
                     modifier = Modifier.weight(1f),
                     onTap = {
                         if (step == 0 && prompt.type == DateTimePrompt.Type.DATETIME_LOCAL) {

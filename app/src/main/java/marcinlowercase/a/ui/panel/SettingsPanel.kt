@@ -61,7 +61,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import marcinlowercase.a.R
-import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.OptionItem
 import marcinlowercase.a.core.enum_class.SearchEngine
 import marcinlowercase.a.ui.component.CustomIconButton
@@ -69,6 +68,8 @@ import kotlin.collections.chunked
 import kotlin.collections.forEach
 import kotlin.math.roundToInt
 import androidx.core.graphics.toColorInt
+import marcinlowercase.a.core.enum_class.BrowserSettingField
+import marcinlowercase.a.ui.composition.LocalBrowserSettings
 import kotlin.Boolean
 
 enum class SettingPanelView {
@@ -92,8 +93,7 @@ enum class SettingPanelView {
 @Composable
 fun SliderSetting(
     isFocusOnTextField: MutableState<Boolean>,
-    browserSettings: MutableState<BrowserSettings>,
-    updateBrowserSettingsForSpecificValue: (Float) -> Unit,
+    field: BrowserSettingField,
     valueRange: ClosedFloatingPointRange<Float>,
     steps: Int,
     onBackClick: () -> Unit,
@@ -104,8 +104,27 @@ fun SliderSetting(
     afterDecimal: Boolean = true,
     iconID: Int,
     digitCount: Int = 4,
-    currentSettingOriginalValue: Float,
 ) {
+
+    val settingsController = LocalBrowserSettings.current
+    val settings = settingsController.current
+
+    val currentSettingOriginalValue = remember(settings, field) {
+        when (field) {
+            BrowserSettingField.CORNER_RADIUS -> settings.deviceCornerRadius
+            BrowserSettingField.PADDING -> settings.padding
+            BrowserSettingField.ANIMATION_SPEED -> settings.animationSpeed
+            BrowserSettingField.SINGLE_LINE_HEIGHT -> settings.singleLineHeight
+            BrowserSettingField.CURSOR_CONTAINER_SIZE -> settings.cursorContainerSize
+            BrowserSettingField.CURSOR_TRACKING_SPEED -> settings.cursorTrackingSpeed
+            BrowserSettingField.CLOSED_TAB_HISTORY_SIZE -> settings.closedTabHistorySize
+            BrowserSettingField.BACK_SQUARE_OPACITY -> settings.backSquareIdleOpacity
+            BrowserSettingField.MAX_LIST_HEIGHT -> settings.maxListHeight
+            BrowserSettingField.SEARCH_ENGINE -> settings.searchEngine.toFloat()
+            else -> 0f
+        }
+    }
+
 
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
@@ -132,7 +151,7 @@ fun SliderSetting(
         val coercedValue = parsedValue.coerceIn(valueRange)
 
         // Update the global settings with the coerced value.
-        updateBrowserSettingsForSpecificValue(coercedValue)
+        settingsController.updateField(field, coercedValue)
 
         // CRUCIAL: Update the 'digits' state based on the coerced value.
         // This forces the TextField to display the corrected number (e.g., "60.00").
@@ -147,10 +166,10 @@ fun SliderSetting(
             .background(
                 Color.Black.copy(alpha = 0.3f),
                 shape = RoundedCornerShape(
-                    browserSettings.value.cornerRadiusForLayer(2).dp
+                    settings.cornerRadiusForLayer(2).dp
                 )
             )
-            .padding(browserSettings.value.padding.dp),
+            .padding(settings.padding.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
 
@@ -158,7 +177,7 @@ fun SliderSetting(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(
-                    browserSettings.value.heightForLayer( 3).dp
+                    settings.heightForLayer( 3).dp
                 ),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -170,19 +189,19 @@ fun SliderSetting(
                 modifier = Modifier
                     .clip(
                         RoundedCornerShape(
-                            browserSettings.value.cornerRadiusForLayer(3).dp
+                            settings.cornerRadiusForLayer(3).dp
                         )
                     )
                     .fillMaxHeight()
                     .background(Color.White)
                     .defaultMinSize(
-                        minWidth = browserSettings.value.heightForLayer(3).dp
+                        minWidth = settings.heightForLayer(3).dp
                     )
 
 
             ) {
                 Icon(
-                    painter = painterResource(id = if(browserSettings.value.isFirstAppLoad) R.drawable.ic_check else R.drawable.ic_arrow_back),
+                    painter = painterResource(id = if(settings.isFirstAppLoad) R.drawable.ic_check else R.drawable.ic_arrow_back),
                     contentDescription = "Back to Settings",
                     tint = Color.Black
                 )
@@ -259,12 +278,12 @@ fun SliderSetting(
                 modifier = Modifier
                     .clip(
                         RoundedCornerShape(
-                            browserSettings.value.cornerRadiusForLayer(3).dp
+                            settings.cornerRadiusForLayer(3).dp
                         )
                     )
                     .fillMaxHeight()
                     .defaultMinSize(
-                        minWidth = browserSettings.value.heightForLayer(3).dp
+                        minWidth = settings.heightForLayer(3).dp
                     )
 
 
@@ -289,18 +308,18 @@ fun SliderSetting(
                     .padStart(digitCount, '0')
 
                 // 3. Immediately pass the NEW, CORRECT finalValue to your update function.
-                updateBrowserSettingsForSpecificValue(finalValue)
+                settingsController.updateField(field, finalValue)
             },
             valueRange = valueRange,
             steps = steps,
 
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = browserSettings.value.padding.dp)
+                .padding(top = settings.padding.dp)
                 .height(
-                    browserSettings.value.heightForLayer(3).dp
+                    settings.heightForLayer(3).dp
                 )
-                .padding(browserSettings.value.padding.dp),
+                .padding(settings.padding.dp),
             colors = SliderDefaults.colors(
                 thumbColor = Color.White,
                 activeTrackColor = Color.White,
@@ -316,14 +335,17 @@ fun SliderSetting(
 }
 @Composable
 fun TextSetting(
-    browserSettings: MutableState<BrowserSettings>,
-    updateBrowserSettingsForSpecificValue: (String) -> Unit, // Takes a String now
     onBackClick: () -> Unit,
     iconID: Int,
     currentSettingOriginalValue: String,
     isFocusOnTextField: MutableState<Boolean>,
+    field: BrowserSettingField,
 
     ) {
+
+    val settingsController = LocalBrowserSettings.current
+    val settings = settingsController.current
+
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
 
@@ -336,10 +358,10 @@ fun TextSetting(
             .background(
                 Color.Black.copy(alpha = 0.3f),
                 shape = RoundedCornerShape(
-                    browserSettings.value.cornerRadiusForLayer(2).dp
+                    settings.cornerRadiusForLayer(2).dp
                 )
             )
-            .padding(browserSettings.value.padding.dp),
+            .padding(settings.padding.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // --- TOP ROW ---
@@ -347,7 +369,7 @@ fun TextSetting(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(
-                    browserSettings.value.heightForLayer(3).dp
+                    settings.heightForLayer(3).dp
                 ),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -357,13 +379,13 @@ fun TextSetting(
                 modifier = Modifier
                     .clip(
                         RoundedCornerShape(
-                            browserSettings.value.cornerRadiusForLayer(3).dp
+                            settings.cornerRadiusForLayer(3).dp
                         )
                     )
                     .fillMaxHeight()
                     .background(Color.White)
                     .defaultMinSize(
-                        minWidth = browserSettings.value.heightForLayer(3).dp
+                        minWidth = settings.heightForLayer(3).dp
                     )
             ) {
                 Icon(
@@ -382,12 +404,12 @@ fun TextSetting(
                 modifier = Modifier
                     .clip(
                         RoundedCornerShape(
-                            browserSettings.value.cornerRadiusForLayer(3).dp
+                            settings.cornerRadiusForLayer(3).dp
                         )
                     )
                     .fillMaxHeight()
                     .defaultMinSize(
-                        minWidth = browserSettings.value.heightForLayer(3).dp
+                        minWidth = settings.heightForLayer(3).dp
                     )
             ) {
                 Icon(
@@ -404,16 +426,16 @@ fun TextSetting(
             onValueChange = { textValue = it },
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = browserSettings.value.padding.dp)
+                .padding(top = settings.padding.dp)
                 .height(
-                    browserSettings.value.heightForLayer(3).dp
+                    settings.heightForLayer(3).dp
                 )
                 .onFocusChanged{
                     isFocusOnTextField.value = it.hasFocus
                 }
             ,
             shape = RoundedCornerShape(
-                browserSettings.value.cornerRadiusForLayer(3).dp
+                settings.cornerRadiusForLayer(3).dp
             ),
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = Color.Black,
@@ -434,7 +456,8 @@ fun TextSetting(
             ),
             keyboardActions = KeyboardActions(
                 onDone = {
-                    updateBrowserSettingsForSpecificValue(textValue)
+                    settingsController.updateField(field, textValue)
+
                     keyboardController?.hide()
                     focusManager.clearFocus()
                 }
@@ -445,17 +468,18 @@ fun TextSetting(
 }
 @Composable
 fun SettingsPanel(
-//    currentRotation: Float,
     isFocusOnTextField : MutableState<Boolean>,
     isSettingCornerRadius: MutableState<Boolean>,
     descriptionContent: MutableState<String>,
     backgroundColor: MutableState<Color>,
     isSettingsPanelVisible: MutableState<Boolean>,
-    browserSettings: MutableState<BrowserSettings>,
     confirmationPopup: (String, String, () -> Unit, () -> Unit) -> Unit,
     resetBrowserSettings: () -> Unit,
     targetSetting: SettingPanelView = SettingPanelView.MAIN,
 ) {
+
+    val settingsController = LocalBrowserSettings.current
+    val settings = settingsController.current
 
     var currentView by remember { mutableStateOf(targetSetting) }
 
@@ -466,10 +490,10 @@ fun SettingsPanel(
         if (currentView == SettingPanelView.CORNER_RADIUS) {
             backgroundColor.value = Color.Red
             isSettingCornerRadius.value = true
-            browserSettings.value = browserSettings.value.copy(isFullscreenMode = true)
+            settingsController.update(settings.copy(isFullscreenMode = true))
         } else {
             backgroundColor.value = Color.Black
-            if (isSettingCornerRadius.value) browserSettings.value = browserSettings.value.copy(isFullscreenMode = false)
+            if (isSettingCornerRadius.value) settingsController.update(settings.copy(isFullscreenMode = false))
             isSettingCornerRadius.value = false
 
 
@@ -480,13 +504,13 @@ fun SettingsPanel(
     // Effect to reset the view and slider value when the panel is hidden
     LaunchedEffect(isSettingsPanelVisible.value) {
         if (!isSettingsPanelVisible.value) {
-            delay(browserSettings.value.animationSpeed.toLong()) // Wait for exit animation
+            delay(settings.animationSpeed.toLong()) // Wait for exit animation
             currentView = SettingPanelView.MAIN
         }
     }
 
     // Placeholder options for the settings panel
-    val allSettingsOptions = remember(browserSettings.value) {
+    val allSettingsOptions = remember(settings) {
         listOf(
             OptionItem(
                 R.drawable.ic_adjust_corner_radius,
@@ -559,22 +583,18 @@ fun SettingsPanel(
 
     AnimatedVisibility(
         visible = isSettingsPanelVisible.value,
-        enter = expandVertically(tween(browserSettings.value.animationSpeedForLayer(1))),
-        exit = shrinkVertically(tween(if ( browserSettings.value.isFirstAppLoad) browserSettings.value.animationSpeedForLayer(0 )* 6 else browserSettings.value.animationSpeedForLayer(1)))
+        enter = expandVertically(tween(settings.animationSpeedForLayer(1))),
+        exit = shrinkVertically(tween(if ( settings.isFirstAppLoad) settings.animationSpeedForLayer(0 )* 6 else settings.animationSpeedForLayer(1)))
     ) {
         Box(
             modifier = Modifier
-                .padding(horizontal = browserSettings.value.padding.dp)
-                .padding(top = browserSettings.value.padding.dp)
+                .padding(horizontal = settings.padding.dp)
+                .padding(top = settings.padding.dp)
                 .fillMaxWidth()
-//                .clip(
-//                    RoundedCornerShape(
-//                        browserSettings.value.cornerRadiusForLayer(2).dp
-//                    )
-//                )
+
                 .animateContentSize(
                     tween(
-                        browserSettings.value.animationSpeedForLayer(1)
+                        settings.animationSpeedForLayer(1)
                     )
                 )
 //
@@ -593,19 +613,18 @@ fun SettingsPanel(
                                 .background(
                                     Color.Black.copy(alpha = 0.3f),
                                     shape = RoundedCornerShape(
-                                        browserSettings.value.cornerRadiusForLayer(2).dp
+                                        settings.cornerRadiusForLayer(2).dp
                                     )
                                 )
-//                                .padding(horizontal = browserSettings.value.padding.dp /2)
+//                                .padding(horizontal = settings.padding.dp /2)
                             ,
-                            horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
+                            horizontalArrangement = Arrangement.spacedBy(settings.padding.dp)
                         ) {
                             val pageOptions = optionPages[pageIndex]
                             pageOptions.forEach { option ->
 
                                 CustomIconButton(
                                     layer = 2,
-                                    browserSettings = browserSettings,
                                     modifier = Modifier.weight(1f),
                                     onTap = option.onClick,
                                     descriptionContent = descriptionContent,
@@ -626,83 +645,56 @@ fun SettingsPanel(
                 SettingPanelView.CORNER_RADIUS -> {
 
                     SliderSetting(
-                        browserSettings = browserSettings,
-                        updateBrowserSettingsForSpecificValue = { newValue ->
-                            browserSettings.value =
-                                browserSettings.value.copy(deviceCornerRadius = newValue)
 
-                        },
-                        onBackClick = { if (!browserSettings.value.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
+                        onBackClick = { if (!settings.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
                         valueRange = 0f..60f,
                         steps = 5999,
-                        currentSettingOriginalValue = browserSettings.value.deviceCornerRadius,
                         textFieldValueFun = { src ->
                             src.take(2) + "." + src.substring(2, 4)
                         },
                         iconID = R.drawable.ic_adjust_corner_radius,
                         isFocusOnTextField = isFocusOnTextField,
+                        field = BrowserSettingField.CORNER_RADIUS
                     )
                 }
 
                 SettingPanelView.ANIMATION_SPEED -> {
 
                     SliderSetting(
-                        browserSettings = browserSettings,
-                        updateBrowserSettingsForSpecificValue = { newValue ->
-
-                            browserSettings.value =
-                                browserSettings.value.copy(animationSpeed = newValue)
-
-                        },
-                        onBackClick = { if (!browserSettings.value.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
+                        onBackClick = { if (!settings.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
                         valueRange = 0f..1000f,
                         steps = 999,
-                        currentSettingOriginalValue = browserSettings.value.animationSpeed,
                         textFieldValueFun = { src ->
                             src
                         },
                         afterDecimal = false,
                         iconID = R.drawable.ic_animation,
                         isFocusOnTextField = isFocusOnTextField,
+                        field = BrowserSettingField.ANIMATION_SPEED
                         )
                 }
                 SettingPanelView.SINGLE_LINE_HEIGHT -> {
 
                     SliderSetting(
-                        browserSettings = browserSettings,
-                        updateBrowserSettingsForSpecificValue = { newValue ->
-
-                            browserSettings.value =
-                                browserSettings.value.copy(singleLineHeight = newValue)
-
-                        },
-                        onBackClick = { if (!browserSettings.value.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
+                        onBackClick = { if (!settings.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
                         valueRange = 65f..140f,
                         steps = 74,
-                        currentSettingOriginalValue = browserSettings.value.singleLineHeight,
                         textFieldValueFun = { src ->
                             src
                         },
                         afterDecimal = false,
                         iconID = R.drawable.ic_expand,
                         isFocusOnTextField = isFocusOnTextField,
+                        field = BrowserSettingField.SINGLE_LINE_HEIGHT
                         )
                 }
 
                 SettingPanelView.PADDING -> {
 
                     SliderSetting(
-                        browserSettings = browserSettings,
-                        updateBrowserSettingsForSpecificValue = { newValue ->
-
-                            browserSettings.value =
-                                browserSettings.value.copy(padding = newValue)
-
-                        },
-                        onBackClick = { if (!browserSettings.value.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
+                        onBackClick = { if (!settings.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
                         valueRange = 3f..11f,
                         steps = 7,
-                        currentSettingOriginalValue = browserSettings.value.padding,
                         textFieldValueFun = { src ->
                             src
                         },
@@ -710,6 +702,7 @@ fun SettingsPanel(
                         iconID = R.drawable.ic_padding,
                         digitCount = 2,
                         isFocusOnTextField = isFocusOnTextField,
+                        field = BrowserSettingField.PADDING
                         )
                 }
 
@@ -717,9 +710,9 @@ fun SettingsPanel(
 
 
 
-                    val initialHsv = remember(browserSettings.value.highlightColor) {
+                    val initialHsv = remember(settings.highlightColor) {
                         val hsv = FloatArray(3)
-                        AndroidColor.colorToHSV(browserSettings.value.highlightColor, hsv)
+                        AndroidColor.colorToHSV(settings.highlightColor, hsv)
                         hsv
                     }
                     var hue by remember { mutableFloatStateOf(initialHsv[0]) }
@@ -740,14 +733,13 @@ fun SettingsPanel(
                         if (hexText.uppercase() != currentHex.uppercase() && hexText.length >= 7) {
                             hexText = currentHex
                         }
-                        browserSettings.value = browserSettings.value.copy(highlightColor = selectedColorInt)
-
+                        settingsController.update(settings.copy(highlightColor = selectedColorInt))
                     }
 
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(browserSettings.value.padding.dp),
+                            .padding(settings.padding.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
 
@@ -755,31 +747,31 @@ fun SettingsPanel(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(
-                                    browserSettings.value.heightForLayer( 3).dp
+                                    settings.heightForLayer( 3).dp
                                 )
                             ,
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
+                            horizontalArrangement = Arrangement.spacedBy(settings.padding.dp)
                         ) {
 
                             IconButton(
-                                onClick = { if (!browserSettings.value.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
+                                onClick = { if (!settings.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
                                 modifier = Modifier
                                     .clip(
                                         RoundedCornerShape(
-                                            browserSettings.value.cornerRadiusForLayer(3).dp
+                                            settings.cornerRadiusForLayer(3).dp
                                         )
                                     )
                                     .fillMaxHeight()
                                     .background(Color.White)
                                     .defaultMinSize(
-                                        minWidth = browserSettings.value.heightForLayer(3).dp
+                                        minWidth = settings.heightForLayer(3).dp
                                     )
 
 
                             ) {
                                 Icon(
-                                    painter = painterResource(id = if(browserSettings.value.isFirstAppLoad) R.drawable.ic_check else R.drawable.ic_arrow_back),
+                                    painter = painterResource(id = if(settings.isFirstAppLoad) R.drawable.ic_check else R.drawable.ic_arrow_back),
                                     contentDescription = "Back to Settings",
                                     tint = Color.Black
                                 )
@@ -789,7 +781,7 @@ fun SettingsPanel(
                                 modifier = Modifier
                                     .weight(1f)
                                     .fillMaxHeight()
-                                    .clip(RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(3).dp))
+                                    .clip(RoundedCornerShape(settings.cornerRadiusForLayer(3).dp))
                                     .background(Color(selectedColorInt))
                                 ,
                                 contentAlignment = Alignment.Center // 2. Center the content of the Box
@@ -860,12 +852,12 @@ fun SettingsPanel(
                                 modifier = Modifier
                                     .clip(
                                         RoundedCornerShape(
-                                            browserSettings.value.cornerRadiusForLayer(3).dp
+                                            settings.cornerRadiusForLayer(3).dp
                                         )
                                     )
                                     .fillMaxHeight()
                                     .defaultMinSize(
-                                        minWidth = browserSettings.value.heightForLayer(3).dp
+                                        minWidth = settings.heightForLayer(3).dp
                                     )
 
 
@@ -883,8 +875,8 @@ fun SettingsPanel(
                         AnimatedVisibility(
                             visible = !isFocusOnTextField.value,
 
-                            enter = expandVertically(tween(browserSettings.value.animationSpeedForLayer(1))),
-                            exit = shrinkVertically(tween(browserSettings.value.animationSpeedForLayer(1)))
+                            enter = expandVertically(tween(settings.animationSpeedForLayer(1))),
+                            exit = shrinkVertically(tween(settings.animationSpeedForLayer(1)))
 
                         ) {
 
@@ -937,17 +929,9 @@ fun SettingsPanel(
 
                 SettingPanelView.CURSOR_CONTAINER_SIZE -> {
                     SliderSetting(
-                        browserSettings = browserSettings,
-                        updateBrowserSettingsForSpecificValue = { newValue ->
-
-                            browserSettings.value =
-                                browserSettings.value.copy(cursorContainerSize = newValue)
-
-                        },
-                        onBackClick = { if (!browserSettings.value.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
+                        onBackClick = { if (!settings.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
                         valueRange = 20f..70f,
                         steps = 49,
-                        currentSettingOriginalValue = browserSettings.value.cursorContainerSize,
                         textFieldValueFun = { src ->
                             src
                         },
@@ -955,22 +939,15 @@ fun SettingsPanel(
                         iconID = R.drawable.ic_cursor_size,
                         digitCount = 2,
                         isFocusOnTextField = isFocusOnTextField,
+                        field = BrowserSettingField.CURSOR_CONTAINER_SIZE
                         )
                 }
 
                 SettingPanelView.CURSOR_TRACKING_SPEED -> {
                     SliderSetting(
-                        browserSettings = browserSettings,
-                        updateBrowserSettingsForSpecificValue = { newValue ->
-
-                            browserSettings.value =
-                                browserSettings.value.copy(cursorTrackingSpeed = newValue)
-
-                        },
-                        onBackClick = { if (!browserSettings.value.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
+                        onBackClick = { if (!settings.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
                         valueRange = 0.5f..2f,
                         steps = 29,
-                        currentSettingOriginalValue = browserSettings.value.cursorTrackingSpeed,
                         textFieldValueFun = { src ->
                             src[1] + "." + src.substring(2, 4)
                         },
@@ -978,19 +955,17 @@ fun SettingsPanel(
                         iconID = R.drawable.ic_cursor_speed,
                         digitCount = 4,
                         isFocusOnTextField = isFocusOnTextField,
+                        field = BrowserSettingField.CURSOR_TRACKING_SPEED
                         )
                 }
 
                 SettingPanelView.DEFAULT_URL -> {
                     TextSetting(
-                        browserSettings = browserSettings,
-                        updateBrowserSettingsForSpecificValue = { newValue ->
-                            browserSettings.value =browserSettings.value.copy(defaultUrl = newValue)
-                        },
-                        onBackClick = { if (!browserSettings.value.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
+                        onBackClick = { if (!settings.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
                         iconID = R.drawable.ic_link,
-                        currentSettingOriginalValue = browserSettings.value.defaultUrl,
+                        currentSettingOriginalValue = settings.defaultUrl,
                         isFocusOnTextField = isFocusOnTextField,
+                        field = BrowserSettingField.DEFAULT_URL
                         )
                 }
 
@@ -1000,7 +975,7 @@ fun SettingsPanel(
                             Modifier
                                 .fillMaxWidth()
                                 .height(
-                                    browserSettings.value.heightForLayer(2).dp
+                                    settings.heightForLayer(2).dp
                                 ),
                         contentAlignment = Alignment.Center
                     ) {
@@ -1011,38 +986,24 @@ fun SettingsPanel(
 
                 SettingPanelView.CLOSED_TAB_HISTORY_SIZE -> {
                     SliderSetting(
-                        browserSettings = browserSettings,
-                        updateBrowserSettingsForSpecificValue = { newValue ->
-                            browserSettings.value =
-                                browserSettings.value.copy(closedTabHistorySize = newValue)
-
-                        },
-                        onBackClick = { if (!browserSettings.value.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
+                        onBackClick = { if (!settings.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
                         valueRange = 0f..30f, // A sensible range for this setting
                         steps = 29, // (30 / 1) - 1
-                        currentSettingOriginalValue = browserSettings.value.closedTabHistorySize,
                         textFieldValueFun = { src -> src },
                         afterDecimal = false, // We are dealing with whole numbers
                         iconID = R.drawable.ic_history,
                         digitCount = 2 ,
                         isFocusOnTextField = isFocusOnTextField,
+                        field = BrowserSettingField.CLOSED_TAB_HISTORY_SIZE
 
                         )
                 }
 
                 SettingPanelView.BACK_SQUARE_OPACITY -> {
                     SliderSetting(
-                        browserSettings = browserSettings,
-                        updateBrowserSettingsForSpecificValue = { newValue ->
-                            browserSettings.value =
-                                browserSettings.value.copy(backSquareIdleOpacity = newValue)
-
-                        },
-                        onBackClick = { if (!browserSettings.value.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
+                        onBackClick = { if (!settings.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
                         valueRange = 0f..1f, // 0% to 100%
                         steps = 19, // 5% increments
-                        currentSettingOriginalValue = browserSettings.value.backSquareIdleOpacity,
-
                         textFieldValueFun = { src ->
                             // src is "0020" -> "0.20"
                             src[1] + "." + src.substring(2, 4)
@@ -1051,21 +1012,14 @@ fun SettingsPanel(
                         digitCount = 4,
                         afterDecimal = true,
                         isFocusOnTextField = isFocusOnTextField,
+                        field = BrowserSettingField.BACK_SQUARE_OPACITY
                         )
                 }
                 SettingPanelView.MAX_LIST_HEIGHT -> {
                     SliderSetting(
-                        browserSettings = browserSettings,
-                        updateBrowserSettingsForSpecificValue = { newValue ->
-                            browserSettings.value =
-                                browserSettings.value.copy(maxListHeight = newValue)
-
-                        },
                         onBackClick = {  currentView = SettingPanelView.MAIN },
                         valueRange = 0f..10f,
                         steps = 99,
-                        currentSettingOriginalValue = browserSettings.value.maxListHeight,
-
                         textFieldValueFun = { src ->
                             src.take(2) + "." + src.substring(2, 4)
                         },
@@ -1073,23 +1027,15 @@ fun SettingsPanel(
                         digitCount = 4,
                         afterDecimal = true,
                         isFocusOnTextField = isFocusOnTextField,
+                        field = BrowserSettingField.MAX_LIST_HEIGHT
                         )
                 }
                 SettingPanelView.SEARCH_ENGINE -> {
                     SliderSetting(
-                        browserSettings = browserSettings,
-                        updateBrowserSettingsForSpecificValue = { newValue ->
-                            browserSettings.value =
-                                browserSettings.value.copy(searchEngine = newValue.toInt())
-
-                        },
                         onBackClick = {  currentView = SettingPanelView.MAIN },
                         valueRange = 0f..SearchEngine.entries.lastIndex.toFloat(),
                         steps = SearchEngine.entries.lastIndex - 1,
-                        currentSettingOriginalValue = browserSettings.value.searchEngine.toFloat(),
-
                         textFieldValueFun = { src ->
-//                            src.take(2) + "." + src.substring(2, 4)
                             SearchEngine.entries[src[1].digitToInt()].title
                         },
                         storeValueFun = { src ->
@@ -1099,6 +1045,7 @@ fun SettingsPanel(
                         digitCount = 4,
                         afterDecimal = true,
                         isFocusOnTextField = isFocusOnTextField,
+                        field = BrowserSettingField.SEARCH_ENGINE
                         )
                 }
 
