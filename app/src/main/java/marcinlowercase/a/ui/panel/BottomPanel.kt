@@ -82,7 +82,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import marcinlowercase.a.R
 import marcinlowercase.a.core.data_class.App
-import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.ConfirmationDialogState
 import marcinlowercase.a.core.data_class.ContextMenuData
 import marcinlowercase.a.core.data_class.CustomPermissionRequest
