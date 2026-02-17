@@ -2781,6 +2781,160 @@ fun BrowserScreen(
             }
         }
 
+        LaunchedEffect(jsDialogState) {
+            if (jsDialogState != null) {
+                promptComponentDisplayState = jsDialogState
+            }
+        }
+        LaunchedEffect(isUrlBarVisible) {
+            if (!isUrlBarVisible) {
+                setIsOptionsPanelVisible(false)
+                isTabDataPanelVisible = false
+                isTabsPanelVisible = false
+                isSettingsPanelVisible.value = false
+//            if (downloads.isEmpty()) isDownloadPanelVisible = false
+                isDownloadPanelVisible.value = false
+                coroutineScope.launch {
+                    bottomPanelPagerState.animateScrollToPage(BottomPanelMode.SEARCH.ordinal)
+                }
+            } else {
+                if (tabsPanelLock && bottomPanelPagerState.currentPage == BottomPanelMode.SEARCH.ordinal) isTabsPanelVisible =
+                    true
+                if (isCursorMode) isCursorMode = false
+            }
+        }
+        LaunchedEffect(jsDialogState) {
+            isPromptPanelVisible = jsDialogState != null
+        }
+
+        LaunchedEffect(
+            isUrlBarVisible,
+            isPermissionPanelVisible,
+            isPromptPanelVisible,
+            confirmationState,
+            contextMenuData,
+            choiceState.value
+        ) {
+            isBottomPanelVisible =
+                isUrlBarVisible
+                        || isPermissionPanelVisible
+                        || isPromptPanelVisible
+                        || confirmationState != null
+                        || contextMenuData != null
+                        || choiceState.value != null
+        }
+
+        LaunchedEffect(settings.isFullscreenMode) {
+            if (settings.isFullscreenMode) {
+                insetsController.hide(WindowInsetsCompat.Type.systemBars())
+                insetsController.systemBarsBehavior =
+                    WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            } else {
+                insetsController.show(WindowInsetsCompat.Type.systemBars())
+                insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
+            }
+
+
+        }
+
+        LaunchedEffect(screenSize) {
+            val squareBoxSize = settings.heightForLayer(1).dp
+
+            val squareBoxSizePx = with(density) { squareBoxSize.toPx() }
+            val paddingPx = with(density) { settings.padding.dp.toPx() }
+
+
+            if (screenSize.height.toFloat() > (squareBoxSizePx - paddingPx)
+                && backSquareOffsetY.value > screenSize.height.toFloat() - squareBoxSizePx - paddingPx
+                && !isLandscape.value
+                && !isBottomPanelVisible
+            ) {
+                // Clamp Y to screen bounds
+                val targetY = backSquareOffsetY.value.coerceIn(
+                    paddingPx,
+                    screenSize.height.toFloat() - squareBoxSizePx - paddingPx
+                )
+                coroutineScope.launch {
+
+                    launch {
+                        backSquareOffsetY.animateTo(
+                            targetY,
+                            spring()
+                        )
+                    }
+
+                    settingsController.update( settings.copy(
+                        backSquareOffsetY = targetY
+                    ))
+
+                    hideBackSquare(false)
+                }
+            }
+
+        }
+        DisposableEffect(Unit) {
+            val shakeDetector = ShakeDetector(context) {
+                // This code runs when a shake is detected
+                coroutineScope.launch {
+                    // Only trigger if the URL bar isn't already visible to avoid conflicts
+                    if (!isBottomPanelVisible) {
+                        hideBackSquare()
+                    }
+                }
+            }
+
+            shakeDetector.start()
+
+            // Clean up when the Composable is destroyed (e.g. app closed)
+            onDispose {
+                shakeDetector.stop()
+            }
+        }
+        LaunchedEffect(pendingPermissionRequest.value) {
+            isPermissionPanelVisible = pendingPermissionRequest.value != null
+        }
+        // This effect will re-launch whenever isBottomPanelVisible changes.
+        LaunchedEffect(isBottomPanelVisible) {
+            if (!isBottomPanelVisible) {
+                // -- The URL bar has just been hidden. Start the "show and blink" sequence. --
+
+                // a. Instantly appear with 0.6 opacity.
+                if (!isCursorMode) hideBackSquare()
+
+
+                // d. After blinking, fade out completely.
+            } else {
+                // -- The URL bar is visible. Ensure the square is fully transparent. --
+                hideBackSquare(false)
+                geckoViewRef.value?.clearFocus()
+            }
+
+        }
+        LaunchedEffect(settings.backSquareIdleOpacity) {
+            if (!isBottomPanelVisible && !isCursorPadVisible) {
+                squareAlpha.animateTo(settings.backSquareIdleOpacity)
+            }
+        }
+        // This effect runs once and whenever isDarkTheme changes.
+        LaunchedEffect(isDarkTheme) {
+            val window = (view.context as Activity).window
+            val insetsController = WindowCompat.getInsetsController(window, view)
+
+            // true for light theme (dark icons), false for dark theme (light icons)
+            insetsController.isAppearanceLightStatusBars = !isDarkTheme
+            insetsController.isAppearanceLightNavigationBars = !isDarkTheme
+        }
+
+        LaunchedEffect(overlayHeightPx) {
+            // We only want to act the first time the height is measured (it changes from 0f to a positive value).
+            // The `offsetY.value == 0f` check is an extra safeguard to ensure we only do this once on startup.
+            if (overlayHeightPx > 0f && offsetY.value == 0f) {
+                // Instantly "snap" the overlay to its hidden position without any animation.
+                // The hidden position is its full height negated, moving it off-screen upwards.
+                offsetY.snapTo(-overlayHeightPx * 2)
+            }
+        }
+
         LaunchedEffect(saveTrigger) {
             if (saveTrigger > 0) {
                 tabManager.saveTabs(tabs, activeTabIndex.intValue)
