@@ -31,7 +31,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import marcinlowercase.a.R
 import marcinlowercase.a.ui.component.CustomIconButton
-import marcinlowercase.a.ui.composition.LocalBrowserSettings
+import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
+import androidx.compose.runtime.collectAsState
 
 @Composable
 fun FindInPagePanel(
@@ -44,11 +45,10 @@ fun FindInPagePanel(
     onFindPrevious: () -> Unit,
     onClose: () -> Unit,
     descriptionContent: MutableState<String>,
-    isFocusOnFindTextField: MutableState<Boolean>,
 
-) {
-    val settingsController = LocalBrowserSettings.current
-    val settings = settingsController.current
+    ) {
+    val viewModel = LocalBrowserViewModel.current
+    val settings = viewModel.browserSettings.collectAsState().value
     val keyboardController = LocalSoftwareKeyboardController.current
     AnimatedVisibility(
         visible = isVisible,
@@ -96,11 +96,9 @@ fun FindInPagePanel(
                     .height(
                         settings.heightForLayer(2).dp
                     )
-                    .onFocusChanged{focusState ->
-                        isFocusOnFindTextField.value = focusState.isFocused
-
-                    }
-                ,
+                    .onFocusChanged { focusState ->
+                        viewModel.updateUI { it.copy(isFocusOnFindTextField = focusState.isFocused) }
+                    },
                 shape = RoundedCornerShape(
                     settings.cornerRadiusForLayer(2).dp
                 ),
@@ -131,7 +129,7 @@ fun FindInPagePanel(
             ) {
 
                 CustomIconButton(
-                     layer = 2,
+                    layer = 2,
                     modifier = Modifier.weight(1f),
                     onTap = onClose,
                     descriptionContent = descriptionContent,

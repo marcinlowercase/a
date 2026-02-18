@@ -18,7 +18,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import marcinlowercase.a.R
 import marcinlowercase.a.ui.component.CustomIconButton
-import marcinlowercase.a.ui.composition.LocalBrowserSettings
+import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
+import androidx.compose.runtime.collectAsState
 
 @Composable
 fun TextEditPanel(
@@ -31,8 +32,9 @@ fun TextEditPanel(
     activeWebViewTitle: String,
     descriptionContent: MutableState<String>,
 ) {
-    val settingsController = LocalBrowserSettings.current
-    val settings = settingsController.current
+    val viewModel = LocalBrowserViewModel.current
+    val uiState = viewModel.uiState.collectAsState().value
+val settings = viewModel.browserSettings.collectAsState().value
     AnimatedVisibility(
         visible = isVisible,
         enter = expandVertically(

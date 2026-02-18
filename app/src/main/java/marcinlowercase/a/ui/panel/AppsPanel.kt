@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,25 +32,27 @@ import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import marcinlowercase.a.R
 import marcinlowercase.a.core.data_class.App
-import marcinlowercase.a.ui.composition.LocalBrowserSettings
+import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 
 @Composable
 fun AppsPanel(
-    visibility: MutableState<Boolean>,
+    visibility: Boolean,
     apps: MutableList<App>,
     onAppClick: (App) -> Unit = {},
     onAppDoubleClick: (App) -> Unit = {},
     inspectingAppId: MutableState<Long>
 
 ) {
-    val settingsController = LocalBrowserSettings.current
-    val settings = settingsController.current
+    val viewModel = LocalBrowserViewModel.current
+    val uiState = viewModel.uiState.collectAsState().value
+    val settings = viewModel.browserSettings.collectAsState().value
+
 
     val maxPanelHeight =
         (settings.heightForLayer(2).dp * 2.5f) + (settings.padding.dp * 2)
 
     AnimatedVisibility(
-        visible = visibility.value,
+        visible = visibility,
         modifier = Modifier.fillMaxWidth()
 
     ) {
@@ -135,8 +138,10 @@ fun AppIcon(
     modifier: Modifier = Modifier,
     onLongClick: () -> Unit = {}
 ) {
-    val settingsController = LocalBrowserSettings.current
-    val settings = settingsController.current
+    val viewModel = LocalBrowserViewModel.current
+    val uiState = viewModel.uiState.collectAsState().value
+    val settings = viewModel.browserSettings.collectAsState().value
+
 
     Box(
         modifier = modifier

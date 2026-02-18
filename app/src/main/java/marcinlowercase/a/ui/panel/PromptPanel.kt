@@ -47,7 +47,8 @@ import marcinlowercase.a.core.data_class.JsDialogState
 import marcinlowercase.a.core.data_class.JsPrompt
 import marcinlowercase.a.core.data_class.Tab
 import marcinlowercase.a.core.function.buttonSettingsForLayer
-import marcinlowercase.a.ui.composition.LocalBrowserSettings
+import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
+import androidx.compose.runtime.collectAsState
 import org.mozilla.geckoview.GeckoView
 
 @Composable
@@ -55,16 +56,16 @@ fun PromptPanel(
     geckoViewRef: MutableState<GeckoView?>,
     isUrlBarVisible: Boolean,
     activeTab: MutableState<Tab>,
-    isPromptPanelVisible: Boolean,
     state: JsDialogState?,
     promptComponentDisplayState: JsDialogState?,
     onDismiss: () -> Unit,
 ) {
-    val settingsController = LocalBrowserSettings.current
-    val settings = settingsController.current
+    val viewModel = LocalBrowserViewModel.current
+    val uiState = viewModel.uiState.collectAsState().value
+    val settings = viewModel.browserSettings.collectAsState().value
     AnimatedVisibility(
 //        modifier = modifier,
-        visible = isPromptPanelVisible,
+        visible = uiState.isPromptPanelVisible,
         enter = fadeIn(tween(settings.animationSpeedForLayer(1))),
         exit = shrinkVertically(
             tween(

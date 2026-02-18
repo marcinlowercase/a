@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -15,7 +16,7 @@ import androidx.compose.ui.unit.dp
 import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.function.buttonPointerInput
 import marcinlowercase.a.core.function.buttonSettingsForLayer
-import marcinlowercase.a.ui.composition.LocalBrowserSettings
+import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 
 @Composable
 fun CustomIconButton(
@@ -34,8 +35,10 @@ fun CustomIconButton(
     useLongPress: Boolean = true,
 
     ) {
-    val settingsController = LocalBrowserSettings.current
-    val settings = settingsController.current
+    val viewModel = LocalBrowserViewModel.current
+    val uiState = viewModel.uiState.collectAsState().value
+    val settings = viewModel.browserSettings.collectAsState().value
+
 
     val  hapticFeedback = LocalHapticFeedback.current
     val sizeModifier = if (isLandscape) {

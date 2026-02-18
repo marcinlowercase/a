@@ -42,13 +42,14 @@ import android.graphics.Color as AndroidColor // Alias to avoid confusion with C
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.core.graphics.toColorInt
-import marcinlowercase.a.ui.composition.LocalBrowserSettings
+import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 
 const val sliderHeight = 16
 
@@ -57,11 +58,13 @@ fun ColorPickerPanel(
     colorState: MutableState<JsColorState?>,
     descriptionContent: MutableState<String>,
     onDismiss: () -> Unit,
-    isFocusOnSettingTextField: MutableState<Boolean>
 ) {
-    val settingsController = LocalBrowserSettings.current
-    val settings = settingsController.current
-    
+    val viewModel = LocalBrowserViewModel.current
+    val uiState = viewModel.uiState.collectAsState().value
+    val isFocusOnSettingTextField = uiState.isFocusOnSettingTextField
+    val settings = viewModel.browserSettings.collectAsState().value
+
+
     val state = colorState.value ?: return
     val prompt = state.prompt
     val result = state.result
@@ -159,7 +162,7 @@ fun ColorPickerPanel(
                     modifier = Modifier
                         .fillMaxWidth()
                         .onFocusChanged{ focusState ->
-                            isFocusOnSettingTextField.value = focusState.hasFocus
+                            viewModel.updateUI { it.copy(isFocusOnSettingTextField = focusState.hasFocus) }
                             if (focusState.hasFocus) {
                                 hexText = ""
                             }
@@ -169,7 +172,7 @@ fun ColorPickerPanel(
 
 
             AnimatedVisibility(
-                visible = !isFocusOnSettingTextField.value,
+                visible = !isFocusOnSettingTextField,
 
                 enter = expandVertically(tween(settings.animationSpeedForLayer(1))),
                 exit = shrinkVertically(tween(settings.animationSpeedForLayer(1)))

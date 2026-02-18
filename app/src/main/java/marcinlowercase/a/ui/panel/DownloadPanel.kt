@@ -48,13 +48,14 @@ import marcinlowercase.a.core.enum_class.DownloadStatus
 import marcinlowercase.a.core.function.formatSpeed
 import marcinlowercase.a.core.function.formatTimeRemaining
 import marcinlowercase.a.ui.component.CustomIconButton
-import marcinlowercase.a.ui.composition.LocalBrowserSettings
+import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
+import androidx.compose.runtime.collectAsState
 
 @Composable
 fun DownloadPanel(
 //    currentRotation: Float,
     confirmationPopup: (message: String,url: String, onConfirm: () -> Unit, onCancel: () -> Unit) -> Unit,
-    isDownloadPanelVisible: MutableState<Boolean>,
+    isDownloadPanelVisible: Boolean,
     downloads: List<DownloadItem>,
     onDownloadRowClicked: (DownloadItem) -> Unit,
     onDeleteClicked: (DownloadItem) -> Unit,
@@ -62,10 +63,11 @@ fun DownloadPanel(
     onClearAllClicked: () -> Unit,
     descriptionContent: MutableState<String>
 ) {
-    val settingsController = LocalBrowserSettings.current
-    val settings = settingsController.current
+    val viewModel = LocalBrowserViewModel.current
+    val uiState = viewModel.uiState.collectAsState().value
+val settings = viewModel.browserSettings.collectAsState().value
     AnimatedVisibility(
-        visible = isDownloadPanelVisible.value,
+        visible = isDownloadPanelVisible,
         enter = expandVertically(
             tween(
                 settings.animationSpeedForLayer(1)
@@ -205,8 +207,9 @@ fun DownloadRow(
     onClick: () -> Unit,
     onDeleteClicked: () -> Unit
 ) {
-    val settingsController = LocalBrowserSettings.current
-    val settings = settingsController.current
+    val viewModel = LocalBrowserViewModel.current
+    val uiState = viewModel.uiState.collectAsState().value
+val settings = viewModel.browserSettings.collectAsState().value
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
     // 1. The root is now a Box to allow layering.

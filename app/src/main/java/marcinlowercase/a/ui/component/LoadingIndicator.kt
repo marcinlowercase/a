@@ -11,23 +11,26 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import marcinlowercase.a.ui.composition.LocalBrowserSettings
+import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 
 @Composable
 fun LoadingIndicator(
-    isLoading: Boolean,
     modifier: Modifier = Modifier
 ) {
 
-    val settings = LocalBrowserSettings.current.current
+    val viewModel = LocalBrowserViewModel.current
+    val uiState = viewModel.uiState.collectAsState().value
+    val settings = viewModel.browserSettings.collectAsState().value
+
 
     // Animate the appearance and disappearance of the overlay.
     AnimatedVisibility(
-        visible = isLoading,
+        visible = uiState.isLoading,
         modifier = modifier,
         enter = fadeIn(animationSpec = tween(300)),
         exit = fadeOut(animationSpec = tween(300))

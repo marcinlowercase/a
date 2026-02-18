@@ -66,19 +66,15 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -99,7 +95,6 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -119,7 +114,6 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -127,14 +121,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
-import androidx.core.content.edit
 import androidx.core.net.toUri
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -142,11 +134,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import marcinlowercase.a.core.constant.default_url
 import marcinlowercase.a.core.constant.generic_location_permission
-import marcinlowercase.a.core.constant.pixel_9_corner_radius
 import marcinlowercase.a.core.data_class.App
-import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.ConfirmationDialogState
 import marcinlowercase.a.core.data_class.ContextMenuData
 import marcinlowercase.a.core.data_class.CustomPermissionRequest
@@ -160,7 +149,6 @@ import marcinlowercase.a.core.data_class.JsConfirm
 import marcinlowercase.a.core.data_class.JsDateTimeState
 import marcinlowercase.a.core.data_class.JsDialogState
 import marcinlowercase.a.core.data_class.JsPrompt
-import marcinlowercase.a.core.data_class.PanelVisibilityState
 import marcinlowercase.a.core.data_class.PollData
 import marcinlowercase.a.core.data_class.SiteSettings
 import marcinlowercase.a.core.data_class.Suggestion
@@ -187,8 +175,6 @@ import marcinlowercase.a.core.manager.TabManager
 import marcinlowercase.a.core.manager.VisitedUrlManager
 import marcinlowercase.a.ui.component.CursorPad
 import marcinlowercase.a.ui.component.LoadingIndicator
-import marcinlowercase.a.ui.composition.BrowserSettingsController
-import marcinlowercase.a.ui.composition.LocalBrowserSettings
 import marcinlowercase.a.ui.panel.BottomPanel
 import marcinlowercase.a.ui.panel.ChoicePanel
 import marcinlowercase.a.ui.panel.ColorPickerPanel
@@ -200,14 +186,13 @@ import marcinlowercase.a.ui.panel.VideoStatusPanel
 import marcinlowercase.a.ui.screen.ErrorScreen
 import marcinlowercase.a.ui.theme.Theme
 import marcinlowercase.a.ui.viewmodel.BrowserViewModel
+import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import org.json.JSONArray
 import org.mozilla.gecko.util.ThreadUtils.runOnUiThread
 import org.mozilla.geckoview.GeckoResult
 import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.GeckoView
-import org.mozilla.geckoview.PanZoomController
-import org.mozilla.geckoview.ScreenLength
 import org.mozilla.geckoview.StorageController
 import java.io.File
 import java.io.FileOutputStream
@@ -223,7 +208,6 @@ import kotlin.system.exitProcess
 //region Composable
 
 class MainActivity : ComponentActivity() {
-
 
 
     private val tabManager by lazy { TabManager(this) }
@@ -513,36 +497,6 @@ class MainActivity : ComponentActivity() {
     //endregion
 }
 
-//region Manual Orientation (deprecated)
-//@Composable
-//fun rememberDevicePhysicalRotation(): androidx.compose.runtime.State<Float> {
-//    val context = LocalContext.current
-//    val rotation = remember { mutableFloatStateOf(0f) }
-//
-//    DisposableEffect(context) {
-//        val listener = object : OrientationEventListener(context, SensorManager.SENSOR_DELAY_NORMAL) {
-//            override fun onOrientationChanged(orientation: Int) {
-//                if (orientation == ORIENTATION_UNKNOWN) return
-//
-//                val newRotation = when (orientation) {
-//                    in 45..134 -> -90f
-//                    in 225..314 -> 90f
-//                    else -> 0f
-//                }
-//
-//                if (rotation.floatValue != newRotation) {
-//                    rotation.floatValue = newRotation
-//                }
-//            }
-//        }
-//        listener.enable()
-//        onDispose { listener.disable() }
-//    }
-//
-//    return rotation
-//}
-//endregion
-
 @SuppressLint("SourceLockedOrientationActivity", "ClickableViewAccessibility")
 @Composable
 fun BrowserScreen(
@@ -567,27 +521,16 @@ fun BrowserScreen(
     val keyboardHeight = imeInsets.calculateBottomPadding()
     val isKeyboardVisible = keyboardHeight > 0.dp
 
+    //region Load from ViewModel
+
     val settingsState = viewModel.browserSettings.collectAsState()
-
-    val settings= settingsState.value
-
-    // 2. Create the Controller object
-    val settingsController = remember(settings) {
-        BrowserSettingsController(
-            current = settings,
-            update = { viewModel.updateSettings(it) },
-            updateField = { field, value ->
-                viewModel.updateField(field, value)
-
-            },
-            reset = { viewModel.resetSettings() }
-        )
-    }
-
-    var savedPanelState by remember { mutableStateOf<PanelVisibilityState?>(null) }
-    var initialLoadDone by rememberSaveable { mutableStateOf(false) }
+    val settings = settingsState.value
+    val uiState by viewModel.uiState.collectAsState()
 
 
+    //endregion
+
+    
     val tabs = remember {
         mutableStateListOf<Tab>().apply { addAll(tabManager.loadTabs(initialIntentUrl)) }
     }
@@ -631,6 +574,7 @@ fun BrowserScreen(
         rememberTextFieldState(activeTab.value.currentURL)
 
     var sessionRefreshTrigger by remember { mutableIntStateOf(0) }
+    
     val activeSession = remember(activeTab.value.id, sessionRefreshTrigger) {
         geckoManager.getSession(activeTab.value)
     }
@@ -641,49 +585,23 @@ fun BrowserScreen(
             putAll(siteSettingsManager.loadSettings())
         }
     }
-
-    var isLoading by remember { mutableStateOf(false) }
-    val isFocusOnUrlTextField = remember { mutableStateOf(false) }
-    val isFocusOnSettingTextField = remember { mutableStateOf(false) }
-    val isFocusOnFindTextField = remember { mutableStateOf(false) }
-    val isFocusOnTextField = remember { mutableStateOf(false) }
-
+    
     var isApplyImePaddingToWebView by remember { mutableStateOf(true) }
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
 
-    var isUrlBarVisible by rememberSaveable { mutableStateOf(true) }
-    var isUrlOverlayBoxVisible by rememberSaveable { mutableStateOf(true) }
-    var isPermissionPanelVisible by rememberSaveable { mutableStateOf(false) }
-    var isBottomPanelVisible by rememberSaveable { mutableStateOf(true) }
-    var isPromptPanelVisible by rememberSaveable { mutableStateOf(false) }
-    var isTabsPanelVisible by remember { mutableStateOf(false) }
-    var tabsPanelLock by remember { mutableStateOf(false) }
+    // TODO transfer
     val descriptionContent = remember { mutableStateOf("") }
-    var isNavPanelVisible by remember { mutableStateOf(false) }
-    val isLongPressDrag = remember { mutableStateOf(false) }
     var activeNavAction by remember { mutableStateOf(GestureNavAction.REFRESH) }
-    var isTabDataPanelVisible by remember { mutableStateOf(false) }
     val hapticFeedback = LocalHapticFeedback.current
-    val isSettingsPanelVisible = remember { mutableStateOf(settings.isFirstAppLoad) }
-    val isBottomPanelLock = remember { mutableStateOf(false) }
-    val isAppsPanelVisible = remember { mutableStateOf(false) }
     val resetBottomPanelTrigger = remember { mutableStateOf(false) }
-    val isSettingCornerRadius = remember { mutableStateOf(true) }
-    val isOnFullscreenVideo = remember { mutableStateOf(false) }
-    val isMediaControlPanelVisible = remember { mutableStateOf(false) }
-    val isMediaControlPanelDisplayed = remember { mutableStateOf(false) }
-    val isLandscapeByButton = remember { mutableStateOf(false) }
-    val isLandscape = remember { mutableStateOf(false) }
-    val isOtherPanelVisible = remember { mutableStateOf(false) }
 
 
     val offsetY = remember { Animatable(0f) }
     var overlayHeightPx by remember { mutableFloatStateOf(0f) }
     val animatedCornerRadius by animateDpAsState(
         targetValue = if (settings.isSharpMode
-//            || isOnFullscreenVideo.value
-//            || isPipMode
+
         ) 0.dp else settings.deviceCornerRadius.dp,
         label = "Corner Radius Animation",
     )
@@ -705,7 +623,7 @@ fun BrowserScreen(
     }
     // Top Padding
 
-    val webViewTopPaddingFullscreen = if (settings.isSharpMode && !isLandscape.value) {
+    val webViewTopPaddingFullscreen = if (settings.isSharpMode && !uiState.isLandscape) {
         maxOf(cutoutTop, settings.deviceCornerRadius.dp)
     } else {
         cutoutTop
@@ -727,7 +645,7 @@ fun BrowserScreen(
     }
 
     val targetWebViewTopPadding =
-        if (isSettingCornerRadius.value
+        if (uiState.isSettingCornerRadius
             || isPipMode
         ) 0.dp else webViewTopPaddingNormalScreen
 
@@ -738,7 +656,7 @@ fun BrowserScreen(
     )
     // Bottom Padding
     val webViewBottomPaddingFullscreen =
-        if (settings.isSharpMode && !isLandscape.value) {
+        if (settings.isSharpMode && !uiState.isLandscape) {
             maxOf(cutoutBottom, settings.deviceCornerRadius.dp)
         } else {
             cutoutBottom
@@ -759,11 +677,11 @@ fun BrowserScreen(
     }
 
     val targetWebViewBottomPadding =
-        if (isSettingCornerRadius.value
+        if (uiState.isSettingCornerRadius
             || isPipMode
         ) {
             0.dp
-        } else if (isKeyboardVisible && !isFocusOnTextField.value) {
+        } else if (isKeyboardVisible && !uiState.isFocusOnTextField) {
             settings.padding.dp
         } else webViewBottomPaddingNormalScreen
 
@@ -777,13 +695,13 @@ fun BrowserScreen(
     // Start Padding
 
     val webViewStartPaddingFullscreen =
-        if (settings.isSharpMode && isLandscape.value) {
+        if (settings.isSharpMode && uiState.isLandscape) {
             maxOf(cutoutLeft, settings.deviceCornerRadius.dp)
         } else {
             cutoutLeft
         }
     val targetWebViewStartPadding =
-        if (isSettingCornerRadius.value
+        if (uiState.isSettingCornerRadius
             || isPipMode
         ) 0.dp else webViewStartPaddingFullscreen
     val webViewStartPadding by animateDpAsState(
@@ -794,13 +712,13 @@ fun BrowserScreen(
 
     // End Padding
 
-    val webViewEndPaddingFullscreen = if (settings.isSharpMode && isLandscape.value) {
+    val webViewEndPaddingFullscreen = if (settings.isSharpMode && uiState.isLandscape) {
         maxOf(cutoutRight, settings.deviceCornerRadius.dp)
     } else {
         cutoutRight
     }
     val targetWebViewEndPadding =
-        if (isSettingCornerRadius.value
+        if (uiState.isSettingCornerRadius
             || isPipMode
         ) 0.dp else webViewEndPaddingFullscreen
 
@@ -932,7 +850,6 @@ fun BrowserScreen(
 
     //endregion
 
-    val isDownloadPanelVisible = remember { mutableStateOf(false) }
 
     //region TabDataPanel
     var inspectingTabId by remember { mutableStateOf<Long?>(null) }
@@ -953,8 +870,6 @@ fun BrowserScreen(
     var confirmationDisplayState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
     //endregion
 
-    var isCursorPadVisible by remember { mutableStateOf(false) }
-    var isCursorMode by remember { mutableStateOf(false) }
     val cursorPointerPosition = remember { mutableStateOf(Offset.Zero) }
     val density = LocalDensity.current
     var screenSize by remember { mutableStateOf(IntSize.Zero) }
@@ -974,7 +889,6 @@ fun BrowserScreen(
     )
     val urlBarFocusRequester = remember { FocusRequester() }
 
-    val isFindInPageVisible = remember { mutableStateOf(false) }
     val findInPageText = remember { mutableStateOf("") }
     val findInPageResult = remember { mutableStateOf(0 to 0) }
 
@@ -1034,14 +948,6 @@ fun BrowserScreen(
 
     val geckoViewRef = remember { mutableStateOf<GeckoView?>(null) }
 
-//    val deviceRotationState = rememberDevicePhysicalRotation()
-//
-//    var currentRotationValue by rememberSaveable { mutableFloatStateOf(0f) }
-//    val currentRotation by animateFloatAsState(
-//        targetValue = currentRotationValue,
-//        animationSpec = spring(stiffness = Spring.StiffnessLow),
-//        label = "ScreenRotationAnim"
-//    )
 
     val choiceState = remember { mutableStateOf<JsChoiceState?>(null) }
     val choiceDisplayState = remember { mutableStateOf<JsChoiceState?>(null) }
@@ -1070,15 +976,15 @@ fun BrowserScreen(
         colorState.value,
         dateTimeState.value,
     ) {
-        isOtherPanelVisible.value = choiceState.value != null
+        viewModel.updateUI { it.copy(isOtherPanelVisible = choiceState.value != null
                 || colorState.value != null
-                || dateTimeState.value != null
+                || dateTimeState.value != null) }
 
     }
 
 
-    LaunchedEffect(isOtherPanelVisible.value) {
-        if (isOtherPanelVisible.value) isBottomPanelVisible = false
+    LaunchedEffect(uiState.isOtherPanelVisible) {
+        if (uiState.isOtherPanelVisible) viewModel.updateUI { it.copy(isBottomPanelVisible = false) }
     }
 
     //endregion
@@ -1107,16 +1013,11 @@ fun BrowserScreen(
 
     }
 
-    val updateCurrentRotation = remember {
-        {
-//            val freshRotation = deviceRotationState.value
-//            Log.i("Rotation", "Click! Snapping to: $freshRotation")
-//            currentRotationValue = freshRotation
-
-            isLandscapeByButton.value = true
-//            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-        }
-    }
+//    val updateCurrentRotation = remember {
+//        {
+//            viewModel.updateUI { it.copy(isLandscapeByButton = true) }
+//        }
+//    }
 
     val setIsOptionsPanelVisible = { setToVisible: Boolean ->
 
@@ -1301,7 +1202,7 @@ fun BrowserScreen(
             tabs.add(insertIndex, clonedTab)
             activeTabIndex.intValue = insertIndex
             tabs[insertIndex] = tabs[insertIndex].copy(state = TabState.ACTIVE)
-            isTabDataPanelVisible = false
+            viewModel.updateUI { it.copy(isTabDataPanelVisible = false) }
             saveTrigger++
         }
     }
@@ -1363,7 +1264,7 @@ fun BrowserScreen(
                             inspectingTabId = tabs[nextTabIndex].id
                             activeTabIndex.intValue = nextTabIndex
                             val nextUrl = tabs[nextTabIndex].currentURL
-                            if (!isFocusOnUrlTextField.value) {
+                            if (!uiState.isFocusOnUrlTextField) {
                                 textFieldState.setTextAndPlaceCursorAtEnd(nextUrl.toDomain())
                             }
 
@@ -1447,7 +1348,7 @@ fun BrowserScreen(
                         GeckoResult.fromValue(it)
                     }
 
-                    isTabDataPanelVisible = false
+                    viewModel.updateUI { it.copy(isTabDataPanelVisible = false) }
                 }
 
             }
@@ -1518,8 +1419,8 @@ fun BrowserScreen(
 
     @SuppressLint("UseKtx")
     fun performDownloadEnqueue(params: DownloadParams) {
-        if (!isUrlBarVisible) isUrlBarVisible = true
-        if (!isDownloadPanelVisible.value) isDownloadPanelVisible.value = true
+        if (!uiState.isUrlBarVisible) viewModel.updateUI { it.copy(isUrlBarVisible = true) }
+        if (!uiState.isDownloadPanelVisible) viewModel.updateUI { it.copy(isDownloadPanelVisible = true) }
         if (contextMenuData != null) contextMenuData = null
 
         val initialFilename =
@@ -1568,7 +1469,8 @@ fun BrowserScreen(
         { url: String, userAgent: String, contentDisposition: String?, mimeType: String? ->
             val params = DownloadParams(url, userAgent, contentDisposition, mimeType)
 
-            val needsPermission = Build.VERSION.SDK_INT <= Build.VERSION_CODES.P
+//            val needsPermission = Build.VERSION.SDK_INT <= Build.VERSION_CODES.P
+            val needsPermission = false
             val hasPermission = ContextCompat.checkSelfPermission(
                 context, Manifest.permission.WRITE_EXTERNAL_STORAGE
             ) == PackageManager.PERMISSION_GRANTED
@@ -1584,7 +1486,7 @@ fun BrowserScreen(
 
 //    { url: String, userAgent: String, contentDisposition: String?, mimeType: String? ->
 //        if (!isUrlBarVisible) isUrlBarVisible = true
-//        if (!isDownloadPanelVisible.value) isDownloadPanelVisible.value = true
+//        if (!uiState.isDownloadPanelVisible) uiState.isDownloadPanelVisible = true
 //
 //        // (Reuse your existing filename/unique logic here)
 //        val initialFilename = getBestGuessFilename(url, contentDisposition, mimeType)
@@ -1640,7 +1542,7 @@ fun BrowserScreen(
 
 
 //        textFieldValue = TextFieldValue(url, TextRange(url.length))
-        if (!isFocusOnUrlTextField.value) textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
+        if (!uiState.isFocusOnUrlTextField) textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
         saveTrigger++
 
 
@@ -1662,7 +1564,7 @@ fun BrowserScreen(
             }
 
             GestureNavAction.CLOSE_TAB -> {
-                if (isLoading) isLoading = false
+                if (uiState.isLoading) viewModel.updateUI { it.copy(isLoading = false) }
                 if (tabs.size > 1) {
                     val tabToRemoveIndex = activeTabIndex.intValue
                     val tabToRemove = tabs[tabToRemoveIndex]
@@ -1689,7 +1591,7 @@ fun BrowserScreen(
                     tabs[nextTabIndex].state = TabState.ACTIVE
 
                     val urlToLoad = tabs[nextTabIndex].currentURL
-                    if (!isFocusOnUrlTextField.value) textFieldState.setTextAndPlaceCursorAtEnd(
+                    if (!uiState.isFocusOnUrlTextField) textFieldState.setTextAndPlaceCursorAtEnd(
                         urlToLoad.toDomain()
                     )
                     saveTrigger++
@@ -1730,20 +1632,20 @@ fun BrowserScreen(
             context.startActivity(intent)
         } catch (_: ActivityNotFoundException) {
             val genericFileManagerIntent = Intent(Intent.ACTION_GET_CONTENT).apply {
-//                val downloadsUri = android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI
-//                setDataAndType(downloadsUri, "*/*")
-//                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
                 addCategory(Intent.CATEGORY_OPENABLE)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    // Android 10+ (API 29+) supports the Downloads URI
-                    setDataAndType(MediaStore.Downloads.EXTERNAL_CONTENT_URI, "*/*")
-                } else {
-                    // Android 9 and below: Just use type.
-                    // The user can still pick 'Downloads' from the system sidebar.
-                    type = "*/*"
-                }
+                setDataAndType(MediaStore.Downloads.EXTERNAL_CONTENT_URI, "*/*")
+
+//                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+//                    // Android 10+ (API 29+) supports the Downloads URI
+//                    setDataAndType(MediaStore.Downloads.EXTERNAL_CONTENT_URI, "*/*")
+//                } else {
+//                    // Android 9 and below: Just use type.
+//                    // The user can still pick 'Downloads' from the system sidebar.
+//                    type = "*/*"
+//                }
             }
             try {
                 context.startActivity(genericFileManagerIntent)
@@ -1856,40 +1758,40 @@ fun BrowserScreen(
     var activeMainPanel by remember { mutableStateOf<ActivePanel?>(null) }
 
     // 2. Observers for MAIN panels: When a main panel opens, it claims focus.
-    LaunchedEffect(isAppsPanelVisible.value) {
-        if (isAppsPanelVisible.value) activeMainPanel = ActivePanel.APPS
+    LaunchedEffect(uiState.isAppsPanelVisible) {
+        if (uiState.isAppsPanelVisible) activeMainPanel = ActivePanel.APPS
     }
     LaunchedEffect(suggestions) {
         if (suggestions.isNotEmpty()) activeMainPanel = ActivePanel.SUGGESTIONS
     }
 
-    LaunchedEffect(isDownloadPanelVisible.value) {
-        if (isDownloadPanelVisible.value) activeMainPanel = ActivePanel.DOWNLOADS
+    LaunchedEffect(uiState.isDownloadPanelVisible) {
+        if (uiState.isDownloadPanelVisible) activeMainPanel = ActivePanel.DOWNLOADS
     }
     LaunchedEffect(contextMenuData) {
         if (contextMenuData != null) activeMainPanel = ActivePanel.CONTEXT_MENU
     }
-    LaunchedEffect(isFindInPageVisible.value) {
-        if (isFindInPageVisible.value) activeMainPanel = ActivePanel.FIND_IN_PAGE
+    LaunchedEffect(uiState.isFindInPageVisible) {
+        if (uiState.isFindInPageVisible) activeMainPanel = ActivePanel.FIND_IN_PAGE
     }
     LaunchedEffect(jsDialogState) {
         if (jsDialogState != null) activeMainPanel = ActivePanel.PROMPT
     }
-    LaunchedEffect(isSettingsPanelVisible.value) {
-        if (isSettingsPanelVisible.value) activeMainPanel = ActivePanel.SETTINGS
+    LaunchedEffect(uiState.isSettingsPanelVisible) {
+        if (uiState.isSettingsPanelVisible) activeMainPanel = ActivePanel.SETTINGS
     }
     LaunchedEffect(pendingPermissionRequest.value) {
         if (pendingPermissionRequest.value != null) activeMainPanel = ActivePanel.PERMISSION
     }
-    LaunchedEffect(isTabsPanelVisible) {
+    LaunchedEffect(uiState.isTabsPanelVisible) {
         // When TabsPanel opens, it becomes the main panel.
-        if (isTabsPanelVisible) activeMainPanel = ActivePanel.TABS
+        if (uiState.isTabsPanelVisible) activeMainPanel = ActivePanel.TABS
     }
-    LaunchedEffect(isTabDataPanelVisible) {
+    LaunchedEffect(uiState.isTabDataPanelVisible) {
         // When TabDataPanel opens, it ensures Tabs is the main panel and forces it open.
-        if (isTabDataPanelVisible) {
+        if (uiState.isTabDataPanelVisible) {
             activeMainPanel = ActivePanel.TABS
-            isTabsPanelVisible = true
+            viewModel.updateUI { it.copy(isTabsPanelVisible = true) }
         }
     }
 
@@ -1897,16 +1799,25 @@ fun BrowserScreen(
     LaunchedEffect(activeMainPanel) {
         val current = activeMainPanel // Capture the current state
 
-        if (current != ActivePanel.APPS && isAppsPanelVisible.value) isAppsPanelVisible.value =
-            false
-        if (current != ActivePanel.DOWNLOADS && isDownloadPanelVisible.value) isDownloadPanelVisible.value =
-            false
+        if (current != ActivePanel.APPS && uiState.isAppsPanelVisible) {
+            viewModel.updateUI { it.copy(isAppsPanelVisible = false) }
+        }
+        if (current != ActivePanel.DOWNLOADS && uiState.isDownloadPanelVisible) viewModel.updateUI {
+            it.copy(
+                isDownloadPanelVisible = false
+            )
+        }
         if (current != ActivePanel.CONTEXT_MENU && contextMenuData != null) contextMenuData = null
-        if (current != ActivePanel.FIND_IN_PAGE && isFindInPageVisible.value) isFindInPageVisible.value =
-            false
+        if (current != ActivePanel.FIND_IN_PAGE && uiState.isFindInPageVisible) viewModel.updateUI {
+            it.copy(
+                isFindInPageVisible = false
+            )
+        }
         if (current != ActivePanel.PROMPT && jsDialogState != null) jsDialogState = null
-        if (current != ActivePanel.SETTINGS && isSettingsPanelVisible.value) isSettingsPanelVisible.value =
-            false
+        if (current != ActivePanel.SETTINGS && uiState.isSettingsPanelVisible) {
+            viewModel.updateUI { it.copy(isSettingsPanelVisible = false) }
+        }
+
         if (current != ActivePanel.PERMISSION && pendingPermissionRequest.value != null) pendingPermissionRequest.value =
             null
 
@@ -1914,32 +1825,40 @@ fun BrowserScreen(
 
         // If the active panel is NOT TABS, close both TABS and TAB_DATA.
         if (current != ActivePanel.TABS) {
-            if (isTabsPanelVisible) isTabsPanelVisible = false
-            if (tabsPanelLock) tabsPanelLock = false
-            if (isTabDataPanelVisible) isTabDataPanelVisible = false
+            if (uiState.isTabsPanelVisible) viewModel.updateUI { it.copy(isTabsPanelVisible = false) }
+
+            if (uiState.isTabsPanelLock) viewModel.updateUI { it.copy(isTabsPanelLock = false) }
+
+            if (uiState.isTabDataPanelVisible) viewModel.updateUI { it.copy(isTabDataPanelVisible = false) }
+
         }
     }
 
     // 4. Exception Rule: If TabsPanel is closed, TabDataPanel must also close.
     // This enforces their parent-child relationship.
-    LaunchedEffect(isTabsPanelVisible) {
-        if (!isTabsPanelVisible && isTabDataPanelVisible) {
-            isTabDataPanelVisible = false
+    LaunchedEffect(uiState.isTabsPanelVisible) {
+        if (!uiState.isTabsPanelVisible && uiState.isTabDataPanelVisible) {
+            viewModel.updateUI { it.copy(isTabDataPanelVisible = false) }
         }
     }
     //endregion
 
 
-    CompositionLocalProvider(LocalBrowserSettings provides settingsController) {
+    CompositionLocalProvider(
+        LocalBrowserViewModel provides viewModel
+    ) {
 
         //region LaunchedEffect
         LaunchedEffect(
-            isFocusOnSettingTextField.value,
-            isFocusOnUrlTextField.value,
-            isFocusOnFindTextField.value
+            uiState.isFocusOnSettingTextField,
+            uiState.isFocusOnUrlTextField,
+            uiState.isFocusOnFindTextField,
         ) {
-            isFocusOnTextField.value =
-                isFocusOnFindTextField.value || isFocusOnUrlTextField.value || isFocusOnSettingTextField.value
+            viewModel.updateUI {
+                it.copy(
+                    isFocusOnTextField = uiState.isFocusOnFindTextField || uiState.isFocusOnUrlTextField || uiState.isFocusOnSettingTextField
+                )
+            }
         }
 
         LaunchedEffect(Unit) {
@@ -1961,26 +1880,26 @@ fun BrowserScreen(
 
         }
 
-        LaunchedEffect(isLandscapeByButton.value, isOnFullscreenVideo.value) {
-            isLandscape.value = isLandscapeByButton.value || isOnFullscreenVideo.value
+        LaunchedEffect(uiState.isLandscapeByButton, uiState.isOnFullscreenVideo) {
+            viewModel.updateUI { it.copy(isLandscape = uiState.isLandscapeByButton || uiState.isOnFullscreenVideo) }
         }
 
-        LaunchedEffect(isLandscapeByButton.value) {
-            if (isLandscapeByButton.value) {
+        LaunchedEffect(uiState.isLandscapeByButton) {
+            if (uiState.isLandscapeByButton) {
                 activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-                isBottomPanelVisible = false
-                isUrlBarVisible = false
+                viewModel.updateUI { it.copy(isBottomPanelVisible = false) }
+                viewModel.updateUI { it.copy(isUrlBarVisible = false) }
             } else {
                 activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
             }
 
-            settingsController.update(settings.copy(isFullscreenMode = isLandscapeByButton.value))
+            viewModel.updateSettings(settings.copy(isFullscreenMode = uiState.isLandscapeByButton))
         }
-        LaunchedEffect(isOnFullscreenVideo.value) {
-            isMediaControlPanelVisible.value = isOnFullscreenVideo.value
+        LaunchedEffect(uiState.isOnFullscreenVideo) {
+            viewModel.updateUI { it.copy(isMediaControlPanelVisible = uiState.isOnFullscreenVideo) }
 
-            settingsController.update(settings.copy(isFullscreenMode = isOnFullscreenVideo.value))
-            if (isOnFullscreenVideo.value) {
+            viewModel.updateSettings(settings.copy(isFullscreenMode = uiState.isOnFullscreenVideo))
+            if (uiState.isOnFullscreenVideo) {
                 gestureManager.ensureFullscreenBrightness()
             } else {
                 if (activity.requestedOrientation != ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) {
@@ -1989,8 +1908,8 @@ fun BrowserScreen(
             }
 
         }
-        LaunchedEffect(isFocusOnTextField.value, isPromptPanelVisible) {
-            if (!isFocusOnTextField.value && !isPromptPanelVisible) {
+        LaunchedEffect(uiState.isFocusOnTextField, uiState.isPromptPanelVisible) {
+            if (!uiState.isFocusOnTextField && !uiState.isPromptPanelVisible) {
                 delay(300)
                 isApplyImePaddingToWebView = true
             } else {
@@ -2010,9 +1929,9 @@ fun BrowserScreen(
             }
         }
 
-        LaunchedEffect(isSettingsPanelVisible.value) {
-            if (!isSettingsPanelVisible.value)
-                settingsController.update(settings.copy(isFirstAppLoad = false))
+        LaunchedEffect(uiState.isSettingsPanelVisible) {
+            if (!uiState.isSettingsPanelVisible)
+                viewModel.updateSettings(settings.copy(isFirstAppLoad = false))
         }
         LaunchedEffect(inspectingAppId.longValue) {
             descriptionContent.value = apps.find { it.id == inspectingAppId.longValue }?.label ?: ""
@@ -2030,26 +1949,37 @@ fun BrowserScreen(
         LaunchedEffect(
             bottomPanelPagerState.settledPage,
             bottomPanelPagerState.currentPage,
-            isUrlOverlayBoxVisible
+            uiState.isUrlOverlayBoxVisible
         ) {
 
             if (bottomPanelPagerState.currentPage == BottomPanelMode.SEARCH.ordinal) {
-                isUrlOverlayBoxVisible = true
-                if (isAppsPanelVisible.value) isAppsPanelVisible.value = false
-                if (tabsPanelLock && !isFocusOnUrlTextField.value) isTabsPanelVisible = true
+                viewModel.updateUI { it.copy(isUrlOverlayBoxVisible = true) }
+                if (uiState.isAppsPanelVisible) {
+                    viewModel.updateUI { it.copy(isAppsPanelVisible = false) }
+                }
+                if (uiState.isTabsPanelLock && !uiState.isFocusOnUrlTextField) viewModel.updateUI {
+                    it.copy(
+                        isTabsPanelVisible = true
+                    )
+                }
                 if (inspectingAppId.longValue != 0L) inspectingAppId.longValue = 0L
             } else {
-                isFocusOnUrlTextField.value = false
-                isDownloadPanelVisible.value = false
-                isNavPanelVisible = false
-                isTabsPanelVisible = false
+                viewModel.updateUI {
+                    it.copy(
+                        isFocusOnUrlTextField = false,
+                        isDownloadPanelVisible = false,
+                        isNavPanelVisible = false,
+                        isSettingsPanelVisible = false,
+                        isTabsPanelVisible = false,
+                        isFindInPageVisible = false,
+                    )
+                }
                 setIsOptionsPanelVisible(false)
-                isSettingsPanelVisible.value = false
 
-                isFindInPageVisible.value = false
                 keyboardController?.hide()
                 if (bottomPanelPagerState.currentPage == BottomPanelMode.APPS.ordinal) {
-                    isAppsPanelVisible.value = true
+                    viewModel.updateUI { it.copy(isAppsPanelVisible = true) }
+
                 }
 
             }
@@ -2062,7 +1992,7 @@ fun BrowserScreen(
 
         LaunchedEffect(bottomPanelPagerState.currentPage) {
             if (bottomPanelPagerState.currentPage == BottomPanelMode.LOCK.ordinal) {
-                settingsController.update(settings.copy(isFullscreenMode = !settings.isFullscreenMode))
+                viewModel.updateSettings(settings.copy(isFullscreenMode = !settings.isFullscreenMode))
             }
         }
         LaunchedEffect(resetBottomPanelTrigger.value) {
@@ -2086,7 +2016,7 @@ fun BrowserScreen(
             Log.i("marcPip", "onscreenSize")
             if (screenSize.width > 0 && !isBackSquareInitialized && !isPipMode) {
                 val buttonSize = with(density) {
-                   settings.heightForLayer(1).dp.toPx()
+                    settings.heightForLayer(1).dp.toPx()
                 }
 
                 val defaultX =
@@ -2101,7 +2031,7 @@ fun BrowserScreen(
             }
         }
 
-        LaunchedEffect(textFieldState.text, isFocusOnUrlTextField.value) {
+        LaunchedEffect(textFieldState.text, uiState.isFocusOnUrlTextField) {
 
             if (!settings.showSuggestions || (textFieldState.text as String) == currentInspectingTab?.currentURL || textFieldState.text.isBlank() || isPinningApp.value) {
                 suggestions.clear()
@@ -2110,7 +2040,7 @@ fun BrowserScreen(
 
             val query = (textFieldState.text as String).trim()
 
-            if (query.isNotBlank() && isFocusOnUrlTextField.value) {
+            if (query.isNotBlank() && uiState.isFocusOnUrlTextField) {
 //            delay(50L) // Debounce
                 if (query != textFieldState.text.trim()) return@LaunchedEffect
 
@@ -2214,36 +2144,36 @@ fun BrowserScreen(
 
                 // C. Update the UI state
                 suggestions.clear()
-                if (textFieldState.text.isNotEmpty() && isFocusOnUrlTextField.value)
+                if (textFieldState.text.isNotEmpty() && uiState.isFocusOnUrlTextField)
                     suggestions.addAll(finalSuggestions.take(10)) // Limit to a reasonable number
             } else {
                 suggestions.clear()
             }
         }
-        LaunchedEffect(isFindInPageVisible.value) {
-            if (!isFindInPageVisible.value) {
+        LaunchedEffect(uiState.isFindInPageVisible) {
+            if (!uiState.isFindInPageVisible) {
                 findInPageText.value = ""
                 findInPageResult.value = 0 to 0
             }
         }
 
-        LaunchedEffect(isSettingsPanelVisible.value) {
-            if (!isSettingsPanelVisible.value) {
+        LaunchedEffect(uiState.isSettingsPanelVisible) {
+            if (!uiState.isSettingsPanelVisible) {
                 backgroundColor.value = Color.Black
             }
         }
 
-        LaunchedEffect(isCursorMode) {
+        LaunchedEffect(uiState.isCursorMode) {
 
-            isCursorPadVisible = isCursorMode
-            if (isCursorMode) {
-                isUrlBarVisible = false
-
+            viewModel.updateUI { it.copy(isCursorPadVisible = uiState.isCursorMode) }
+            if (uiState.isCursorMode) {
+                viewModel.updateUI { it.copy(isUrlBarVisible = false) }
             }
         }
 
         LaunchedEffect(Unit) {
-            val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+            val downloadManager =
+                context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
 
             // This loop runs for the entire lifecycle of the screen
             while (true) {
@@ -2268,7 +2198,8 @@ fun BrowserScreen(
                             if (cursor.moveToFirst()) {
 
 
-                                val statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS)
+                                val statusIndex =
+                                    cursor.getColumnIndex(DownloadManager.COLUMN_STATUS)
                                 val downloadedBytesIndex =
                                     cursor.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)
                                 val totalBytesIndex =
@@ -2298,7 +2229,8 @@ fun BrowserScreen(
                                             speedBps = (bytesDelta * 1000f) / timeDeltaMs
                                             if (totalBytes > 0) {
                                                 val bytesRemaining = totalBytes - downloadedBytes
-                                                etrMs = ((bytesRemaining / speedBps) * 1000).toLong()
+                                                etrMs =
+                                                    ((bytesRemaining / speedBps) * 1000).toLong()
                                             }
                                             // Update the tracker with the new data
                                             lastPollData[item.id] =
@@ -2367,7 +2299,7 @@ fun BrowserScreen(
 
         LaunchedEffect(inspectingTabId) {
             if (inspectingTabId == null) {
-                isTabDataPanelVisible = false
+                viewModel.updateUI { it.copy(isTabDataPanelVisible = false) }
             }
         }
 
@@ -2380,7 +2312,10 @@ fun BrowserScreen(
                     Log.d("InitFlow", "open active session")
                     activeSession.open(geckoManager.runtime)
                 } catch (e: Exception) {
-                    Log.w("BrowserScreen", "Session open ignored (likely engine-managed): ${e.message}")
+                    Log.w(
+                        "BrowserScreen",
+                        "Session open ignored (likely engine-managed): ${e.message}"
+                    )
                 }
             }
             geckoManager.setupDelegates(
@@ -2411,7 +2346,7 @@ fun BrowserScreen(
 
                 },
                 onProgressChange = { int ->
-                    isLoading = (int < 100)
+                    viewModel.updateUI { it.copy(isLoading = (int < 100)) }
                 },
                 onLocationChangeFun = { eventTabId, session, url, perms, userGesture ->
                     if (eventTabId == activeTab.value.id
@@ -2419,7 +2354,7 @@ fun BrowserScreen(
                         && url != "about:blank"
                         && !url.startsWith("javascript:")
                     ) {
-                        if (!isFocusOnUrlTextField.value) {
+                        if (!uiState.isFocusOnUrlTextField) {
                             textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
                         }
 
@@ -2452,7 +2387,7 @@ fun BrowserScreen(
                     activeTabIndex.intValue = insertIndex
 
                     // Update the URL bar text immediately
-                    if (!isFocusOnTextField.value) {
+                    if (!uiState.isFocusOnTextField) {
                         textFieldState.setTextAndPlaceCursorAtEnd(uri.toDomain())
                     }
 
@@ -2465,7 +2400,7 @@ fun BrowserScreen(
                     // fe:  change  tab A -> B, the textbox changed to A.url
 //                if (session == activeSession) {
                     if (eventTabId == activeTab.value.id && url.isNotBlank() && url != "about:blank") {
-                        if (!isFocusOnUrlTextField.value) {
+                        if (!uiState.isFocusOnUrlTextField) {
                             textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
                         }
 
@@ -2541,18 +2476,20 @@ fun BrowserScreen(
                         }
                     }
                     if (eventTabId == activeTab.value.id && url != "about:blank") {
-                        isLoading = true
+                        viewModel.updateUI { it.copy(isLoading = true) }
                         if (activeTab.value.errorState != null) {
                             activeTab.value = activeTab.value.copy(errorState = null)
                         }
 
-                        if (!isFocusOnUrlTextField.value) textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
+                        if (!uiState.isFocusOnUrlTextField) textFieldState.setTextAndPlaceCursorAtEnd(
+                            url.toDomain()
+                        )
 
                     }
 
                 },
                 onPageStopFun = { _, _ ->
-                    isLoading = false
+                    viewModel.updateUI { it.copy(isLoading = false) }
                 },
                 onFaviconChanged = { tabId, faviconUrl ->
                     // Find the index of the tab that fired this event.
@@ -2610,7 +2547,7 @@ fun BrowserScreen(
                 onLoadErrorFun = { session, uri, error ->
                     // Only show if it's the active tab
                     if (session == activeSession) {
-                        isLoading = false
+                        viewModel.updateUI { it.copy(isLoading = false) }
 
                         val newError = ErrorState(
                             error = error,
@@ -2626,8 +2563,10 @@ fun BrowserScreen(
 
 
                 onFullScreenFun = { isFullscreen ->
-                    isOnFullscreenVideo.value = isFullscreen
-                    isMediaControlPanelDisplayed.value = isFullscreen
+                    viewModel.updateUI { it.copy(
+                        isMediaControlPanelDisplayed = isFullscreen,
+                        isOnFullscreenVideo = isFullscreen
+                    ) }
 
                     val inPip = mainActivity.isPipMode || mainActivity.isEnteringPip
 
@@ -2639,7 +2578,7 @@ fun BrowserScreen(
 
                     } else {
                         // Normal behavior for all other cases
-                        isOnFullscreenVideo.value = isFullscreen
+                        viewModel.updateUI { it.copy(isOnFullscreenVideo = isFullscreen) }
                         mainActivity.isCurrentlyFullscreen = isFullscreen
                         mainActivity.updatePipParams(isFullscreen)
 
@@ -2649,15 +2588,20 @@ fun BrowserScreen(
                             insetsController.hide(WindowInsetsCompat.Type.systemBars())
                             insetsController.systemBarsBehavior =
                                 WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-                            if (isBottomPanelVisible) isBottomPanelVisible = false
+                            if (uiState.isBottomPanelVisible) viewModel.updateUI {
+                                it.copy(
+                                    isBottomPanelVisible = false
+                                )
+                            }
                         } else {
                             // Only exit landscape/immersive if NOT in PiP
                             if (!inPip) {
 
-                                if (isLandscapeByButton.value) isLandscapeByButton.value = false
+                                if (uiState.isLandscapeByButton) viewModel.updateUI { it.copy(isLandscapeByButton = false) }
                                 gestureManager.resetBrightness()
 
-                                activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                                activity.requestedOrientation =
+                                    ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
                                 if (!settings.isFullscreenMode) {
                                     insetsController.show(WindowInsetsCompat.Type.systemBars())
                                     insetsController.systemBarsBehavior =
@@ -2674,13 +2618,18 @@ fun BrowserScreen(
                         // When video is fullscreen, UNLOCK rotation (allow Landscape)
                         // Use SCREEN_ORIENTATION_SENSOR to let the user rotate the phone naturally.
                         // Or use SCREEN_ORIENTATION_SENSOR_LANDSCAPE if you want to FORCE it sideways immediately.
-                        activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                        activity.requestedOrientation =
+                            ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
 
                         insetsController.hide(WindowInsetsCompat.Type.systemBars())
                         insetsController.systemBarsBehavior =
                             WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
 
-                        if (isBottomPanelVisible) isBottomPanelVisible = false
+                        if (uiState.isBottomPanelVisible) viewModel.updateUI {
+                            it.copy(
+                                isBottomPanelVisible = false
+                            )
+                        }
 
 
                     } else {
@@ -2724,17 +2673,18 @@ fun BrowserScreen(
 
                 )
 
-            if (!initialLoadDone && initialIntentUrl != null && activeTab.value.currentURL == initialIntentUrl) {
+            if (!uiState.initialLoadDone && initialIntentUrl != null && activeTab.value.currentURL == initialIntentUrl) {
                 Log.d("InitFlow", "open app by link")
 
                 webViewLoad(activeSession, initialIntentUrl, settings)
-                initialLoadDone = true
+                viewModel.updateUI { it.copy(initialLoadDone = true) }
 
-            } else if (activeTab.value.savedState != null ) {
+            } else if (activeTab.value.savedState != null) {
                 Log.d("InitFlow", "savestate")
 
                 // Only restore if the session hasn't loaded anything yet
-                val stateToRestore = geckoManager.restoreStateFromString(activeTab.value.savedState!!)
+                val stateToRestore =
+                    geckoManager.restoreStateFromString(activeTab.value.savedState!!)
                 if (stateToRestore != null) {
                     activeSession.restoreState(stateToRestore)
                 } else {
@@ -2743,7 +2693,7 @@ fun BrowserScreen(
                     webViewLoad(activeSession, url, settings)
                 }
                 // Mark initial load done so we don't restore again on rotate
-                if (!initialLoadDone) initialLoadDone = true
+                if (!uiState.initialLoadDone) viewModel.updateUI { it.copy(initialLoadDone = true) }
             }
             //  Standard Load (New Tab / Link Click)
             else {
@@ -2767,17 +2717,7 @@ fun BrowserScreen(
             activeSession.setActive(true)
 
             onDispose {
-                // This allows the background tab to sleep (optional, but good for battery)
-                // Since you have suspendMediaWhenInactive(false), it won't kill audio,
-                // but it will lower the rendering priority.
-//            val mainActivity = context as? MainActivity
-//            val isEnteringPip = mainActivity.isEnteringPip == true || mainActivity.isInPictureInPictureMode == true
-//            Log.i("marcPip", "onDispose")
-//            if (!isEnteringPip) {
-//                activeSession.setActive(false)
-//            }
                 activeSession.setActive(false)
-
             }
         }
 
@@ -2786,42 +2726,49 @@ fun BrowserScreen(
                 promptComponentDisplayState = jsDialogState
             }
         }
-        LaunchedEffect(isUrlBarVisible) {
-            if (!isUrlBarVisible) {
+        LaunchedEffect(uiState.isUrlBarVisible) {
+            if (!uiState.isUrlBarVisible) {
                 setIsOptionsPanelVisible(false)
-                isTabDataPanelVisible = false
-                isTabsPanelVisible = false
-                isSettingsPanelVisible.value = false
+                viewModel.updateUI { it.copy(isTabDataPanelVisible = false) }
+                viewModel.updateUI { it.copy(isTabsPanelVisible = false) }
+                viewModel.updateUI { it.copy(isSettingsPanelVisible = false) }
+
 //            if (downloads.isEmpty()) isDownloadPanelVisible = false
-                isDownloadPanelVisible.value = false
+                viewModel.updateUI { it.copy(isDownloadPanelVisible = false) }
                 coroutineScope.launch {
                     bottomPanelPagerState.animateScrollToPage(BottomPanelMode.SEARCH.ordinal)
                 }
             } else {
-                if (tabsPanelLock && bottomPanelPagerState.currentPage == BottomPanelMode.SEARCH.ordinal) isTabsPanelVisible =
-                    true
-                if (isCursorMode) isCursorMode = false
+                if (uiState.isTabsPanelLock && bottomPanelPagerState.currentPage == BottomPanelMode.SEARCH.ordinal) viewModel.updateUI {
+                    it.copy(
+                        isTabsPanelVisible = true
+                    )
+                }
+                if (uiState.isCursorMode) viewModel.updateUI { it.copy(isCursorMode = false) }
             }
         }
         LaunchedEffect(jsDialogState) {
-            isPromptPanelVisible = jsDialogState != null
+            viewModel.updateUI { it.copy(isPromptPanelVisible = jsDialogState != null) }
         }
 
         LaunchedEffect(
-            isUrlBarVisible,
-            isPermissionPanelVisible,
-            isPromptPanelVisible,
+            uiState.isUrlBarVisible,
+            uiState.isPermissionPanelVisible,
+            uiState.isPromptPanelVisible,
             confirmationState,
             contextMenuData,
             choiceState.value
         ) {
-            isBottomPanelVisible =
-                isUrlBarVisible
-                        || isPermissionPanelVisible
-                        || isPromptPanelVisible
-                        || confirmationState != null
-                        || contextMenuData != null
-                        || choiceState.value != null
+            viewModel.updateUI {
+                it.copy(
+                    isBottomPanelVisible = uiState.isUrlBarVisible
+                            || uiState.isPermissionPanelVisible
+                            || uiState.isPromptPanelVisible
+                            || confirmationState != null
+                            || contextMenuData != null
+                            || choiceState.value != null
+                )
+            }
         }
 
         LaunchedEffect(settings.isFullscreenMode) {
@@ -2846,8 +2793,8 @@ fun BrowserScreen(
 
             if (screenSize.height.toFloat() > (squareBoxSizePx - paddingPx)
                 && backSquareOffsetY.value > screenSize.height.toFloat() - squareBoxSizePx - paddingPx
-                && !isLandscape.value
-                && !isBottomPanelVisible
+                && !uiState.isLandscape
+                && !uiState.isBottomPanelVisible
             ) {
                 // Clamp Y to screen bounds
                 val targetY = backSquareOffsetY.value.coerceIn(
@@ -2863,9 +2810,11 @@ fun BrowserScreen(
                         )
                     }
 
-                    settingsController.update( settings.copy(
-                        backSquareOffsetY = targetY
-                    ))
+                    viewModel.updateSettings(
+                        settings.copy(
+                            backSquareOffsetY = targetY
+                        )
+                    )
 
                     hideBackSquare(false)
                 }
@@ -2877,7 +2826,7 @@ fun BrowserScreen(
                 // This code runs when a shake is detected
                 coroutineScope.launch {
                     // Only trigger if the URL bar isn't already visible to avoid conflicts
-                    if (!isBottomPanelVisible) {
+                    if (!uiState.isBottomPanelVisible) {
                         hideBackSquare()
                     }
                 }
@@ -2891,15 +2840,15 @@ fun BrowserScreen(
             }
         }
         LaunchedEffect(pendingPermissionRequest.value) {
-            isPermissionPanelVisible = pendingPermissionRequest.value != null
+            viewModel.updateUI { it.copy(isPermissionPanelVisible = pendingPermissionRequest.value != null) }
         }
         // This effect will re-launch whenever isBottomPanelVisible changes.
-        LaunchedEffect(isBottomPanelVisible) {
-            if (!isBottomPanelVisible) {
+        LaunchedEffect(uiState.isBottomPanelVisible) {
+            if (!uiState.isBottomPanelVisible) {
                 // -- The URL bar has just been hidden. Start the "show and blink" sequence. --
 
                 // a. Instantly appear with 0.6 opacity.
-                if (!isCursorMode) hideBackSquare()
+                if (!uiState.isCursorMode) hideBackSquare()
 
 
                 // d. After blinking, fade out completely.
@@ -2911,7 +2860,7 @@ fun BrowserScreen(
 
         }
         LaunchedEffect(settings.backSquareIdleOpacity) {
-            if (!isBottomPanelVisible && !isCursorPadVisible) {
+            if (!uiState.isBottomPanelVisible && !uiState.isCursorPadVisible) {
                 squareAlpha.animateTo(settings.backSquareIdleOpacity)
             }
         }
@@ -2966,13 +2915,13 @@ fun BrowserScreen(
             when {
 
                 // when full screen video ( 100 % landscape mode)
-                isOnFullscreenVideo.value -> activeSession.exitFullScreen()
+                uiState.isOnFullscreenVideo -> activeSession.exitFullScreen()
 
                 // landscape mode but not video
                 activity.requestedOrientation != ActivityInfo.SCREEN_ORIENTATION_PORTRAIT -> {
                     activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                    if (isLandscapeByButton.value) {
-                        isLandscapeByButton.value = false
+                    if (uiState.isLandscapeByButton) {
+                        viewModel.updateUI { it.copy(isLandscapeByButton = false) }
                     }
                 }
 
@@ -3056,15 +3005,11 @@ fun BrowserScreen(
                         .padding(bottom = settings.padding.dp)
                 ) {
                     SettingsPanel(
-                        isFocusOnTextField = isFocusOnSettingTextField,
-//                    currentRotation = currentRotation,
                         descriptionContent = descriptionContent,
                         backgroundColor = backgroundColor,
-                        isSettingsPanelVisible = isSettingsPanelVisible,
                         confirmationPopup = ::confirmationPopup,
                         resetBrowserSettings = resetBrowserSettings,
                         targetSetting = SettingPanelView.CORNER_RADIUS,
-                        isSettingCornerRadius = isSettingCornerRadius
                     )
                 }
             }
@@ -3147,11 +3092,18 @@ fun BrowserScreen(
                                                 setOnTouchListener { _, event ->
                                                     if (event.action == MotionEvent.ACTION_DOWN) {
                                                         // The user touched the web content
-                                                        if (isUrlBarVisible) {
-                                                            isUrlBarVisible = false
+                                                        if (uiState.isUrlBarVisible) {
+                                                            viewModel.updateUI {
+                                                                it.copy(
+                                                                    isUrlBarVisible = false
+                                                                )
+                                                            }
                                                         }
-                                                        if (isMediaControlPanelVisible.value) isMediaControlPanelVisible.value =
-                                                            false
+                                                        if (uiState.isMediaControlPanelVisible) viewModel.updateUI {
+                                                            it.copy(
+                                                                isMediaControlPanelVisible = false
+                                                            )
+                                                        }
 
                                                         if (contextMenuData != null) contextMenuData =
                                                             null
@@ -3180,9 +3132,7 @@ fun BrowserScreen(
                                     )
                                 }
 
-                                if (!isPipMode) LoadingIndicator(
-                                    isLoading = isLoading,
-                                )
+                                if (!isPipMode) LoadingIndicator()
                             }
                         }
                     }
@@ -3242,7 +3192,6 @@ fun BrowserScreen(
                                 colorState = colorDisplayState,
                                 onDismiss = { colorState.value = null },
                                 descriptionContent = descriptionContent,
-                                isFocusOnSettingTextField = isFocusOnSettingTextField
                             )
 
                         }
@@ -3269,8 +3218,6 @@ fun BrowserScreen(
                                     }
                                 )
                                 .padding(webViewPaddingValue), // Apply same inset padding as WebView
-                            isMediaControlPanelVisible = isMediaControlPanelVisible,
-                            isMediaControlPanelDisplayed = isMediaControlPanelDisplayed,
                             geckoManager = geckoManager,
                             gestureManager = gestureManager,
                             controlOption = controlOption,
@@ -3278,16 +3225,13 @@ fun BrowserScreen(
                             interactionTrigger = interactionTrigger,
                             onSwapLayout = { isControlsOnRight.value = !isControlsOnRight.value },
                             isStatusAtTop = isStatusAtTop,
-                            isOnFullscreenVideo = isOnFullscreenVideo,
                         )
 
                         MediaControlPanel(
-                            hapticFeedback = hapticFeedback,
                             modifier = Modifier
                                 .align(if (isControlsOnRight.value) Alignment.CenterEnd else Alignment.CenterStart)
-                                .padding(webViewPaddingValue), // Apply same inset padding
-                            isMediaControlPanelVisible = isMediaControlPanelVisible,
-                            isOnFullscreenVideo = isOnFullscreenVideo,
+                                .padding(webViewPaddingValue),
+                            hapticFeedback = hapticFeedback,
                             descriptionContent = descriptionContent,
                             geckoManager = geckoManager,
                             onExitFullscreen = {
@@ -3297,13 +3241,11 @@ fun BrowserScreen(
                             controlOption = controlOption,
                             pendingSeekSeconds = pendingSeekSeconds,
                             interactionTrigger = interactionTrigger,
-                            isMediaControlPanelDisplayed = isMediaControlPanelDisplayed,
-
-                            )
+                        )
                         CursorPointer(
-                            isCursorPadVisible = isCursorPadVisible,
+                            isCursorPadVisible = uiState.isCursorPadVisible,
                             position = cursorPointerPosition.value,
-                         )
+                        )
 
 
                         // 3. The Error Overlay (NEW)
@@ -3377,14 +3319,8 @@ fun BrowserScreen(
                                 createNewTab(activeTabIndex.intValue + 1, app.url)
 
                             },
-                            isFocusOnSettingTextField = isFocusOnSettingTextField,
-                            isFocusOnTextField = isFocusOnTextField,
-                            isFocusOnFindTextField = isFocusOnFindTextField,
-                            updateCurrentRotation = updateCurrentRotation,
-                            geckoManager = geckoManager,
                             geckoViewRef = geckoViewRef,
                             activeTab = activeTab,
-                            isSettingCornerRadius = isSettingCornerRadius,
                             floatingPanelBottomPadding = floatingPanelBottomPadding,
                             optionsPanelHeightPx = optionsPanelHeightPx,
                             draggableState = draggableState,
@@ -3394,11 +3330,8 @@ fun BrowserScreen(
                             appManager = appManager,
                             inspectingAppId = inspectingAppId,
                             resetBottomPanelTrigger = resetBottomPanelTrigger,
-                            setIsBottomPanelVisible = { isBottomPanelVisible = it },
-                            setIsUrlBarVisible = { isUrlBarVisible = it },
-                            isAppsPanelVisible = isAppsPanelVisible,
                             apps = apps,
-                            isBottomPanelLock = isBottomPanelLock,
+
                             bottomPanelPagerState = bottomPanelPagerState,
                             onOpenInNewTab = { url ->
                                 createNewTab(activeTabIndex.intValue + 1, url)
@@ -3426,7 +3359,6 @@ fun BrowserScreen(
                             contextMenuData = contextMenuData,
                             displayContextMenuData = displayContextMenuData,
                             onDismissContextMenu = { contextMenuData = null },
-                            isFocusOnUrlTextField = isFocusOnUrlTextField,
                             textFieldState = textFieldState,
                             onCloseAllTabs = {
                                 confirmationPopup(
@@ -3463,19 +3395,9 @@ fun BrowserScreen(
                             confirmationPopup = ::confirmationPopup,
                             resetBrowserSettings = resetBrowserSettings,
                             backgroundColor = backgroundColor,
-                            isSettingsPanelVisible = isSettingsPanelVisible,
-                            setIsSettingsPanelVisible = { isSettingsPanelVisible.value = it },
                             urlBarFocusRequester = urlBarFocusRequester,
-                            isCursorPadVisible = isCursorPadVisible,
-                            isCursorMode = isCursorMode,
-                            setIsCursorMode = {
-                                isCursorMode = it
 
-                            },
-                            setIsTabsPanelVisible = { isTabsPanelVisible = it },
-                            setIsTabDataPanelVisible = { isTabDataPanelVisible = it },
-                            savedPanelState = savedPanelState,
-                            setSavedPanelState = { savedPanelState = it },
+
                             confirmationState = confirmationState,
                             confirmationDisplayState = confirmationDisplayState,
                             onPermissionDeny = {
@@ -3506,24 +3428,23 @@ fun BrowserScreen(
                                 // Clear the request to hide the panel.
                                 //                        pendingPermissionRequest.value = null
                             },
-                            tabsPanelLock = tabsPanelLock,
                             updateInspectingTab = { tab ->
                                 if (tab.id != 0L) inspectingTabId = tab.id else {
-                                    isTabDataPanelVisible = false
+                                    viewModel.updateUI { it.copy(isTabDataPanelVisible = false) }
                                 }
 
                             },
-                            isTabDataPanelVisible = isTabDataPanelVisible,
+                            isTabDataPanelVisible = uiState.isTabDataPanelVisible,
                             inspectingTab = currentInspectingTab,
                             handleCloseInspectedTab = handleCloseInspectedTab,
                             handleDuplicateInspectedTab = handleDuplicateInspectedTab,
                             handleClearInspectedTabData = handleClearInspectedTabData,
                             handlePermissionToggle = handlePermissionToggle,
                             siteSettings = siteSettings,
-                            onTabDataPanelDismiss = { isTabDataPanelVisible = false },
+
 
                             onTabLongPressed = { tab ->
-                                isTabDataPanelVisible = !isTabDataPanelVisible
+                                viewModel.updateUI { it.copy(isTabDataPanelVisible = !it.isTabDataPanelVisible) }
                                 if (inspectingTabId == null) inspectingTabId = tab.id
                             },
                             onDownloadRowClicked = handleOpenFile,
@@ -3531,20 +3452,15 @@ fun BrowserScreen(
                             onOpenFolderClicked = handleOpenDownloadsFolder,
                             onClearAllClicked = handleClearAll,
                             downloads = downloads,
-                            isDownloadPanelVisible = isDownloadPanelVisible,
-                            isUrlOverlayBoxVisible = isUrlOverlayBoxVisible,
-                            setIsUrlOverlayBoxVisible = { isUrlOverlayBoxVisible = it },
+
                             onNewTabClicked = { index ->
                                 createNewTab(index)
                             },
-                            toggleIsTabsPanelVisible = {
-                                isTabsPanelVisible = !isTabsPanelVisible
-                                tabsPanelLock = !tabsPanelLock
-                            },
-                            isTabsPanelVisible = isTabsPanelVisible,
+
+                            isTabsPanelVisible = uiState.isTabsPanelVisible,
                             onTabSelected = { newIndex ->
                                 if (activeTabIndex.intValue != newIndex) {
-                                    if (isLoading) isLoading = false
+                                    if (uiState.isLoading) viewModel.updateUI { it.copy(isLoading = false) }
 
 
                                     activeTab.value.state = TabState.BACKGROUND
@@ -3553,7 +3469,7 @@ fun BrowserScreen(
                                     activeTabIndex.intValue = newIndex
                                     val urlToLoad = tabs[newIndex].currentURL
 
-                                    if (!isFocusOnUrlTextField.value) textFieldState.setTextAndPlaceCursorAtEnd(
+                                    if (!uiState.isFocusOnUrlTextField) textFieldState.setTextAndPlaceCursorAtEnd(
                                         urlToLoad.toDomain()
                                     )
                                     saveTrigger++
@@ -3566,53 +3482,41 @@ fun BrowserScreen(
                                 navigateWebView()
                             },
                             hapticFeedback = hapticFeedback,
-                            setIsNavPanelVisible = { isNavPanelVisible = it },
                             setActiveNavAction = { activeNavAction = it },
 
-                            isNavPanelVisible = isNavPanelVisible,
                             activeNavAction = activeNavAction,
 
                             state = if (jsDialogState != null) jsDialogState!! else null,
                             promptComponentDisplayState = if (promptComponentDisplayState != null) promptComponentDisplayState else null,
                             onDismiss = { jsDialogState = null },
-                            isPromptPanelVisible = isPromptPanelVisible,
 
-                            isPermissionPanelVisible = isPermissionPanelVisible,
                             permissionLauncher = permissionLauncher,
                             pendingPermissionRequest = pendingPermissionRequest,
 
                             activeTabIndex = activeTabIndex,
                             tabs = tabs,
-                            isUrlBarVisible = isUrlBarVisible,
-                            isBottomPanelVisible = isBottomPanelVisible,
                             focusManager = focusManager,
                             keyboardController = keyboardController,
                             setIsOptionsPanelVisible = setIsOptionsPanelVisible,
                             onNewUrl = { newUrl ->
                                 webViewLoad(activeSession, newUrl, settings)
                             },
-                            isFindInPageVisible = isFindInPageVisible,
 
                             )
                         CursorPad(
                             urlBarFocusRequester = urlBarFocusRequester,
                             screenSize = screenSize,
-                            isCursorPadVisible = isCursorPadVisible,
-                            setIsCursorPadVisible = { isCursorMode = it },
                             coroutineScope = coroutineScope,
                             //                    activeWebView = activeWebView,
                             activeSession = activeSession,
                             cursorPointerPosition = cursorPointerPosition,
                             webViewPaddingValue = webViewPaddingValue,
-                            setIsUrlBarVisible = { isUrlBarVisible = it },
-                            isLongPressDrag = isLongPressDrag,
                             cursorPadHeight = cursorPadHeight,
-
                             )
 
                         // BackSquare
                         AnimatedVisibility(
-                            visible = !isBottomPanelVisible && !isLandscape.value && !isOtherPanelVisible.value,
+                            visible = !uiState.isBottomPanelVisible && !uiState.isLandscape && !uiState.isOtherPanelVisible,
                             modifier = Modifier
                                 .fillMaxSize()
                                 .padding(webViewPaddingValue)
@@ -3658,9 +3562,9 @@ fun BrowserScreen(
                                         .graphicsLayer {
                                             alpha = squareAlpha.value
                                         }
-                                        .pointerInput(Unit, isCursorMode) {
+                                        .pointerInput(Unit, uiState.isCursorMode) {
 
-                                            if (!isCursorMode) awaitEachGesture {
+                                            if (!uiState.isCursorMode) awaitEachGesture {
                                                 val down = awaitFirstDown(requireUnconsumed = false)
                                                 coroutineScope.launch {
                                                     squareAlpha.animateTo(1f)
@@ -3671,7 +3575,7 @@ fun BrowserScreen(
                                                     hapticFeedback.performHapticFeedback(
                                                         HapticFeedbackType.LongPress
                                                     )
-                                                    isCursorPadVisible = true
+                                                    viewModel.updateUI { it.copy(isCursorPadVisible = true) }
                                                     squareAlpha.snapTo(0f)
 
 
@@ -3731,7 +3635,7 @@ fun BrowserScreen(
                                                         }
                                                     }
                                                     // This code now ONLY runs after a long-press-drag has finished.
-                                                    isCursorPadVisible = false
+                                                    viewModel.updateUI { it.copy(isCursorPadVisible = false) }
 
                                                     // --- SIMULATE CLICK AT CURSOR POSITION ---
 
@@ -3803,10 +3707,11 @@ fun BrowserScreen(
                                                             }
 
                                                         // Clamp Y to screen bounds
-                                                        val targetY = backSquareOffsetY.value.coerceIn(
-                                                            paddingPx,
-                                                            screenSize.height.toFloat() - squareBoxSizePx - paddingPx
-                                                        )
+                                                        val targetY =
+                                                            backSquareOffsetY.value.coerceIn(
+                                                                paddingPx,
+                                                                screenSize.height.toFloat() - squareBoxSizePx - paddingPx
+                                                            )
 
                                                         coroutineScope.launch {
                                                             // Animate snap in
@@ -3823,7 +3728,7 @@ fun BrowserScreen(
                                                                     spring()
                                                                 )
                                                             }
-                                                            settingsController.update(
+                                                            viewModel.updateSettings(
                                                                 settings.copy(
                                                                     backSquareOffsetX = targetX,
                                                                     backSquareOffsetY = targetY
@@ -3838,7 +3743,11 @@ fun BrowserScreen(
                                                             longPressJob.cancel()
                                                             coroutineScope.launch {
                                                                 geckoViewRef.value?.clearFocus()
-                                                                isUrlBarVisible = true
+                                                                viewModel.updateUI {
+                                                                    it.copy(
+                                                                        isUrlBarVisible = true
+                                                                    )
+                                                                }
                                                             }
                                                         }
                                                     }
@@ -3864,7 +3773,7 @@ fun BrowserScreen(
                                                 } else {
                                                     // TAP
                                                     coroutineScope.launch {
-                                                        isUrlBarVisible = true
+                                                        viewModel.updateUI { it.copy(isUrlBarVisible = true) }
                                                     }
                                                 }
                                             }
@@ -3890,11 +3799,6 @@ fun BrowserScreen(
     }
 
 }
-
-
-
-
-
 
 
 class ShakeDetector(context: Context, private val onShake: () -> Unit) : SensorEventListener {

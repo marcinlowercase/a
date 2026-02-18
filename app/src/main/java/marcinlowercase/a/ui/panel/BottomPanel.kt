@@ -54,6 +54,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -102,55 +103,41 @@ import marcinlowercase.a.core.function.consumeChangePointerInput
 import marcinlowercase.a.core.function.toDomain
 import marcinlowercase.a.core.function.webViewLoad
 import marcinlowercase.a.core.manager.AppManager
-import marcinlowercase.a.core.manager.GeckoManager
-import marcinlowercase.a.ui.composition.LocalBrowserSettings
+import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import org.mozilla.geckoview.GeckoResult
 import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.GeckoView
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
-import kotlin.String
 import kotlin.math.abs
 
 @SuppressLint("FrequentlyChangingValue")
 @Composable
 fun BottomPanel(
+    setIsOptionsPanelVisible: (Boolean) -> Job,
     onAppDoubleClick: (App) -> Unit = {},
-
-    isFocusOnFindTextField: MutableState<Boolean>,
-    isFocusOnSettingTextField: MutableState<Boolean>,
-    updateCurrentRotation: ()-> Unit,
-//    currentRotation: Float,
-    geckoManager: GeckoManager,
     geckoViewRef : MutableState<GeckoView?>,
     activeTab: MutableState<Tab>,
-    isSettingCornerRadius: MutableState<Boolean>,
     floatingPanelBottomPadding: Dp,
     optionsPanelHeightPx: Float,
     draggableState: AnchoredDraggableState<RevealState>,
     flingBehavior: FlingBehavior,
     initialSettingPanelView: SettingPanelView = SettingPanelView.MAIN,
     appManager: AppManager,
-    setIsBottomPanelVisible: (Boolean) -> Unit,
-    setIsUrlBarVisible: (Boolean) -> Unit,
-    isAppsPanelVisible: MutableState<Boolean>,
     resetBottomPanelTrigger: MutableState<Boolean>,
     apps: MutableList<App>,
-    isBottomPanelLock: MutableState<Boolean>,
+
     bottomPanelPagerState: PagerState,
     onOpenInNewTab: (String) -> Unit,
     onDownload: (String) -> Unit,
     contextMenuData: ContextMenuData?,
     displayContextMenuData: ContextMenuData?,
     onDismissContextMenu: () -> Unit,
-    isFocusOnUrlTextField: MutableState<Boolean>,
-    isFocusOnTextField: MutableState<Boolean>,
     textFieldState: TextFieldState,
     onCloseAllTabs: () -> Unit,
     suggestions: List<Suggestion>, // Changed from List<String>
     onSuggestionClick: (Suggestion) -> Unit, // Changed from (String)
     onRemoveSuggestion: (Suggestion) -> Unit,
-    isFindInPageVisible: MutableState<Boolean>,
     findInPageText: MutableState<String>,
     findInPageResult: MutableState<Pair<Int, Int>>,
 
@@ -161,23 +148,12 @@ fun BottomPanel(
     confirmationPopup: (message: String, url: String, onConfirm: () -> Unit, onCancel: () -> Unit) -> Unit,
     resetBrowserSettings: () -> Unit,
     backgroundColor: MutableState<Color>,
-    setIsSettingsPanelVisible: (Boolean) -> Unit,
-    isSettingsPanelVisible: MutableState<Boolean>,
-//    setIsSettingsPanelVisible: (Boolean) -> Unit,
     urlBarFocusRequester: FocusRequester,
-    isCursorPadVisible: Boolean,
-    isCursorMode: Boolean,
-    setIsCursorMode: (Boolean) -> Unit,
-    setIsTabsPanelVisible: (Boolean) -> Unit,
-    setIsTabDataPanelVisible: (Boolean) -> Unit,
-    savedPanelState: PanelVisibilityState?,
-    setSavedPanelState: (PanelVisibilityState?) -> Unit,
     confirmationDisplayState: ConfirmationDialogState?, // Add this
 
     confirmationState: ConfirmationDialogState?,
     onPermissionDeny: () -> Unit,
     onMediaPermissionAllow: (Map<String, Boolean>) -> Unit,
-    tabsPanelLock: Boolean,
     updateInspectingTab: (Tab) -> Unit,
     isTabDataPanelVisible: Boolean,
     inspectingTab: Tab?,
@@ -186,19 +162,15 @@ fun BottomPanel(
     handleClearInspectedTabData: () -> Unit,
     handlePermissionToggle: (domain: String?, permission: String, isGranted: Boolean) -> Unit,
     siteSettings: Map<String, SiteSettings>,
-    onTabDataPanelDismiss: () -> Unit,
     onTabLongPressed: (Tab) -> Unit,
 
     onDownloadRowClicked: (DownloadItem) -> Unit,
     onDeleteClicked: (DownloadItem) -> Unit,
     onOpenFolderClicked: () -> Unit,
     onClearAllClicked: () -> Unit,
-    isDownloadPanelVisible: MutableState<Boolean>,
     downloads: List<DownloadItem>,
 
     activeSession: GeckoSession,
-    isUrlOverlayBoxVisible: Boolean,
-    setIsUrlOverlayBoxVisible: (Boolean) -> Unit,
     onNewTabClicked: (Int) -> Unit,
 
     isTabsPanelVisible: Boolean,
@@ -206,37 +178,31 @@ fun BottomPanel(
     navigateWebView: () -> Unit,
     hapticFeedback: HapticFeedback,
     setActiveNavAction: (GestureNavAction) -> Unit,
-    setIsNavPanelVisible: (Boolean) -> Unit,
 
-    isNavPanelVisible: Boolean,
     activeNavAction: GestureNavAction,
-    isPromptPanelVisible: Boolean = false,
     state: JsDialogState?,
     promptComponentDisplayState: JsDialogState?,
     onDismiss: () -> Unit,
-    isPermissionPanelVisible: Boolean = false,
     permissionLauncher: ManagedActivityResultLauncher<Array<String>, Map<String, @JvmSuppressWildcards Boolean>>,
     pendingPermissionRequest: MutableState<CustomPermissionRequest?>,
     modifier: Modifier,
     activeTabIndex: MutableState<Int>,
     tabs: List<Tab>,
-    isUrlBarVisible: Boolean,
-    isBottomPanelVisible: Boolean,
 //    url: String,
     focusManager: FocusManager,
     keyboardController: SoftwareKeyboardController?,
-    setIsOptionsPanelVisible: (Boolean) -> Job,
-    toggleIsTabsPanelVisible: () -> Unit = {},
     onNewUrl: (String) -> Unit = {},
     setTextFieldHeightPx: (Int) -> Unit = {},
     inspectingAppId: MutableState<Long>,
     isPinningApp: MutableState<Boolean>,
 ) {
-    val settingsController = LocalBrowserSettings.current
-    val settings = settingsController.current
+    val viewModel = LocalBrowserViewModel.current
+    val uiState = viewModel.uiState.collectAsState().value
+    val settings = viewModel.browserSettings.collectAsState().value
+
     AnimatedVisibility(
         modifier = modifier,
-        visible = isBottomPanelVisible,
+        visible = uiState.isBottomPanelVisible,
         enter = slideInVertically(
             animationSpec = tween(
                 settings.animationSpeedForLayer(0)
@@ -277,7 +243,7 @@ fun BottomPanel(
                         orientation = Orientation.Vertical,
                         flingBehavior = flingBehavior,
 //                                            enabled = !isFocusOnTextField && contextMenuData == null && !isPromptPanelVisible  && (!isPermissionPanelVisible || (isPermissionPanelVisible &&  isUrlBarVisible) )
-                        enabled = isUrlBarVisible && (!isFocusOnTextField.value && contextMenuData == null && !isPromptPanelVisible && (!isPermissionPanelVisible))
+                        enabled = uiState.isUrlBarVisible && (!uiState.isFocusOnTextField && contextMenuData == null && !uiState.isPromptPanelVisible && (!uiState.isPermissionPanelVisible))
                     )
 
             ) {
@@ -293,33 +259,31 @@ fun BottomPanel(
 
                 AppsPanel(
                     apps = apps,
-                    visibility = isAppsPanelVisible,
+                    visibility = uiState.isAppsPanelVisible,
                     onAppClick = { app ->
 
                         webViewLoad(activeSession, app.url, settings)
-                        if (!isBottomPanelLock.value) {
-                            setIsBottomPanelVisible(false)
-                            setIsUrlBarVisible(false)
-                        }
+                        viewModel.updateUI { it.copy(isSettingsPanelVisible = false) }
+                        viewModel.updateUI { it.copy(isUrlBarVisible = false) }
+
                     },
                     onAppDoubleClick = { app ->
                         onAppDoubleClick(app)
-                        if (!isBottomPanelLock.value) {
-                            setIsBottomPanelVisible(false)
-                            setIsUrlBarVisible(false)
-                        }
+                        viewModel.updateUI { it.copy(isSettingsPanelVisible = false) }
+                        viewModel.updateUI { it.copy(isUrlBarVisible = false) }
+
                     },
                     inspectingAppId = inspectingAppId,
                 )
                 NavigationPanel(
-                    isNavPanelVisible = isNavPanelVisible,
+                    isNavPanelVisible = uiState.isNavPanelVisible,
                     activeTab = activeTab,
                     activeAction = activeNavAction,
                 )
 
                 DownloadPanel(
                     confirmationPopup = confirmationPopup,
-                    isDownloadPanelVisible = isDownloadPanelVisible,
+                    isDownloadPanelVisible = uiState.isDownloadPanelVisible,
                     downloads = downloads,
                     onDownloadRowClicked = onDownloadRowClicked,
                     onDeleteClicked = onDeleteClicked,
@@ -342,8 +306,7 @@ fun BottomPanel(
                 )
 
                 FindInPagePanel(
-                    isFocusOnFindTextField = isFocusOnFindTextField,
-                    isVisible = isFindInPageVisible.value,
+                    isVisible = uiState.isFindInPageVisible,
                     searchText = findInPageText.value,
                     searchResult = findInPageResult.value,
                     onSearchTextChanged = { newText ->
@@ -411,7 +374,7 @@ fun BottomPanel(
                             }
                     },
                     onClose = {
-                        isFindInPageVisible.value = false
+                        viewModel.updateUI { it.copy(isFindInPageVisible = false) }
                         findInPageText.value = ""
                         activeSession.finder.clear()
                     },
@@ -419,31 +382,25 @@ fun BottomPanel(
                 )
                 PromptPanel(
                     geckoViewRef = geckoViewRef,
-                    isUrlBarVisible = isUrlBarVisible,
+                    isUrlBarVisible = uiState.isUrlBarVisible,
                     activeTab = activeTab,
-                    isPromptPanelVisible = isPromptPanelVisible,
                     onDismiss = onDismiss,
                     state = state,
                     promptComponentDisplayState = promptComponentDisplayState,
                     )
                 SettingsPanel(
                     descriptionContent = descriptionContent,
-                    isSettingsPanelVisible = isSettingsPanelVisible,
                     backgroundColor = backgroundColor,
                     resetBrowserSettings = resetBrowserSettings,
                     confirmationPopup = confirmationPopup,
                     targetSetting = initialSettingPanelView,
-                    isSettingCornerRadius = isSettingCornerRadius,
-                    isFocusOnTextField = isFocusOnSettingTextField,
-
-
                 )
                 TabDataPanel(
                     descriptionContent = descriptionContent,
                     //                onAddToHomeScreen = onAddToHomeScreen,
                     isTabDataPanelVisible = isTabDataPanelVisible ,
                     inspectingTab = inspectingTab,
-                    onDismiss = onTabDataPanelDismiss,
+                    onDismiss = { viewModel.updateUI { it.copy(isTabDataPanelVisible = false) } },
                     siteSettings = siteSettings,
                     onPermissionToggle = handlePermissionToggle,
                     onClearSiteData = handleClearInspectedTabData,
@@ -453,7 +410,6 @@ fun BottomPanel(
                     //                webViewManager = webViewManager,
                 )
                 TabsPanel(
-
                     isTabsPanelVisible = isTabsPanelVisible,
                     tabs = tabs,
                     activeTabIndex = activeTabIndex.value,
@@ -463,8 +419,7 @@ fun BottomPanel(
                     updateInspectingTab = updateInspectingTab,
                 )
                 PermissionPanel(
-                    isUrlBarVisible = isUrlBarVisible,
-                    isPermissionPanelVisible = isPermissionPanelVisible,
+                    isUrlBarVisible = uiState.isUrlBarVisible,
                     request = pendingPermissionRequest.value,
                     onAllow = {
                         // When user clicks allow, launch the system dialog with the permissions
@@ -574,7 +529,7 @@ fun BottomPanel(
                     }
                 }
                 ConfirmationPanel(
-                    isUrlBarVisible = isUrlBarVisible,
+                    isUrlBarVisible = uiState.isUrlBarVisible,
                     state = confirmationDisplayState, // Use the display state here
                     isConfirmationPanelVisible = confirmationState != null // Visibility is controlled by the primary state
                 )
@@ -585,7 +540,7 @@ fun BottomPanel(
                             // The long press on the UrlBar will activate the gesture
 
                         },
-                    visible = isUrlBarVisible,
+                    visible = uiState.isUrlBarVisible,
                     enter = fadeIn(
                         tween(
                             settings.animationSpeedForLayer(1)
@@ -809,10 +764,11 @@ fun BottomPanel(
                                             .fillMaxWidth()
                                             .focusRequester(urlBarFocusRequester)
                                             //                            .padding(horizontal = settings.padding.dp, vertical = settings.padding.dp / 2)
-                                            .onFocusChanged {
+                                            .onFocusChanged { focusState ->
                                                 val resetUrl = activeTab.value.currentURL
-                                                isFocusOnUrlTextField.value = it.isFocused
-                                                if (it.isFocused) {
+                                                viewModel.updateUI { it.copy(isFocusOnUrlTextField = focusState.isFocused) }
+
+                                                if (focusState.isFocused) {
 
                                                     //                                                geckoViewRef.value?.clearFocus()
                                                     //                                                CoroutineScope(Dispatchers.Main).launch {
@@ -820,22 +776,35 @@ fun BottomPanel(
                                                     //                                                    keyboardController?.show()
                                                     //                                                }
 
-                                                    setSavedPanelState(
-                                                        PanelVisibilityState(
-                                                            options = draggableState.currentValue == RevealState.Visible,
-                                                            tabs = isTabsPanelVisible,
-                                                            downloads = isDownloadPanelVisible.value,
-                                                            tabData = isTabDataPanelVisible,
-                                                            nav = isNavPanelVisible
-                                                        )
-                                                    )
+                                                    viewModel.updateUI { it.copy(savedPanelState = PanelVisibilityState(
+                                                        options = draggableState.currentValue == RevealState.Visible,
+                                                        tabs = isTabsPanelVisible,
+                                                        downloads = uiState.isDownloadPanelVisible,
+                                                        tabData = isTabDataPanelVisible,
+                                                        nav = uiState.isNavPanelVisible
+                                                    )) }
+
                                                     setIsOptionsPanelVisible(false)
-                                                    setIsTabsPanelVisible(false)
-                                                    isDownloadPanelVisible.value = false
-                                                    setIsTabDataPanelVisible(false)
-                                                    setIsNavPanelVisible(false)
-                                                    setIsSettingsPanelVisible(false)
-                                                    setIsUrlOverlayBoxVisible(false)
+                                                    viewModel.updateUI { it.copy(isTabsPanelVisible = false) }
+                                                    viewModel.updateUI {
+                                                        it.copy(
+                                                            isDownloadPanelVisible = false
+                                                        )
+                                                    }
+
+                                                    viewModel.updateUI {
+                                                        it.copy(
+                                                            isTabDataPanelVisible = false
+                                                        )
+                                                    }
+                                                    viewModel.updateUI { it.copy(isNavPanelVisible = false) }
+                                                    viewModel.updateUI {
+                                                        it.copy(
+                                                            isSettingsPanelVisible = false
+                                                        )
+                                                    }
+
+                                                    viewModel.updateUI { it.copy(isUrlOverlayBoxVisible = false) }
 
                                                     //                                    textFieldState.edit { selectAll() }
                                                     textFieldState.setTextAndPlaceCursorAtEnd("")
@@ -844,26 +813,37 @@ fun BottomPanel(
                                                 } else {
                                                     if (isPinningApp.value) isPinningApp.value =
                                                         false
-                                                    setIsUrlOverlayBoxVisible(true)
+                                                    viewModel.updateUI { it.copy(isUrlOverlayBoxVisible = true) }
 
-                                                    savedPanelState?.let { savedState ->
+                                                    uiState.savedPanelState?.let { savedState ->
                                                         if (bottomPanelPagerState.currentPage == BottomPanelMode.SEARCH.ordinal) {
                                                             setIsOptionsPanelVisible(savedState.options)
-                                                            setIsTabsPanelVisible(savedState.tabs)
-                                                            isDownloadPanelVisible.value =
-                                                                savedState.downloads
-                                                            setIsTabDataPanelVisible(savedState.tabData)
-                                                            setIsNavPanelVisible(savedState.nav)
+                                                            viewModel.updateUI {
+                                                                it.copy(
+                                                                    isTabsPanelVisible = savedState.tabs
+                                                                )
+                                                            }
+                                                            viewModel.updateUI {
+                                                                it.copy(
+                                                                    isDownloadPanelVisible = savedState.downloads
+                                                                )
+                                                            }
+                                                            viewModel.updateUI {
+                                                                it.copy(
+                                                                    isTabDataPanelVisible = false
+                                                                )
+                                                            }
+                                                            viewModel.updateUI { it.copy(isNavPanelVisible = savedState.nav) }
                                                         }
 
-                                                        setSavedPanelState(null) // Clear the saved state
+                                                        viewModel.updateUI { it.copy(savedPanelState = null) }
                                                     }
                                                     textFieldState.setTextAndPlaceCursorAtEnd(
                                                         resetUrl.toDomain()
                                                     )
 
 
-                                                    setIsUrlOverlayBoxVisible(true)
+                                                    viewModel.updateUI { it.copy(isUrlOverlayBoxVisible = true) }
                                                 }
                                             }
                                             //
@@ -881,7 +861,7 @@ fun BottomPanel(
                                         state = textFieldState,
                                         textStyle = LocalTextStyle.current.copy(
                                             //                            fontFamily = FontFamily.Monospace,
-                                            textAlign = if (isFocusOnUrlTextField.value) TextAlign.Start else TextAlign.Center
+                                            textAlign = if (uiState.isFocusOnUrlTextField ) TextAlign.Start else TextAlign.Center
                                         ),
                                         //                        state = rememberTextFieldState("Hello"),
                                         lineLimits = TextFieldLineLimits.SingleLine,
@@ -911,7 +891,7 @@ fun BottomPanel(
 
                                                 textFieldState.setTextAndPlaceCursorAtEnd(resetUrl.toDomain())
 
-                                                isFocusOnUrlTextField.value = false
+                                                viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
 
                                                 return@TextField
                                             }
@@ -966,7 +946,7 @@ fun BottomPanel(
                                             focusManager.clearFocus()
                                             keyboardController?.hide()
 
-                                            isFocusOnUrlTextField.value = false
+                                            viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
                                         },
                                         shape = RoundedCornerShape(
                                             settings.cornerRadiusForLayer(2).dp
@@ -986,7 +966,7 @@ fun BottomPanel(
                                         ),
                                     )
 
-                                    if (isUrlOverlayBoxVisible && !isFocusOnUrlTextField.value) Box(
+                                    if (uiState.isUrlOverlayBoxVisible && !uiState.isFocusOnUrlTextField ) Box(
                                         modifier = Modifier
                                             .background(
                                                 Color.Transparent, shape = RoundedCornerShape(
@@ -1022,7 +1002,7 @@ fun BottomPanel(
                                                             HapticFeedbackType.LongPress
                                                         )
                                                         focusManager.clearFocus(true)
-                                                        setIsNavPanelVisible(true)
+                                                        viewModel.updateUI { it.copy(isNavPanelVisible = true) }
                                                         setActiveNavAction(GestureNavAction.NONE)
 
                                                     }
@@ -1089,24 +1069,17 @@ fun BottomPanel(
 
                                                             var horizontalDragAccumulator = 0f
                                                             var verticalDragAccumulator = 0f
-                                                            //                                                        val horizontalDragThreshold =
-                                                            //                                                            40.dp.toPx()
-                                                            //
-                                                            //                                                        val verticalCancelThreshold =
-                                                            //                                                            -40.dp.toPx()
-
 
                                                             drag(drag.id) { change ->
                                                                 horizontalDragAccumulator += change.position.x - change.previousPosition.x
                                                                 verticalDragAccumulator += change.position.y - change.previousPosition.y
 
-                                                                if (isFocusOnUrlTextField.value) change.consume()
+//                                                                if (isFocusOnUrlTextField ) change.consume()
                                                                 if (abs(horizontalDragAccumulator) > abs(
                                                                         verticalDragAccumulator
                                                                     )
                                                                 ) {
-                                                                    //                                                                change.consume()
-                                                                    setIsUrlOverlayBoxVisible(false)
+                                                                    viewModel.updateUI { it.copy(isUrlOverlayBoxVisible = false) }
 
                                                                 }
 
@@ -1125,7 +1098,7 @@ fun BottomPanel(
                                                                 } else {
                                                                     urlBarFocusRequester.requestFocus()
                                                                 }
-                                                                setIsUrlOverlayBoxVisible(false)
+                                                                viewModel.updateUI { it.copy(isUrlOverlayBoxVisible = false) }
                                                             }
                                                         }
                                                     }
@@ -1139,7 +1112,7 @@ fun BottomPanel(
 
                                                     // Reset the UI state
                                                     //                                        isNavPanelVisible = false
-                                                    setIsNavPanelVisible(false)
+                                                    viewModel.updateUI { it.copy(isNavPanelVisible = false) }
                                                     //                                        activeNavAction = GestureNavAction.NONE
                                                     setActiveNavAction(GestureNavAction.NONE)
                                                 }
@@ -1182,24 +1155,11 @@ fun BottomPanel(
                     dragOffset = draggableState.offset
                 ) {
                     OptionsPanel(
-                        updateCurrentRotation = updateCurrentRotation,
-//                        currentRotation = currentRotation,
-                        draggableState = draggableState,
                         isPinningApp = isPinningApp,
-                        bottomPanelPagerState = bottomPanelPagerState,
                         onCloseAllTabs = onCloseAllTabs,
-                        activeSession = activeSession,
-                        isFindInPageVisible = isFindInPageVisible,
                         descriptionContent = descriptionContent,
                         reopenClosedTab = reopenClosedTab,
-                        isSettingsPanelVisible = isSettingsPanelVisible,
                         setIsOptionsPanelVisible = setIsOptionsPanelVisible,
-                        toggleIsTabsPanelVisible = toggleIsTabsPanelVisible,
-                        tabsPanelLock = tabsPanelLock,
-                        isDownloadPanelVisible = isDownloadPanelVisible,
-                        isCursorPadVisible = isCursorPadVisible,
-                        isCursorMode = isCursorMode,
-                        setIsCursorMode = setIsCursorMode,
                         closedTabsCount = recentlyClosedTabs.size,
                         addAppToPin = {
                             isPinningApp.value = true
@@ -1210,7 +1170,7 @@ fun BottomPanel(
                 TextEditPanel(
 //                    currentRotation =  currentRotation,
                     isPinningApp = isPinningApp,
-                    isVisible = isPinningApp.value || (isFocusOnUrlTextField.value && textFieldState.text.isBlank()),
+                    isVisible = isPinningApp.value || (uiState.isFocusOnUrlTextField  && textFieldState.text.isBlank()),
                     onCopyClick = {
                         val clipData = ClipData.newPlainText("url", activeTab.value.currentURL)
 
@@ -1227,7 +1187,7 @@ fun BottomPanel(
                         keyboardController?.show()
                     },
                     onDismiss = {
-                        isFocusOnUrlTextField.value = false
+                        viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
                         focusManager.clearFocus()
                     },
                     activeWebViewTitle = activeTab.value.currentTitle,

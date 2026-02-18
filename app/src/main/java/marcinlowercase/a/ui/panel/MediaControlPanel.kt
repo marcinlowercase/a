@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
@@ -37,19 +38,14 @@ import marcinlowercase.a.core.enum_class.MediaControlOption
 import marcinlowercase.a.core.manager.GeckoManager
 import marcinlowercase.a.core.manager.MediaGestureManager
 import marcinlowercase.a.ui.component.CustomIconButton
-import marcinlowercase.a.ui.composition.LocalBrowserSettings
+import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import kotlin.math.abs
 
 @SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 fun MediaControlPanel(
-//    activeMediaCurrentPosition: MutableState<Double>,
-//    activeMediaDuration: MutableState<Double>,
     hapticFeedback: HapticFeedback,
     modifier: Modifier,
-    isMediaControlPanelVisible: MutableState<Boolean>,
-    isMediaControlPanelDisplayed: MutableState<Boolean>,
-    isOnFullscreenVideo: MutableState<Boolean>,
     descriptionContent:  MutableState<String>,
     onExitFullscreen: () -> Unit,
     geckoManager: GeckoManager,
@@ -59,11 +55,12 @@ fun MediaControlPanel(
     interactionTrigger: MutableState<Int>
 ) {
 
-    val settingsController = LocalBrowserSettings.current
-    val settings = settingsController.current
+    val viewModel = LocalBrowserViewModel.current
+    val uiState = viewModel.uiState.collectAsState().value
+val settings = viewModel.browserSettings.collectAsState().value
     
     val opacity by animateFloatAsState(
-        targetValue = if (isMediaControlPanelVisible.value) 1.0f else 0.0f,
+        targetValue = if (uiState.isMediaControlPanelVisible) 1.0f else 0.0f,
         animationSpec = spring(stiffness = Spring.StiffnessLow),
         label = "media control panel opacity"
     )
@@ -74,7 +71,7 @@ fun MediaControlPanel(
     var dragAccumulator by remember { mutableFloatStateOf(0f) }
 
 
-    LaunchedEffect(isMediaControlPanelVisible.value, geckoManager.isActiveMediaSessionPaused) {
+    LaunchedEffect(uiState.isMediaControlPanelVisible, geckoManager.isActiveMediaSessionPaused) {
         if (  !geckoManager.isActiveMediaSessionPaused) {
             while (true) {
                 // Update the state inside GeckoManager directly
@@ -91,7 +88,7 @@ fun MediaControlPanel(
         Log.i("marcMedia", "duration: ${geckoManager.lastDuration.doubleValue}")
     }
 
-    if (isOnFullscreenVideo.value && isMediaControlPanelDisplayed.value) {
+    if (uiState.isOnFullscreenVideo && uiState.isMediaControlPanelDisplayed) {
         Column (
             modifier = modifier
                 .padding(settings.padding.dp)
@@ -100,8 +97,7 @@ fun MediaControlPanel(
                 .clickable(
                     enabled = true,
                     onClick = {
-                        if (!isMediaControlPanelVisible.value) isMediaControlPanelVisible.value =
-                            true
+                        if (!uiState.isMediaControlPanelVisible) viewModel.updateUI { it.copy(isMediaControlPanelVisible = true) }
                     }
                 )
                 .background(Color.Black)
@@ -119,15 +115,15 @@ fun MediaControlPanel(
                     .weight(1f)
                     .padding(settings.padding.dp),
                 onTap = {
-                    if (isMediaControlPanelVisible.value) {
+                    if (uiState.isMediaControlPanelVisible) {
                         onExitFullscreen()
                     } else {
-                        isMediaControlPanelVisible.value = true
+                        viewModel.updateUI { it.copy(isMediaControlPanelVisible = true)}
                     }
                 },
                 onLongPress = {
-                    isMediaControlPanelDisplayed.value = false
-                    true
+                    viewModel.updateUI { it.copy(isMediaControlPanelDisplayed = false)}
+                        true
                 },
                 descriptionContent = descriptionContent,
                 buttonDescription = "plus/minus",
@@ -213,14 +209,14 @@ fun MediaControlPanel(
                     .pointerInput(Unit) {
                         detectTapGestures  (
                             onTap = {
-                                if (isMediaControlPanelVisible.value) {
+                                if (uiState.isMediaControlPanelVisible) {
                                     if (geckoManager.isActiveMediaSessionPaused) {
                                         geckoManager.sendVideoCommand("play")
                                     } else {
                                         geckoManager.sendVideoCommand("pause")
                                     }
                                 } else {
-                                    isMediaControlPanelVisible.value = true
+                                    viewModel.updateUI { it.copy(isMediaControlPanelVisible = true)}
                                 }
                                 Log.e("marcMGesture", "tap")
 
@@ -317,12 +313,12 @@ fun MediaControlPanel(
                     .weight(1f)
                     .padding( settings.padding.dp),
                 onTap = {
-                    if (isMediaControlPanelVisible.value) {
+                    if (uiState.isMediaControlPanelVisible) {
                         val nextIndex = (controlOption.value.ordinal + 1) % MediaControlOption.entries.size
                         controlOption.value = MediaControlOption.entries[nextIndex]
                         interactionTrigger.value++
                     } else {
-                        isMediaControlPanelVisible.value = true
+                        viewModel.updateUI { it.copy(isMediaControlPanelVisible = true)}
                     }
                 },
                 descriptionContent = descriptionContent,

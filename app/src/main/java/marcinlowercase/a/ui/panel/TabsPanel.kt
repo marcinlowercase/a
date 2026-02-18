@@ -45,15 +45,17 @@ import coil.request.ImageRequest
 import marcinlowercase.a.R
 import marcinlowercase.a.core.data_class.Tab
 import marcinlowercase.a.core.function.getFaviconUrlFromGoogleServer
-import marcinlowercase.a.ui.composition.LocalBrowserSettings
+import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
+import androidx.compose.runtime.collectAsState
 
 @Composable
 fun NewTabButton(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    val settingsController = LocalBrowserSettings.current
-    val settings = settingsController.current
+    val viewModel = LocalBrowserViewModel.current
+    val uiState = viewModel.uiState.collectAsState().value
+val settings = viewModel.browserSettings.collectAsState().value
     Box(
         modifier = modifier.padding(settings.padding.dp)
     )
@@ -93,8 +95,9 @@ fun TabItem(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
-    val settingsController = LocalBrowserSettings.current
-    val settings = settingsController.current
+    val viewModel = LocalBrowserViewModel.current
+    val uiState = viewModel.uiState.collectAsState().value
+val settings = viewModel.browserSettings.collectAsState().value
     val hapticFeedback  = LocalHapticFeedback.current
     Box(
 
@@ -201,8 +204,9 @@ fun TabsPanel(
 ) {
     
     if (tabs.isEmpty()) return
-    val settingsController = LocalBrowserSettings.current
-    val settings = settingsController.current
+    val viewModel = LocalBrowserViewModel.current
+    val uiState = viewModel.uiState.collectAsState().value
+val settings = viewModel.browserSettings.collectAsState().value
     val pagerState =
         rememberPagerState(initialPage = activeTabIndex + 1, pageCount = { tabs.size + 2 })
 

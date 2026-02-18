@@ -1,6 +1,5 @@
 package marcinlowercase.a.ui.panel
 
-import android.graphics.Color as AndroidColor
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
@@ -35,6 +34,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -59,18 +59,16 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.graphics.toColorInt
 import kotlinx.coroutines.delay
 import marcinlowercase.a.R
 import marcinlowercase.a.core.data_class.OptionItem
+import marcinlowercase.a.core.enum_class.BrowserSettingField
 import marcinlowercase.a.core.enum_class.SearchEngine
 import marcinlowercase.a.ui.component.CustomIconButton
-import kotlin.collections.chunked
-import kotlin.collections.forEach
+import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import kotlin.math.roundToInt
-import androidx.core.graphics.toColorInt
-import marcinlowercase.a.core.enum_class.BrowserSettingField
-import marcinlowercase.a.ui.composition.LocalBrowserSettings
-import kotlin.Boolean
+import android.graphics.Color as AndroidColor
 
 enum class SettingPanelView {
     MAIN,
@@ -92,7 +90,6 @@ enum class SettingPanelView {
 
 @Composable
 fun SliderSetting(
-    isFocusOnTextField: MutableState<Boolean>,
     field: BrowserSettingField,
     valueRange: ClosedFloatingPointRange<Float>,
     steps: Int,
@@ -105,9 +102,8 @@ fun SliderSetting(
     iconID: Int,
     digitCount: Int = 4,
 ) {
-
-    val settingsController = LocalBrowserSettings.current
-    val settings = settingsController.current
+    val viewModel = LocalBrowserViewModel.current
+    val settings = viewModel.browserSettings.collectAsState().value
 
     val currentSettingOriginalValue = remember(settings, field) {
         when (field) {
@@ -151,7 +147,7 @@ fun SliderSetting(
         val coercedValue = parsedValue.coerceIn(valueRange)
 
         // Update the global settings with the coerced value.
-        settingsController.updateField(field, coercedValue)
+        viewModel.updateField(field, coercedValue)
 
         // CRUCIAL: Update the 'digits' state based on the coerced value.
         // This forces the TextField to display the corrected number (e.g., "60.00").
@@ -248,8 +244,8 @@ fun SliderSetting(
                             }
                             false // Event not handled
                         }
-                        .onFocusChanged {
-                            isFocusOnTextField.value = it.hasFocus
+                        .onFocusChanged {focusState -> 
+                            viewModel.updateUI { it.copy(isFocusOnSettingTextField = focusState.hasFocus) }
 
                             commitTextFieldValue()
                         },
@@ -308,7 +304,7 @@ fun SliderSetting(
                     .padStart(digitCount, '0')
 
                 // 3. Immediately pass the NEW, CORRECT finalValue to your update function.
-                settingsController.updateField(field, finalValue)
+                viewModel.updateField(field, finalValue)
             },
             valueRange = valueRange,
             steps = steps,
@@ -338,13 +334,12 @@ fun TextSetting(
     onBackClick: () -> Unit,
     iconID: Int,
     currentSettingOriginalValue: String,
-    isFocusOnTextField: MutableState<Boolean>,
     field: BrowserSettingField,
 
     ) {
 
-    val settingsController = LocalBrowserSettings.current
-    val settings = settingsController.current
+    val viewModel = LocalBrowserViewModel.current
+    val settings = viewModel.browserSettings.collectAsState().value
 
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
@@ -430,8 +425,8 @@ fun TextSetting(
                 .height(
                     settings.heightForLayer(3).dp
                 )
-                .onFocusChanged{
-                    isFocusOnTextField.value = it.hasFocus
+                .onFocusChanged{focusState ->
+                    viewModel.updateUI { it.copy(isFocusOnSettingTextField = focusState.hasFocus) }
                 }
             ,
             shape = RoundedCornerShape(
@@ -456,7 +451,7 @@ fun TextSetting(
             ),
             keyboardActions = KeyboardActions(
                 onDone = {
-                    settingsController.updateField(field, textValue)
+                    viewModel.updateField(field, textValue)
 
                     keyboardController?.hide()
                     focusManager.clearFocus()
@@ -468,42 +463,41 @@ fun TextSetting(
 }
 @Composable
 fun SettingsPanel(
-    isFocusOnTextField : MutableState<Boolean>,
-    isSettingCornerRadius: MutableState<Boolean>,
     descriptionContent: MutableState<String>,
     backgroundColor: MutableState<Color>,
-    isSettingsPanelVisible: MutableState<Boolean>,
     confirmationPopup: (String, String, () -> Unit, () -> Unit) -> Unit,
     resetBrowserSettings: () -> Unit,
     targetSetting: SettingPanelView = SettingPanelView.MAIN,
 ) {
 
-    val settingsController = LocalBrowserSettings.current
-    val settings = settingsController.current
+
+    val viewModel = LocalBrowserViewModel.current
+    val uiState = viewModel.uiState.collectAsState().value
+    val settings = viewModel.browserSettings.collectAsState().value
 
     var currentView by remember { mutableStateOf(targetSetting) }
 
+    val onBackClick = { if (!settings.isFirstAppLoad) currentView = SettingPanelView.MAIN else viewModel.updateUI { it.copy(isSettingsPanelVisible = false) }}
+    
     // This state will hold the current value of the slider.
 //    var sliderValue by remember { mutableStateOf(browserSettings.value.deviceCornerRadius) }
 
     LaunchedEffect(currentView) {
         if (currentView == SettingPanelView.CORNER_RADIUS) {
             backgroundColor.value = Color.Red
-            isSettingCornerRadius.value = true
-            settingsController.update(settings.copy(isFullscreenMode = true))
+            viewModel.updateUI { it.copy(isSettingCornerRadius = true) }
+            viewModel.updateSettings(settings.copy(isFullscreenMode = true))
         } else {
             backgroundColor.value = Color.Black
-            if (isSettingCornerRadius.value) settingsController.update(settings.copy(isFullscreenMode = false))
-            isSettingCornerRadius.value = false
-
-
+            if ( uiState.isSettingCornerRadius) viewModel.updateSettings(settings.copy(isFullscreenMode = false))
+            viewModel.updateUI { it.copy(isSettingCornerRadius = false) }
         }
 
     }
 
     // Effect to reset the view and slider value when the panel is hidden
-    LaunchedEffect(isSettingsPanelVisible.value) {
-        if (!isSettingsPanelVisible.value) {
+    LaunchedEffect(uiState.isSettingsPanelVisible) {
+        if (!uiState.isSettingsPanelVisible) {
             delay(settings.animationSpeed.toLong()) // Wait for exit animation
             currentView = SettingPanelView.MAIN
         }
@@ -564,7 +558,6 @@ fun SettingsPanel(
                     "",
                     {
                         resetBrowserSettings()
-                        isSettingsPanelVisible.value = false
                     },
                     {}
                 )
@@ -582,7 +575,7 @@ fun SettingsPanel(
     val pagerState = rememberPagerState(pageCount = { optionPages.size })
 
     AnimatedVisibility(
-        visible = isSettingsPanelVisible.value,
+        visible = uiState.isSettingsPanelVisible,
         enter = expandVertically(tween(settings.animationSpeedForLayer(1))),
         exit = shrinkVertically(tween(if ( settings.isFirstAppLoad) settings.animationSpeedForLayer(0 )* 6 else settings.animationSpeedForLayer(1)))
     ) {
@@ -646,14 +639,14 @@ fun SettingsPanel(
 
                     SliderSetting(
 
-                        onBackClick = { if (!settings.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
+                        onBackClick = onBackClick,
                         valueRange = 0f..60f,
                         steps = 5999,
                         textFieldValueFun = { src ->
                             src.take(2) + "." + src.substring(2, 4)
                         },
                         iconID = R.drawable.ic_adjust_corner_radius,
-                        isFocusOnTextField = isFocusOnTextField,
+                         
                         field = BrowserSettingField.CORNER_RADIUS
                     )
                 }
@@ -661,7 +654,7 @@ fun SettingsPanel(
                 SettingPanelView.ANIMATION_SPEED -> {
 
                     SliderSetting(
-                        onBackClick = { if (!settings.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
+                        onBackClick = onBackClick,
                         valueRange = 0f..1000f,
                         steps = 999,
                         textFieldValueFun = { src ->
@@ -669,14 +662,14 @@ fun SettingsPanel(
                         },
                         afterDecimal = false,
                         iconID = R.drawable.ic_animation,
-                        isFocusOnTextField = isFocusOnTextField,
+                         
                         field = BrowserSettingField.ANIMATION_SPEED
                         )
                 }
                 SettingPanelView.SINGLE_LINE_HEIGHT -> {
 
                     SliderSetting(
-                        onBackClick = { if (!settings.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
+                        onBackClick = onBackClick,
                         valueRange = 65f..140f,
                         steps = 74,
                         textFieldValueFun = { src ->
@@ -684,7 +677,7 @@ fun SettingsPanel(
                         },
                         afterDecimal = false,
                         iconID = R.drawable.ic_expand,
-                        isFocusOnTextField = isFocusOnTextField,
+                         
                         field = BrowserSettingField.SINGLE_LINE_HEIGHT
                         )
                 }
@@ -692,7 +685,7 @@ fun SettingsPanel(
                 SettingPanelView.PADDING -> {
 
                     SliderSetting(
-                        onBackClick = { if (!settings.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
+                        onBackClick = onBackClick,
                         valueRange = 3f..11f,
                         steps = 7,
                         textFieldValueFun = { src ->
@@ -701,7 +694,7 @@ fun SettingsPanel(
                         afterDecimal = false,
                         iconID = R.drawable.ic_padding,
                         digitCount = 2,
-                        isFocusOnTextField = isFocusOnTextField,
+                         
                         field = BrowserSettingField.PADDING
                         )
                 }
@@ -733,7 +726,7 @@ fun SettingsPanel(
                         if (hexText.uppercase() != currentHex.uppercase() && hexText.length >= 7) {
                             hexText = currentHex
                         }
-                        settingsController.update(settings.copy(highlightColor = selectedColorInt))
+                        viewModel.updateSettings(settings.copy(highlightColor = selectedColorInt))
                     }
 
                     Column(
@@ -755,7 +748,7 @@ fun SettingsPanel(
                         ) {
 
                             IconButton(
-                                onClick = { if (!settings.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
+                                onClick = onBackClick,
                                 modifier = Modifier
                                     .clip(
                                         RoundedCornerShape(
@@ -814,7 +807,7 @@ fun SettingsPanel(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .onFocusChanged{ focusState ->
-                                            isFocusOnTextField.value = focusState.hasFocus
+                                            viewModel.updateUI { it.copy(isFocusOnSettingTextField = focusState.hasFocus) }
                                             if (focusState.hasFocus) {
                                                 hexText = ""
                                             }
@@ -873,7 +866,7 @@ fun SettingsPanel(
 
                         }
                         AnimatedVisibility(
-                            visible = !isFocusOnTextField.value,
+                            visible = !uiState.isFocusOnSettingTextField,
 
                             enter = expandVertically(tween(settings.animationSpeedForLayer(1))),
                             exit = shrinkVertically(tween(settings.animationSpeedForLayer(1)))
@@ -929,7 +922,7 @@ fun SettingsPanel(
 
                 SettingPanelView.CURSOR_CONTAINER_SIZE -> {
                     SliderSetting(
-                        onBackClick = { if (!settings.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
+                        onBackClick = onBackClick,
                         valueRange = 20f..70f,
                         steps = 49,
                         textFieldValueFun = { src ->
@@ -938,14 +931,14 @@ fun SettingsPanel(
                         afterDecimal = false,
                         iconID = R.drawable.ic_cursor_size,
                         digitCount = 2,
-                        isFocusOnTextField = isFocusOnTextField,
+                         
                         field = BrowserSettingField.CURSOR_CONTAINER_SIZE
                         )
                 }
 
                 SettingPanelView.CURSOR_TRACKING_SPEED -> {
                     SliderSetting(
-                        onBackClick = { if (!settings.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
+                        onBackClick = onBackClick,
                         valueRange = 0.5f..2f,
                         steps = 29,
                         textFieldValueFun = { src ->
@@ -954,17 +947,17 @@ fun SettingsPanel(
                         afterDecimal = true,
                         iconID = R.drawable.ic_cursor_speed,
                         digitCount = 4,
-                        isFocusOnTextField = isFocusOnTextField,
+                         
                         field = BrowserSettingField.CURSOR_TRACKING_SPEED
                         )
                 }
 
                 SettingPanelView.DEFAULT_URL -> {
                     TextSetting(
-                        onBackClick = { if (!settings.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
+                        onBackClick = onBackClick,
                         iconID = R.drawable.ic_link,
                         currentSettingOriginalValue = settings.defaultUrl,
-                        isFocusOnTextField = isFocusOnTextField,
+                         
                         field = BrowserSettingField.DEFAULT_URL
                         )
                 }
@@ -986,14 +979,14 @@ fun SettingsPanel(
 
                 SettingPanelView.CLOSED_TAB_HISTORY_SIZE -> {
                     SliderSetting(
-                        onBackClick = { if (!settings.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
+                        onBackClick = onBackClick,
                         valueRange = 0f..30f, // A sensible range for this setting
                         steps = 29, // (30 / 1) - 1
                         textFieldValueFun = { src -> src },
                         afterDecimal = false, // We are dealing with whole numbers
                         iconID = R.drawable.ic_history,
                         digitCount = 2 ,
-                        isFocusOnTextField = isFocusOnTextField,
+                         
                         field = BrowserSettingField.CLOSED_TAB_HISTORY_SIZE
 
                         )
@@ -1001,7 +994,7 @@ fun SettingsPanel(
 
                 SettingPanelView.BACK_SQUARE_OPACITY -> {
                     SliderSetting(
-                        onBackClick = { if (!settings.isFirstAppLoad) currentView = SettingPanelView.MAIN else isSettingsPanelVisible.value = false },
+                        onBackClick = onBackClick,
                         valueRange = 0f..1f, // 0% to 100%
                         steps = 19, // 5% increments
                         textFieldValueFun = { src ->
@@ -1011,7 +1004,7 @@ fun SettingsPanel(
                         iconID = R.drawable.ic_opacity,
                         digitCount = 4,
                         afterDecimal = true,
-                        isFocusOnTextField = isFocusOnTextField,
+                         
                         field = BrowserSettingField.BACK_SQUARE_OPACITY
                         )
                 }
@@ -1026,7 +1019,7 @@ fun SettingsPanel(
                         iconID = R.drawable.ic_max_list_height,
                         digitCount = 4,
                         afterDecimal = true,
-                        isFocusOnTextField = isFocusOnTextField,
+                         
                         field = BrowserSettingField.MAX_LIST_HEIGHT
                         )
                 }
@@ -1044,7 +1037,7 @@ fun SettingsPanel(
                         iconID = R.drawable.ic_search,
                         digitCount = 4,
                         afterDecimal = true,
-                        isFocusOnTextField = isFocusOnTextField,
+                         
                         field = BrowserSettingField.SEARCH_ENGINE
                         )
                 }

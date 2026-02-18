@@ -28,7 +28,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import marcinlowercase.a.core.data_class.CustomPermissionRequest
 import marcinlowercase.a.core.function.buttonSettingsForLayer
-import marcinlowercase.a.ui.composition.LocalBrowserSettings
+import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
+import androidx.compose.runtime.collectAsState
 import kotlin.math.roundToInt
 
 @Composable
@@ -40,11 +41,11 @@ fun PermissionPanel(
     onAllow: () -> Unit,
     // Event for when the user clicks "Deny" on our panel.
     onDeny: () -> Unit,
-    isPermissionPanelVisible: Boolean = false,
 
     ) {
-    val settingsController = LocalBrowserSettings.current
-    val settings = settingsController.current
+    val viewModel = LocalBrowserViewModel.current
+    val uiState = viewModel.uiState.collectAsState().value
+val settings = viewModel.browserSettings.collectAsState().value
     var requestToShow by remember { mutableStateOf(request) }
 
     LaunchedEffect(request) {
@@ -55,7 +56,7 @@ fun PermissionPanel(
     }
 
     AnimatedVisibility(
-        visible = isPermissionPanelVisible,
+        visible = uiState.isPermissionPanelVisible,
         enter = expandVertically(animationSpec = tween(settings.animationSpeed.roundToInt())) + fadeIn(
             tween(settings.animationSpeed.roundToInt())
         ),

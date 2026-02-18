@@ -51,7 +51,9 @@ import marcinlowercase.a.R
 import marcinlowercase.a.core.data_class.ContextMenuData
 import marcinlowercase.a.core.enum_class.ContextMenuType
 import marcinlowercase.a.core.function.copyImageToClipboard
-import marcinlowercase.a.ui.composition.LocalBrowserSettings
+import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
+import androidx.compose.runtime.collectAsState
+
 //import marcinlowercase.a.core.function.shareImage
 import kotlin.math.roundToInt
 
@@ -64,8 +66,9 @@ fun ContextMenuPanel(
     onOpenInNewTab: (String) -> Unit,
     onDownload: (String) -> Unit,
 ) {
-    val settingsController = LocalBrowserSettings.current
-    val settings = settingsController.current
+    val viewModel = LocalBrowserViewModel.current
+    val uiState = viewModel.uiState.collectAsState().value
+val settings = viewModel.browserSettings.collectAsState().value
     val clipboard = LocalClipboard.current
     val context = LocalContext.current
     val hapticFeedback = LocalHapticFeedback.current

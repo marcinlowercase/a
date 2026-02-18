@@ -18,6 +18,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -28,7 +29,7 @@ import androidx.compose.ui.unit.dp
 import marcinlowercase.a.R
 import marcinlowercase.a.core.data_class.ConfirmationDialogState
 import marcinlowercase.a.core.function.buttonSettingsForLayer
-import marcinlowercase.a.ui.composition.LocalBrowserSettings
+import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 
 @Composable
 fun ConfirmationPanel(
@@ -36,8 +37,9 @@ fun ConfirmationPanel(
     isUrlBarVisible: Boolean,
     state: ConfirmationDialogState?,
 ) {
-    val settingsController = LocalBrowserSettings.current
-    val settings = settingsController.current
+    val viewModel = LocalBrowserViewModel.current
+    val uiState = viewModel.uiState.collectAsState().value
+    val settings = viewModel.browserSettings.collectAsState().value
     AnimatedVisibility(
         visible = isConfirmationPanelVisible,
         enter = expandVertically(tween(settings.animationSpeedForLayer(1))),
@@ -62,7 +64,7 @@ fun ConfirmationPanel(
                 )
         ) {
 
-            Column (
+            Column(
                 modifier = Modifier
 //                    .heightIn(min = settings.heightForLayer(3).dp)
                     .padding(settings.padding.dp)
@@ -110,8 +112,7 @@ fun ConfirmationPanel(
                             settings,
                             false
                         )
-                        .weight(1f)
-                    ,
+                        .weight(1f),
                     shape = RoundedCornerShape(
                         settings.cornerRadiusForLayer(3).dp
                     ),

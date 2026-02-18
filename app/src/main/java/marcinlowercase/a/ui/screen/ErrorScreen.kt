@@ -20,7 +20,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import marcinlowercase.a.R
 import marcinlowercase.a.core.data_class.ErrorState
-import marcinlowercase.a.ui.composition.LocalBrowserSettings
+import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
+import androidx.compose.runtime.collectAsState
 import org.mozilla.geckoview.WebRequestError
 
 @Composable
@@ -31,8 +32,9 @@ fun ErrorScreen(
     onHome: () -> Unit
 ) {
 
-    val settingsController = LocalBrowserSettings.current
-    val settings = settingsController.current
+    val viewModel = LocalBrowserViewModel.current
+    val uiState = viewModel.uiState.collectAsState().value
+val settings = viewModel.browserSettings.collectAsState().value
     
     val userMessage = when (errorState.error.category) {
         WebRequestError.ERROR_CATEGORY_NETWORK -> "no connection"

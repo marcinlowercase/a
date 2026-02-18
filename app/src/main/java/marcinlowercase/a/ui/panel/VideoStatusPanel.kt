@@ -17,6 +17,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -38,13 +39,11 @@ import marcinlowercase.a.core.enum_class.MediaControlOption
 import marcinlowercase.a.core.function.formatTime
 import marcinlowercase.a.core.manager.GeckoManager
 import marcinlowercase.a.core.manager.MediaGestureManager
-import marcinlowercase.a.ui.composition.LocalBrowserSettings
+import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 
 @Composable
 fun VideoStatusPanel(
     modifier: Modifier = Modifier,
-    isMediaControlPanelVisible: MutableState<Boolean>,
-    isMediaControlPanelDisplayed: MutableState<Boolean>,
     geckoManager: GeckoManager,
     gestureManager: MediaGestureManager,
     controlOption: MutableState<MediaControlOption>,
@@ -52,12 +51,13 @@ fun VideoStatusPanel(
     interactionTrigger: MutableState<Int>, // Used to force recomposition when volume/brightness changes
     onSwapLayout: () -> Unit,
     isStatusAtTop: MutableState<Boolean>,
-    isOnFullscreenVideo: MutableState<Boolean>,
 ) {
 
-    val settingsController = LocalBrowserSettings.current
-    val settings = settingsController.current
-    
+    val viewModel = LocalBrowserViewModel.current
+    val uiState = viewModel.uiState.collectAsState().value
+val settings = viewModel.browserSettings.collectAsState().value
+
+   
     var isTemporarilyVisible by remember { mutableStateOf(false) }
 
     LaunchedEffect(interactionTrigger.value) {
@@ -71,13 +71,12 @@ fun VideoStatusPanel(
     // 2. Calculate if the panel should be visible (Alpha = 1.0)
     val shouldShow by remember {
         derivedStateOf {
-            isMediaControlPanelVisible.value || // Main panel is open
+            uiState.isMediaControlPanelVisible || // Main panel is open
                     pendingSeekSeconds.value != 0.0 ||  // User is Seeking
                     isTemporarilyVisible                // User changed Vol/Bright
         }
     }
 
-    // 3. Update Animation based on 'shouldShow' instead of just 'isMediaControlPanelVisible'
     val opacity by animateFloatAsState(
         targetValue = if (shouldShow) 1.0f else 0.0f,
         animationSpec = spring(stiffness = Spring.StiffnessLow),
@@ -87,7 +86,7 @@ fun VideoStatusPanel(
     // Local tick for live position updates
     var liveTick by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(isMediaControlPanelVisible.value, geckoManager.isActiveMediaSessionPaused) {
+    LaunchedEffect(uiState.isMediaControlPanelVisible, geckoManager.isActiveMediaSessionPaused) {
         if (!geckoManager.isActiveMediaSessionPaused) {
             while (true) {
                 geckoManager.tickLivePosition()
@@ -133,7 +132,7 @@ fun VideoStatusPanel(
     var dragAccumulator by remember { mutableFloatStateOf(0f) }
 
 
-    if (isOnFullscreenVideo.value && isMediaControlPanelDisplayed.value || shouldShow) Column (
+    if (uiState.isOnFullscreenVideo && uiState.isMediaControlPanelDisplayed || shouldShow) Column (
         modifier = modifier
             .padding(settings.padding.dp)
             .widthIn(min = settings.heightForLayer(1).dp)
@@ -142,10 +141,10 @@ fun VideoStatusPanel(
             .alpha(opacity)
             .background(Color.Black)
             .clickable {
-                if (isMediaControlPanelVisible.value) {
+                if (uiState.isMediaControlPanelVisible) {
                     onSwapLayout()
                 } else {
-                    isMediaControlPanelVisible.value = true
+                    viewModel.updateUI { it.copy(isMediaControlPanelVisible = true) }
                 }
             }
             .pointerInput(Unit) {
