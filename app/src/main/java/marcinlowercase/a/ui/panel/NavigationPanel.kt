@@ -18,7 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,14 +28,11 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import marcinlowercase.a.R
-import marcinlowercase.a.core.data_class.Tab
 import marcinlowercase.a.core.enum_class.GestureNavAction
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
-import androidx.compose.runtime.collectAsState
 
 @Composable
 fun NavigationPanel(
-    activeTab : MutableState<Tab>,
     isNavPanelVisible: Boolean,
     modifier: Modifier = Modifier,
     activeAction: GestureNavAction,
@@ -129,7 +126,7 @@ val settings = viewModel.browserSettings.collectAsState().value
                         activeAction = activeAction,
                         gestureNavAction = GestureNavAction.BACK,
                         actionIcon = painterResource(R.drawable.ic_arrow_back),
-                        visibility = activeTab.value.canGoBack,
+                        visibility = viewModel.activeTab!!.canGoBack,
                         )
 
                     // Cancel Icon
@@ -147,7 +144,7 @@ val settings = viewModel.browserSettings.collectAsState().value
                         activeAction = activeAction,
                         gestureNavAction = GestureNavAction.FORWARD,
                         actionIcon = painterResource(R.drawable.ic_arrow_forward),
-                        visibility = activeTab.value.canGoForward,
+                        visibility = viewModel.activeTab!!.canGoForward,
                         )
                 }
             }

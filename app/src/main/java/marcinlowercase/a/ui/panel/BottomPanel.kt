@@ -115,9 +115,7 @@ import kotlin.math.abs
 @Composable
 fun BottomPanel(
     setIsOptionsPanelVisible: (Boolean) -> Job,
-    onAppDoubleClick: (App) -> Unit = {},
     geckoViewRef : MutableState<GeckoView?>,
-    activeTab: MutableState<Tab>,
     floatingPanelBottomPadding: Dp,
     optionsPanelHeightPx: Float,
     draggableState: AnchoredDraggableState<RevealState>,
@@ -128,7 +126,6 @@ fun BottomPanel(
     apps: MutableList<App>,
 
     bottomPanelPagerState: PagerState,
-    onOpenInNewTab: (String) -> Unit,
     onDownload: (String) -> Unit,
     contextMenuData: ContextMenuData?,
     displayContextMenuData: ContextMenuData?,
@@ -144,7 +141,6 @@ fun BottomPanel(
 //    onAddToHomeScreen: () -> Unit,
     descriptionContent: MutableState<String>,
     recentlyClosedTabs: SnapshotStateList<Tab>,
-    reopenClosedTab: () -> Unit,
     confirmationPopup: (message: String, url: String, onConfirm: () -> Unit, onCancel: () -> Unit) -> Unit,
     resetBrowserSettings: () -> Unit,
     backgroundColor: MutableState<Color>,
@@ -156,9 +152,7 @@ fun BottomPanel(
     onMediaPermissionAllow: (Map<String, Boolean>) -> Unit,
     updateInspectingTab: (Tab) -> Unit,
     isTabDataPanelVisible: Boolean,
-    inspectingTab: Tab?,
     handleCloseInspectedTab: () -> Unit,
-    handleDuplicateInspectedTab: () -> Unit,
     handleClearInspectedTabData: () -> Unit,
     handlePermissionToggle: (domain: String?, permission: String, isGranted: Boolean) -> Unit,
     siteSettings: Map<String, SiteSettings>,
@@ -171,10 +165,8 @@ fun BottomPanel(
     downloads: List<DownloadItem>,
 
     activeSession: GeckoSession,
-    onNewTabClicked: (Int) -> Unit,
 
     isTabsPanelVisible: Boolean,
-    onTabSelected: (Int) -> Unit,
     navigateWebView: () -> Unit,
     hapticFeedback: HapticFeedback,
     setActiveNavAction: (GestureNavAction) -> Unit,
@@ -186,8 +178,6 @@ fun BottomPanel(
     permissionLauncher: ManagedActivityResultLauncher<Array<String>, Map<String, @JvmSuppressWildcards Boolean>>,
     pendingPermissionRequest: MutableState<CustomPermissionRequest?>,
     modifier: Modifier,
-    activeTabIndex: MutableState<Int>,
-    tabs: List<Tab>,
 //    url: String,
     focusManager: FocusManager,
     keyboardController: SoftwareKeyboardController?,
@@ -267,17 +257,11 @@ fun BottomPanel(
                         viewModel.updateUI { it.copy(isUrlBarVisible = false) }
 
                     },
-                    onAppDoubleClick = { app ->
-                        onAppDoubleClick(app)
-                        viewModel.updateUI { it.copy(isSettingsPanelVisible = false) }
-                        viewModel.updateUI { it.copy(isUrlBarVisible = false) }
 
-                    },
                     inspectingAppId = inspectingAppId,
                 )
                 NavigationPanel(
                     isNavPanelVisible = uiState.isNavPanelVisible,
-                    activeTab = activeTab,
                     activeAction = activeNavAction,
                 )
 
@@ -299,7 +283,7 @@ fun BottomPanel(
 
                     onDismiss = onDismissContextMenu,
                     onOpenInNewTab = { url ->
-                        onOpenInNewTab(url)
+                        viewModel.createNewTab(viewModel.activeTabIndex.value + 1, url)
                         onDismissContextMenu()
                     },
                     onDownload = onDownload,
@@ -383,7 +367,6 @@ fun BottomPanel(
                 PromptPanel(
                     geckoViewRef = geckoViewRef,
                     isUrlBarVisible = uiState.isUrlBarVisible,
-                    activeTab = activeTab,
                     onDismiss = onDismiss,
                     state = state,
                     promptComponentDisplayState = promptComponentDisplayState,
@@ -399,22 +382,16 @@ fun BottomPanel(
                     descriptionContent = descriptionContent,
                     //                onAddToHomeScreen = onAddToHomeScreen,
                     isTabDataPanelVisible = isTabDataPanelVisible ,
-                    inspectingTab = inspectingTab,
                     onDismiss = { viewModel.updateUI { it.copy(isTabDataPanelVisible = false) } },
                     siteSettings = siteSettings,
                     onPermissionToggle = handlePermissionToggle,
                     onClearSiteData = handleClearInspectedTabData,
                     onCloseTab = handleCloseInspectedTab,
-                    onDuplicateTab = handleDuplicateInspectedTab,
                     //                onHistoryItemClicked = handleHistoryNavigation,
                     //                webViewManager = webViewManager,
                 )
                 TabsPanel(
                     isTabsPanelVisible = isTabsPanelVisible,
-                    tabs = tabs,
-                    activeTabIndex = activeTabIndex.value,
-                    onTabSelected = onTabSelected,
-                    onNewTabClicked = onNewTabClicked,
                     onTabLongPressed = onTabLongPressed,
                     updateInspectingTab = updateInspectingTab,
                 )
@@ -765,7 +742,7 @@ fun BottomPanel(
                                             .focusRequester(urlBarFocusRequester)
                                             //                            .padding(horizontal = settings.padding.dp, vertical = settings.padding.dp / 2)
                                             .onFocusChanged { focusState ->
-                                                val resetUrl = activeTab.value.currentURL
+                                                val resetUrl = viewModel.activeTab!!.currentURL
                                                 viewModel.updateUI { it.copy(isFocusOnUrlTextField = focusState.isFocused) }
 
                                                 if (focusState.isFocused) {
@@ -868,7 +845,7 @@ fun BottomPanel(
                                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
                                         onKeyboardAction = {
                                             val input = (textFieldState.text as String).trim()
-                                            val resetUrl = activeTab.value.currentURL
+                                            val resetUrl = viewModel.activeTab!!.currentURL
 
 
                                             if (input.isEmpty()) {
@@ -877,8 +854,8 @@ fun BottomPanel(
                                                     apps.add(
                                                         App(
                                                             id = System.currentTimeMillis(),
-                                                            label = activeTab.value.currentTitle,
-                                                            iconUrl = activeTab.value.currentFaviconUrl,
+                                                            label = viewModel.activeTab!!.currentTitle,
+                                                            iconUrl = viewModel.activeTab!!.currentFaviconUrl,
                                                             url = resetUrl
                                                         )
                                                     )
@@ -911,7 +888,7 @@ fun BottomPanel(
                                                     App(
                                                         id = System.currentTimeMillis(),
                                                         label = input,
-                                                        iconUrl = activeTab.value.currentFaviconUrl,
+                                                        iconUrl = viewModel.activeTab!!.currentFaviconUrl,
                                                         url = resetUrl,
                                                     )
                                                 )
@@ -982,8 +959,8 @@ fun BottomPanel(
                                             .matchParentSize()
                                             .pointerInput(
                                                 Unit,
-                                                activeTab.value.canGoBack,
-                                                activeTab.value.canGoForward,
+                                                viewModel.activeTab!!.canGoBack,
+                                                viewModel.activeTab!!.canGoForward,
 
                                                 ) {
                                                 // 1. CAPTURE the CoroutineScope provided by pointerInput
@@ -1043,10 +1020,10 @@ fun BottomPanel(
                                                                         }
                                                                     }
 
-                                                                    horizontalDragAccumulator < -horizontalDragThreshold -> if (activeTab.value.canGoBack
+                                                                    horizontalDragAccumulator < -horizontalDragThreshold -> if (viewModel.activeTab!!.canGoBack
                                                                     ) GestureNavAction.BACK else GestureNavAction.NONE
 
-                                                                    horizontalDragAccumulator > horizontalDragThreshold -> if (activeTab.value.canGoForward
+                                                                    horizontalDragAccumulator > horizontalDragThreshold -> if (viewModel.activeTab!!.canGoForward
                                                                     ) GestureNavAction.FORWARD else GestureNavAction.NONE
 
                                                                     else -> GestureNavAction.NONE
@@ -1158,7 +1135,6 @@ fun BottomPanel(
                         isPinningApp = isPinningApp,
                         onCloseAllTabs = onCloseAllTabs,
                         descriptionContent = descriptionContent,
-                        reopenClosedTab = reopenClosedTab,
                         setIsOptionsPanelVisible = setIsOptionsPanelVisible,
                         closedTabsCount = recentlyClosedTabs.size,
                         addAppToPin = {
@@ -1172,7 +1148,7 @@ fun BottomPanel(
                     isPinningApp = isPinningApp,
                     isVisible = isPinningApp.value || (uiState.isFocusOnUrlTextField  && textFieldState.text.isBlank()),
                     onCopyClick = {
-                        val clipData = ClipData.newPlainText("url", activeTab.value.currentURL)
+                        val clipData = ClipData.newPlainText("url", viewModel.activeTab!!.currentURL)
 
                         clipboard.nativeClipboard.setPrimaryClip(clipData)
 
@@ -1180,8 +1156,8 @@ fun BottomPanel(
                     onEditClick = {
                         textFieldState.setTextAndPlaceCursorAtEnd(
                             if (isPinningApp.value) {
-                                activeTab.value.currentTitle
-                            } else activeTab.value.currentURL
+                                viewModel.activeTab!!.currentTitle
+                            } else viewModel.activeTab!!.currentURL
                         )
                         urlBarFocusRequester.requestFocus()
                         keyboardController?.show()
@@ -1190,7 +1166,7 @@ fun BottomPanel(
                         viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
                         focusManager.clearFocus()
                     },
-                    activeWebViewTitle = activeTab.value.currentTitle,
+                    activeWebViewTitle = viewModel.activeTab!!.currentTitle,
                     descriptionContent = descriptionContent,
                 )
             }

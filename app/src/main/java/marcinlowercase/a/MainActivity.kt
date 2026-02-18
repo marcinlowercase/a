@@ -32,6 +32,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
@@ -168,10 +169,8 @@ import marcinlowercase.a.core.function.toDomain
 import marcinlowercase.a.core.function.webViewLoad
 import marcinlowercase.a.core.manager.AppManager
 import marcinlowercase.a.core.manager.BrowserDownloadManager
-import marcinlowercase.a.core.manager.GeckoManager
 import marcinlowercase.a.core.manager.MediaGestureManager
 import marcinlowercase.a.core.manager.SiteSettingsManager
-import marcinlowercase.a.core.manager.TabManager
 import marcinlowercase.a.core.manager.VisitedUrlManager
 import marcinlowercase.a.ui.component.CursorPad
 import marcinlowercase.a.ui.component.LoadingIndicator
@@ -208,11 +207,7 @@ import kotlin.system.exitProcess
 //region Composable
 
 class MainActivity : ComponentActivity() {
-
-
-    private val tabManager by lazy { TabManager(this) }
-    private val geckoManager by lazy { (application as CustomApplication).geckoManager }
-
+    
     val newUrlFromIntent = MutableStateFlow<String?>(null)
 
     private var pendingFilePrompt: GeckoSession.PromptDelegate.FilePrompt? = null
@@ -355,8 +350,6 @@ class MainActivity : ComponentActivity() {
                         innerPadding = innerPadding,
                         modifier = Modifier,
                         newUrlFlow = newUrlFromIntent,
-                        tabManager = tabManager,
-                        geckoManager = geckoManager,
                         initialIntentUrl = intent?.dataString,
                         viewModel = viewModel
                     )
@@ -368,11 +361,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onStop() {
         super.onStop()
+        val viewModel: BrowserViewModel by viewModels()
         Log.e("marcPip", "onStop")
         if (isInPictureInPictureMode
             || isPipMode || isEnteringPip
         ) return
-        tabManager.freezeAllTabs()
+        viewModel.tabManager.freezeAllTabs()
     }
 
 
@@ -465,7 +459,7 @@ class MainActivity : ComponentActivity() {
     override fun onPause() {
         super.onPause()
         if (isCurrentlyFullscreen) isEnteringPip = true
-
+        val viewModel: BrowserViewModel by viewModels()
 
         Log.e("marcPip", "onPause")
         Log.d("marcPip", "isInPictureInPictureMode: $isInPictureInPictureMode")
@@ -474,12 +468,12 @@ class MainActivity : ComponentActivity() {
         // If entering PiP, we MUST keep the session active and prevent Gecko from
         // interpreting this as a background event that stops media.
         if (isInPictureInPictureMode || isEnteringPip) {
-            val tabs = tabManager.loadTabs(null)
-            val index = tabManager.getActiveTabIndex()
-            if (tabs.isNotEmpty() && index in tabs.indices) {
-                val activeTab = tabs[index]
+            val tabs = viewModel.tabManager.loadTabs(null)
+            val index = viewModel.tabManager.getActiveTabIndex()
+            if (viewModel.tabs.isNotEmpty() && index in viewModel.tabs.indices) {
+                val activeTab = viewModel.tabs[index]
                 // Force the session to remain active
-                geckoManager.getSession(activeTab).setActive(true)
+                viewModel.geckoManager.getSession(activeTab).setActive(true)
                 Log.e("marcPip", "set session to active")
 
             }
@@ -503,8 +497,6 @@ fun BrowserScreen(
     modifier: Modifier = Modifier,
     innerPadding: PaddingValues,
     newUrlFlow: StateFlow<String?>,
-    tabManager: TabManager,
-    geckoManager: GeckoManager,
     initialIntentUrl: String? = null,
     viewModel: BrowserViewModel = viewModel()
 ) {
@@ -530,53 +522,58 @@ fun BrowserScreen(
 
     //endregion
 
-    
-    val tabs = remember {
-        mutableStateListOf<Tab>().apply { addAll(tabManager.loadTabs(initialIntentUrl)) }
-    }
 
 
-    // active tab index must be declared after the tabs because inside loadTabs() there is logic to update the activeTabIndex
-    val activeTabIndex = remember {
-        mutableIntStateOf(tabManager.getActiveTabIndex().coerceAtLeast(0))
+    val activeTabIndex by viewModel.activeTabIndex.collectAsState()
+
+    // Derived state for the current active tab
+    val activeTab = remember(viewModel.tabs.size, activeTabIndex) {
+        if (viewModel.tabs.isNotEmpty()) viewModel.tabs[activeTabIndex] else Tab.createEmpty()
     }
+    // active tab index must be declared after the viewModel.tabs because inside loadTabs() there is logic to update the activeTabIndex
+//    val activeTabIndex = remember {
+//        mutableIntStateOf(viewModel.tabManager.getActiveTabIndex().coerceAtLeast(0))
+//    }
 
     val appManager = remember { AppManager(context) }
     val apps = remember { mutableStateListOf<App>().apply { addAll(appManager.loadApps()) } }
 
 
     val recentlyClosedTabs = remember { mutableStateListOf<Tab>() }
-    val activeTab = remember(tabs, activeTabIndex.intValue) {
-        object : MutableState<Tab> {
-            override var value: Tab
-                get() {
-                    // READ: Always get the tab at the CURRENT index
-                    if (tabs.isEmpty()) return Tab.createEmpty()
-                    val index = activeTabIndex.intValue.coerceIn(tabs.indices)
-                    return tabs[index]
-                }
-                set(newTab) {
-                    // WRITE: Always update the tab at the CURRENT index
-                    if (tabs.isNotEmpty()) {
-                        val index = activeTabIndex.intValue.coerceIn(tabs.indices)
-                        // This updates the list, which triggers UI updates automatically
-                        tabs[index] = newTab
-                    }
-                }
+//    val activeTab = remember(viewModel.tabs, activeTabIndex) {
+//        object : MutableState<Tab> {
+//            override var value: Tab
+//                get() {
+//                    // READ: Always get the tab at the CURRENT index
+//                    if (viewModel.tabs.isEmpty()) return Tab.createEmpty()
+//                    val index = activeTabIndex.coerceIn(viewModel.tabs.indices)
+//                    return viewModel.tabs[index]
+//                }
+//                set(newTab) {
+//                    // WRITE: Always update the tab at the CURRENT index
+//                    if (viewModel.tabs.isNotEmpty()) {
+//                        val index = activeTabIndex.coerceIn(viewModel.tabs.indices)
+//                        // This updates the list, which triggers UI updates automatically
+//                        viewModel.tabs[index] = newTab
+//                    }
+//                }
+//
+//            // Boilerplate required by Compose
+//            override fun component1() = value
+//            override fun component2(): (Tab) -> Unit = { value = it }
+//        }
+//    }
 
-            // Boilerplate required by Compose
-            override fun component1() = value
-            override fun component2(): (Tab) -> Unit = { value = it }
-        }
-    }
 
+   
+    
     val textFieldState =
-        rememberTextFieldState(activeTab.value.currentURL)
+        rememberTextFieldState(activeTab.currentURL)
 
     var sessionRefreshTrigger by remember { mutableIntStateOf(0) }
-    
-    val activeSession = remember(activeTab.value.id, sessionRefreshTrigger) {
-        geckoManager.getSession(activeTab.value)
+
+    val activeSession = remember(activeTab.id, sessionRefreshTrigger) {
+        viewModel.geckoManager.getSession(activeTab)
     }
 
     val siteSettingsManager = remember { SiteSettingsManager(context) }
@@ -585,7 +582,7 @@ fun BrowserScreen(
             putAll(siteSettingsManager.loadSettings())
         }
     }
-    
+
     var isApplyImePaddingToWebView by remember { mutableStateOf(true) }
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
@@ -852,15 +849,15 @@ fun BrowserScreen(
 
 
     //region TabDataPanel
-    var inspectingTabId by remember { mutableStateOf<Long?>(null) }
+//    var uiState.inspectingTabId by remember { mutableStateOf<Long?>(null) }
 
-    val currentInspectingTab by remember {
-        derivedStateOf {
-            inspectingTabId?.let { id ->
-                tabs.find { it.id == id }
-            }
-        }
-    }
+//    val currentInspectingTab by remember {
+//        derivedStateOf {
+//            uiState.inspectingTabId?.let { id ->
+//                viewModel.tabs.find { it.id == id }
+//            }
+//        }
+//    }
     //endregion
 
 
@@ -1046,10 +1043,10 @@ fun BrowserScreen(
     val closeAllTabs = {
 
 
-        tabs.clear()
+        viewModel.tabs.clear()
 
         // clear the persisted list in SharedPreferences
-        tabManager.clearAllTabs()
+        viewModel.tabManager.clearAllTabs()
 
         // close the application
         activity.finishAndRemoveTask()
@@ -1068,30 +1065,7 @@ fun BrowserScreen(
         }
     }
 
-    val reopenClosedTab = {
-        // Check if there are any tabs to reopen.
-        if (recentlyClosedTabs.isNotEmpty()) {
-            // Get the last closed tab and remove it from the stack.
-            val tabToReopen = recentlyClosedTabs.removeAt(recentlyClosedTabs.lastIndex)
 
-            // Deactivate the current tab.
-            if (activeTabIndex.intValue in tabs.indices) {
-//                tabs[activeTabIndex.intValue].state = TabState.BACKGROUND
-                activeTab.value.state = TabState.BACKGROUND
-            }
-
-            // Add the reopened tab back to the list, usually at the end or a specific index.
-            // Let's add it at the end for simplicity.
-            tabs.add(tabToReopen)
-
-            // Make the reopened tab the new active tab.
-            activeTabIndex.intValue = tabs.lastIndex
-            tabToReopen.state = TabState.ACTIVE
-
-            // Trigger a save.
-            saveTrigger++
-        }
-    }
 
     fun confirmationPopup(
         message: String,
@@ -1174,131 +1148,36 @@ fun BrowserScreen(
         }
 
     }
-    val handleDuplicateInspectedTab = {
-        val originalTab = currentInspectingTab
-        if (originalTab != null) {
 
-            val liveState = geckoManager.getSessionStateString(originalTab.id)
-                ?: originalTab.savedState
-
-
-            val clonedTab = originalTab.copy(
-                id = System.currentTimeMillis(), // new id
-                savedState = liveState,
-                state = TabState.BACKGROUND
-            )
-
-            // 3. Find where the original is in the list
-            val originalIndex = tabs.indexOf(originalTab)
-            val insertIndex = (originalIndex + 1).coerceIn(0, tabs.size)
-
-            // 4. Deactivate the current active tab
-            if (activeTabIndex.intValue in tabs.indices) {
-                tabs[activeTabIndex.intValue] =
-                    tabs[activeTabIndex.intValue].copy(state = TabState.BACKGROUND)
-            }
-
-            // 5. Insert the clone and jump to it
-            tabs.add(insertIndex, clonedTab)
-            activeTabIndex.intValue = insertIndex
-            tabs[insertIndex] = tabs[insertIndex].copy(state = TabState.ACTIVE)
-            viewModel.updateUI { it.copy(isTabDataPanelVisible = false) }
-            saveTrigger++
-        }
-    }
-    val closeTabById = { idToClose: Long ->
-        val tabToClose = tabs.find { it.id == idToClose }
-        if (tabToClose != null) {
-            val indexToClose = tabs.indexOf(tabToClose)
-            val wasActive = (indexToClose == activeTabIndex.intValue)
-
-            geckoManager.closeSession(tabToClose)
-            tabs.removeAt(indexToClose)
-
-            if (wasActive) {
-                // If we closed the current tab, go to the previous one (the opener)
-                val nextIndex = (indexToClose - 1).coerceAtLeast(0)
-                if (tabs.isNotEmpty()) {
-                    activeTabIndex.intValue = nextIndex
-                    tabs[nextIndex].state = TabState.ACTIVE
-                }
-            } else if (indexToClose < activeTabIndex.intValue) {
-                activeTabIndex.intValue -= 1
-            }
-            saveTrigger++
-        }
-    }
 
     val handleCloseInspectedTab = {
-        val tabToClose = currentInspectingTab
-        if (tabToClose != null && tabs.indexOf(tabToClose) > -1) {
+        val tabToClose = viewModel.currentInspectingTab
+        if (tabToClose != null && viewModel.tabs.indexOf(tabToClose) > -1) {
             confirmationPopup(
                 message = "close tab ?",
                 onConfirm = {
-                    val indexToClose = tabs.indexOf(tabToClose)
-
-                    if (tabs.size > 1) {
-
-                        // Handel remember recent close tab
-                        recentlyClosedTabs.add(tabToClose)
-                        val limit = settings.closedTabHistorySize.roundToInt()
-                        while (recentlyClosedTabs.size > limit) {
-                            // Remove the oldest tab from the bottom of the list.
-                            recentlyClosedTabs.removeAt(0)
-                        }
-
-                        geckoManager.closeSession(tabToClose)
-
-                        tabs.removeAt(indexToClose)
-
-                        // Determine the next active tab
-                        if (indexToClose == activeTabIndex.intValue) {
-                            val nextTabIndex = if (indexToClose >= tabs.size) {
-                                tabs.lastIndex
-                            } else {
-                                indexToClose
-                            }
-
-
-                            tabs[nextTabIndex].state = TabState.ACTIVE
-                            inspectingTabId = tabs[nextTabIndex].id
-                            activeTabIndex.intValue = nextTabIndex
-                            val nextUrl = tabs[nextTabIndex].currentURL
-                            if (!uiState.isFocusOnUrlTextField) {
-                                textFieldState.setTextAndPlaceCursorAtEnd(nextUrl.toDomain())
-                            }
-
-                        } else
-                            if (indexToClose < activeTabIndex.intValue) {
-                                activeTabIndex.intValue -= 1
-                                inspectingTabId = activeTab.value.id
-                            }
-
-                        saveTrigger++
-                    } else {
-
-                        // remove the last tab from the list.
-                        tabs.clear()
-
-                        // save the now-empty tab list.
-                        tabManager.clearAllTabs()
-
-                        // finish the activity to close the app.
+                    viewModel.closeInspectedTab {
                         activity.finishAndRemoveTask()
-
                         exitProcess(0)
-
                     }
                 }
             )
         }
     }
 
+    LaunchedEffect(activeTabIndex) {
+        val currentUrl = viewModel.tabs.getOrNull(activeTabIndex)?.currentURL ?: ""
+        if (!uiState.isFocusOnUrlTextField) {
+            textFieldState.setTextAndPlaceCursorAtEnd(currentUrl.toDomain())
+        }
+    }
+
+
     val handleClearInspectedTabData = {
         confirmationPopup(
             message = "clear site data ?",
             onConfirm = {
-                val inspectingTab = currentInspectingTab
+                val inspectingTab = viewModel.currentInspectingTab
 
                 if (inspectingTab != null) {
                     val domain = siteSettingsManager.getDomain(inspectingTab.currentURL)
@@ -1306,12 +1185,12 @@ fun BrowserScreen(
                         siteSettings.remove(domain)
                         siteSettingsManager.saveSettings(siteSettings)
                     }
-                    val runtime = geckoManager.runtime
+                    val runtime = viewModel.geckoManager.runtime
                     val flags = StorageController.ClearFlags.ALL
                     runtime.storageController.clearData(flags).then {
                         runOnUiThread {
-                            // loop through ALL tabs to find matches
-                            tabs.forEachIndexed { index, tab ->
+                            // loop through ALL viewModel.tabs to find matches
+                            viewModel.tabs.forEachIndexed { index, tab ->
                                 val tabDomain = siteSettingsManager.getDomain(tab.currentURL)
 
                                 // check if this tab belongs to the domain just cleared
@@ -1323,16 +1202,16 @@ fun BrowserScreen(
                                     )
 
                                     // A. Kill the Gecko Session (Wipes in-memory permission cache)
-                                    geckoManager.closeSession(tab)
+                                    viewModel.geckoManager.closeSession(tab)
 
                                     // B. Clear Saved State
                                     // Important! If we don't do this, the tab might restore
                                     // the old state (with old form data) when re-opened.
                                     // We want a fresh reload.
-                                    tabs[index] = tab.copy(savedState = null)
+                                    viewModel.tabs[index] = tab.copy(savedState = null)
 
                                     // C. Handle Active Tab Refresh
-                                    if (tab.id == activeTab.value.id) {
+                                    if (tab.id == activeTab.id) {
                                         // If we just killed the tab the user is looking at,
                                         // we must force Compose to re-create the session immediately.
                                         sessionRefreshTrigger++
@@ -1521,37 +1400,12 @@ fun BrowserScreen(
         viewModel.resetSettings()
     }
 
-    fun createNewTab(insertAtIndex: Int, url: String = settings.defaultUrl) {
-        if (activeTabIndex.intValue in tabs.indices) {
-            tabs[activeTabIndex.intValue].state = TabState.BACKGROUND
-        }
 
-        val newTab = Tab(
-            currentURL = url,
-            state = TabState.ACTIVE,
-        )
-
-        tabs.add(insertAtIndex, newTab)
-        geckoManager.getSession(newTab)
-
-//        webViewLoad(newSession, url, settings)
-
-        inspectingTabId = newTab.id
-
-        activeTabIndex.intValue = insertAtIndex
-
-
-//        textFieldValue = TextFieldValue(url, TextRange(url.length))
-        if (!uiState.isFocusOnUrlTextField) textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
-        saveTrigger++
-
-
-    }
 
 
     fun navigateWebView() {
         when (activeNavAction) {
-            GestureNavAction.BACK -> if (activeTab.value.canGoBack) {
+            GestureNavAction.BACK -> if (activeTab.canGoBack) {
                 activeSession.goBack(true)
             }
 
@@ -1559,54 +1413,14 @@ fun BrowserScreen(
                 activeSession.reload()
             }
 
-            GestureNavAction.FORWARD -> if (activeTab.value.canGoForward) {
+            GestureNavAction.FORWARD -> if (activeTab.canGoForward) {
                 activeSession.goForward(true)
             }
 
             GestureNavAction.CLOSE_TAB -> {
                 if (uiState.isLoading) viewModel.updateUI { it.copy(isLoading = false) }
-                if (tabs.size > 1) {
-                    val tabToRemoveIndex = activeTabIndex.intValue
-                    val tabToRemove = tabs[tabToRemoveIndex]
-                    recentlyClosedTabs.add(tabToRemove)
-
-                    val limit = settings.closedTabHistorySize.roundToInt()
-                    while (recentlyClosedTabs.size > limit) {
-                        // Remove the oldest tab from the bottom of the list.
-                        recentlyClosedTabs.removeAt(0)
-                    }
-
-//                    webViewManager.destroyWebView(tabToRemove)
-                    geckoManager.closeSession(tabToRemove)
-                    tabs.removeAt(tabToRemoveIndex)
-
-                    // Determine the next active tab
-                    val nextTabIndex = if (tabToRemoveIndex >= tabs.size) {
-                        tabs.lastIndex
-                    } else {
-                        tabToRemoveIndex
-                    }
-
-                    activeTabIndex.intValue = nextTabIndex
-                    tabs[nextTabIndex].state = TabState.ACTIVE
-
-                    val urlToLoad = tabs[nextTabIndex].currentURL
-                    if (!uiState.isFocusOnUrlTextField) textFieldState.setTextAndPlaceCursorAtEnd(
-                        urlToLoad.toDomain()
-                    )
-                    saveTrigger++
-                } else {
-
-                    // 1. Remove the last tab from the list.
-                    tabs.clear()
-
-                    // 2. Save the now-empty tab list.
-                    tabManager.clearAllTabs()
-
-
-                    // 3. Finish the activity to close the app.
+                viewModel.closeActiveTab{
                     activity.finishAndRemoveTask()
-
                     exitProcess(0)
 
                 }
@@ -1614,8 +1428,8 @@ fun BrowserScreen(
 
             GestureNavAction.NEW_TAB -> {
 
-                val newIndex = activeTabIndex.intValue + 1
-                createNewTab(newIndex)
+                val newIndex = activeTabIndex + 1
+                viewModel.createNewTab(newIndex, "")
             }
 
 
@@ -1867,11 +1681,11 @@ fun BrowserScreen(
 
                     // 1. Calculate the index: Current Active + 1
                     // If list is empty, index is 0.
-                    val currentActive = activeTabIndex.intValue
-                    val nextIndex = if (tabs.isEmpty()) 0 else currentActive + 1
+                    val currentActive = activeTabIndex
+                    val nextIndex = if (viewModel.tabs.isEmpty()) 0 else currentActive + 1
 
                     // 2. Perform creation
-                    createNewTab(insertAtIndex = nextIndex, url = urlFromIntent)
+                    viewModel.createNewTab(nextIndex, urlFromIntent)
 
                     // 3. Reset the flow so we don't re-open it on configuration change
                     context.newUrlFromIntent.value = null
@@ -2033,7 +1847,7 @@ fun BrowserScreen(
 
         LaunchedEffect(textFieldState.text, uiState.isFocusOnUrlTextField) {
 
-            if (!settings.showSuggestions || (textFieldState.text as String) == currentInspectingTab?.currentURL || textFieldState.text.isBlank() || isPinningApp.value) {
+            if (!settings.showSuggestions || (textFieldState.text as String) == viewModel.currentInspectingTab?.currentURL || textFieldState.text.isBlank() || isPinningApp.value) {
                 suggestions.clear()
                 return@LaunchedEffect
             }
@@ -2297,8 +2111,8 @@ fun BrowserScreen(
 
 
 
-        LaunchedEffect(inspectingTabId) {
-            if (inspectingTabId == null) {
+        LaunchedEffect(uiState.inspectingTabId) {
+            if (uiState.inspectingTabId == null) {
                 viewModel.updateUI { it.copy(isTabDataPanelVisible = false) }
             }
         }
@@ -2310,7 +2124,7 @@ fun BrowserScreen(
             if (!activeSession.isOpen) {
                 try {
                     Log.d("InitFlow", "open active session")
-                    activeSession.open(geckoManager.runtime)
+                    activeSession.open(viewModel.geckoManager.runtime)
                 } catch (e: Exception) {
                     Log.w(
                         "BrowserScreen",
@@ -2318,24 +2132,23 @@ fun BrowserScreen(
                     )
                 }
             }
-            geckoManager.setupDelegates(
+            viewModel.geckoManager.setupDelegates(
                 session = activeSession,
-                tab = activeTab,
+//                tab = activeTab,
+                tab = object : MutableState<Tab> { // Bridge for the old delegate code
+                    override var value: Tab
+                        get() = viewModel.tabs[activeTabIndex]
+                        set(newTab) { viewModel.tabs[activeTabIndex] = newTab }
+                    override fun component1() = value
+                    override fun component2(): (Tab) -> Unit = { value = it }
+                },
                 browserSettings = settingsState,
                 onTitleChangeFun = { eventTabId, session, title ->
 
-                    if (eventTabId == activeTab.value.id) {
-                        if (activeTab.value.currentTitle != title) {
-                            activeTab.value = activeTab.value.copy(currentTitle = title)
-                            saveTrigger++
-                        }
-                    }
+                    viewModel.updateTabById(eventTabId) { it.copy(currentTitle = title) }
 
 
-//                view.evaluateJavascript(favicon_discovery, null)
-
-
-                    val url = activeTab.value.currentURL
+                    val url = activeTab.currentURL
                     // Pass both the URL and the title to the manager
                     visitedUrlManager.addUrl(url, title)
                     // Update our in-memory map
@@ -2349,7 +2162,7 @@ fun BrowserScreen(
                     viewModel.updateUI { it.copy(isLoading = (int < 100)) }
                 },
                 onLocationChangeFun = { eventTabId, session, url, perms, userGesture ->
-                    if (eventTabId == activeTab.value.id
+                    if (eventTabId == activeTab.id
                         && url != null
                         && url != "about:blank"
                         && !url.startsWith("javascript:")
@@ -2359,39 +2172,14 @@ fun BrowserScreen(
                         }
 
                         // Update the Tab data (this is safe to do for active tab)
-                        if (activeTab.value.currentURL != url) {
-                            activeTab.value = activeTab.value.copy(currentURL = url)
+                        if (activeTab.currentURL != url) {
+                            viewModel.updateTabById(eventTabId) { it.copy(currentURL = url) }
                         }
                     }
                 },
 
                 onNewSessionFunWithId = { id, uri ->
-                    // set current tab to background
-                    Log.d("NewTabFlow", "onNewSessionFunWithId")
-
-                    if (activeTabIndex.intValue in tabs.indices) {
-                        tabs[activeTabIndex.intValue] =
-                            tabs[activeTabIndex.intValue].copy(state = TabState.BACKGROUND)
-                    }
-
-                    // add new tab with engine id
-                    val newTab = Tab(
-                        id = id,
-                        currentURL = uri,
-                        state = TabState.ACTIVE
-                    )
-                    val insertIndex = (activeTabIndex.intValue + 1).coerceIn(0, tabs.size)
-                    tabs.add(insertIndex, newTab)
-
-                    // switch tab to new open tab
-                    activeTabIndex.intValue = insertIndex
-
-                    // Update the URL bar text immediately
-                    if (!uiState.isFocusOnTextField) {
-                        textFieldState.setTextAndPlaceCursorAtEnd(uri.toDomain())
-                    }
-
-                    saveTrigger++
+                    viewModel.handleNewSession(id, uri)
                 },
                 onHistoryStateChangeFun = { eventTabId, session, realtimeHistory ->
 
@@ -2399,20 +2187,20 @@ fun BrowserScreen(
 
                     // fe:  change  tab A -> B, the textbox changed to A.url
 //                if (session == activeSession) {
-                    if (eventTabId == activeTab.value.id && url.isNotBlank() && url != "about:blank") {
+                    if (eventTabId == activeTab.id && url.isNotBlank() && url != "about:blank") {
                         if (!uiState.isFocusOnUrlTextField) {
                             textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
                         }
 
-                        if (activeTab.value.currentURL != url) {
+                        if (activeTab.currentURL != url) {
                             // Get the current tab state
-                            val currentTab = tabs[activeTabIndex.intValue]
+                            val currentTab = viewModel.tabs[activeTabIndex]
 
                             // TRY TO RESTORE ICON FROM THIS TAB'S CACHE
                             val cachedIcon = currentTab.faviconCache[url] ?: ""
 
                             // Update URL and Icon immediately
-                            tabs[activeTabIndex.intValue] = currentTab.copy(
+                            viewModel.tabs[activeTabIndex] = currentTab.copy(
                                 currentURL = url,
                                 currentFaviconUrl = cachedIcon
                             )
@@ -2420,17 +2208,17 @@ fun BrowserScreen(
                     }
                 },
                 onSessionStateChangeFun = { _, _ ->
-                    val stateToSave = geckoManager.getSessionStateString(activeTab.value.id)
+                    val stateToSave = viewModel.geckoManager.getSessionStateString(activeTab.id)
                     if (stateToSave != null) {
-                        activeTab.value.savedState = stateToSave
-                        tabManager.saveTabs(tabs, activeTabIndex.intValue)
+                        activeTab.savedState = stateToSave
+                        viewModel.tabManager.saveTabs(viewModel.tabs, activeTabIndex)
                     }
                 },
                 onCanGoBackFun = { _, canGoBack ->
-                    activeTab.value.canGoBack = canGoBack
+                    activeTab.canGoBack = canGoBack
                 },
                 onCanGoForwardFun = { _, canGoForward ->
-                    activeTab.value.canGoForward = canGoForward
+                    activeTab.canGoForward = canGoForward
                 },
                 setPermissionDelegate = { request ->
                     if (request.permissionsToRequest.contains(Manifest.permission.CAMERA) || request.permissionsToRequest.contains(
@@ -2475,10 +2263,10 @@ fun BrowserScreen(
                             pendingPermissionRequest.value = null
                         }
                     }
-                    if (eventTabId == activeTab.value.id && url != "about:blank") {
+                    if (eventTabId == activeTab.id && url != "about:blank") {
                         viewModel.updateUI { it.copy(isLoading = true) }
-                        if (activeTab.value.errorState != null) {
-                            activeTab.value = activeTab.value.copy(errorState = null)
+                        if (activeTab.errorState != null) {
+                            viewModel.updateTabById(eventTabId) {it.copy(errorState = null)}
                         }
 
                         if (!uiState.isFocusOnUrlTextField) textFieldState.setTextAndPlaceCursorAtEnd(
@@ -2493,10 +2281,10 @@ fun BrowserScreen(
                 },
                 onFaviconChanged = { tabId, faviconUrl ->
                     // Find the index of the tab that fired this event.
-                    val tabIndex = tabs.indexOfFirst { it.id == tabId }
+                    val tabIndex = viewModel.tabs.indexOfFirst { it.id == tabId }
                     if (tabIndex == -1) return@setupDelegates
 
-                    val targetTab = tabs[tabIndex]
+                    val targetTab = viewModel.tabs[tabIndex]
 
                     // Check if an update is even needed to prevent unnecessary recompositions.
                     if (faviconUrl.isNotBlank()) {
@@ -2505,7 +2293,7 @@ fun BrowserScreen(
                         }
 
                         // Update the tab with the new Icon AND the new Cache
-                        tabs[tabIndex] = targetTab.copy(
+                        viewModel.tabs[tabIndex] = targetTab.copy(
                             currentFaviconUrl = faviconUrl,
                             faviconCache = newCache
                         )
@@ -2551,11 +2339,12 @@ fun BrowserScreen(
 
                         val newError = ErrorState(
                             error = error,
-                            failingUrl = uri ?: activeTab.value.currentURL
+                            failingUrl = uri ?: activeTab.currentURL
                         )
 
                         // Update the Tab object
-                        activeTab.value = activeTab.value.copy(errorState = newError)
+                        viewModel.updateTabById(activeTab.id) {it.copy(errorState = newError)}
+
                     }
                 },
                 siteSettings = siteSettings,
@@ -2667,29 +2456,29 @@ fun BrowserScreen(
                 },
                 onDateTimePromptFun = { dateTimeState.value = it },
                 onCloseTabFun = { id ->
-                    closeTabById(id)
+                    viewModel.closeTabById(id)
                 },
 
 
                 )
 
-            if (!uiState.initialLoadDone && initialIntentUrl != null && activeTab.value.currentURL == initialIntentUrl) {
+            if (!uiState.initialLoadDone && initialIntentUrl != null && activeTab.currentURL == initialIntentUrl) {
                 Log.d("InitFlow", "open app by link")
 
                 webViewLoad(activeSession, initialIntentUrl, settings)
                 viewModel.updateUI { it.copy(initialLoadDone = true) }
 
-            } else if (activeTab.value.savedState != null) {
+            } else if (activeTab.savedState != null) {
                 Log.d("InitFlow", "savestate")
 
                 // Only restore if the session hasn't loaded anything yet
                 val stateToRestore =
-                    geckoManager.restoreStateFromString(activeTab.value.savedState!!)
+                    viewModel.geckoManager.restoreStateFromString(activeTab.savedState!!)
                 if (stateToRestore != null) {
                     activeSession.restoreState(stateToRestore)
                 } else {
                     // State corruption fallback
-                    val url = activeTab.value.currentURL.ifBlank { settings.defaultUrl }
+                    val url = activeTab.currentURL.ifBlank { settings.defaultUrl }
                     webViewLoad(activeSession, url, settings)
                 }
                 // Mark initial load done so we don't restore again on rotate
@@ -2701,8 +2490,8 @@ fun BrowserScreen(
 
                 // If the session is empty (no navigation history) and not being restored, load the URL.
                 // This covers "New Tab" clicks and "Target Blank" where engine didn't auto-load.
-                if (activeTab.value.savedState == null) {
-                    val urlToLoad = activeTab.value.currentURL.ifBlank { settings.defaultUrl }
+                if (activeTab.savedState == null) {
+                    val urlToLoad = activeTab.currentURL.ifBlank { settings.defaultUrl }
                     // Avoid reloading if it's already on that page (prevents loop)
                     // But since historyState is null, we are safe to load.
                     Log.d("InitFlow", "url $urlToLoad")
@@ -2886,7 +2675,7 @@ fun BrowserScreen(
 
         LaunchedEffect(saveTrigger) {
             if (saveTrigger > 0) {
-                tabManager.saveTabs(tabs, activeTabIndex.intValue)
+                viewModel.tabManager.saveTabs(viewModel.tabs, activeTabIndex)
                 saveTrigger = 0
             }
         }
@@ -2897,8 +2686,8 @@ fun BrowserScreen(
 
                     // When a new URL arrives, create a new tab for it.
                     // We'll insert it right after the current active tab.
-                    val insertIndex = (activeTabIndex.intValue + 1).coerceAtMost(tabs.size)
-                    createNewTab(insertIndex, url)
+                    val insertIndex = (activeTabIndex + 1).coerceAtMost(viewModel.tabs.size)
+                    viewModel.createNewTab(insertIndex, url)
 
                     // IMPORTANT: Consume the event by setting the flow back to null
                     context.newUrlFromIntent.update { null }
@@ -2927,7 +2716,7 @@ fun BrowserScreen(
 
 
                 // back the webview
-                activeTab.value.canGoBack -> {
+                activeTab.canGoBack -> {
                     activeSession.goBack(true)
                 }
 
@@ -3042,7 +2831,7 @@ fun BrowserScreen(
                     ) {
                         // Webview Container
                         AnimatedVisibility(
-                            visible = activeTab.value.errorState == null,
+                            visible = activeTab.errorState == null,
                             enter = slideInVertically(
                                 animationSpec = tween(settings.animationSpeedForLayer(0) * 4),
                                 initialOffsetY = { it }
@@ -3218,7 +3007,6 @@ fun BrowserScreen(
                                     }
                                 )
                                 .padding(webViewPaddingValue), // Apply same inset padding as WebView
-                            geckoManager = geckoManager,
                             gestureManager = gestureManager,
                             controlOption = controlOption,
                             pendingSeekSeconds = pendingSeekSeconds,
@@ -3233,7 +3021,6 @@ fun BrowserScreen(
                                 .padding(webViewPaddingValue),
                             hapticFeedback = hapticFeedback,
                             descriptionContent = descriptionContent,
-                            geckoManager = geckoManager,
                             onExitFullscreen = {
                                 activeSession.exitFullScreen()
                             },
@@ -3250,7 +3037,7 @@ fun BrowserScreen(
 
                         // 3. The Error Overlay (NEW)
                         AnimatedContent(
-                            targetState = activeTab.value.errorState,
+                            targetState = activeTab.errorState,
                             transitionSpec = {
                                 if (targetState != null) {
                                     // Error Appears: Slide In from Bottom
@@ -3315,12 +3102,8 @@ fun BrowserScreen(
                                 )
                                 .windowInsetsPadding(WindowInsets.ime)
                                 .align(Alignment.BottomCenter),
-                            onAppDoubleClick = { app ->
-                                createNewTab(activeTabIndex.intValue + 1, app.url)
 
-                            },
                             geckoViewRef = geckoViewRef,
-                            activeTab = activeTab,
                             floatingPanelBottomPadding = floatingPanelBottomPadding,
                             optionsPanelHeightPx = optionsPanelHeightPx,
                             draggableState = draggableState,
@@ -3333,10 +3116,6 @@ fun BrowserScreen(
                             apps = apps,
 
                             bottomPanelPagerState = bottomPanelPagerState,
-                            onOpenInNewTab = { url ->
-                                createNewTab(activeTabIndex.intValue + 1, url)
-
-                            },
                             onDownload = { url ->
                                 // Simple generic download for images found via context menu
                                 confirmationPopup(
@@ -3362,7 +3141,7 @@ fun BrowserScreen(
                             textFieldState = textFieldState,
                             onCloseAllTabs = {
                                 confirmationPopup(
-                                    message = "close all tabs and exit ? ",
+                                    message = "close all viewModel.tabs and exit ? ",
                                     onConfirm = {
                                         closeAllTabs()
                                     },
@@ -3391,7 +3170,6 @@ fun BrowserScreen(
                             findInPageText = findInPageText,
                             descriptionContent = descriptionContent,
                             recentlyClosedTabs = recentlyClosedTabs,
-                            reopenClosedTab = reopenClosedTab,
                             confirmationPopup = ::confirmationPopup,
                             resetBrowserSettings = resetBrowserSettings,
                             backgroundColor = backgroundColor,
@@ -3429,15 +3207,15 @@ fun BrowserScreen(
                                 //                        pendingPermissionRequest.value = null
                             },
                             updateInspectingTab = { tab ->
-                                if (tab.id != 0L) inspectingTabId = tab.id else {
+                                if (tab.id != 0L) {
+                                    viewModel.updateUI { it.copy(inspectingTabId = tab.id) }
+                                } else {
                                     viewModel.updateUI { it.copy(isTabDataPanelVisible = false) }
                                 }
 
                             },
                             isTabDataPanelVisible = uiState.isTabDataPanelVisible,
-                            inspectingTab = currentInspectingTab,
                             handleCloseInspectedTab = handleCloseInspectedTab,
-                            handleDuplicateInspectedTab = handleDuplicateInspectedTab,
                             handleClearInspectedTabData = handleClearInspectedTabData,
                             handlePermissionToggle = handlePermissionToggle,
                             siteSettings = siteSettings,
@@ -3445,7 +3223,7 @@ fun BrowserScreen(
 
                             onTabLongPressed = { tab ->
                                 viewModel.updateUI { it.copy(isTabDataPanelVisible = !it.isTabDataPanelVisible) }
-                                if (inspectingTabId == null) inspectingTabId = tab.id
+                                if (uiState.inspectingTabId == null) viewModel.updateUI { it.copy(inspectingTabId = tab.id) }
                             },
                             onDownloadRowClicked = handleOpenFile,
                             onDeleteClicked = handleDeleteFile,
@@ -3453,31 +3231,10 @@ fun BrowserScreen(
                             onClearAllClicked = handleClearAll,
                             downloads = downloads,
 
-                            onNewTabClicked = { index ->
-                                createNewTab(index)
-                            },
+
 
                             isTabsPanelVisible = uiState.isTabsPanelVisible,
-                            onTabSelected = { newIndex ->
-                                if (activeTabIndex.intValue != newIndex) {
-                                    if (uiState.isLoading) viewModel.updateUI { it.copy(isLoading = false) }
 
-
-                                    activeTab.value.state = TabState.BACKGROUND
-                                    tabs[newIndex].state = TabState.ACTIVE
-
-                                    activeTabIndex.intValue = newIndex
-                                    val urlToLoad = tabs[newIndex].currentURL
-
-                                    if (!uiState.isFocusOnUrlTextField) textFieldState.setTextAndPlaceCursorAtEnd(
-                                        urlToLoad.toDomain()
-                                    )
-                                    saveTrigger++
-
-                                    inspectingTabId = tabs[newIndex].id
-                                }
-
-                            },
                             navigateWebView = {
                                 navigateWebView()
                             },
@@ -3493,8 +3250,6 @@ fun BrowserScreen(
                             permissionLauncher = permissionLauncher,
                             pendingPermissionRequest = pendingPermissionRequest,
 
-                            activeTabIndex = activeTabIndex,
-                            tabs = tabs,
                             focusManager = focusManager,
                             keyboardController = keyboardController,
                             setIsOptionsPanelVisible = setIsOptionsPanelVisible,

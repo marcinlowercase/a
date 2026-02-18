@@ -28,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,17 +46,14 @@ import marcinlowercase.a.core.data_class.JsAlert
 import marcinlowercase.a.core.data_class.JsConfirm
 import marcinlowercase.a.core.data_class.JsDialogState
 import marcinlowercase.a.core.data_class.JsPrompt
-import marcinlowercase.a.core.data_class.Tab
 import marcinlowercase.a.core.function.buttonSettingsForLayer
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
-import androidx.compose.runtime.collectAsState
 import org.mozilla.geckoview.GeckoView
 
 @Composable
 fun PromptPanel(
     geckoViewRef: MutableState<GeckoView?>,
     isUrlBarVisible: Boolean,
-    activeTab: MutableState<Tab>,
     state: JsDialogState?,
     promptComponentDisplayState: JsDialogState?,
     onDismiss: () -> Unit,
@@ -134,7 +132,7 @@ fun PromptPanel(
                         modifier = Modifier.weight(1f)
                     ) {
                         Text(
-                            text = activeTab.value.currentURL, // Safely handle null URL
+                            text = viewModel.activeTab!!.currentURL, // Safely handle null URL
                             color = Color.White,
                             maxLines = 1, // Crucial for horizontal scrolling
                             overflow = TextOverflow.Ellipsis, // Good practice, though scrolling will hide it

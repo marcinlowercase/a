@@ -23,6 +23,7 @@ data class BrowserUIState(
     val isTabsPanelVisible: Boolean = false,
     val isTabsPanelLock: Boolean = false,
     val isTabDataPanelVisible: Boolean = false,
+    val inspectingTabId: Long? = null,
 
     // Media
     val isMediaControlPanelVisible: Boolean = false,
@@ -49,6 +50,7 @@ data class BrowserUIState(
     val isLandscape: Boolean = false,
     val isLandscapeByButton: Boolean = false,
     val isSettingCornerRadius: Boolean = true,
+
 
     // State Restoration (used when focusing URL bar)
     val savedPanelState: PanelVisibilityState? = null

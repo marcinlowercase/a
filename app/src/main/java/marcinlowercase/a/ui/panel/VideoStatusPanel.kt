@@ -37,14 +37,12 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import marcinlowercase.a.core.enum_class.MediaControlOption
 import marcinlowercase.a.core.function.formatTime
-import marcinlowercase.a.core.manager.GeckoManager
 import marcinlowercase.a.core.manager.MediaGestureManager
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 
 @Composable
 fun VideoStatusPanel(
     modifier: Modifier = Modifier,
-    geckoManager: GeckoManager,
     gestureManager: MediaGestureManager,
     controlOption: MutableState<MediaControlOption>,
     pendingSeekSeconds: MutableState<Double>,
@@ -86,10 +84,10 @@ val settings = viewModel.browserSettings.collectAsState().value
     // Local tick for live position updates
     var liveTick by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(uiState.isMediaControlPanelVisible, geckoManager.isActiveMediaSessionPaused) {
-        if (!geckoManager.isActiveMediaSessionPaused) {
+    LaunchedEffect(uiState.isMediaControlPanelVisible, viewModel.geckoManager.isActiveMediaSessionPaused) {
+        if (!viewModel.geckoManager.isActiveMediaSessionPaused) {
             while (true) {
-                geckoManager.tickLivePosition()
+                viewModel.geckoManager.tickLivePosition()
                 liveTick++
                 delay(500)
             }
@@ -102,10 +100,10 @@ val settings = viewModel.browserSettings.collectAsState().value
             val tick = liveTick
             when (controlOption.value) {
                 MediaControlOption.TIME -> {
-                    val duration = geckoManager.lastDuration.doubleValue
+                    val duration = viewModel.geckoManager.lastDuration.doubleValue
                     // If we are currently dragging (pendingSeekSeconds != 0), calculate target
                     if (pendingSeekSeconds.value != 0.0) {
-                        val current = geckoManager.lastPositionSnapshot.doubleValue
+                        val current = viewModel.geckoManager.lastPositionSnapshot.doubleValue
                         val targetTime = (current + pendingSeekSeconds.value).coerceIn(0.0, duration)
 
                         val sign = if (pendingSeekSeconds.value > 0) "+" else ""
@@ -113,7 +111,7 @@ val settings = viewModel.browserSettings.collectAsState().value
                         "${formatTime(targetTime)} ($sign${pendingSeekSeconds.value.toInt()}s)"
                     } else {
                         // Standard display
-                        val current = formatTime(geckoManager.lastPositionSnapshot.doubleValue)
+                        val current = formatTime(viewModel.geckoManager.lastPositionSnapshot.doubleValue)
                         val total = formatTime(duration)
                         "$current / $total"
                     }

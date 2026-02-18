@@ -39,7 +39,6 @@ fun AppsPanel(
     visibility: Boolean,
     apps: MutableList<App>,
     onAppClick: (App) -> Unit = {},
-    onAppDoubleClick: (App) -> Unit = {},
     inspectingAppId: MutableState<Long>
 
 ) {
@@ -108,13 +107,9 @@ fun AppsPanel(
                             }
                         },
                         onDoubleClick = {
-                            // change from delete app to open app in new tab
-//                            apps.indexOfFirst { it.id == app.id }
-//                                .takeIf { it >= 0 }
-//                                ?.let { apps.removeAt(it) }
-//                            if (inspectingAppId.value == app.id) inspectingAppId.value = 0L
-
-                            onAppDoubleClick(app)
+                            viewModel.createNewTab(viewModel.activeTabIndex.value + 1, app.url)
+                            viewModel.updateUI { it.copy(isSettingsPanelVisible = false) }
+                            viewModel.updateUI { it.copy(isUrlBarVisible = false) }
                         },
                         onLongClick = {
                             inspectingAppId.value =

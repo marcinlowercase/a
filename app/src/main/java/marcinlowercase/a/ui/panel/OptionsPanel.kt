@@ -33,7 +33,6 @@ fun OptionsPanel(
     isPinningApp: MutableState<Boolean>,
     onCloseAllTabs: () -> Unit,
     descriptionContent: MutableState<String>,
-    reopenClosedTab: () -> Unit,
     setIsOptionsPanelVisible: (Boolean) -> Job,
     closedTabsCount: Int,
     addAppToPin: () -> Unit,
@@ -95,7 +94,7 @@ fun OptionsPanel(
                 "reopen closed tab",
                 enabled = closedTabsCount > 0, // Only enable if there are tabs to reopen
             ) {
-                reopenClosedTab()
+                viewModel.reopenClosedTab()
                 setIsOptionsPanelVisible(false) // Close the panel after action
             },
 //                OptionItem(

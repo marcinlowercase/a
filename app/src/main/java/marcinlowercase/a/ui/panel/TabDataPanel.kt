@@ -36,7 +36,6 @@ import kotlinx.coroutines.delay
 import marcinlowercase.a.R
 import marcinlowercase.a.core.constant.generic_location_permission
 import marcinlowercase.a.core.data_class.SiteSettings
-import marcinlowercase.a.core.data_class.Tab
 import marcinlowercase.a.core.enum_class.TabState
 import marcinlowercase.a.core.function.toDomain
 import marcinlowercase.a.ui.component.CustomIconButton
@@ -55,18 +54,15 @@ fun TabDataPanel(
     descriptionContent: MutableState<String>,
 //    webViewManager: WebViewManager,
     isTabDataPanelVisible: Boolean,
-    inspectingTab: Tab?,
     onDismiss: () -> Unit,
     siteSettings: Map<String, SiteSettings>,
     onPermissionToggle: (domain: String?, permission: String, isGranted: Boolean) -> Unit,
     onClearSiteData: () -> Unit,
     onCloseTab: () -> Unit,
-    onDuplicateTab: () -> Unit,
 //    onAddToHomeScreen: () -> Unit,
 //    onHistoryItemClicked: (tab: Tab, index: Int, webViewManager: WebViewManager) -> Unit
 ) {
     val viewModel = LocalBrowserViewModel.current
-    val uiState = viewModel.uiState.collectAsState().value
     val browserSettings = viewModel.browserSettings.collectAsState().value
 
     // 1. Local state to hold the tab being displayed.
@@ -122,7 +118,7 @@ fun TabDataPanel(
                     )
                     .background(Color.Black)
             ) {
-                Log.d("TabDataPanel", "inspectingTab.value: ${inspectingTab?.currentURL}")
+                Log.d("TabDataPanel", "inspectingTab.value: ${viewModel.currentInspectingTab?.currentURL}")
 
                 Box(
                     modifier = Modifier
@@ -142,7 +138,7 @@ fun TabDataPanel(
 //                                tab
 //                            ).url ?: browserSettings.defaultUrl
 //                        )
-                    val domain = inspectingTab?.currentURL?.toDomain()
+                    val domain = viewModel.currentInspectingTab?.currentURL?.toDomain()
                     val settings = siteSettings[domain]
                     Log.i("TabDataPanel", "domain $domain")
                     Log.i("TabDataPanel", "settings $settings")
@@ -268,7 +264,7 @@ fun TabDataPanel(
 //                                SiteSettingsManager(LocalContext.current).getDomain(
 //                                    webViewManager.getWebView(tab).url ?: browserSettings.defaultUrl
 //                                )
-                            val domain = inspectingTab?.currentURL?.toDomain()
+                            val domain = viewModel.currentInspectingTab?.currentURL?.toDomain()
                             val settings = siteSettings[domain]
 
                             // Check if there are any permissions to display
@@ -349,7 +345,7 @@ fun TabDataPanel(
 //                    )
 
 
-                    if (inspectingTab?.state != TabState.FROZEN) {
+                    if (viewModel.currentInspectingTab?.state != TabState.FROZEN) {
                         CustomIconButton(
 //                            currentRotation = currentRotation,
                             layer = 3,
@@ -367,7 +363,7 @@ fun TabDataPanel(
 //                        currentRotation = currentRotation,
                         layer = 3,
                         modifier = Modifier.weight(1f),
-                        onTap = onDuplicateTab,
+                        onTap = { viewModel.duplicateInspectedTab() },
                         descriptionContent = descriptionContent,
                         buttonDescription = "duplicate tab",
                         painterId = R.drawable.ic_tab_duplicate

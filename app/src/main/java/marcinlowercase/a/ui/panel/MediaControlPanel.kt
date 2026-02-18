@@ -35,7 +35,6 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import marcinlowercase.a.R
 import marcinlowercase.a.core.enum_class.MediaControlOption
-import marcinlowercase.a.core.manager.GeckoManager
 import marcinlowercase.a.core.manager.MediaGestureManager
 import marcinlowercase.a.ui.component.CustomIconButton
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
@@ -48,7 +47,6 @@ fun MediaControlPanel(
     modifier: Modifier,
     descriptionContent:  MutableState<String>,
     onExitFullscreen: () -> Unit,
-    geckoManager: GeckoManager,
     gestureManager: MediaGestureManager,
     controlOption: MutableState<MediaControlOption>,
     pendingSeekSeconds: MutableState<Double>,
@@ -71,11 +69,11 @@ val settings = viewModel.browserSettings.collectAsState().value
     var dragAccumulator by remember { mutableFloatStateOf(0f) }
 
 
-    LaunchedEffect(uiState.isMediaControlPanelVisible, geckoManager.isActiveMediaSessionPaused) {
-        if (  !geckoManager.isActiveMediaSessionPaused) {
+    LaunchedEffect(uiState.isMediaControlPanelVisible, viewModel.geckoManager.isActiveMediaSessionPaused) {
+        if (  !viewModel.geckoManager.isActiveMediaSessionPaused) {
             while (true) {
                 // Update the state inside GeckoManager directly
-                geckoManager.tickLivePosition()
+                viewModel.geckoManager.tickLivePosition()
 
                 delay(500) // Update UI every 500ms
             }
@@ -84,8 +82,8 @@ val settings = viewModel.browserSettings.collectAsState().value
 
 
 
-    LaunchedEffect(geckoManager.lastDuration.doubleValue) {
-        Log.i("marcMedia", "duration: ${geckoManager.lastDuration.doubleValue}")
+    LaunchedEffect(viewModel.geckoManager.lastDuration.doubleValue) {
+        Log.i("marcMedia", "duration: ${viewModel.geckoManager.lastDuration.doubleValue}")
     }
 
     if (uiState.isOnFullscreenVideo && uiState.isMediaControlPanelDisplayed) {
@@ -147,7 +145,7 @@ val settings = viewModel.browserSettings.collectAsState().value
                                 // === ON RELEASE ===
                                 // Only for Time: Apply the final seek now
                                 if (controlOption.value == MediaControlOption.TIME && pendingSeekSeconds.value != 0.0) {
-                                    geckoManager.sendVideoCommand("seek_relative", pendingSeekSeconds.value)
+                                    viewModel.geckoManager.sendVideoCommand("seek_relative", pendingSeekSeconds.value)
                                     pendingSeekSeconds.value = 0.0
                                 }
                                 dragAccumulator = 0f
@@ -210,10 +208,10 @@ val settings = viewModel.browserSettings.collectAsState().value
                         detectTapGestures  (
                             onTap = {
                                 if (uiState.isMediaControlPanelVisible) {
-                                    if (geckoManager.isActiveMediaSessionPaused) {
-                                        geckoManager.sendVideoCommand("play")
+                                    if (viewModel.geckoManager.isActiveMediaSessionPaused) {
+                                        viewModel.geckoManager.sendVideoCommand("play")
                                     } else {
-                                        geckoManager.sendVideoCommand("pause")
+                                        viewModel.geckoManager.sendVideoCommand("pause")
                                     }
                                 } else {
                                     viewModel.updateUI { it.copy(isMediaControlPanelVisible = true)}
@@ -231,10 +229,10 @@ val settings = viewModel.browserSettings.collectAsState().value
                                 when (controlOption.value) {
                                     MediaControlOption.TIME -> {
                                         if (isTopHalf) {
-                                            geckoManager.sendVideoCommand("prev_5")
+                                            viewModel.geckoManager.sendVideoCommand("prev_5")
                                         } else {
                                             Log.w("marcMGesture", "next")
-                                            geckoManager.sendVideoCommand("next_5")
+                                            viewModel.geckoManager.sendVideoCommand("next_5")
                                         }
                                     }
                                     MediaControlOption.VOLUME -> {
@@ -269,11 +267,11 @@ val settings = viewModel.browserSettings.collectAsState().value
 
                                 when (controlOption.value) {
                                     MediaControlOption.TIME -> {
-                                        val target  =  if (geckoManager.lastDuration.doubleValue > 0.0) geckoManager.lastDuration.doubleValue / 10.0 else 60.0
+                                        val target  =  if (viewModel.geckoManager.lastDuration.doubleValue > 0.0) viewModel.geckoManager.lastDuration.doubleValue / 10.0 else 60.0
                                         if (isTopHalf) {
-                                            geckoManager.sendVideoCommand("seek_relative", -target)
+                                            viewModel.geckoManager.sendVideoCommand("seek_relative", -target)
                                         } else {
-                                            geckoManager.sendVideoCommand("seek_relative", target)
+                                            viewModel.geckoManager.sendVideoCommand("seek_relative", target)
                                         }
                                     }
                                     MediaControlOption.VOLUME -> {

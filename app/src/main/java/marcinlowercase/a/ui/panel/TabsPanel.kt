@@ -54,8 +54,7 @@ fun NewTabButton(
     onClick: () -> Unit
 ) {
     val viewModel = LocalBrowserViewModel.current
-    val uiState = viewModel.uiState.collectAsState().value
-val settings = viewModel.browserSettings.collectAsState().value
+    val settings = viewModel.browserSettings.collectAsState().value
     Box(
         modifier = modifier.padding(settings.padding.dp)
     )
@@ -96,7 +95,6 @@ fun TabItem(
     onLongClick: () -> Unit,
 ) {
     val viewModel = LocalBrowserViewModel.current
-    val uiState = viewModel.uiState.collectAsState().value
 val settings = viewModel.browserSettings.collectAsState().value
     val hapticFeedback  = LocalHapticFeedback.current
     Box(
@@ -195,33 +193,28 @@ fun TabsPanel(
 
     isTabsPanelVisible: Boolean,
     modifier: Modifier = Modifier,
-    tabs: List<Tab>,
-    activeTabIndex: Int,
-    onTabSelected: (Int) -> Unit,
-    onNewTabClicked: (Int) -> Unit,
     onTabLongPressed: (Tab) -> Unit,
     updateInspectingTab: (Tab) -> Unit,
 ) {
     
-    if (tabs.isEmpty()) return
     val viewModel = LocalBrowserViewModel.current
-    val uiState = viewModel.uiState.collectAsState().value
+    if (viewModel.tabs.isEmpty()) return
 val settings = viewModel.browserSettings.collectAsState().value
     val pagerState =
-        rememberPagerState(initialPage = activeTabIndex + 1, pageCount = { tabs.size + 2 })
+        rememberPagerState(initialPage = viewModel.activeTabIndex.collectAsState().value + 1, pageCount = { viewModel.tabs.size + 2 })
 
     // This effect is still useful to sync the pager if a new tab is created
-    LaunchedEffect(activeTabIndex, tabs.size) {
-        if (pagerState.currentPage != activeTabIndex + 1) {
-            pagerState.animateScrollToPage(activeTabIndex + 1)
+    LaunchedEffect(viewModel.activeTabIndex.collectAsState().value, viewModel.tabs.size) {
+        if (pagerState.currentPage != viewModel.activeTabIndex.value + 1) {
+            pagerState.animateScrollToPage(viewModel.activeTabIndex.value + 1)
         }
     }
 
 
     LaunchedEffect(pagerState.currentPage) {
-        if (pagerState.currentPage in 1..tabs.size)
-            updateInspectingTab(tabs[pagerState.currentPage - 1])
-//            inspectingTab.value = tabs[pagerState.currentPage - 1]
+        if (pagerState.currentPage in 1..viewModel.tabs.size)
+            updateInspectingTab(viewModel.tabs[pagerState.currentPage - 1])
+//            inspectingTab.value = viewModel.tabs[pagerState.currentPage - 1]
         else {
             updateInspectingTab(Tab.createEmpty(0L))
 //            inspectingTab.value = null
@@ -276,15 +269,15 @@ val settings = viewModel.browserSettings.collectAsState().value
                     0 -> {
                         // This is the FIRST page: New Tab button on the left
                         NewTabButton(
-                            onClick = { onNewTabClicked(0) } // Request new tab at index 0
+                            onClick = { viewModel.createNewTab(0, "")} // Request new tab at index 0
                         )
                     }
 
-                    in 1..tabs.size -> {
+                    in 1..viewModel.tabs.size -> {
                         // This is a regular tab page. Map pageIndex back to tabIndex.
                         val tabIndex = pageIndex - 1
 
-                        val tab = tabs[tabIndex]
+                        val tab = viewModel.tabs[tabIndex]
 
                         val title = tab.currentTitle
 
@@ -298,8 +291,8 @@ val settings = viewModel.browserSettings.collectAsState().value
                             title = title,
                             isActive = pagerState.currentPage == pageIndex,
                             onClick = {
+                                viewModel.selectTab(tabIndex)
 
-                                onTabSelected(tabIndex)
                             },
                             onLongClick = {
                                 onTabLongPressed(tab)
@@ -310,7 +303,7 @@ val settings = viewModel.browserSettings.collectAsState().value
                     else -> {
                         // This is the LAST page: New Tab button on the right
                         NewTabButton(
-                            onClick = { onNewTabClicked(tabs.size) } // Request new tab at the end
+                            onClick = { viewModel.createNewTab(viewModel.tabs.size, "") } // Request new tab at the end
                         )
                     }
                 }
