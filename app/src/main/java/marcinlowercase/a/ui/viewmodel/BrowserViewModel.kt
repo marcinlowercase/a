@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import android.util.Log
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -17,13 +18,16 @@ import kotlinx.coroutines.launch
 import marcinlowercase.a.CustomApplication
 import marcinlowercase.a.core.constant.default_url
 import marcinlowercase.a.core.constant.pixel_9_corner_radius
+import marcinlowercase.a.core.data_class.App
 import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.BrowserUIState
 import marcinlowercase.a.core.data_class.PanelVisibilityState
 import marcinlowercase.a.core.data_class.Tab
 import marcinlowercase.a.core.enum_class.BrowserSettingField
 import marcinlowercase.a.core.enum_class.TabState
+import marcinlowercase.a.core.manager.AppManager
 import marcinlowercase.a.core.manager.TabManager
+import java.util.Collections
 
 val LocalBrowserViewModel = staticCompositionLocalOf<BrowserViewModel> {
     error("No BrowserViewModel provided! Check your root Composable.")
@@ -236,17 +240,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             if (_uiState.value.isLoading) {
                 updateUI { it.copy(isLoading = false) }
             }
-//
-//            val currentTabId = tabs[currentIndex].id
-//            val currentState = geckoManager.getSessionStateString(currentTabId)
-//            if (currentState != null) {
-//                tabs[currentIndex] = tabs[currentIndex].copy(
-//                    savedState = currentState,
-//                    state = TabState.BACKGROUND
-//                )
-//            } else {
-//                tabs[currentIndex] = tabs[currentIndex].copy(state = TabState.BACKGROUND)
-//            }
 
             val oldTab = tabs[currentIndex]
             val newTab = tabs[newIndex]
@@ -544,4 +537,39 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     //endregion
 
+    //region App/Pin Logic
+    val appManager = AppManager(application)
+    val apps = mutableStateListOf<App>().apply {
+        addAll(appManager.loadApps())
+    }
+
+    fun pinApp(title: String, url: String, iconUrl: String) {
+        val newApp = App(
+            id = System.currentTimeMillis(),
+            label = title,
+            url = url,
+            iconUrl = iconUrl
+        )
+        apps.add(newApp)
+        saveApps()
+    }
+    fun removeApp(appId: Long) {
+        val index = apps.indexOfFirst { it.id == appId }
+        if (index != -1) {
+            apps.removeAt(index)
+            saveApps()
+        }
+    }
+
+    fun swapApps(fromIndex: Int, toIndex: Int) {
+        if (fromIndex in apps.indices && toIndex in apps.indices) {
+            Collections.swap(apps, fromIndex, toIndex)
+            saveApps()
+        }
+    }
+
+    private fun saveApps() {
+        appManager.saveApps(apps)
+    }
+    //endregion
 }

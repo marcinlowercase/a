@@ -102,7 +102,6 @@ import marcinlowercase.a.core.function.buttonSettingsForLayer
 import marcinlowercase.a.core.function.consumeChangePointerInput
 import marcinlowercase.a.core.function.toDomain
 import marcinlowercase.a.core.function.webViewLoad
-import marcinlowercase.a.core.manager.AppManager
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import org.mozilla.geckoview.GeckoResult
 import org.mozilla.geckoview.GeckoSession
@@ -121,9 +120,7 @@ fun BottomPanel(
     draggableState: AnchoredDraggableState<RevealState>,
     flingBehavior: FlingBehavior,
     initialSettingPanelView: SettingPanelView = SettingPanelView.MAIN,
-    appManager: AppManager,
     resetBottomPanelTrigger: MutableState<Boolean>,
-    apps: MutableList<App>,
 
     bottomPanelPagerState: PagerState,
     onDownload: (String) -> Unit,
@@ -248,7 +245,6 @@ fun BottomPanel(
                 )
 
                 AppsPanel(
-                    apps = apps,
                     visibility = uiState.isAppsPanelVisible,
                     onAppClick = { app ->
 
@@ -592,7 +588,7 @@ fun BottomPanel(
                                         ) {
 
                                             val currentIndex =
-                                                apps.indexOfFirst { it.id == inspectingAppId.value }
+                                                viewModel.apps.indexOfFirst { it.id == inspectingAppId.value }
                                             Box(
                                                 modifier = Modifier
                                                     .buttonSettingsForLayer(
@@ -603,15 +599,7 @@ fun BottomPanel(
                                                     .weight(1f)
                                                     .clickable {
                                                         if (currentIndex > 0) {
-                                                            // Swap with the previous item
-                                                            val previousItem =
-                                                                apps[currentIndex - 1]
-                                                            apps[currentIndex - 1] =
-                                                                apps[currentIndex].also {
-                                                                    apps[currentIndex] =
-                                                                        previousItem
-                                                                }
-                                                            appManager.saveApps(apps)
+                                                            viewModel.swapApps(currentIndex, currentIndex - 1)
                                                         }
                                                     },
                                                 contentAlignment = Alignment.Center
@@ -633,9 +621,7 @@ fun BottomPanel(
                                                     )
                                                     .weight(1f)
                                                     .clickable {
-                                                        apps.indexOfFirst { it.id == inspectingAppId.value }
-                                                            .takeIf { it >= 0 }
-                                                            ?.let { apps.removeAt(it) }
+                                                        viewModel.removeApp(inspectingAppId.value)
                                                         inspectingAppId.value = 0L
                                                     },
                                                 contentAlignment = Alignment.Center
@@ -652,19 +638,13 @@ fun BottomPanel(
                                                     .buttonSettingsForLayer(
                                                         2,
                                                         settings,
-                                                        currentIndex < apps.lastIndex && currentIndex >= 0
+                                                        currentIndex < viewModel.apps.lastIndex && currentIndex >= 0
                                                     )
                                                     .weight(1f)
                                                     .clickable {
 
-                                                        if (currentIndex < apps.lastIndex) {
-                                                            // Swap with the previous item
-                                                            val nextItem = apps[currentIndex + 1]
-                                                            apps[currentIndex + 1] =
-                                                                apps[currentIndex].also {
-                                                                    apps[currentIndex] = nextItem
-                                                                }
-                                                            appManager.saveApps(apps)
+                                                        if (currentIndex < viewModel.apps.lastIndex) {
+                                                            viewModel.swapApps(currentIndex, currentIndex + 1)
                                                         }
                                                     },
                                                 contentAlignment = Alignment.Center
@@ -851,13 +831,10 @@ fun BottomPanel(
                                             if (input.isEmpty()) {
 
                                                 if (isPinningApp.value) {
-                                                    apps.add(
-                                                        App(
-                                                            id = System.currentTimeMillis(),
-                                                            label = viewModel.activeTab!!.currentTitle,
-                                                            iconUrl = viewModel.activeTab!!.currentFaviconUrl,
-                                                            url = resetUrl
-                                                        )
+                                                    viewModel.pinApp(
+                                                        title = viewModel.activeTab!!.currentTitle,
+                                                        url = resetUrl,
+                                                        iconUrl = viewModel.activeTab!!.currentFaviconUrl,
                                                     )
                                                     isPinningApp.value = false
                                                 } else {
@@ -884,7 +861,7 @@ fun BottomPanel(
                                             }
 
                                             if (isPinningApp.value) {
-                                                apps.add(
+                                                viewModel.apps.add(
                                                     App(
                                                         id = System.currentTimeMillis(),
                                                         label = input,

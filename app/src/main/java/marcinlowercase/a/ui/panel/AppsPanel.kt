@@ -37,13 +37,11 @@ import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 @Composable
 fun AppsPanel(
     visibility: Boolean,
-    apps: MutableList<App>,
     onAppClick: (App) -> Unit = {},
     inspectingAppId: MutableState<Long>
 
 ) {
     val viewModel = LocalBrowserViewModel.current
-    val uiState = viewModel.uiState.collectAsState().value
     val settings = viewModel.browserSettings.collectAsState().value
 
 
@@ -55,7 +53,7 @@ fun AppsPanel(
         modifier = Modifier.fillMaxWidth()
 
     ) {
-        if (apps.isEmpty()) {
+        if (viewModel.apps.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -80,7 +78,7 @@ fun AppsPanel(
                         min = settings.heightForLayer(2).dp,
                         max = maxPanelHeight
                     )
-                    .padding(top = if (apps.isNotEmpty()) settings.padding.dp else 0.dp)
+                    .padding(top = if (viewModel.apps.isNotEmpty()) settings.padding.dp else 0.dp)
                     .padding(horizontal = settings.padding.dp)
                     .clip(RoundedCornerShape(settings.cornerRadiusForLayer(2).dp))
 
@@ -93,7 +91,7 @@ fun AppsPanel(
                 reverseLayout = true
             ) {
 
-                items(apps) { app ->
+                items(viewModel.apps) { app ->
                     AppIcon(
                         app = app,
                         inspectingAppId = inspectingAppId,
@@ -134,7 +132,6 @@ fun AppIcon(
     onLongClick: () -> Unit = {}
 ) {
     val viewModel = LocalBrowserViewModel.current
-    val uiState = viewModel.uiState.collectAsState().value
     val settings = viewModel.browserSettings.collectAsState().value
 
 

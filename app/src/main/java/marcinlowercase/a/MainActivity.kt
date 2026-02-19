@@ -525,44 +525,12 @@ fun BrowserScreen(
 
     val activeTabIndex by viewModel.activeTabIndex.collectAsState()
 
-    // Derived state for the current active tab
-//    val viewModel.activeTab!! = remember(viewModel.tabs.size, activeTabIndex) {
-//        if (viewModel.tabs.isNotEmpty()) viewModel.tabs[activeTabIndex] else Tab.createEmpty()
-//    }
-    // active tab index must be declared after the viewModel.tabs because inside loadTabs() there is logic to update the activeTabIndex
-//    val activeTabIndex = remember {
-//        mutableIntStateOf(viewModel.tabManager.getActiveTabIndex().coerceAtLeast(0))
-//    }
 
-    val appManager = remember { AppManager(context) }
-    val apps = remember { mutableStateListOf<App>().apply { addAll(appManager.loadApps()) } }
+//    val viewModel.appManager = remember { AppManager(context) }
+//    val viewModel.apps = remember { mutableStateListOf<App>().apply { addAll(viewModel.appManager.loadApps()) } }
 
 
     val recentlyClosedTabs = remember { mutableStateListOf<Tab>() }
-//    val viewModel.activeTab!! = remember(viewModel.tabs, activeTabIndex) {
-//        object : MutableState<Tab> {
-//            override var value: Tab
-//                get() {
-//                    // READ: Always get the tab at the CURRENT index
-//                    if (viewModel.tabs.isEmpty()) return Tab.createEmpty()
-//                    val index = activeTabIndex.coerceIn(viewModel.tabs.indices)
-//                    return viewModel.tabs[index]
-//                }
-//                set(newTab) {
-//                    // WRITE: Always update the tab at the CURRENT index
-//                    if (viewModel.tabs.isNotEmpty()) {
-//                        val index = activeTabIndex.coerceIn(viewModel.tabs.indices)
-//                        // This updates the list, which triggers UI updates automatically
-//                        viewModel.tabs[index] = newTab
-//                    }
-//                }
-//
-//            // Boilerplate required by Compose
-//            override fun component1() = value
-//            override fun component2(): (Tab) -> Unit = { value = it }
-//        }
-//    }
-
 
     val textFieldState =
         rememberTextFieldState(viewModel.activeTab!!.currentURL)
@@ -845,18 +813,6 @@ fun BrowserScreen(
     //endregion
 
 
-    //region TabDataPanel
-//    var uiState.inspectingTabId by remember { mutableStateOf<Long?>(null) }
-
-//    val currentInspectingTab by remember {
-//        derivedStateOf {
-//            uiState.inspectingTabId?.let { id ->
-//                viewModel.tabs.find { it.id == id }
-//            }
-//        }
-//    }
-    //endregion
-
 
     //region ConfirmationPanel
     var confirmationState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
@@ -941,7 +897,6 @@ fun BrowserScreen(
     //endregion
 
     val geckoViewRef = remember { mutableStateOf<GeckoView?>(null) }
-
 
     val choiceState = remember { mutableStateOf<JsChoiceState?>(null) }
     val choiceDisplayState = remember { mutableStateOf<JsChoiceState?>(null) }
@@ -1746,13 +1701,12 @@ fun BrowserScreen(
                 viewModel.updateSettings { it.copy(isFirstAppLoad = false) }
         }
         LaunchedEffect(inspectingAppId.longValue) {
-            descriptionContent.value = apps.find { it.id == inspectingAppId.longValue }?.label ?: ""
+            descriptionContent.value = viewModel.apps.find { it.id == inspectingAppId.longValue }?.label ?: ""
 
         }
 
-        LaunchedEffect(apps.size) {
-            appManager.saveApps(apps)
-            if (apps.isEmpty()) {
+        LaunchedEffect(viewModel.apps.size) {
+            if (viewModel.apps.isEmpty()) {
                 resetBottomPanelTrigger.value = !resetBottomPanelTrigger.value
             }
         }
@@ -1818,7 +1772,7 @@ fun BrowserScreen(
             } else if (
                 bottomPanelPagerState.settledPage == BottomPanelMode.APPS.ordinal
             ) {
-                if (apps.isEmpty()) {
+                if (viewModel.apps.isEmpty()) {
                     bottomPanelPagerState.animateScrollToPage(BottomPanelMode.SEARCH.ordinal)
 
                 }
@@ -3124,10 +3078,8 @@ fun BrowserScreen(
                             flingBehavior = flingBehavior,
                             isPinningApp = isPinningApp,
                             initialSettingPanelView = initialSettingPanelView,
-                            appManager = appManager,
                             inspectingAppId = inspectingAppId,
                             resetBottomPanelTrigger = resetBottomPanelTrigger,
-                            apps = apps,
 
                             bottomPanelPagerState = bottomPanelPagerState,
                             onDownload = { url ->

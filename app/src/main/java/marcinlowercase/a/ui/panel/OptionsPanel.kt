@@ -53,7 +53,6 @@ fun OptionsPanel(
                 isPinningApp.value
             ) {
                 addAppToPin()
-
             },
 
 //                OptionItem(
