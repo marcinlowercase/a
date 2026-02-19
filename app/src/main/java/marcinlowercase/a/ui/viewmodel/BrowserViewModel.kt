@@ -51,86 +51,61 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             highlightColor = sharedPrefs.getInt("highlight_color", 0xFFFFFF00.toInt())
         )
     }
-    fun updateSettings(newSettings: BrowserSettings) {
-        _browserSettings.value = newSettings
-        saveSettingsToPrefs(newSettings)
+    fun updateSettings(mutation: (BrowserSettings) -> BrowserSettings) {
+        _browserSettings.update(mutation)
+        // Persist the resulting value after the update
+        saveSettingsToPrefs(_browserSettings.value)
     }
 
     fun updateField(field: BrowserSettingField, value: Any) {
-        val current = _browserSettings.value
-        val next = when (field) {
-            BrowserSettingField.CORNER_RADIUS ->
-                current.copy(deviceCornerRadius = value as Float)
-
-            BrowserSettingField.PADDING ->
-                current.copy(padding = value as Float)
-
-            BrowserSettingField.ANIMATION_SPEED ->
-                current.copy(animationSpeed = value as Float)
-
-            BrowserSettingField.CURSOR_CONTAINER_SIZE ->
-                current.copy(cursorContainerSize = value as Float)
-
-            BrowserSettingField.CURSOR_TRACKING_SPEED ->
-                current.copy(cursorTrackingSpeed = value as Float)
-
-            BrowserSettingField.BACK_SQUARE_OPACITY ->
-                current.copy(backSquareIdleOpacity = value as Float)
-
-            BrowserSettingField.DEFAULT_URL ->
-                current.copy(defaultUrl = value as String)
-
-            BrowserSettingField.CLOSED_TAB_HISTORY_SIZE ->
-                current.copy(closedTabHistorySize = value as Float)
-
-            BrowserSettingField.MAX_LIST_HEIGHT ->
-                current.copy(maxListHeight = value as Float)
-
-            BrowserSettingField.SINGLE_LINE_HEIGHT ->
-                current.copy(singleLineHeight = value as Float)
-
-            BrowserSettingField.SEARCH_ENGINE -> {
-                // Converts Float from slider to Int for the data class
-                val index = when(value) {
-                    is Float -> value.toInt()
-                    is Int -> value
-                    else -> current.searchEngine
+        updateSettings { current ->
+            when (field) {
+                BrowserSettingField.CORNER_RADIUS -> current.copy(deviceCornerRadius = value as Float)
+                BrowserSettingField.PADDING -> current.copy(padding = value as Float)
+                BrowserSettingField.ANIMATION_SPEED -> current.copy(animationSpeed = value as Float)
+                BrowserSettingField.CURSOR_CONTAINER_SIZE -> current.copy(cursorContainerSize = value as Float)
+                BrowserSettingField.CURSOR_TRACKING_SPEED -> current.copy(cursorTrackingSpeed = value as Float)
+                BrowserSettingField.BACK_SQUARE_OPACITY -> current.copy(backSquareIdleOpacity = value as Float)
+                BrowserSettingField.DEFAULT_URL -> current.copy(defaultUrl = value as String)
+                BrowserSettingField.CLOSED_TAB_HISTORY_SIZE -> current.copy(closedTabHistorySize = value as Float)
+                BrowserSettingField.MAX_LIST_HEIGHT -> current.copy(maxListHeight = value as Float)
+                BrowserSettingField.SINGLE_LINE_HEIGHT -> current.copy(singleLineHeight = value as Float)
+                BrowserSettingField.SEARCH_ENGINE -> {
+                    val index = when(value) {
+                        is Float -> value.toInt()
+                        is Int -> value
+                        else -> current.searchEngine
+                    }
+                    current.copy(searchEngine = index)
                 }
-                current.copy(searchEngine = index)
-            }
-
-            BrowserSettingField.HIGHLIGHT_COLOR -> {
-                // Handles both Int and Long (hex) color values
-                val color = when(value) {
-                    is Int -> value
-                    is Long -> value.toInt()
-                    else -> current.highlightColor
+                BrowserSettingField.HIGHLIGHT_COLOR -> {
+                    val color = when(value) {
+                        is Int -> value
+                        is Long -> value.toInt()
+                        else -> current.highlightColor
+                    }
+                    current.copy(highlightColor = color)
                 }
-                current.copy(highlightColor = color)
+                BrowserSettingField.INFO -> current
             }
-
-            BrowserSettingField.INFO -> current // "Info" is read-only, return current state
         }
-
-        // Calls your existing updateSettings function to trigger StateFlow update and Save
-        updateSettings(next)
     }
 
     fun resetSettings() {
-        // Create default settings object (copied from your Activity logic)
-        val defaults = _browserSettings.value.copy(
-            padding = 8f,
-            deviceCornerRadius = pixel_9_corner_radius,
-            defaultUrl = default_url,
-            animationSpeed = 300f,
-            singleLineHeight = 100f,
-            isSharpMode = false,
-            cursorContainerSize = 50f,
-            cursorPointerSize = 5f,
-            cursorTrackingSpeed = 1.75f,
-            backSquareIdleOpacity = 0.2f
-        )
-        updateSettings(defaults)
+        updateSettings {
+            it.copy(
+                padding = 8f,
+                deviceCornerRadius = pixel_9_corner_radius,
+                defaultUrl = default_url,
+                animationSpeed = 300f,
+                singleLineHeight = 100f,
+                isSharpMode = false,
+                cursorContainerSize = 50f,
+                cursorPointerSize = 5f,
+                cursorTrackingSpeed = 1.75f,
+                backSquareIdleOpacity = 0.2f
+            )
+        }
     }
 
     private fun saveSettingsToPrefs(settings: BrowserSettings) {

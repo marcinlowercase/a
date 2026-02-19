@@ -1705,12 +1705,12 @@ fun BrowserScreen(
                 activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
             }
 
-            viewModel.updateSettings(settings.copy(isFullscreenMode = uiState.isLandscapeByButton))
+            viewModel.updateSettings{it.copy(isFullscreenMode = uiState.isLandscapeByButton)}
         }
         LaunchedEffect(uiState.isOnFullscreenVideo) {
             viewModel.updateUI { it.copy(isMediaControlPanelVisible = uiState.isOnFullscreenVideo) }
 
-            viewModel.updateSettings(settings.copy(isFullscreenMode = uiState.isOnFullscreenVideo))
+            viewModel.updateSettings{it.copy(isFullscreenMode = uiState.isOnFullscreenVideo)}
             if (uiState.isOnFullscreenVideo) {
                 gestureManager.ensureFullscreenBrightness()
             } else {
@@ -1743,7 +1743,7 @@ fun BrowserScreen(
 
         LaunchedEffect(uiState.isSettingsPanelVisible) {
             if (!uiState.isSettingsPanelVisible)
-                viewModel.updateSettings(settings.copy(isFirstAppLoad = false))
+                viewModel.updateSettings{it.copy(isFirstAppLoad = false)}
         }
         LaunchedEffect(inspectingAppId.longValue) {
             descriptionContent.value = apps.find { it.id == inspectingAppId.longValue }?.label ?: ""
@@ -1804,7 +1804,7 @@ fun BrowserScreen(
 
         LaunchedEffect(bottomPanelPagerState.currentPage) {
             if (bottomPanelPagerState.currentPage == BottomPanelMode.LOCK.ordinal) {
-                viewModel.updateSettings(settings.copy(isFullscreenMode = !settings.isFullscreenMode))
+                viewModel.updateSettings{it.copy(isFullscreenMode = !settings.isFullscreenMode)}
             }
         }
         LaunchedEffect(resetBottomPanelTrigger.value) {
@@ -2597,11 +2597,11 @@ fun BrowserScreen(
                         )
                     }
 
-                    viewModel.updateSettings(
-                        settings.copy(
+                    viewModel.updateSettings {
+                        it.copy(
                             backSquareOffsetY = targetY
                         )
-                    )
+                    }
 
                     hideBackSquare(false)
                 }
@@ -3481,12 +3481,12 @@ fun BrowserScreen(
                                                                     spring()
                                                                 )
                                                             }
-                                                            viewModel.updateSettings(
-                                                                settings.copy(
-                                                                    backSquareOffsetX = targetX,
-                                                                    backSquareOffsetY = targetY
-                                                                )
+                                                            viewModel.updateSettings {
+                                                            it.copy(
+                                                                backSquareOffsetX = targetX,
+                                                                backSquareOffsetY = targetY
                                                             )
+                                                            }
                                                             // Fade out after snap
                                                             hideBackSquare(false)
                                                         }

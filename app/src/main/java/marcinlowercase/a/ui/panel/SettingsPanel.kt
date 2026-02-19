@@ -1,6 +1,5 @@
 package marcinlowercase.a.ui.panel
 
-import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
@@ -67,7 +66,6 @@ import marcinlowercase.a.core.data_class.OptionItem
 import marcinlowercase.a.core.enum_class.BrowserSettingField
 import marcinlowercase.a.core.enum_class.SearchEngine
 import marcinlowercase.a.ui.component.CustomIconButton
-import marcinlowercase.a.ui.theme.Orange
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import kotlin.math.roundToInt
 import android.graphics.Color as AndroidColor
@@ -487,10 +485,10 @@ fun SettingsPanel(
         if (currentView == SettingPanelView.CORNER_RADIUS) {
             backgroundColor.value = Color.Red
             viewModel.updateUI { it.copy(isSettingCornerRadius = true) }
-            viewModel.updateSettings(settings.copy(isFullscreenMode = true))
+            viewModel.updateSettings{it.copy(isFullscreenMode = true)}
         } else {
             backgroundColor.value = Color.Black
-            if ( uiState.isSettingCornerRadius) viewModel.updateSettings(settings.copy(isFullscreenMode = false))
+            if ( uiState.isSettingCornerRadius) viewModel.updateSettings{it.copy(isFullscreenMode = false)}
             viewModel.updateUI { it.copy(isSettingCornerRadius = false) }
         }
 
@@ -727,7 +725,7 @@ fun SettingsPanel(
                         if (hexText.uppercase() != currentHex.uppercase() && hexText.length >= 7) {
                             hexText = currentHex
                         }
-                        viewModel.updateSettings(settings.copy(highlightColor = selectedColorInt))
+                        viewModel.updateSettings{it.copy(highlightColor = selectedColorInt)}
                     }
 
                     Column(

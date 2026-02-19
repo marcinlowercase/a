@@ -83,7 +83,7 @@ fun OptionsPanel(
                 "sharp mode",
                 settings.isSharpMode,
             ) {
-                viewModel.updateSettings(settings.copy(isSharpMode = !settings.isSharpMode))
+                viewModel.updateSettings{it.copy(isSharpMode = !it.isSharpMode)}
 
                 setIsOptionsPanelVisible(false)
 
@@ -139,7 +139,7 @@ fun OptionsPanel(
             ) {
                 // When clicked, create a new settings object with the toggled value
 
-                viewModel.updateSettings(settings.copy(showSuggestions = !settings.showSuggestions))
+                viewModel.updateSettings{it.copy(showSuggestions = !it.showSuggestions)}
                 setIsOptionsPanelVisible(false)
 
             },
