@@ -805,12 +805,6 @@ fun BrowserScreen(
     var promptComponentDisplayState by remember { mutableStateOf<JsDialogState?>(null) }
 
 
-    //region Download Handle
-    val downloadTracker = remember { BrowserDownloadManager(context) }
-    val downloads =
-        remember { mutableStateListOf<DownloadItem>().apply { addAll(downloadTracker.loadDownloads()) } }
-
-    //endregion
 
 
 
@@ -1189,113 +1183,21 @@ fun BrowserScreen(
         )
     }
 
-    fun getBestGuessFilename(url: String, contentDisposition: String?, mimeType: String?): String {
-        // 1. Try to parse the Content-Disposition header first.
-        if (contentDisposition != null) {
-            val pattern =
-                Pattern.compile("filename\\*?=['\"]?([^'\"\\s]+)['\"]?", Pattern.CASE_INSENSITIVE)
-            val matcher = pattern.matcher(contentDisposition)
-            if (matcher.find()) {
-                val filename = matcher.group(1)
-                if (filename != null) {
-                    try {
-                        // Decode the filename in case it's URL-encoded
-                        return URLDecoder.decode(filename, "UTF-8")
-                    } catch (_: Exception) {
-                    }
-                }
-            }
-        }
-
-        // 2. If that fails, try to get the filename from the URL path.
-        try {
-            val path = url.toUri().path
-            if (path != null) {
-                val lastSegment = path.substringAfterLast('/')
-                if (lastSegment.isNotBlank()) {
-                    return lastSegment
-                }
-            }
-        } catch (_: Exception) {
-        }
 
 
-        // 3. As a last resort, use the original, less reliable method.
-        return URLUtil.guessFileName(url, contentDisposition, mimeType)
-    }
-
-    /**
-     * Generates a unique filename by checking against a list of existing downloads.
-     * If "file.txt" exists, it will return "file (1).txt", then "file (2).txt", etc.
-     */
-    fun generateUniqueFilename(initialName: String, existingDownloads: List<DownloadItem>): String {
-        val existingFilenames = existingDownloads.map { it.filename }.toSet()
-
-        if (!existingFilenames.contains(initialName)) {
-            return initialName // The original name is already unique
-        }
-
-        val baseName = initialName.substringBeforeLast('.')
-        val extension = initialName.substringAfterLast('.', "")
-        val finalExtension = if (extension.isNotEmpty()) ".$extension" else ""
-
-        var counter = 1
-        while (true) {
-            val newName = "$baseName ($counter)$finalExtension"
-            if (!existingFilenames.contains(newName)) {
-                return newName
-            }
-            counter++
-        }
-    }
-
-    var pendingDownload by remember { mutableStateOf<DownloadParams?>(null) }
-
-    @SuppressLint("UseKtx")
-    fun performDownloadEnqueue(params: DownloadParams) {
-        if (!uiState.isUrlBarVisible) viewModel.updateUI { it.copy(isUrlBarVisible = true) }
-        if (!uiState.isDownloadPanelVisible) viewModel.updateUI { it.copy(isDownloadPanelVisible = true) }
-        if (contextMenuData != null) contextMenuData = null
-
-        val initialFilename =
-            getBestGuessFilename(params.url, params.contentDisposition, params.mimeType)
-        val finalFilename = generateUniqueFilename(initialFilename, downloads)
-
-        val request = DownloadManager.Request(params.url.toUri()).apply {
-            setTitle(finalFilename)
-            setDescription("Downloading file...")
-            setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-            setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, finalFilename)
-            addRequestHeader("User-Agent", params.userAgent)
-        }
-
-        val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-        try {
-            val downloadId = downloadManager.enqueue(request)
-            val newDownload = DownloadItem(
-                id = downloadId,
-                url = params.url,
-                filename = finalFilename,
-                mimeType = params.mimeType ?: "application/octet-stream",
-                status = DownloadStatus.PENDING
-            )
-            downloads.add(0, newDownload)
-            downloadTracker.saveDownloads(downloads)
-        } catch (_: Exception) {
-            Toast.makeText(context, "Download failed to start", Toast.LENGTH_SHORT).show()
-        }
-    }
 
     val storagePermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
-            pendingDownload?.let { performDownloadEnqueue(it) }
+            viewModel.pendingDownload?.let {
+                viewModel.performDownloadEnqueue(it)
+            }
         } else {
             Toast.makeText(context, "Storage permission denied", Toast.LENGTH_LONG).show()
         }
         // not use but still need to keep here to reset the pending download
-        pendingDownload = null
+        viewModel.pendingDownload = null
     }
 
 
@@ -1310,11 +1212,11 @@ fun BrowserScreen(
             ) == PackageManager.PERMISSION_GRANTED
 
             if (needsPermission && !hasPermission) {
-                pendingDownload = params
+                viewModel.pendingDownload = params
                 storagePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
             } else {
                 // Call the standard function directly
-                performDownloadEnqueue(params)
+                viewModel.performDownloadEnqueue(params)
             }
         }
 
@@ -1422,36 +1324,8 @@ fun BrowserScreen(
             }
         }
     }
-    // --- NEW: Handler to delete a specific file ---
-    val handleDeleteFile = { item: DownloadItem ->
-        if (item.isBlobDownload) {
-            // It's a blob file we saved manually. Delete it from the filesystem.
-            val downloadsDir =
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            val file = File(downloadsDir, item.filename)
-            if (file.exists()) {
-                if (file.delete()) {
-                    // Also notify the MediaStore that the file is gone.
-                    MediaScannerConnection.scanFile(context, arrayOf(file.absolutePath), null, null)
-                }
-            }
-        } else {
-            // It's a standard download. Use the DownloadManager to remove it.
-            val downloadManager =
-                context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-            downloadManager.remove(item.id)
-        }
-        downloads.remove(item) // Removes from our UI list
-        downloadTracker.saveDownloads(downloads) // Saves the change
-        Toast.makeText(context, "${item.filename} deleted.", Toast.LENGTH_SHORT).show()
-    }
 
-    // --- NEW: Handler to clear the list (but not the files) ---
-    val handleClearAll = {
-        downloads.clear() // Clears our UI list
-        downloadTracker.saveDownloads(downloads) // Saves the empty list
-//        Toast.makeText(context, "download list cleared.", Toast.LENGTH_SHORT).show()
-    }
+
 
     val handleOpenFile = { item: DownloadItem ->
         if (item.status == DownloadStatus.SUCCESSFUL) {
@@ -1501,7 +1375,6 @@ fun BrowserScreen(
     }
 
 
-    val lastPollData = remember { mutableMapOf<Long, PollData>() }
     val backgroundColor = remember { mutableStateOf(Color.Black) }
 
     val insetsController = activity.let {
@@ -1937,129 +1810,6 @@ fun BrowserScreen(
             }
         }
 
-        LaunchedEffect(Unit) {
-            val downloadManager =
-                context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-
-            // This loop runs for the entire lifecycle of the screen
-            while (true) {
-                // Find downloads that need monitoring IN THIS CURRENT ITERATION
-                val activeDownloads =
-                    downloads.filter { it.status == DownloadStatus.RUNNING || it.status == DownloadStatus.PENDING }
-
-                if (activeDownloads.isEmpty()) {
-                    // If there's nothing to do, clear the tracker and just wait.
-                    // This prevents stale data if the app is backgrounded and resumed.
-                    if (lastPollData.isNotEmpty()) {
-                        lastPollData.clear()
-                    }
-                } else {
-                    // There are active downloads, so we poll them.
-                    val currentTimeMs = System.currentTimeMillis()
-                    var changed = false
-
-                    activeDownloads.forEach { item ->
-                        val query = DownloadManager.Query().setFilterById(item.id)
-                        downloadManager.query(query)?.use { cursor ->
-                            if (cursor.moveToFirst()) {
-
-
-                                val statusIndex =
-                                    cursor.getColumnIndex(DownloadManager.COLUMN_STATUS)
-                                val downloadedBytesIndex =
-                                    cursor.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)
-                                val totalBytesIndex =
-                                    cursor.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES)
-
-                                if (statusIndex == -1 || downloadedBytesIndex == -1 || totalBytesIndex == -1) {
-                                    return@use
-                                }
-
-                                val downloadedBytes = cursor.getLong(downloadedBytesIndex)
-                                val totalBytes = cursor.getLong(totalBytesIndex)
-                                val statusInt = cursor.getInt(statusIndex)
-
-
-                                var speedBps = item.downloadSpeedBps
-                                var etrMs = item.timeRemainingMs
-
-                                val lastData = lastPollData[item.id]
-
-                                if (lastData != null) {
-                                    // Check if the actual downloaded bytes have changed since our last check
-                                    if (downloadedBytes > lastData.bytesDownloaded) {
-                                        val timeDeltaMs = currentTimeMs - lastData.timestampMs
-                                        val bytesDelta = downloadedBytes - lastData.bytesDownloaded
-
-                                        if (timeDeltaMs > 0) {
-                                            speedBps = (bytesDelta * 1000f) / timeDeltaMs
-                                            if (totalBytes > 0) {
-                                                val bytesRemaining = totalBytes - downloadedBytes
-                                                etrMs =
-                                                    ((bytesRemaining / speedBps) * 1000).toLong()
-                                            }
-                                            // Update the tracker with the new data
-                                            lastPollData[item.id] =
-                                                PollData(currentTimeMs, downloadedBytes, speedBps)
-                                        }
-                                    } else {
-                                        // NO CHANGE in bytes. Keep displaying the last known good speed.
-                                        // We also check if too much time has passed since the last update.
-                                        // If so, we reset speed to 0, assuming a stall.
-                                        if ((currentTimeMs - lastData.timestampMs) > 2000) { // 2 seconds threshold
-                                            speedBps = 0f
-                                            etrMs = 0L
-                                            // Update the tracker so we don't keep resetting
-                                            lastPollData[item.id] = lastData.copy(lastSpeedBps = 0f)
-                                        }
-                                    }
-                                } else {
-                                    // First poll, initialize
-                                    lastPollData[item.id] = PollData(currentTimeMs, downloadedBytes)
-                                }
-
-                                val status = when (statusInt) {
-                                    DownloadManager.STATUS_RUNNING -> DownloadStatus.RUNNING
-                                    DownloadManager.STATUS_PAUSED -> DownloadStatus.PAUSED
-                                    DownloadManager.STATUS_SUCCESSFUL -> DownloadStatus.SUCCESSFUL
-                                    DownloadManager.STATUS_FAILED -> DownloadStatus.FAILED
-                                    else -> item.status
-                                }
-                                val progress =
-                                    if (totalBytes > 0) ((downloadedBytes * 100) / totalBytes).toInt() else 0
-                                val itemIndex = downloads.indexOfFirst { it.id == item.id }
-
-                                if (itemIndex != -1) {
-                                    val updatedItem = downloads[itemIndex].copy(
-                                        status = status,
-                                        progress = progress,
-                                        downloadedBytes = downloadedBytes,
-                                        totalBytes = totalBytes
-                                    )
-                                    // 2. Manually set the transient data on the new object
-                                    updatedItem.downloadSpeedBps = speedBps
-                                    updatedItem.timeRemainingMs = etrMs
-
-                                    // 3. Replace the old item in the list. THIS TRIGGERS THE UI UPDATE.
-                                    downloads[itemIndex] = updatedItem
-                                    changed = true
-                                }
-
-                                if (status != DownloadStatus.RUNNING && status != DownloadStatus.PENDING) {
-                                    lastPollData.remove(item.id)
-                                }
-                            }
-                        }
-                    }
-                    if (changed) {
-                        downloadTracker.saveDownloads(downloads)
-                    }
-                }
-
-                // The delay is now at the end of the main while loop
-                delay(100L)
-            }
-        }
 
 
 
@@ -3196,10 +2946,7 @@ fun BrowserScreen(
                                 }
                             },
                             onDownloadRowClicked = handleOpenFile,
-                            onDeleteClicked = handleDeleteFile,
                             onOpenFolderClicked = handleOpenDownloadsFolder,
-                            onClearAllClicked = handleClearAll,
-                            downloads = downloads,
 
 
                             isTabsPanelVisible = uiState.isTabsPanelVisible,

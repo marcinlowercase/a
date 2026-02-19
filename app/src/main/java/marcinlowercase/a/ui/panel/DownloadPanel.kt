@@ -56,15 +56,11 @@ fun DownloadPanel(
 //    currentRotation: Float,
     confirmationPopup: (message: String,url: String, onConfirm: () -> Unit, onCancel: () -> Unit) -> Unit,
     isDownloadPanelVisible: Boolean,
-    downloads: List<DownloadItem>,
     onDownloadRowClicked: (DownloadItem) -> Unit,
-    onDeleteClicked: (DownloadItem) -> Unit,
     onOpenFolderClicked: () -> Unit,
-    onClearAllClicked: () -> Unit,
     descriptionContent: MutableState<String>
 ) {
     val viewModel = LocalBrowserViewModel.current
-    val uiState = viewModel.uiState.collectAsState().value
 val settings = viewModel.browserSettings.collectAsState().value
     AnimatedVisibility(
         visible = isDownloadPanelVisible,
@@ -100,7 +96,7 @@ val settings = viewModel.browserSettings.collectAsState().value
                     )
                 )
         ) {
-            if (downloads.isEmpty()) {
+            if (viewModel.downloads.isEmpty()) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -117,7 +113,7 @@ val settings = viewModel.browserSettings.collectAsState().value
                         ),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("no downloads .", color = Color.White)
+                    Text("no viewModel.downloads .", color = Color.White)
                 }
 
 
@@ -136,12 +132,14 @@ val settings = viewModel.browserSettings.collectAsState().value
                         ),
                     reverseLayout = true,
                 ) {
-                    items(downloads.size, key = { downloads[it].id }) { index ->
+                    items(viewModel.downloads.size, key = { viewModel.downloads[it].id }) { index ->
                         DownloadRow(
                             index = index,
-                            item = downloads[index],
-                            onClick = { onDownloadRowClicked(downloads[index]) },
-                            onDeleteClicked = { onDeleteClicked(downloads[index]) }
+                            item = viewModel.downloads[index],
+                            onClick = { onDownloadRowClicked(viewModel.downloads[index]) },
+                            onDeleteClicked = {
+                                viewModel.deleteDownload(viewModel.downloads[index])
+                            }
                         )
                     }
                 }
@@ -171,7 +169,7 @@ val settings = viewModel.browserSettings.collectAsState().value
                     painterId = R.drawable.ic_folder,
 //                    currentRotation = currentRotation,
                 )
-                if (downloads.isNotEmpty())
+                if (viewModel.downloads.isNotEmpty())
                     CustomIconButton(
 //                        currentRotation = currentRotation,
                         layer = 3,
@@ -181,8 +179,7 @@ val settings = viewModel.browserSettings.collectAsState().value
                                 "clear download list ?",
                                 "",
                                 {
-                                    onClearAllClicked()
-
+                                    viewModel.clearDownloadList()
                                 },
                                 {}
                             )
@@ -208,7 +205,6 @@ fun DownloadRow(
     onDeleteClicked: () -> Unit
 ) {
     val viewModel = LocalBrowserViewModel.current
-    val uiState = viewModel.uiState.collectAsState().value
 val settings = viewModel.browserSettings.collectAsState().value
     var showDeleteConfirm by remember { mutableStateOf(false) }
 

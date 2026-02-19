@@ -1,11 +1,15 @@
 package marcinlowercase.a.ui.viewmodel
 
 import android.app.Application
+import android.app.DownloadManager
 import android.content.Context
+import android.media.MediaScannerConnection
+import android.os.Environment
 import android.util.Log
+import android.webkit.URLUtil
 import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
@@ -14,6 +18,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import marcinlowercase.a.CustomApplication
 import marcinlowercase.a.core.constant.default_url
@@ -21,18 +26,27 @@ import marcinlowercase.a.core.constant.pixel_9_corner_radius
 import marcinlowercase.a.core.data_class.App
 import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.BrowserUIState
+import marcinlowercase.a.core.data_class.DownloadItem
+import marcinlowercase.a.core.data_class.DownloadParams
 import marcinlowercase.a.core.data_class.PanelVisibilityState
+import marcinlowercase.a.core.data_class.PollData
 import marcinlowercase.a.core.data_class.Tab
 import marcinlowercase.a.core.enum_class.BrowserSettingField
+import marcinlowercase.a.core.enum_class.DownloadStatus
 import marcinlowercase.a.core.enum_class.TabState
 import marcinlowercase.a.core.manager.AppManager
+import marcinlowercase.a.core.manager.BrowserDownloadManager
 import marcinlowercase.a.core.manager.TabManager
+import java.io.File
+import java.net.URLDecoder
 import java.util.Collections
+import java.util.regex.Pattern
 
 val LocalBrowserViewModel = staticCompositionLocalOf<BrowserViewModel> {
     error("No BrowserViewModel provided! Check your root Composable.")
 }
 class BrowserViewModel(application: Application) : AndroidViewModel(application) {
+
 
     //region Browser Settings
     private val sharedPrefs = application.getSharedPreferences("BrowserPrefs", Context.MODE_PRIVATE)
@@ -572,4 +586,208 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         appManager.saveApps(apps)
     }
     //endregion
+
+    //region Download Logic
+    val downloadTracker = BrowserDownloadManager(application)
+    val downloads = mutableStateListOf<DownloadItem>().apply { addAll(downloadTracker.loadDownloads()) }
+
+    var pendingDownload: DownloadParams? = null
+    private val lastPollData = mutableMapOf<Long, PollData>()
+
+
+    private fun startDownloadPolling() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val downloadManager = getApplication<Application>().getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+
+            while (isActive) { // Runs as long as ViewModel is alive
+                val activeDownloads = downloads.filter {
+                    it.status == DownloadStatus.RUNNING || it.status == DownloadStatus.PENDING
+                }
+
+                if (activeDownloads.isEmpty()) {
+                    if (lastPollData.isNotEmpty()) lastPollData.clear()
+                } else {
+                    val currentTimeMs = System.currentTimeMillis()
+                    var changed = false
+
+                    activeDownloads.forEach { item ->
+                        try {
+                            val query = DownloadManager.Query().setFilterById(item.id)
+                            downloadManager.query(query)?.use { cursor ->
+                                if (cursor.moveToFirst()) {
+                                    val statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS)
+                                    val downloadedBytesIndex = cursor.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)
+                                    val totalBytesIndex = cursor.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES)
+
+                                    if (statusIndex != -1 && downloadedBytesIndex != -1 && totalBytesIndex != -1) {
+                                        val downloadedBytes = cursor.getLong(downloadedBytesIndex)
+                                        val totalBytes = cursor.getLong(totalBytesIndex)
+                                        val statusInt = cursor.getInt(statusIndex)
+
+                                        var speedBps = item.downloadSpeedBps
+                                        var etrMs = item.timeRemainingMs
+
+                                        // Calculate Speed
+                                        val lastData = lastPollData[item.id]
+                                        if (lastData != null) {
+                                            if (downloadedBytes > lastData.bytesDownloaded) {
+                                                val timeDeltaMs = currentTimeMs - lastData.timestampMs
+                                                val bytesDelta = downloadedBytes - lastData.bytesDownloaded
+                                                if (timeDeltaMs > 0) {
+                                                    speedBps = (bytesDelta * 1000f) / timeDeltaMs
+                                                    if (totalBytes > 0L) {
+                                                        val bytesRemaining = totalBytes - downloadedBytes
+                                                        etrMs = ((bytesRemaining / speedBps) * 1000).toLong()
+                                                    }
+                                                    lastPollData[item.id] = PollData(currentTimeMs, downloadedBytes, speedBps)
+                                                }
+                                            } else if ((currentTimeMs - lastData.timestampMs) > 2000) {
+                                                speedBps = 0f
+                                                etrMs = 0L
+                                                lastPollData[item.id] = lastData.copy(lastSpeedBps = 0f)
+                                            }
+                                        } else {
+                                            lastPollData[item.id] = PollData(currentTimeMs, downloadedBytes)
+                                        }
+
+                                        val status = when (statusInt) {
+                                            DownloadManager.STATUS_RUNNING -> DownloadStatus.RUNNING
+                                            DownloadManager.STATUS_PAUSED -> DownloadStatus.PAUSED
+                                            DownloadManager.STATUS_SUCCESSFUL -> DownloadStatus.SUCCESSFUL
+                                            DownloadManager.STATUS_FAILED -> DownloadStatus.FAILED
+                                            else -> item.status
+                                        }
+
+                                        val progress = if (totalBytes > 0) ((downloadedBytes * 100) / totalBytes).toInt() else 0
+                                        val itemIndex = downloads.indexOfFirst { it.id == item.id }
+
+                                        if (itemIndex != -1) {
+                                            // Only update if something actually changed to avoid recomposition spam
+                                            val oldItem = downloads[itemIndex]
+                                            if (oldItem.progress != progress || oldItem.status != status || oldItem.downloadSpeedBps != speedBps) {
+                                                downloads[itemIndex] = oldItem.copy(
+                                                    status = status,
+                                                    progress = progress,
+                                                    downloadedBytes = downloadedBytes,
+                                                    totalBytes = totalBytes
+                                                ).apply {
+                                                    this.downloadSpeedBps = speedBps
+                                                    this.timeRemainingMs = etrMs
+                                                }
+                                                changed = true
+                                            }
+                                        }
+
+                                        if (status != DownloadStatus.RUNNING && status != DownloadStatus.PENDING) {
+                                            lastPollData.remove(item.id)
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.e("Download", "Error querying download", e)
+                        }
+                    }
+                    if (changed) {
+                        downloadTracker.saveDownloads(downloads)
+                    }
+                }
+                delay(100L)
+            }
+        }
+    }
+    fun performDownloadEnqueue(params: DownloadParams) {
+        updateUI { it.copy(isUrlBarVisible = true, isDownloadPanelVisible = true) }
+
+        val context = getApplication<Application>()
+        val initialFilename = getBestGuessFilename(params.url, params.contentDisposition, params.mimeType)
+        val finalFilename = generateUniqueFilename(initialFilename, downloads)
+
+        val request = DownloadManager.Request(params.url.toUri()).apply {
+            setTitle(finalFilename)
+            setDescription("Downloading file...")
+            setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+            setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, finalFilename)
+            addRequestHeader("User-Agent", params.userAgent)
+        }
+
+        val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+        try {
+            val downloadId = downloadManager.enqueue(request)
+            val newDownload = DownloadItem(
+                id = downloadId,
+                url = params.url,
+                filename = finalFilename,
+                mimeType = params.mimeType ?: "application/octet-stream",
+                status = DownloadStatus.PENDING
+            )
+            downloads.add(0, newDownload)
+            downloadTracker.saveDownloads(downloads)
+        } catch (e: Exception) {
+            Log.e("Download", "Failed to enqueue", e)
+            // Ideally, emit a UI Event here to show a Toast
+        }
+    }
+    fun deleteDownload(item: DownloadItem) {
+        if (item.isBlobDownload) {
+            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            val file = File(downloadsDir, item.filename)
+            if (file.exists()) {
+                if (file.delete()) {
+                    MediaScannerConnection.scanFile(getApplication(), arrayOf(file.absolutePath), null, null)
+                }
+            }
+        } else {
+            val downloadManager = getApplication<Application>().getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+            downloadManager.remove(item.id)
+        }
+        downloads.remove(item)
+        downloadTracker.saveDownloads(downloads)
+    }
+
+    fun clearDownloadList() {
+        downloads.clear()
+        downloadTracker.saveDownloads(downloads)
+    }
+    // Helper functions (moved from UI)
+    private fun getBestGuessFilename(url: String, contentDisposition: String?, mimeType: String?): String {
+        if (contentDisposition != null) {
+            val pattern = Pattern.compile("filename\\*?=['\"]?([^'\"\\s]+)['\"]?", Pattern.CASE_INSENSITIVE)
+            val matcher = pattern.matcher(contentDisposition)
+            if (matcher.find()) {
+                val filename = matcher.group(1)
+                if (filename != null) {
+                    try { return URLDecoder.decode(filename, "UTF-8") } catch (_: Exception) {}
+                }
+            }
+        }
+        try {
+            val path = url.toUri().path
+            if (path != null) {
+                val lastSegment = path.substringAfterLast('/')
+                if (lastSegment.isNotBlank()) return lastSegment
+            }
+        } catch (_: Exception) {}
+        return URLUtil.guessFileName(url, contentDisposition, mimeType)
+    }
+
+    private fun generateUniqueFilename(initialName: String, existingDownloads: List<DownloadItem>): String {
+        val existingFilenames = existingDownloads.map { it.filename }.toSet()
+        if (!existingFilenames.contains(initialName)) return initialName
+
+        val baseName = initialName.substringBeforeLast('.')
+        val extension = initialName.substringAfterLast('.', "")
+        val finalExtension = if (extension.isNotEmpty()) ".$extension" else ""
+        var counter = 1
+        while (true) {
+            val newName = "$baseName ($counter)$finalExtension"
+            if (!existingFilenames.contains(newName)) return newName
+            counter++
+        }
+    }
+    //endregion
+
+    init {
+        startDownloadPolling()
+    }
 }

@@ -156,10 +156,7 @@ fun BottomPanel(
     onTabLongPressed: (Tab) -> Unit,
 
     onDownloadRowClicked: (DownloadItem) -> Unit,
-    onDeleteClicked: (DownloadItem) -> Unit,
     onOpenFolderClicked: () -> Unit,
-    onClearAllClicked: () -> Unit,
-    downloads: List<DownloadItem>,
 
     activeSession: GeckoSession,
 
@@ -264,11 +261,8 @@ fun BottomPanel(
                 DownloadPanel(
                     confirmationPopup = confirmationPopup,
                     isDownloadPanelVisible = uiState.isDownloadPanelVisible,
-                    downloads = downloads,
                     onDownloadRowClicked = onDownloadRowClicked,
-                    onDeleteClicked = onDeleteClicked,
                     onOpenFolderClicked = onOpenFolderClicked,
-                    onClearAllClicked = onClearAllClicked,
                     descriptionContent = descriptionContent,
                 )
 
