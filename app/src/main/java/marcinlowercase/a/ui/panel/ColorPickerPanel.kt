@@ -60,9 +60,9 @@ fun ColorPickerPanel(
     onDismiss: () -> Unit,
 ) {
     val viewModel = LocalBrowserViewModel.current
-    val uiState = viewModel.uiState.collectAsState().value
-    val isFocusOnSettingTextField = uiState.isFocusOnSettingTextField
-    val settings = viewModel.browserSettings.collectAsState().value
+    val uiState = viewModel.uiState.collectAsState()
+    val isFocusOnSettingTextField = uiState.value.isFocusOnSettingTextField
+    val settings = viewModel.browserSettings.collectAsState()
 
 
     val state = colorState.value ?: return
@@ -100,26 +100,26 @@ fun ColorPickerPanel(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = settings.padding.dp)
-            .clip(RoundedCornerShape(settings.cornerRadiusForLayer(1).dp))
+            .padding(horizontal = settings.value.padding.dp)
+            .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
             .background(Color(selectedColorInt))
-            .padding(settings.padding.dp)
-            .clip(RoundedCornerShape(settings.cornerRadiusForLayer(2).dp))
+            .padding(settings.value.padding.dp)
+            .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp))
 
             .background(Color.Black)
 
 
     ) {
         Column(
-            verticalArrangement = Arrangement.spacedBy(settings.padding.dp),
-            modifier = Modifier.padding(settings.padding.dp)
+            verticalArrangement = Arrangement.spacedBy(settings.value.padding.dp),
+            modifier = Modifier.padding(settings.value.padding.dp)
         ) {
             // --- 1. BIG PREVIEW BOX / EDITABLE TEXT FIELD ---
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(settings.heightForLayer(3).dp)
-                    .clip(RoundedCornerShape(settings.cornerRadiusForLayer(2).dp))
+                    .height(settings.value.heightForLayer(3).dp)
+                    .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp))
                     .background(Color(selectedColorInt)),
                 contentAlignment = Alignment.Center
             ) {
@@ -174,8 +174,8 @@ fun ColorPickerPanel(
             AnimatedVisibility(
                 visible = !isFocusOnSettingTextField,
 
-                enter = expandVertically(tween(settings.animationSpeedForLayer(1))),
-                exit = shrinkVertically(tween(settings.animationSpeedForLayer(1)))
+                enter = expandVertically(tween(settings.value.animationSpeedForLayer(1))),
+                exit = shrinkVertically(tween(settings.value.animationSpeedForLayer(1)))
 
             ) {
 
@@ -221,7 +221,7 @@ fun ColorPickerPanel(
                 }
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(settings.padding.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp)) {
                 CustomIconButton(
                     layer = 3,
                     modifier = Modifier.weight(1f),

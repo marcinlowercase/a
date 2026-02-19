@@ -522,13 +522,6 @@ fun BrowserScreen(
         viewModel.geckoManager.getSession(viewModel.activeTab!!)
     }
 
-//    val siteSettingsManager = remember { SiteSettingsManager(context) }
-//    val siteSettings = remember {
-//        mutableStateMapOf<String, SiteSettings>().apply {
-//            putAll(siteSettingsManager.loadSettings())
-//        }
-//    }
-
     var isApplyImePaddingToWebView by remember { mutableStateOf(true) }
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
@@ -1843,6 +1836,7 @@ fun BrowserScreen(
                     viewModel.updateUI {
                         it.copy(
                             isMediaControlPanelDisplayed = isFullscreen,
+                            isMediaControlPanelVisible = isFullscreen,
                             isOnFullscreenVideo = isFullscreen
                         )
                     }

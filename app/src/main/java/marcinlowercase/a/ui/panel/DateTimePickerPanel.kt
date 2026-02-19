@@ -43,9 +43,8 @@ fun DateTimePickerPanel(
 ) {
 
     val viewModel = LocalBrowserViewModel.current
-    val uiState = viewModel.uiState.collectAsState().value
-val settings = viewModel.browserSettings.collectAsState().value
-    
+    val settings = viewModel.browserSettings.collectAsState()
+
     val state = dateTimeState.value ?: return
     val prompt = state.prompt
     val result = state.result
@@ -63,11 +62,13 @@ val settings = viewModel.browserSettings.collectAsState().value
                     DateTimePrompt.Type.TIME -> {
                         time = LocalTime.parse(defaultVal)
                     }
+
                     DateTimePrompt.Type.DATETIME_LOCAL -> {
                         val parts = defaultVal.split("T")
                         if (parts.isNotEmpty()) date = LocalDate.parse(parts[0])
                         if (parts.size >= 2) time = LocalTime.parse(parts[1])
                     }
+
                     else -> {
                         // Date, Month, Week
                         date = LocalDate.parse(defaultVal)
@@ -91,12 +92,16 @@ val settings = viewModel.browserSettings.collectAsState().value
     fun confirm() {
         val finalString = when (prompt.type) {
             DateTimePrompt.Type.DATE -> selectedDate.toString()
-            DateTimePrompt.Type.MONTH -> "${selectedDate.year}-${selectedDate.monthValue.toString().padStart(2, '0')}"
+            DateTimePrompt.Type.MONTH -> "${selectedDate.year}-${
+                selectedDate.monthValue.toString().padStart(2, '0')
+            }"
+
             DateTimePrompt.Type.WEEK -> {
                 val week = selectedDate.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR)
                 val year = selectedDate.get(IsoFields.WEEK_BASED_YEAR)
                 "${year}-W${week.toString().padStart(2, '0')}"
             }
+
             DateTimePrompt.Type.TIME -> selectedTime.toString()
             DateTimePrompt.Type.DATETIME_LOCAL -> "${selectedDate}T${selectedTime}"
             else -> ""
@@ -109,14 +114,14 @@ val settings = viewModel.browserSettings.collectAsState().value
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = settings.padding.dp)
-            .clip(RoundedCornerShape(settings.cornerRadiusForLayer(1).dp))
+            .padding(horizontal = settings.value.padding.dp)
+            .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
             .background(Color.Black)
-            .padding(settings.padding.dp)
+            .padding(settings.value.padding.dp)
     ) {
         Column(
-            modifier = Modifier.clip(RoundedCornerShape(settings.cornerRadiusForLayer(2).dp)),
-            verticalArrangement = Arrangement.spacedBy(settings.padding.dp)
+            modifier = Modifier.clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp)),
+            verticalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
         ) {
 
             AnimatedContent(
@@ -142,13 +147,15 @@ val settings = viewModel.browserSettings.collectAsState().value
                         // --- DATE PICKER ---
                         // Use ZoneOffset.UTC to ensure millisecond selection matches the date object exactly
                         val datePickerState = rememberDatePickerState(
-                            initialSelectedDateMillis = selectedDate.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+                            initialSelectedDateMillis = selectedDate.atStartOfDay(ZoneOffset.UTC)
+                                .toInstant().toEpochMilli()
                         )
 
                         // Sync state change back to selectedDate
                         LaunchedEffect(datePickerState.selectedDateMillis) {
                             datePickerState.selectedDateMillis?.let {
-                                selectedDate = Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate()
+                                selectedDate =
+                                    Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate()
                             }
                         }
 
@@ -174,8 +181,8 @@ val settings = viewModel.browserSettings.collectAsState().value
                             showModeToggle = false,
                             title = null, // Removes "Select date"
                             modifier = Modifier
-                                .padding(top = settings.padding.dp)
-                                .padding(horizontal = settings.padding.dp)
+                                .padding(top = settings.value.padding.dp)
+                                .padding(horizontal = settings.value.padding.dp)
                         )
                     } else {
                         // --- TIME PICKER ---
@@ -187,7 +194,8 @@ val settings = viewModel.browserSettings.collectAsState().value
 
                         // Sync state continuously
                         LaunchedEffect(timePickerState.hour, timePickerState.minute) {
-                            selectedTime = LocalTime.of(timePickerState.hour, timePickerState.minute)
+                            selectedTime =
+                                LocalTime.of(timePickerState.hour, timePickerState.minute)
                         }
 
                         TimePicker(
@@ -206,7 +214,7 @@ val settings = viewModel.browserSettings.collectAsState().value
                                 timeSelectorUnselectedContainerColor = Color.DarkGray,
                                 timeSelectorUnselectedContentColor = Color.White
                             ),
-                            modifier = Modifier.padding(vertical = settings.padding.dp)
+                            modifier = Modifier.padding(vertical = settings.value.padding.dp)
                         )
                     }
                 }
@@ -215,7 +223,7 @@ val settings = viewModel.browserSettings.collectAsState().value
             // --- ACTION BUTTONS ---
             val localDescription = remember { mutableStateOf("") }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(settings.padding.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp)) {
                 CustomIconButton(
                     layer = 2,
                     modifier = Modifier.weight(1f),
@@ -231,7 +239,7 @@ val settings = viewModel.browserSettings.collectAsState().value
                     descriptionContent = localDescription,
                     painterId = if (step == 1 && prompt.type == DateTimePrompt.Type.DATETIME_LOCAL) R.drawable.ic_arrow_back else R.drawable.ic_close,
                     isWhite = (step == 1 && prompt.type == DateTimePrompt.Type.DATETIME_LOCAL),
-                            useLongPress = false,
+                    useLongPress = false,
 
                     )
 

@@ -54,24 +54,24 @@ fun NewTabButton(
     onClick: () -> Unit
 ) {
     val viewModel = LocalBrowserViewModel.current
-    val settings = viewModel.browserSettings.collectAsState().value
+    val settings = viewModel.browserSettings.collectAsState()
     Box(
-        modifier = modifier.padding(settings.padding.dp)
+        modifier = modifier.padding(settings.value.padding.dp)
     )
     {
         Box(
             modifier = modifier
 
-                .padding(horizontal = settings.padding.dp)
+                .padding(horizontal = settings.value.padding.dp)
                 .clip(
                     RoundedCornerShape(
-                        settings.cornerRadiusForLayer(3).dp
+                        settings.value.cornerRadiusForLayer(3).dp
                     )
                 )
                 .clickable(onClick = onClick)
                 .background(Color.Black.copy(alpha = 0.2f))
                 .height(
-                    settings.heightForLayer(3).dp
+                    settings.value.heightForLayer(3).dp
                 )
                 .fillMaxWidth(),
             contentAlignment = Alignment.Center
@@ -95,15 +95,15 @@ fun TabItem(
     onLongClick: () -> Unit,
 ) {
     val viewModel = LocalBrowserViewModel.current
-val settings = viewModel.browserSettings.collectAsState().value
-    val hapticFeedback  = LocalHapticFeedback.current
+    val settings = viewModel.browserSettings.collectAsState()
+    val hapticFeedback = LocalHapticFeedback.current
     Box(
 
         modifier = Modifier
-            .padding(settings.padding.dp)
+            .padding(settings.value.padding.dp)
             .clip(
                 RoundedCornerShape(
-                    settings.cornerRadiusForLayer(3).dp
+                    settings.value.cornerRadiusForLayer(3).dp
                 )
             )
     ) {
@@ -121,20 +121,20 @@ val settings = viewModel.browserSettings.collectAsState().value
                     )
                 }
                 .height(
-                    settings.heightForLayer(3).dp
+                    settings.value.heightForLayer(3).dp
                 )
                 .clip(
                     RoundedCornerShape(
-                        settings.cornerRadiusForLayer(3).dp
+                        settings.value.cornerRadiusForLayer(3).dp
                     )
                 )
                 .background(if (isActive) Color.White else Color.White.copy(alpha = 0.5f)) // Different background for inactive
-                .padding(horizontal = settings.padding.dp),
+                .padding(horizontal = settings.value.padding.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(
                 modifier = Modifier
-                    .padding(settings.padding.dp)
+                    .padding(settings.value.padding.dp)
 
             ) {
 
@@ -142,7 +142,7 @@ val settings = viewModel.browserSettings.collectAsState().value
                     modifier = Modifier
                         .size(24.dp),
 
-//                        .clip(RoundedCornerShape(settings.padding.dp / 2)),
+//                        .clip(RoundedCornerShape(settings.value.padding.dp / 2)),
 //                        .background(Color.White.copy(alpha = 0.2f)),
 //                        .background(if (isActive) Color.White else Color.White.copy(alpha = 0.7f)),
                     contentAlignment = Alignment.Center
@@ -153,7 +153,10 @@ val settings = viewModel.browserSettings.collectAsState().value
 
                     // 1. Build the same robust ImageRequest as before.
                     val imageRequest = ImageRequest.Builder(LocalContext.current)
-                        .addHeader("User-Agent", "Mozilla/5.0 (Android 14; Mobile; rv:130.0) Gecko/130.0 Firefox/130.0")
+                        .addHeader(
+                            "User-Agent",
+                            "Mozilla/5.0 (Android 14; Mobile; rv:130.0) Gecko/130.0 Firefox/130.0"
+                        )
                         .data(faviconUrl)
                         .size(imageSizePx) // Explicitly set size
                         .crossfade(true)
@@ -174,7 +177,7 @@ val settings = viewModel.browserSettings.collectAsState().value
                     )
                 }
 
-                Spacer(Modifier.width(settings.padding.dp))
+                Spacer(Modifier.width(settings.value.padding.dp))
                 Text(
                     text = title,
                     color = if (isActive) Color.Black else Color.Black.copy(alpha = 0.7f), // Dim the text for inactive
@@ -196,12 +199,14 @@ fun TabsPanel(
     onTabLongPressed: (Tab) -> Unit,
     updateInspectingTab: (Tab) -> Unit,
 ) {
-    
+
     val viewModel = LocalBrowserViewModel.current
     if (viewModel.tabs.isEmpty()) return
-val settings = viewModel.browserSettings.collectAsState().value
+    val settings = viewModel.browserSettings.collectAsState()
     val pagerState =
-        rememberPagerState(initialPage = viewModel.activeTabIndex.collectAsState().value + 1, pageCount = { viewModel.tabs.size + 2 })
+        rememberPagerState(
+            initialPage = viewModel.activeTabIndex.collectAsState().value + 1,
+            pageCount = { viewModel.tabs.size + 2 })
 
     // This effect is still useful to sync the pager if a new tab is created
     LaunchedEffect(viewModel.activeTabIndex.collectAsState().value, viewModel.tabs.size) {
@@ -226,20 +231,20 @@ val settings = viewModel.browserSettings.collectAsState().value
         visible = isTabsPanelVisible,
         enter = expandVertically(
             tween(
-                settings.animationSpeedForLayer(1)
+                settings.value.animationSpeedForLayer(1)
             )
         ) + fadeIn(
             tween(
-                settings.animationSpeedForLayer(1)
+                settings.value.animationSpeedForLayer(1)
             )
         ),
         exit = shrinkVertically(
             tween(
-                settings.animationSpeedForLayer(1)
+                settings.value.animationSpeedForLayer(1)
             )
         ) + fadeOut(
             tween(
-                settings.animationSpeedForLayer(1)
+                settings.value.animationSpeedForLayer(1)
             )
         )
 
@@ -247,12 +252,12 @@ val settings = viewModel.browserSettings.collectAsState().value
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = settings.padding.dp)
-                .padding(horizontal = settings.padding.dp)
+                .padding(top = settings.value.padding.dp)
+                .padding(horizontal = settings.value.padding.dp)
 
                 .clip(
                     RoundedCornerShape(
-                        settings.cornerRadiusForLayer(2).dp
+                        settings.value.cornerRadiusForLayer(2).dp
                     )
                 )
         ) {
@@ -261,15 +266,20 @@ val settings = viewModel.browserSettings.collectAsState().value
                 modifier = modifier
                     .fillMaxWidth(),
                 // We use a smaller content padding so the active tab is larger
-                contentPadding = PaddingValues(horizontal = settings.padding.dp * 4),
-                pageSpacing = settings.padding.dp / 2
+                contentPadding = PaddingValues(horizontal = settings.value.padding.dp * 4),
+                pageSpacing = settings.value.padding.dp / 2
             ) { pageIndex ->
 
                 when (pageIndex) {
                     0 -> {
                         // This is the FIRST page: New Tab button on the left
                         NewTabButton(
-                            onClick = { viewModel.createNewTab(0, "")} // Request new tab at index 0
+                            onClick = {
+                                viewModel.createNewTab(
+                                    0,
+                                    ""
+                                )
+                            } // Request new tab at index 0
                         )
                     }
 
@@ -303,7 +313,12 @@ val settings = viewModel.browserSettings.collectAsState().value
                     else -> {
                         // This is the LAST page: New Tab button on the right
                         NewTabButton(
-                            onClick = { viewModel.createNewTab(viewModel.tabs.size, "") } // Request new tab at the end
+                            onClick = {
+                                viewModel.createNewTab(
+                                    viewModel.tabs.size,
+                                    ""
+                                )
+                            } // Request new tab at the end
                         )
                     }
                 }

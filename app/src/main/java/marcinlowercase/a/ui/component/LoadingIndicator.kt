@@ -24,26 +24,26 @@ fun LoadingIndicator(
 ) {
 
     val viewModel = LocalBrowserViewModel.current
-    val uiState = viewModel.uiState.collectAsState().value
-    val settings = viewModel.browserSettings.collectAsState().value
+    val uiState = viewModel.uiState.collectAsState()
+    val settings = viewModel.browserSettings.collectAsState()
 
 
     // Animate the appearance and disappearance of the overlay.
     AnimatedVisibility(
-        visible = uiState.isLoading,
+        visible = uiState.value.isLoading,
         modifier = modifier,
         enter = fadeIn(animationSpec = tween(300)),
         exit = fadeOut(animationSpec = tween(300))
     ) {
         Box(
             modifier = Modifier
-                .padding(settings.padding.dp)
+                .padding(settings.value.padding.dp)
                 .clip(
                     RoundedCornerShape(
-                        settings.cornerRadiusForLayer(1).dp
+                        settings.value.cornerRadiusForLayer(1).dp
                     )
                 )
-                .size(settings.heightForLayer(1).dp)
+                .size(settings.value.heightForLayer(1).dp)
                 .background(
                     Color.Black.copy(alpha = 0.5f),
                 )
@@ -52,11 +52,11 @@ fun LoadingIndicator(
         ) {
             CircularProgressIndicator(
                 modifier = Modifier
-                    .padding(settings.padding.dp)
-                    .size(settings.heightForLayer(1).dp),
+                    .padding(settings.value.padding.dp)
+                    .size(settings.value.heightForLayer(1).dp),
                 // Use a contrasting color that works well on the dark scrim.
                 color = Color.White,
-                strokeWidth = settings.padding.dp
+                strokeWidth = settings.value.padding.dp
             )
         }
     }

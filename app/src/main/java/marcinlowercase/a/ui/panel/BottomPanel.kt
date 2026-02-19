@@ -174,21 +174,21 @@ fun BottomPanel(
     isPinningApp: MutableState<Boolean>,
 ) {
     val viewModel = LocalBrowserViewModel.current
-    val uiState = viewModel.uiState.collectAsState().value
-    val settings = viewModel.browserSettings.collectAsState().value
+    val uiState = viewModel.uiState.collectAsState()
+    val settings = viewModel.browserSettings.collectAsState()
 
     AnimatedVisibility(
         modifier = modifier,
-        visible = uiState.isBottomPanelVisible,
+        visible = uiState.value.isBottomPanelVisible,
         enter = slideInVertically(
             animationSpec = tween(
-                settings.animationSpeedForLayer(0)
+                settings.value.animationSpeedForLayer(0)
             ),
             initialOffsetY = { it }
         ),
         exit = slideOutVertically(
             animationSpec = tween(
-                settings.animationSpeedForLayer(0)
+                settings.value.animationSpeedForLayer(0)
             ),
             targetOffsetY = { it }
         )
@@ -200,7 +200,7 @@ fun BottomPanel(
         ) {
             Column(
                 modifier = Modifier
-                    .padding(settings.padding.dp)
+                    .padding(settings.value.padding.dp)
                     .windowInsetsPadding(WindowInsets.ime)
                     //                .padding(webViewPaddingValue)
                     .padding(bottom = floatingPanelBottomPadding)
@@ -208,7 +208,7 @@ fun BottomPanel(
 
                     .clip(
                         RoundedCornerShape(
-                            settings.cornerRadiusForLayer(1).dp
+                            settings.value.cornerRadiusForLayer(1).dp
                         )
                     )
 
@@ -220,7 +220,7 @@ fun BottomPanel(
                         orientation = Orientation.Vertical,
                         flingBehavior = flingBehavior,
 //                                            enabled = !isFocusOnTextField && contextMenuData == null && !isPromptPanelVisible  && (!isPermissionPanelVisible || (isPermissionPanelVisible &&  isUrlBarVisible) )
-                        enabled = uiState.isUrlBarVisible && (!uiState.isFocusOnTextField && contextMenuData == null && !uiState.isPromptPanelVisible && (!uiState.isPermissionPanelVisible))
+                        enabled = uiState.value.isUrlBarVisible && (!uiState.value.isFocusOnTextField && contextMenuData == null && !uiState.value.isPromptPanelVisible && (!uiState.value.isPermissionPanelVisible))
                     )
 
             ) {
@@ -235,10 +235,10 @@ fun BottomPanel(
                 )
 
                 AppsPanel(
-                    visibility = uiState.isAppsPanelVisible,
+                    visibility = uiState.value.isAppsPanelVisible,
                     onAppClick = { app ->
 
-                        webViewLoad(activeSession, app.url, settings)
+                        webViewLoad(activeSession, app.url, settings.value)
                         viewModel.updateUI { it.copy(isSettingsPanelVisible = false) }
                         viewModel.updateUI { it.copy(isUrlBarVisible = false) }
 
@@ -247,13 +247,13 @@ fun BottomPanel(
                     inspectingAppId = inspectingAppId,
                 )
                 NavigationPanel(
-                    isNavPanelVisible = uiState.isNavPanelVisible,
+                    isNavPanelVisible = uiState.value.isNavPanelVisible,
                     activeAction = activeNavAction,
                 )
 
                 DownloadPanel(
                     confirmationPopup = confirmationPopup,
-                    isDownloadPanelVisible = uiState.isDownloadPanelVisible,
+                    isDownloadPanelVisible = uiState.value.isDownloadPanelVisible,
                     onDownloadRowClicked = onDownloadRowClicked,
                     onOpenFolderClicked = onOpenFolderClicked,
                     descriptionContent = descriptionContent,
@@ -273,7 +273,7 @@ fun BottomPanel(
                 )
 
                 FindInPagePanel(
-                    isVisible = uiState.isFindInPageVisible,
+                    isVisible = uiState.value.isFindInPageVisible,
                     searchText = findInPageText.value,
                     searchResult = findInPageResult.value,
                     onSearchTextChanged = { newText ->
@@ -349,7 +349,7 @@ fun BottomPanel(
                 )
                 PromptPanel(
                     geckoViewRef = geckoViewRef,
-                    isUrlBarVisible = uiState.isUrlBarVisible,
+                    isUrlBarVisible = uiState.value.isUrlBarVisible,
                     onDismiss = onDismiss,
                     state = state,
                     promptComponentDisplayState = promptComponentDisplayState,
@@ -376,7 +376,7 @@ fun BottomPanel(
                     updateInspectingTab = updateInspectingTab,
                 )
                 PermissionPanel(
-                    isUrlBarVisible = uiState.isUrlBarVisible,
+                    isUrlBarVisible = uiState.value.isUrlBarVisible,
                     onAllow = {
                         // When user clicks allow, launch the system dialog with the permissions
                         // stored in our request object.
@@ -401,14 +401,14 @@ fun BottomPanel(
                 AnimatedVisibility(visible = viewModel.suggestions.isNotEmpty()) {
                     LazyColumn(
                         modifier = Modifier
-                            .padding(horizontal = settings.padding.dp)
-                            .padding(top = settings.padding.dp)
+                            .padding(horizontal = settings.value.padding.dp)
+                            .padding(top = settings.value.padding.dp)
                             .clip(
                                 RoundedCornerShape(
-                                    settings.cornerRadiusForLayer(2).dp
+                                    settings.value.cornerRadiusForLayer(2).dp
                                 )
                             )
-                            .heightIn(max = settings.maxContainerSizeForLayer(3).dp), // Prevent the list from being too tall
+                            .heightIn(max = settings.value.maxContainerSizeForLayer(3).dp), // Prevent the list from being too tall
                         reverseLayout = true,
                     ) {
 
@@ -420,20 +420,20 @@ fun BottomPanel(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = settings.padding.dp)
+                                    .padding(horizontal = settings.value.padding.dp)
                                     .padding(
-                                        top = settings.padding.dp,
-                                        bottom = if (viewModel.suggestions.indexOf(suggestion) == 0) settings.padding.dp else 0.dp
+                                        top = settings.value.padding.dp,
+                                        bottom = if (viewModel.suggestions.indexOf(suggestion) == 0) settings.value.padding.dp else 0.dp
                                     )
-                                    .height(settings.heightForLayer(3).dp)
+                                    .height(settings.value.heightForLayer(3).dp)
                                     .clip(
                                         RoundedCornerShape(
-                                            settings.cornerRadiusForLayer(3).dp
+                                            settings.value.cornerRadiusForLayer(3).dp
                                         )
                                     )
                                     .clickable { onSuggestionClick(suggestion) }
 
-                                    .padding(settings.padding.dp),
+                                    .padding(settings.value.padding.dp),
                                 verticalAlignment = Alignment.CenterVertically // Align icon and text vertically
                             ) {
                                 // 2. Add the search Icon
@@ -445,7 +445,7 @@ fun BottomPanel(
                                 )
 
                                 // 3. Add a Spacer for visual separation
-                                Spacer(modifier = Modifier.width(settings.padding.dp))
+                                Spacer(modifier = Modifier.width(settings.value.padding.dp))
 
                                 // 4. Add the Text, which now takes the remaining space
                                 Text(
@@ -473,7 +473,7 @@ fun BottomPanel(
                     }
                 }
                 ConfirmationPanel(
-                    isUrlBarVisible = uiState.isUrlBarVisible,
+                    isUrlBarVisible = uiState.value.isUrlBarVisible,
                     state = confirmationDisplayState, // Use the display state here
                     isConfirmationPanelVisible = confirmationState != null // Visibility is controlled by the primary state
                 )
@@ -484,15 +484,15 @@ fun BottomPanel(
                             // The long press on the UrlBar will activate the gesture
 
                         },
-                    visible = uiState.isUrlBarVisible,
+                    visible = uiState.value.isUrlBarVisible,
                     enter = fadeIn(
                         tween(
-                            settings.animationSpeedForLayer(1)
+                            settings.value.animationSpeedForLayer(1)
                         )
                     ),
                     exit = fadeOut(
                         tween(
-                            settings.animationSpeedForLayer(1)
+                            settings.value.animationSpeedForLayer(1)
                         )
                     )
                 ) {
@@ -502,7 +502,7 @@ fun BottomPanel(
                             .fillMaxWidth()
                             .animateContentSize(),
                         contentPadding = PaddingValues(0.dp),
-                        pageSpacing = settings.padding.dp // Optional spacing
+                        pageSpacing = settings.value.padding.dp // Optional spacing
                     ) { pageIndex ->
                         LaunchedEffect(pageIndex) {
                             if (pageIndex != BottomPanelMode.SEARCH.ordinal) {
@@ -515,13 +515,13 @@ fun BottomPanel(
                                 Column(
                                     modifier = Modifier
                                         .height(
-                                            settings.heightForLayer(1).dp
+                                            settings.value.heightForLayer(1).dp
                                         )
                                         .fillMaxWidth()
-                                        .padding(settings.padding.dp)
+                                        .padding(settings.value.padding.dp)
                                         .clip(
                                             RoundedCornerShape(
-                                                settings.cornerRadiusForLayer(
+                                                settings.value.cornerRadiusForLayer(
                                                     1
                                                 ).dp
                                             )
@@ -533,14 +533,14 @@ fun BottomPanel(
                                         visible = inspectingAppId.value > 0L,
                                         enter = fadeIn(
                                             tween(
-                                                settings.animationSpeedForLayer(
+                                                settings.value.animationSpeedForLayer(
                                                     0
                                                 )
                                             )
                                         ),
                                         exit = fadeOut(
                                             tween(
-                                                settings.animationSpeedForLayer(
+                                                settings.value.animationSpeedForLayer(
                                                     0
                                                 )
                                             )
@@ -551,7 +551,7 @@ fun BottomPanel(
                                                 .fillMaxWidth()
                                                 .clip(
                                                     RoundedCornerShape(
-                                                        settings.cornerRadiusForLayer(
+                                                        settings.value.cornerRadiusForLayer(
                                                             1
                                                         ).dp
                                                     )
@@ -564,7 +564,7 @@ fun BottomPanel(
                                                 modifier = Modifier
                                                     .buttonSettingsForLayer(
                                                         2,
-                                                        settings,
+                                                        settings.value,
                                                         currentIndex > 0
                                                     )
                                                     .weight(1f)
@@ -581,13 +581,13 @@ fun BottomPanel(
                                                     tint = Color.Black
                                                 )
                                             }
-                                            Spacer(modifier = Modifier.width(settings.padding.dp))
+                                            Spacer(modifier = Modifier.width(settings.value.padding.dp))
 
                                             Box(
                                                 modifier = Modifier
                                                     .buttonSettingsForLayer(
                                                         2,
-                                                        settings,
+                                                        settings.value,
                                                         false
                                                     )
                                                     .weight(1f)
@@ -603,12 +603,12 @@ fun BottomPanel(
                                                     tint = Color.White
                                                 )
                                             }
-                                            Spacer(modifier = Modifier.width(settings.padding.dp))
+                                            Spacer(modifier = Modifier.width(settings.value.padding.dp))
                                             Box(
                                                 modifier = Modifier
                                                     .buttonSettingsForLayer(
                                                         2,
-                                                        settings,
+                                                        settings.value,
                                                         currentIndex < viewModel.apps.lastIndex && currentIndex >= 0
                                                     )
                                                     .weight(1f)
@@ -633,14 +633,14 @@ fun BottomPanel(
                                         visible = inspectingAppId.value == 0L,
                                         enter = fadeIn(
                                             tween(
-                                                settings.animationSpeedForLayer(
+                                                settings.value.animationSpeedForLayer(
                                                     0
                                                 )
                                             )
                                         ),
                                         exit = fadeOut(
                                             tween(
-                                                settings.animationSpeedForLayer(
+                                                settings.value.animationSpeedForLayer(
                                                     0
                                                 )
                                             )
@@ -649,12 +649,12 @@ fun BottomPanel(
                                         Box(
                                             modifier = Modifier
                                                 .height(
-                                                    settings.heightForLayer(1).dp
+                                                    settings.value.heightForLayer(1).dp
                                                 )
                                                 .fillMaxWidth()
                                                 .clip(
                                                     RoundedCornerShape(
-                                                        settings.cornerRadiusForLayer(
+                                                        settings.value.cornerRadiusForLayer(
                                                             1
                                                         ).dp
                                                     )
@@ -683,15 +683,15 @@ fun BottomPanel(
                                     TextField(
                                         modifier = Modifier
                                             .height(
-                                                settings.heightForLayer(1).dp
+                                                settings.value.heightForLayer(1).dp
                                             )
-                                            .padding(settings.padding.dp)
+                                            .padding(settings.value.padding.dp)
                                             .onSizeChanged { size ->
                                                 setTextFieldHeightPx(size.height)
                                             }
                                             .fillMaxWidth()
                                             .focusRequester(urlBarFocusRequester)
-                                            //                            .padding(horizontal = settings.padding.dp, vertical = settings.padding.dp / 2)
+                                            //                            .padding(horizontal = settings.value.padding.dp, vertical = settings.value.padding.dp / 2)
                                             .onFocusChanged { focusState ->
                                                 val resetUrl = viewModel.activeTab!!.currentURL
                                                 viewModel.updateUI { it.copy(isFocusOnUrlTextField = focusState.isFocused) }
@@ -707,9 +707,9 @@ fun BottomPanel(
                                                     viewModel.updateUI { it.copy(savedPanelState = PanelVisibilityState(
                                                         options = draggableState.currentValue == RevealState.Visible,
                                                         tabs = isTabsPanelVisible,
-                                                        downloads = uiState.isDownloadPanelVisible,
+                                                        downloads = uiState.value.isDownloadPanelVisible,
                                                         tabData = isTabDataPanelVisible,
-                                                        nav = uiState.isNavPanelVisible
+                                                        nav = uiState.value.isNavPanelVisible
                                                     )) }
 
                                                     setIsOptionsPanelVisible(false)
@@ -743,7 +743,7 @@ fun BottomPanel(
                                                         false
                                                     viewModel.updateUI { it.copy(isUrlOverlayBoxVisible = true) }
 
-                                                    uiState.savedPanelState?.let { savedState ->
+                                                    uiState.value.savedPanelState?.let { savedState ->
                                                         if (bottomPanelPagerState.currentPage == BottomPanelMode.SEARCH.ordinal) {
                                                             setIsOptionsPanelVisible(savedState.options)
                                                             viewModel.updateUI {
@@ -778,7 +778,7 @@ fun BottomPanel(
 
                                             .clip(
                                                 RoundedCornerShape(
-                                                    settings.cornerRadiusForLayer(2).dp
+                                                    settings.value.cornerRadiusForLayer(2).dp
                                                 )
                                             ),
                                         placeholder = {
@@ -789,7 +789,7 @@ fun BottomPanel(
                                         state = textFieldState,
                                         textStyle = LocalTextStyle.current.copy(
                                             //                            fontFamily = FontFamily.Monospace,
-                                            textAlign = if (uiState.isFocusOnUrlTextField ) TextAlign.Start else TextAlign.Center
+                                            textAlign = if (uiState.value.isFocusOnUrlTextField ) TextAlign.Start else TextAlign.Center
                                         ),
                                         //                        state = rememberTextFieldState("Hello"),
                                         lineLimits = TextFieldLineLimits.SingleLine,
@@ -859,7 +859,7 @@ fun BottomPanel(
                                                     //                                                "https://www.google.com/search?q=$encodedQuery"
                                                     //                                                "https://duckduckgo.com/?q=$encodedQuery"
                                                     //                                                "https://www.bing.com/search?q=$encodedQuery"
-                                                    SearchEngine.entries[settings.searchEngine].getSearchUrl(
+                                                    SearchEngine.entries[settings.value.searchEngine].getSearchUrl(
                                                         encodedQuery
                                                     )
                                                 }
@@ -874,7 +874,7 @@ fun BottomPanel(
                                             viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
                                         },
                                         shape = RoundedCornerShape(
-                                            settings.cornerRadiusForLayer(2).dp
+                                            settings.value.cornerRadiusForLayer(2).dp
                                         ),
                                         colors = TextFieldDefaults.colors(
                                             focusedContainerColor = Color.Black,
@@ -891,16 +891,16 @@ fun BottomPanel(
                                         ),
                                     )
 
-                                    if (uiState.isUrlOverlayBoxVisible && !uiState.isFocusOnUrlTextField ) Box(
+                                    if (uiState.value.isUrlOverlayBoxVisible && !uiState.value.isFocusOnUrlTextField ) Box(
                                         modifier = Modifier
                                             .background(
                                                 Color.Transparent, shape = RoundedCornerShape(
-                                                    settings.cornerRadiusForLayer(1).dp
+                                                    settings.value.cornerRadiusForLayer(1).dp
                                                 )
                                             )
                                             .clip(
                                                 RoundedCornerShape(
-                                                    settings.cornerRadiusForLayer(1).dp
+                                                    settings.value.cornerRadiusForLayer(1).dp
                                                 )
                                             )
 
@@ -1051,13 +1051,13 @@ fun BottomPanel(
                                 Box(
                                     modifier = Modifier
                                         .height(
-                                            settings.heightForLayer(1).dp
+                                            settings.value.heightForLayer(1).dp
                                         )
                                         .fillMaxWidth()
-                                        .padding(settings.padding.dp)
+                                        .padding(settings.value.padding.dp)
                                         .clip(
                                             RoundedCornerShape(
-                                                settings.cornerRadiusForLayer(
+                                                settings.value.cornerRadiusForLayer(
                                                     1
                                                 ).dp
                                             )
@@ -1065,7 +1065,7 @@ fun BottomPanel(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
-                                        painter = painterResource(id = if (settings.isFullscreenMode) R.drawable.ic_fullscreen else R.drawable.ic_fullscreen_exit),
+                                        painter = painterResource(id = if (settings.value.isFullscreenMode) R.drawable.ic_fullscreen else R.drawable.ic_fullscreen_exit),
                                         contentDescription = "toggle bottom panel lock",
                                         tint = Color.White
                                     )
@@ -1094,7 +1094,7 @@ fun BottomPanel(
                 TextEditPanel(
 //                    currentRotation =  currentRotation,
                     isPinningApp = isPinningApp,
-                    isVisible = isPinningApp.value || (uiState.isFocusOnUrlTextField  && textFieldState.text.isBlank()),
+                    isVisible = isPinningApp.value || (uiState.value.isFocusOnUrlTextField  && textFieldState.text.isBlank()),
                     onCopyClick = {
                         val clipData = ClipData.newPlainText("url", viewModel.activeTab!!.currentURL)
 

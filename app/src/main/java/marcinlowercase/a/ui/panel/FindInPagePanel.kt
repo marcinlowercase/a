@@ -48,26 +48,26 @@ fun FindInPagePanel(
 
     ) {
     val viewModel = LocalBrowserViewModel.current
-    val settings = viewModel.browserSettings.collectAsState().value
+    val settings = viewModel.browserSettings.collectAsState()
     val keyboardController = LocalSoftwareKeyboardController.current
     AnimatedVisibility(
         visible = isVisible,
         enter = expandVertically(
             tween(
-                settings.animationSpeedForLayer(1)
+                settings.value.animationSpeedForLayer(1)
             )
         ) + fadeIn(
             tween(
-                settings.animationSpeedForLayer(1)
+                settings.value.animationSpeedForLayer(1)
             )
         ),
         exit = shrinkVertically(
             tween(
-                settings.animationSpeedForLayer(1)
+                settings.value.animationSpeedForLayer(1)
             )
         ) + fadeOut(
             tween(
-                settings.animationSpeedForLayer(1)
+                settings.value.animationSpeedForLayer(1)
             )
         )
     ) {
@@ -76,11 +76,11 @@ fun FindInPagePanel(
             modifier = Modifier
                 .clip(
                     RoundedCornerShape(
-                        settings.cornerRadiusForLayer(1).dp
+                        settings.value.cornerRadiusForLayer(1).dp
                     )
                 )
-                .padding(horizontal = settings.padding.dp)
-                .padding(top = settings.padding.dp)
+                .padding(horizontal = settings.value.padding.dp)
+                .padding(top = settings.value.padding.dp)
 
         ) {
             TextField(
@@ -90,17 +90,17 @@ fun FindInPagePanel(
                     .fillMaxWidth()
                     .clip(
                         RoundedCornerShape(
-                            settings.cornerRadiusForLayer(2).dp
+                            settings.value.cornerRadiusForLayer(2).dp
                         )
                     )
                     .height(
-                        settings.heightForLayer(2).dp
+                        settings.value.heightForLayer(2).dp
                     )
                     .onFocusChanged { focusState ->
                         viewModel.updateUI { it.copy(isFocusOnFindTextField = focusState.isFocused) }
                     },
                 shape = RoundedCornerShape(
-                    settings.cornerRadiusForLayer(2).dp
+                    settings.value.cornerRadiusForLayer(2).dp
                 ),
                 placeholder = { Text("find in page") },
                 singleLine = true,
@@ -123,9 +123,9 @@ fun FindInPagePanel(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = settings.padding.dp),
+                    .padding(top = settings.value.padding.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(settings.padding.dp)
+                horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
             ) {
 
                 CustomIconButton(

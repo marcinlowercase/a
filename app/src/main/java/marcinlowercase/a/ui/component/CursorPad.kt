@@ -60,18 +60,18 @@ fun CursorPad(
     cursorPadHeight: Dp,
 ) {
     val viewModel = LocalBrowserViewModel.current
-    val uiState = viewModel.uiState.collectAsState().value
-    val settings = viewModel.browserSettings.collectAsState().value
+    val uiState = viewModel.uiState.collectAsState()
+    val settings = viewModel.browserSettings.collectAsState()
 
     AnimatedVisibility(
         modifier = Modifier
             .fillMaxSize(),
-        visible = uiState.isCursorPadVisible,
+        visible = uiState.value.isCursorPadVisible,
         enter = slideInVertically(
             initialOffsetY = { it }, // Start from the bottom
-            animationSpec = tween(durationMillis = settings.animationSpeed.roundToInt())
-        ) + fadeIn(tween(settings.animationSpeed.roundToInt())),
-        exit = fadeOut(tween(settings.animationSpeed.roundToInt()))
+            animationSpec = tween(durationMillis = settings.value.animationSpeed.roundToInt())
+        ) + fadeIn(tween(settings.value.animationSpeed.roundToInt())),
+        exit = fadeOut(tween(settings.value.animationSpeed.roundToInt()))
     ) {
 
         val hapticFeedback = LocalHapticFeedback.current
@@ -154,9 +154,9 @@ fun CursorPad(
                                                 val changeDelta =
                                                     change.position - change.previousPosition
                                                 val changeSpaceX =
-                                                    changeDelta.x * settings.cursorTrackingSpeed
+                                                    changeDelta.x * settings.value.cursorTrackingSpeed
                                                 val changeSpaceY =
-                                                    changeDelta.y * settings.cursorTrackingSpeed
+                                                    changeDelta.y * settings.value.cursorTrackingSpeed
 
 
                                                 var newX =
@@ -271,9 +271,9 @@ fun CursorPad(
                                                 val changeDelta =
                                                     change.position - change.previousPosition
                                                 val changeSpaceX =
-                                                    changeDelta.x * settings.cursorTrackingSpeed
+                                                    changeDelta.x * settings.value.cursorTrackingSpeed
                                                 val changeSpaceY =
-                                                    changeDelta.y * settings.cursorTrackingSpeed
+                                                    changeDelta.y * settings.value.cursorTrackingSpeed
 
 
                                                 var newX =
@@ -379,13 +379,13 @@ fun CursorPad(
                     }
 
                     .padding(
-                        end = settings.padding.dp,
-                        start = settings.padding.dp, // Add start padding for when it's on the left
-                        bottom = settings.padding.dp
+                        end = settings.value.padding.dp,
+                        start = settings.value.padding.dp, // Add start padding for when it's on the left
+                        bottom = settings.value.padding.dp
                     )
                     .clip(
                         RoundedCornerShape(
-                            settings.cornerRadiusForLayer(1).dp
+                            settings.value.cornerRadiusForLayer(1).dp
                         )
                     )
                     .background(Color.Black.copy(alpha = 0.4f)),

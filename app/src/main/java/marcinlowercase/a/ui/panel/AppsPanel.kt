@@ -42,11 +42,11 @@ fun AppsPanel(
 
 ) {
     val viewModel = LocalBrowserViewModel.current
-    val settings = viewModel.browserSettings.collectAsState().value
+    val settings = viewModel.browserSettings.collectAsState()
 
 
     val maxPanelHeight =
-        (settings.heightForLayer(2).dp * 2.5f) + (settings.padding.dp * 2)
+        (settings.value.heightForLayer(2).dp * 2.5f) + (settings.value.padding.dp * 2)
 
     AnimatedVisibility(
         visible = visibility,
@@ -57,8 +57,8 @@ fun AppsPanel(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(settings.heightForLayer(2).dp)
-                    .clip(RoundedCornerShape(settings.cornerRadiusForLayer(2).dp)),
+                    .height(settings.value.heightForLayer(2).dp)
+                    .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp)),
                 contentAlignment = Alignment.Center
 
 
@@ -75,19 +75,19 @@ fun AppsPanel(
                     .fillMaxWidth()
                     // This ensures it grows up to 3 rows, then becomes scrollable
                     .heightIn(
-                        min = settings.heightForLayer(2).dp,
+                        min = settings.value.heightForLayer(2).dp,
                         max = maxPanelHeight
                     )
-                    .padding(top = if (viewModel.apps.isNotEmpty()) settings.padding.dp else 0.dp)
-                    .padding(horizontal = settings.padding.dp)
-                    .clip(RoundedCornerShape(settings.cornerRadiusForLayer(2).dp))
+                    .padding(top = if (viewModel.apps.isNotEmpty()) settings.value.padding.dp else 0.dp)
+                    .padding(horizontal = settings.value.padding.dp)
+                    .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp))
 
 //                .background(Color.Magenta)
 
                 ,
-//            contentPadding = PaddingValues(settings.padding.dp),
-                horizontalArrangement = Arrangement.spacedBy(settings.padding.dp),
-                verticalArrangement = Arrangement.spacedBy(settings.padding.dp),
+//            contentPadding = PaddingValues(settings.value.padding.dp),
+                horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp),
+                verticalArrangement = Arrangement.spacedBy(settings.value.padding.dp),
                 reverseLayout = true
             ) {
 
@@ -132,13 +132,13 @@ fun AppIcon(
     onLongClick: () -> Unit = {}
 ) {
     val viewModel = LocalBrowserViewModel.current
-    val settings = viewModel.browserSettings.collectAsState().value
+    val settings = viewModel.browserSettings.collectAsState()
 
 
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(settings.cornerRadiusForLayer(2).dp))
-            .height(settings.heightForLayer(2).dp)
+            .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp))
+            .height(settings.value.heightForLayer(2).dp)
             .background(Color.White)
             .padding(2.dp)
             .fillMaxWidth()
@@ -151,7 +151,7 @@ fun AppIcon(
             .border(
                 width = 2.dp,
                 color = if (inspectingAppId.value == app.id) Color.Red else Color.Transparent,
-                shape = RoundedCornerShape(settings.cornerRadiusForLayer(2).dp)
+                shape = RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp)
             ),
         contentAlignment = Alignment.Center
 

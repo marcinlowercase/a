@@ -41,9 +41,9 @@ fun PermissionPanel(
 
     ) {
     val viewModel = LocalBrowserViewModel.current
-    val uiState = viewModel.uiState.collectAsState().value
+    val uiState = viewModel.uiState.collectAsState()
     val request = viewModel.pendingPermissionRequest.value
-val settings = viewModel.browserSettings.collectAsState().value
+val settings = viewModel.browserSettings.collectAsState()
     var requestToShow by remember { mutableStateOf(request) }
 
     LaunchedEffect(request) {
@@ -54,12 +54,12 @@ val settings = viewModel.browserSettings.collectAsState().value
     }
 
     AnimatedVisibility(
-        visible = uiState.isPermissionPanelVisible,
-        enter = expandVertically(animationSpec = tween(settings.animationSpeed.roundToInt())) + fadeIn(
-            tween(settings.animationSpeed.roundToInt())
+        visible = uiState.value.isPermissionPanelVisible,
+        enter = expandVertically(animationSpec = tween(settings.value.animationSpeed.roundToInt())) + fadeIn(
+            tween(settings.value.animationSpeed.roundToInt())
         ),
-        exit = shrinkVertically(animationSpec = tween(settings.animationSpeed.roundToInt())) + fadeOut(
-            tween(settings.animationSpeed.roundToInt())
+        exit = shrinkVertically(animationSpec = tween(settings.value.animationSpeed.roundToInt())) + fadeOut(
+            tween(settings.value.animationSpeed.roundToInt())
         )
     ) {
 
@@ -68,17 +68,17 @@ val settings = viewModel.browserSettings.collectAsState().value
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = settings.padding.dp)
+                .padding(horizontal = settings.value.padding.dp)
                 .padding(
-                    bottom = if (!isUrlBarVisible) settings.padding.dp else 0.dp,
-                    top = settings.padding.dp,
+                    bottom = if (!isUrlBarVisible) settings.value.padding.dp else 0.dp,
+                    top = settings.value.padding.dp,
                 )
 
 
                 .background(
                     color = Color.Black.copy(0.3f),
                     shape = RoundedCornerShape(
-                        settings.cornerRadiusForLayer(2).dp
+                        settings.value.cornerRadiusForLayer(2).dp
                     )
                 ),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -88,7 +88,7 @@ val settings = viewModel.browserSettings.collectAsState().value
             // Action buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(settings.padding.dp)
+                horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
             ) {
                 // --- Deny Button ---
                 IconButton(
@@ -98,7 +98,7 @@ val settings = viewModel.browserSettings.collectAsState().value
                     modifier = Modifier
                         .buttonSettingsForLayer(
                             layer = 2,
-                            settings,
+                            settings.value,
                             white = false // false = transparent background, white border
                         )
                         .weight(1f),
@@ -117,7 +117,7 @@ val settings = viewModel.browserSettings.collectAsState().value
                     modifier = Modifier
                         .buttonSettingsForLayer(
                             layer = 2,
-                            settings,
+                            settings.value,
                             white = true // true = white background
                         )
                         .weight(1f),

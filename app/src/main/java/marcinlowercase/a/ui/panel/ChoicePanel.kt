@@ -39,8 +39,7 @@ fun ChoicePanel(
     onDismiss: () -> Unit
 ) {
     val viewModel = LocalBrowserViewModel.current
-    val uiState = viewModel.uiState.collectAsState().value
-    val settings = viewModel.browserSettings.collectAsState().value
+    val settings = viewModel.browserSettings.collectAsState()
 
     val prompt = choiceState.value?.prompt
     val result = choiceState.value?.result
@@ -71,21 +70,21 @@ fun ChoicePanel(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = settings.padding.dp)
-            .clip(RoundedCornerShape(settings.cornerRadiusForLayer(1).dp))
+            .padding(horizontal = settings.value.padding.dp)
+            .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
             .background(Color.Black)
-            .padding(settings.padding.dp)
+            .padding(settings.value.padding.dp)
     ) {
         Column(
             modifier = Modifier
-                .clip(RoundedCornerShape(settings.cornerRadiusForLayer(2).dp)),
-            verticalArrangement = Arrangement.spacedBy(settings.padding.dp)
+                .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp)),
+            verticalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
         ) {
             LazyColumn(
                 state = listState, // Attach the state here
                 modifier = Modifier
-                    .heightIn(max = settings.maxContainerSizeForLayer(2).dp)
-                    .clip(RoundedCornerShape(settings.cornerRadiusForLayer(2).dp)),
+                    .heightIn(max = settings.value.maxContainerSizeForLayer(2).dp)
+                    .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp)),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 items(prompt.choices.size) { index ->
@@ -104,8 +103,8 @@ fun ChoicePanel(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(settings.cornerRadiusForLayer(2).dp))
-                            .heightIn(min = settings.heightForLayer(2).dp)
+                            .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp))
+                            .heightIn(min = settings.value.heightForLayer(2).dp)
                             .background(if (isCurrentlySelected) Color.White.copy(0.5f) else Color.Transparent)
                             .clickable {
                                 if (prompt.type == GeckoSession.PromptDelegate.ChoicePrompt.Type.MULTIPLE) {

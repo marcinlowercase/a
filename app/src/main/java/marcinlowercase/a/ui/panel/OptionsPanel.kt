@@ -38,8 +38,8 @@ fun OptionsPanel(
     addAppToPin: () -> Unit,
 ) {
     val viewModel = LocalBrowserViewModel.current
-    val uiState = viewModel.uiState.collectAsState().value
-    val settings = viewModel.browserSettings.collectAsState().value
+    val uiState = viewModel.uiState.collectAsState()
+    val settings = viewModel.browserSettings.collectAsState()
 
 //    val currentIsSettingsVisible by rememberUpdatedState(isSettingsPanelVisible)
 //    val currentOnToggleSettings by rememberUpdatedState(setIsSettingsPanelVisible)
@@ -56,16 +56,16 @@ fun OptionsPanel(
             },
 
 //                OptionItem(
-//                    if (settings.isDesktopMode) R.drawable.ic_mobile else R.drawable.ic_desktop,
+//                    if (settings.value.isDesktopMode) R.drawable.ic_mobile else R.drawable.ic_desktop,
 //                    "Desktop layout",
-//                    settings.isDesktopMode
+//                    settings.value.isDesktopMode
 //                ) {
-//                    updateBrowserSettings(settings.copy(isDesktopMode = !settings.isDesktopMode))
+//                    updateBrowserSettings(settings.value.copy(isDesktopMode = !settings.value.isDesktopMode))
 //                },
             OptionItem(
                 R.drawable.ic_tabs, // You'll need an icon for this
                 "tabs panel", // Display the number of open tabs
-                uiState.isTabsPanelLock
+                uiState.value.isTabsPanelLock
             ) {
                 viewModel.updateUI {
                     it.copy(
@@ -78,9 +78,9 @@ fun OptionsPanel(
 
             },
             OptionItem(
-                if (settings.isSharpMode) R.drawable.ic_rounded_corner else R.drawable.ic_sharp_corner,
+                if (settings.value.isSharpMode) R.drawable.ic_rounded_corner else R.drawable.ic_sharp_corner,
                 "sharp mode",
-                settings.isSharpMode,
+                settings.value.isSharpMode,
             ) {
                 viewModel.updateSettings{it.copy(isSharpMode = !it.isSharpMode)}
 
@@ -116,7 +116,7 @@ fun OptionsPanel(
             OptionItem(
                 R.drawable.ic_find_in_page, // You'll need an icon
                 "find in page",
-                uiState.isFindInPageVisible
+                uiState.value.isFindInPageVisible
             ) {
                 viewModel.updateUI { it.copy(isFindInPageVisible = !it.isFindInPageVisible) }
                 setIsOptionsPanelVisible(false)
@@ -125,7 +125,7 @@ fun OptionsPanel(
             OptionItem(
                 R.drawable.ic_download, // You'll need a download icon
                 "download panel",
-                uiState.isDownloadPanelVisible
+                uiState.value.isDownloadPanelVisible
             ) {
                 viewModel.updateUI { it.copy(isDownloadPanelVisible = !it.isDownloadPanelVisible) }
                 setIsOptionsPanelVisible(false)
@@ -134,7 +134,7 @@ fun OptionsPanel(
             OptionItem(
                 iconRes = R.drawable.ic_lightbulb, // Or a more specific icon like ic_manage_search
                 contentDescription = "suggestions",
-                enabled = settings.showSuggestions // The button is "active" when suggestions are on
+                enabled = settings.value.showSuggestions // The button is "active" when suggestions are on
             ) {
                 // When clicked, create a new settings object with the toggled value
 
@@ -155,7 +155,7 @@ fun OptionsPanel(
             OptionItem(
                 R.drawable.ic_settings, // You'll need a settings icon
                 "settings",
-                uiState.isSettingsPanelVisible,
+                uiState.value.isSettingsPanelVisible,
             ) {
                 viewModel.updateUI { it.copy(isSettingsPanelVisible = !it.isSettingsPanelVisible) }
                 setIsOptionsPanelVisible(false)
@@ -204,12 +204,12 @@ fun OptionsPanel(
 
     Box(
         modifier = Modifier
-            .padding(horizontal = settings.padding.dp)
-            .padding(bottom = settings.padding.dp)
+            .padding(horizontal = settings.value.padding.dp)
+            .padding(bottom = settings.value.padding.dp)
             .fillMaxWidth()
             .clip(
                 RoundedCornerShape(
-                    settings.cornerRadiusForLayer(2).dp
+                    settings.value.cornerRadiusForLayer(2).dp
                 )
             )
 
@@ -228,11 +228,11 @@ fun OptionsPanel(
                     .background(
                         Color.Black.copy(alpha = 0.3f),
                         shape = RoundedCornerShape(
-                            settings.cornerRadiusForLayer(2).dp
+                            settings.value.cornerRadiusForLayer(2).dp
                         )
                     ),
 
-                horizontalArrangement = Arrangement.spacedBy(settings.padding.dp)
+                horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
             ) {
                 // Get the options for the current page
                 val pageOptions = optionPages[pageIndex]

@@ -67,8 +67,7 @@ fun ContextMenuPanel(
     onDownload: (String) -> Unit,
 ) {
     val viewModel = LocalBrowserViewModel.current
-    val uiState = viewModel.uiState.collectAsState().value
-val settings = viewModel.browserSettings.collectAsState().value
+    val settings = viewModel.browserSettings.collectAsState()
     val clipboard = LocalClipboard.current
     val context = LocalContext.current
     val hapticFeedback = LocalHapticFeedback.current
@@ -76,8 +75,8 @@ val settings = viewModel.browserSettings.collectAsState().value
 
     AnimatedVisibility(
         visible = isVisible,
-        enter = expandVertically(tween(settings.animationSpeed.roundToInt())) + fadeIn(),
-        exit = shrinkVertically(tween(settings.animationSpeed.roundToInt())) + fadeOut()
+        enter = expandVertically(tween(settings.value.animationSpeed.roundToInt())) + fadeIn(),
+        exit = shrinkVertically(tween(settings.value.animationSpeed.roundToInt())) + fadeOut()
     ) {
 
 
@@ -92,7 +91,7 @@ val settings = viewModel.browserSettings.collectAsState().value
 
         Column(
             modifier = Modifier
-                .padding(top = settings.padding.dp)
+                .padding(top = settings.value.padding.dp)
                 .fillMaxWidth()
         ) {
             // 1. Header (URL or "Image")
@@ -240,14 +239,14 @@ val settings = viewModel.browserSettings.collectAsState().value
                     Box (
                         modifier = Modifier
                             .weight(1f)
-//                            .height(settings.heightForLayer(2).dp)
+//                            .height(settings.value.heightForLayer(2).dp)
 
                             ,
                         contentAlignment = Alignment.CenterEnd
                     ){
                         Box(
                             modifier = Modifier
-                                .padding(settings.padding.dp)
+                                .padding(settings.value.padding.dp)
                                 .size(30.dp)
                                 .clip(CircleShape)
                                 .background(
@@ -274,13 +273,13 @@ val settings = viewModel.browserSettings.collectAsState().value
                     Box(
                         modifier = Modifier
                             .weight(1f)
-//                            .height(settings.heightForLayer(2).dp)
+//                            .height(settings.value.heightForLayer(2).dp)
                            ,
                         contentAlignment = Alignment.CenterStart
                     ) {
                         Box(
                             modifier = Modifier
-                                .padding(settings.padding.dp)
+                                .padding(settings.value.padding.dp)
                                 .size(30.dp)
                                 .clip(CircleShape)
 
@@ -320,13 +319,13 @@ val settings = viewModel.browserSettings.collectAsState().value
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = settings.padding.dp)
+                            .padding(bottom = settings.value.padding.dp)
                             .clip(
                                 RoundedCornerShape(
-                                    settings.cornerRadiusForLayer(2).dp
+                                    settings.value.cornerRadiusForLayer(2).dp
                                 )
                             )
-                            .padding(settings.padding.dp * 2)
+                            .padding(settings.value.padding.dp * 2)
 //                            .clickable(onClick = {
 //                                val clip = ClipData.newPlainText("Link", urlSrc)
 //                                clipboard.nativeClipboard.setPrimaryClip(clip)
@@ -343,7 +342,7 @@ val settings = viewModel.browserSettings.collectAsState().value
                                 tint = Color.White,
                                 modifier = Modifier.size(20.dp)
                             )
-                            Spacer(Modifier.width(settings.padding.dp))
+                            Spacer(Modifier.width(settings.value.padding.dp))
                         }
                         Text(
                             text = urlSrc,
@@ -360,24 +359,24 @@ val settings = viewModel.browserSettings.collectAsState().value
                             .fillMaxWidth()
                             .clip(
                                 RoundedCornerShape(
-                                    settings.cornerRadiusForLayer(2).dp
+                                    settings.value.cornerRadiusForLayer(2).dp
                                 )
                             )
-                            .padding(horizontal = settings.padding.dp)
-                            .padding(bottom = settings.padding.dp)
+                            .padding(horizontal = settings.value.padding.dp)
+                            .padding(bottom = settings.value.padding.dp)
                         ,
-                        horizontalArrangement = Arrangement.spacedBy(settings.padding.dp)
+                        horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
                     ) {
                         buttonSrc.forEach { (icon, desc, action) ->
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(
-                                        settings.heightForLayer(2).dp
+                                        settings.value.heightForLayer(2).dp
                                     )
                                     .clip(
                                         RoundedCornerShape(
-                                            settings.cornerRadiusForLayer(2).dp
+                                            settings.value.cornerRadiusForLayer(2).dp
                                         )
                                     )
                                     .background(Color.White)

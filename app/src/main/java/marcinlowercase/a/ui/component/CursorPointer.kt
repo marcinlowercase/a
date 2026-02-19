@@ -27,17 +27,16 @@ fun CursorPointer(
     position: Offset,
 ) {
     val viewModel = LocalBrowserViewModel.current
-    val uiState = viewModel.uiState.collectAsState().value
-    val settings = viewModel.browserSettings.collectAsState().value
+    val settings = viewModel.browserSettings.collectAsState()
 
 
     AnimatedVisibility(
         visible = isCursorPadVisible,
-        enter = fadeIn(tween(settings.animationSpeed.roundToInt())),
-        exit = fadeOut(tween(settings.animationSpeed.roundToInt())),
+        enter = fadeIn(tween(settings.value.animationSpeed.roundToInt())),
+        exit = fadeOut(tween(settings.value.animationSpeed.roundToInt())),
         modifier = Modifier
     ) {
-        val cursorContainerSize = settings.cursorContainerSize.dp
+        val cursorContainerSize = settings.value.cursorContainerSize.dp
         val pointerSize = cursorContainerSize / 2
         Box(
             modifier = Modifier
@@ -57,7 +56,7 @@ fun CursorPointer(
                 tint = Color.White,
                 modifier = Modifier
                     .align(Alignment.Center)
-                    .size(settings.cursorPointerSize.dp)
+                    .size(settings.value.cursorPointerSize.dp)
             )
         }
     }

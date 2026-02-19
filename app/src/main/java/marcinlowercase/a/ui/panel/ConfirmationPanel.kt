@@ -38,38 +38,37 @@ fun ConfirmationPanel(
     state: ConfirmationDialogState?,
 ) {
     val viewModel = LocalBrowserViewModel.current
-    val uiState = viewModel.uiState.collectAsState().value
-    val settings = viewModel.browserSettings.collectAsState().value
+    val settings = viewModel.browserSettings.collectAsState()
     AnimatedVisibility(
         visible = isConfirmationPanelVisible,
-        enter = expandVertically(tween(settings.animationSpeedForLayer(1))),
-        exit = shrinkVertically(tween(settings.animationSpeedForLayer(1))) +
-                fadeOut(tween(settings.animationSpeedForLayer(1)))
+        enter = expandVertically(tween(settings.value.animationSpeedForLayer(1))),
+        exit = shrinkVertically(tween(settings.value.animationSpeedForLayer(1))) +
+                fadeOut(tween(settings.value.animationSpeedForLayer(1)))
     ) {
 
         if (state == null) return@AnimatedVisibility
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = settings.padding.dp)
+                .padding(horizontal = settings.value.padding.dp)
                 .padding(
-                    top = settings.padding.dp,
-                    bottom = if (isUrlBarVisible) 0.dp else settings.padding.dp
+                    top = settings.value.padding.dp,
+                    bottom = if (isUrlBarVisible) 0.dp else settings.value.padding.dp
                 )
                 .background(
                     Color.Black,
                     shape = RoundedCornerShape(
-                        settings.cornerRadiusForLayer(2).dp
+                        settings.value.cornerRadiusForLayer(2).dp
                     )
                 )
         ) {
 
             Column(
                 modifier = Modifier
-//                    .heightIn(min = settings.heightForLayer(3).dp)
-                    .padding(settings.padding.dp)
-                    .padding(settings.padding.dp)
-                    .padding(horizontal = settings.cornerRadiusForLayer(3).dp)
+//                    .heightIn(min = settings.value.heightForLayer(3).dp)
+                    .padding(settings.value.padding.dp)
+                    .padding(settings.value.padding.dp)
+                    .padding(horizontal = settings.value.cornerRadiusForLayer(3).dp)
 //                    .background(Color.Cyan),
 
 
@@ -77,7 +76,7 @@ fun ConfirmationPanel(
                 Text(
                     text = state.message,
 //                    color = Color.Yellow,
-                    color = Color(settings.highlightColor),
+                    color = Color(settings.value.highlightColor),
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.CenterHorizontally),
@@ -87,7 +86,7 @@ fun ConfirmationPanel(
                 if (state.url.isNotBlank()) Text(
                     text = state.url,
 //                    color = Color.Yellow,
-                    color = Color(settings.highlightColor),
+                    color = Color(settings.value.highlightColor),
                     textAlign = TextAlign.Center,
                     maxLines = 1,
                     overflow = TextOverflow.Visible,
@@ -101,20 +100,20 @@ fun ConfirmationPanel(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(settings.padding.dp),
-                horizontalArrangement = Arrangement.spacedBy(settings.padding.dp)
+                    .padding(settings.value.padding.dp),
+                horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
             ) {
                 // Cancel Button
                 IconButton(
                     modifier = Modifier
                         .buttonSettingsForLayer(
                             3,
-                            settings,
+                            settings.value,
                             false
                         )
                         .weight(1f),
                     shape = RoundedCornerShape(
-                        settings.cornerRadiusForLayer(3).dp
+                        settings.value.cornerRadiusForLayer(3).dp
                     ),
                     onClick = state.onCancel
                 ) {
@@ -130,11 +129,11 @@ fun ConfirmationPanel(
                     modifier = Modifier
                         .buttonSettingsForLayer(
                             3,
-                            settings,
+                            settings.value,
                         )
                         .weight(1f),
                     shape = RoundedCornerShape(
-                        settings.cornerRadiusForLayer(2).dp
+                        settings.value.cornerRadiusForLayer(2).dp
                     ),
                     onClick = state.onConfirm
                 ) {

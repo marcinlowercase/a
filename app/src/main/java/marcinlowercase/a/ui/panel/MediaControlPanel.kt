@@ -54,11 +54,13 @@ fun MediaControlPanel(
 ) {
 
     val viewModel = LocalBrowserViewModel.current
-    val uiState = viewModel.uiState.collectAsState().value
-val settings = viewModel.browserSettings.collectAsState().value
-    
+    val uiState = viewModel.uiState.collectAsState()
+    val settings = viewModel.browserSettings.collectAsState()
+    LaunchedEffect(uiState.value.isMediaControlPanelVisible) {
+        Log.d("MediaDisplay", "isMediaControlPanelVisible ${uiState.value.isMediaControlPanelVisible}")
+    }
     val opacity by animateFloatAsState(
-        targetValue = if (uiState.isMediaControlPanelVisible) 1.0f else 0.0f,
+        targetValue = if (uiState.value.isMediaControlPanelVisible) 1.0f else 0.0f,
         animationSpec = spring(stiffness = Spring.StiffnessLow),
         label = "media control panel opacity"
     )
@@ -69,7 +71,7 @@ val settings = viewModel.browserSettings.collectAsState().value
     var dragAccumulator by remember { mutableFloatStateOf(0f) }
 
 
-    LaunchedEffect(uiState.isMediaControlPanelVisible, viewModel.geckoManager.isActiveMediaSessionPaused) {
+    LaunchedEffect(uiState.value.isMediaControlPanelVisible, viewModel.geckoManager.isActiveMediaSessionPaused) {
         if (  !viewModel.geckoManager.isActiveMediaSessionPaused) {
             while (true) {
                 // Update the state inside GeckoManager directly
@@ -81,26 +83,23 @@ val settings = viewModel.browserSettings.collectAsState().value
     }
 
 
-
-    LaunchedEffect(viewModel.geckoManager.lastDuration.doubleValue) {
-        Log.i("marcMedia", "duration: ${viewModel.geckoManager.lastDuration.doubleValue}")
-    }
-
-    if (uiState.isOnFullscreenVideo && uiState.isMediaControlPanelDisplayed) {
+    Log.w("MediaDisplay", "uiState.value.isOnFullscreenVideo${uiState.value.isOnFullscreenVideo}")
+    Log.w("MediaDisplay", "uiState.value.isMediaControlPanelDisplayed${uiState.value.isMediaControlPanelDisplayed}")
+    if (uiState.value.isOnFullscreenVideo && uiState.value.isMediaControlPanelDisplayed) {
         Column (
             modifier = modifier
-                .padding(settings.padding.dp)
-                .clip(RoundedCornerShape(settings.cornerRadiusForLayer(1).dp))
+                .padding(settings.value.padding.dp)
+                .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
                 .alpha(opacity)
                 .clickable(
                     enabled = true,
                     onClick = {
-                        if (!uiState.isMediaControlPanelVisible) viewModel.updateUI { it.copy(isMediaControlPanelVisible = true) }
+                        if (!uiState.value.isMediaControlPanelVisible) viewModel.updateUI { it.copy(isMediaControlPanelVisible = true) }
                     }
                 )
                 .background(Color.Black)
-                .width(settings.heightForLayer(1).dp)
-                .clip(RoundedCornerShape(settings.cornerRadiusForLayer(1).dp))
+                .width(settings.value.heightForLayer(1).dp)
+                .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
             ,
             horizontalAlignment = Alignment.CenterHorizontally
 
@@ -111,9 +110,9 @@ val settings = viewModel.browserSettings.collectAsState().value
                 layer = 2,
                 modifier = Modifier
                     .weight(1f)
-                    .padding(settings.padding.dp),
+                    .padding(settings.value.padding.dp),
                 onTap = {
-                    if (uiState.isMediaControlPanelVisible) {
+                    if (uiState.value.isMediaControlPanelVisible) {
                         onExitFullscreen()
                     } else {
                         viewModel.updateUI { it.copy(isMediaControlPanelVisible = true)}
@@ -133,11 +132,11 @@ val settings = viewModel.browserSettings.collectAsState().value
             BoxWithConstraints(
                 modifier = Modifier
                     .weight(2f)
-                    .padding(horizontal = settings.padding.dp)
-//                    .padding(vertical = settings.padding.dp)
-                    .clip(RoundedCornerShape(settings.cornerRadiusForLayer(2).dp))
+                    .padding(horizontal = settings.value.padding.dp)
+//                    .padding(vertical = settings.value.padding.dp)
+                    .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp))
                     .fillMaxHeight()
-                    .width(settings.heightForLayer(2).dp)
+                    .width(settings.value.heightForLayer(2).dp)
                     .background(Color.Red)
                     .pointerInput(Unit) {
                         detectVerticalDragGestures(
@@ -207,7 +206,8 @@ val settings = viewModel.browserSettings.collectAsState().value
                     .pointerInput(Unit) {
                         detectTapGestures  (
                             onTap = {
-                                if (uiState.isMediaControlPanelVisible) {
+                                if (uiState.value.isMediaControlPanelVisible) {
+                                    Log.i("MediaDisplay", "${viewModel.geckoManager.isActiveMediaSessionPaused}")
                                     if (viewModel.geckoManager.isActiveMediaSessionPaused) {
                                         viewModel.geckoManager.sendVideoCommand("play")
                                     } else {
@@ -309,9 +309,9 @@ val settings = viewModel.browserSettings.collectAsState().value
                 layer = 2,
                 modifier = Modifier
                     .weight(1f)
-                    .padding( settings.padding.dp),
+                    .padding( settings.value.padding.dp),
                 onTap = {
-                    if (uiState.isMediaControlPanelVisible) {
+                    if (uiState.value.isMediaControlPanelVisible) {
                         val nextIndex = (controlOption.value.ordinal + 1) % MediaControlOption.entries.size
                         controlOption.value = MediaControlOption.entries[nextIndex]
                         interactionTrigger.value++

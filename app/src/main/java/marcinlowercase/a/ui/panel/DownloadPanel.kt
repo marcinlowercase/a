@@ -61,28 +61,28 @@ fun DownloadPanel(
     descriptionContent: MutableState<String>
 ) {
     val viewModel = LocalBrowserViewModel.current
-val settings = viewModel.browserSettings.collectAsState().value
+val settings = viewModel.browserSettings.collectAsState()
     AnimatedVisibility(
         visible = isDownloadPanelVisible,
         enter = expandVertically(
             tween(
-                settings.animationSpeedForLayer(1)
+                settings.value.animationSpeedForLayer(1)
             )
         ) + fadeIn(
-            tween(settings.animationSpeedForLayer(1))
+            tween(settings.value.animationSpeedForLayer(1))
         ),
         exit = shrinkVertically(
             tween(
-                settings.animationSpeedForLayer(1)
+                settings.value.animationSpeedForLayer(1)
             )
         ) + fadeOut(
-            tween(settings.animationSpeedForLayer(1))
+            tween(settings.value.animationSpeedForLayer(1))
         )
     ) {
         Column(
             modifier = Modifier
-                .padding(horizontal = settings.padding.dp)
-                .padding(top = settings.padding.dp)
+                .padding(horizontal = settings.value.padding.dp)
+                .padding(top = settings.value.padding.dp)
 
                 .fillMaxWidth()
 
@@ -92,7 +92,7 @@ val settings = viewModel.browserSettings.collectAsState().value
                 ) // Set a max height to prevent it from getting too tall
                 .clip(
                     RoundedCornerShape(
-                        settings.cornerRadiusForLayer(2).dp
+                        settings.value.cornerRadiusForLayer(2).dp
                     )
                 )
         ) {
@@ -100,16 +100,16 @@ val settings = viewModel.browserSettings.collectAsState().value
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = settings.padding.dp)
-                        .padding(top = settings.padding.dp)
+                        .padding(horizontal = settings.value.padding.dp)
+                        .padding(top = settings.value.padding.dp)
                         .background(Color.Transparent)
                         .clip(
                             RoundedCornerShape(
-                                settings.cornerRadiusForLayer(3).dp
+                                settings.value.cornerRadiusForLayer(3).dp
                             )
                         )
                         .height(
-                            settings.heightForLayer(3).dp
+                            settings.value.heightForLayer(3).dp
                         ),
                     contentAlignment = Alignment.Center
                 ) {
@@ -120,14 +120,14 @@ val settings = viewModel.browserSettings.collectAsState().value
             } else {
                 LazyColumn(
                     modifier = Modifier
-                        .heightIn(max = settings.maxContainerSizeForLayer(3).dp)
+                        .heightIn(max = settings.value.maxContainerSizeForLayer(3).dp)
 
-                        .padding(top = settings.padding.dp)
-                        .padding(horizontal = settings.padding.dp)
+                        .padding(top = settings.value.padding.dp)
+                        .padding(horizontal = settings.value.padding.dp)
 
                         .clip(
                             RoundedCornerShape(
-                                settings.cornerRadiusForLayer(3).dp
+                                settings.value.cornerRadiusForLayer(3).dp
                             )
                         ),
                     reverseLayout = true,
@@ -148,16 +148,16 @@ val settings = viewModel.browserSettings.collectAsState().value
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(settings.padding.dp)
+                    .padding(settings.value.padding.dp)
                     .clip(
                         RoundedCornerShape(
-                            settings.cornerRadiusForLayer(3).dp
+                            settings.value.cornerRadiusForLayer(3).dp
                         )
                     )
                     .height(
-                        settings.heightForLayer(3).dp
+                        settings.value.heightForLayer(3).dp
                     ),
-                horizontalArrangement = Arrangement.spacedBy(settings.padding.dp)
+                horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
             ) {
                 //  Show Download Folder Button
                 CustomIconButton(
@@ -205,23 +205,23 @@ fun DownloadRow(
     onDeleteClicked: () -> Unit
 ) {
     val viewModel = LocalBrowserViewModel.current
-val settings = viewModel.browserSettings.collectAsState().value
+val settings = viewModel.browserSettings.collectAsState()
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
     // 1. The root is now a Box to allow layering.
     // The clip and overall modifier are applied here.
     Box(
         modifier = Modifier
-            .padding(bottom = if (index != 0) settings.padding.dp else 0.dp)
+            .padding(bottom = if (index != 0) settings.value.padding.dp else 0.dp)
 
             .fillMaxWidth()
 
-            .heightIn(min = settings.heightForLayer(3).dp)
+            .heightIn(min = settings.value.heightForLayer(3).dp)
 
 
             .clip(
                 RoundedCornerShape(
-                    settings.cornerRadiusForLayer(3).dp
+                    settings.value.cornerRadiusForLayer(3).dp
                 )
             )
             .clickable(enabled = item.status == DownloadStatus.SUCCESSFUL) {
@@ -234,8 +234,8 @@ val settings = viewModel.browserSettings.collectAsState().value
 //                shape = RoundedCornerShape(
 //                    cornerRadiusForLayer(
 //                        3,
-//                        settings.deviceCornerRadius,
-//                        settings.padding
+//                        settings.value.deviceCornerRadius,
+//                        settings.value.padding
 //                    ).dp
 //                )
 //            )
@@ -283,14 +283,14 @@ val settings = viewModel.browserSettings.collectAsState().value
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(settings.padding.dp)
+                .padding(settings.value.padding.dp)
 
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
-                    .heightIn(min = settings.heightForLayer(4).dp)
-                    .padding(horizontal = settings.padding.dp)
+                    .heightIn(min = settings.value.heightForLayer(4).dp)
+                    .padding(horizontal = settings.value.padding.dp)
             ) {
                 Box(
                     modifier = Modifier
@@ -316,7 +316,7 @@ val settings = viewModel.browserSettings.collectAsState().value
 
                     )
                 }
-                Spacer(Modifier.width(settings.padding.dp))
+                Spacer(Modifier.width(settings.value.padding.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         item.filename,
@@ -371,7 +371,7 @@ val settings = viewModel.browserSettings.collectAsState().value
                 modifier = Modifier
                     .fillMaxSize()
                     .matchParentSize()
-                    .heightIn(min = settings.heightForLayer(4).dp)
+                    .heightIn(min = settings.value.heightForLayer(4).dp)
                     .background(Color.Red.copy(alpha = 0.8f))
                     // 3. This pointerInput is ONLY on the delete overlay.
                     .pointerInput(Unit) {

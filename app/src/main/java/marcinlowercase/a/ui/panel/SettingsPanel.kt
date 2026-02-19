@@ -103,20 +103,20 @@ fun SliderSetting(
     digitCount: Int = 4,
 ) {
     val viewModel = LocalBrowserViewModel.current
-    val settings = viewModel.browserSettings.collectAsState().value
+    val settings = viewModel.browserSettings.collectAsState()
 
     val currentSettingOriginalValue = remember(settings, field) {
         when (field) {
-            BrowserSettingField.CORNER_RADIUS -> settings.deviceCornerRadius
-            BrowserSettingField.PADDING -> settings.padding
-            BrowserSettingField.ANIMATION_SPEED -> settings.animationSpeed
-            BrowserSettingField.SINGLE_LINE_HEIGHT -> settings.singleLineHeight
-            BrowserSettingField.CURSOR_CONTAINER_SIZE -> settings.cursorContainerSize
-            BrowserSettingField.CURSOR_TRACKING_SPEED -> settings.cursorTrackingSpeed
-            BrowserSettingField.CLOSED_TAB_HISTORY_SIZE -> settings.closedTabHistorySize
-            BrowserSettingField.BACK_SQUARE_OPACITY -> settings.backSquareIdleOpacity
-            BrowserSettingField.MAX_LIST_HEIGHT -> settings.maxListHeight
-            BrowserSettingField.SEARCH_ENGINE -> settings.searchEngine.toFloat()
+            BrowserSettingField.CORNER_RADIUS -> settings.value.deviceCornerRadius
+            BrowserSettingField.PADDING -> settings.value.padding
+            BrowserSettingField.ANIMATION_SPEED -> settings.value.animationSpeed
+            BrowserSettingField.SINGLE_LINE_HEIGHT -> settings.value.singleLineHeight
+            BrowserSettingField.CURSOR_CONTAINER_SIZE -> settings.value.cursorContainerSize
+            BrowserSettingField.CURSOR_TRACKING_SPEED -> settings.value.cursorTrackingSpeed
+            BrowserSettingField.CLOSED_TAB_HISTORY_SIZE -> settings.value.closedTabHistorySize
+            BrowserSettingField.BACK_SQUARE_OPACITY -> settings.value.backSquareIdleOpacity
+            BrowserSettingField.MAX_LIST_HEIGHT -> settings.value.maxListHeight
+            BrowserSettingField.SEARCH_ENGINE -> settings.value.searchEngine.toFloat()
             else -> 0f
         }
     }
@@ -162,10 +162,10 @@ fun SliderSetting(
             .background(
                 Color.Black.copy(alpha = 0.3f),
                 shape = RoundedCornerShape(
-                    settings.cornerRadiusForLayer(2).dp
+                    settings.value.cornerRadiusForLayer(2).dp
                 )
             )
-            .padding(settings.padding.dp),
+            .padding(settings.value.padding.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
 
@@ -173,7 +173,7 @@ fun SliderSetting(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(
-                    settings.heightForLayer( 3).dp
+                    settings.value.heightForLayer( 3).dp
                 ),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -185,19 +185,19 @@ fun SliderSetting(
                 modifier = Modifier
                     .clip(
                         RoundedCornerShape(
-                            settings.cornerRadiusForLayer(3).dp
+                            settings.value.cornerRadiusForLayer(3).dp
                         )
                     )
                     .fillMaxHeight()
                     .background(Color.White)
                     .defaultMinSize(
-                        minWidth = settings.heightForLayer(3).dp
+                        minWidth = settings.value.heightForLayer(3).dp
                     )
 
 
             ) {
                 Icon(
-                    painter = painterResource(id = if(settings.isFirstAppLoad) R.drawable.ic_check else R.drawable.ic_arrow_back),
+                    painter = painterResource(id = if(settings.value.isFirstAppLoad) R.drawable.ic_check else R.drawable.ic_arrow_back),
                     contentDescription = "Back to Settings",
                     tint = Color.Black
                 )
@@ -274,12 +274,12 @@ fun SliderSetting(
                 modifier = Modifier
                     .clip(
                         RoundedCornerShape(
-                            settings.cornerRadiusForLayer(3).dp
+                            settings.value.cornerRadiusForLayer(3).dp
                         )
                     )
                     .fillMaxHeight()
                     .defaultMinSize(
-                        minWidth = settings.heightForLayer(3).dp
+                        minWidth = settings.value.heightForLayer(3).dp
                     )
 
 
@@ -311,11 +311,11 @@ fun SliderSetting(
 
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = settings.padding.dp)
+                .padding(top = settings.value.padding.dp)
                 .height(
-                    settings.heightForLayer(3).dp
+                    settings.value.heightForLayer(3).dp
                 )
-                .padding(settings.padding.dp),
+                .padding(settings.value.padding.dp),
             colors = SliderDefaults.colors(
                 thumbColor = Color.White,
                 activeTrackColor = Color.White,
@@ -338,7 +338,7 @@ fun TextSetting(
     ) {
 
     val viewModel = LocalBrowserViewModel.current
-    val settings = viewModel.browserSettings.collectAsState().value
+    val settings = viewModel.browserSettings.collectAsState()
 
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
@@ -352,10 +352,10 @@ fun TextSetting(
             .background(
                 Color.Black.copy(alpha = 0.3f),
                 shape = RoundedCornerShape(
-                    settings.cornerRadiusForLayer(2).dp
+                    settings.value.cornerRadiusForLayer(2).dp
                 )
             )
-            .padding(settings.padding.dp),
+            .padding(settings.value.padding.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // --- TOP ROW ---
@@ -363,7 +363,7 @@ fun TextSetting(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(
-                    settings.heightForLayer(3).dp
+                    settings.value.heightForLayer(3).dp
                 ),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -373,13 +373,13 @@ fun TextSetting(
                 modifier = Modifier
                     .clip(
                         RoundedCornerShape(
-                            settings.cornerRadiusForLayer(3).dp
+                            settings.value.cornerRadiusForLayer(3).dp
                         )
                     )
                     .fillMaxHeight()
                     .background(Color.White)
                     .defaultMinSize(
-                        minWidth = settings.heightForLayer(3).dp
+                        minWidth = settings.value.heightForLayer(3).dp
                     )
             ) {
                 Icon(
@@ -398,12 +398,12 @@ fun TextSetting(
                 modifier = Modifier
                     .clip(
                         RoundedCornerShape(
-                            settings.cornerRadiusForLayer(3).dp
+                            settings.value.cornerRadiusForLayer(3).dp
                         )
                     )
                     .fillMaxHeight()
                     .defaultMinSize(
-                        minWidth = settings.heightForLayer(3).dp
+                        minWidth = settings.value.heightForLayer(3).dp
                     )
             ) {
                 Icon(
@@ -420,16 +420,16 @@ fun TextSetting(
             onValueChange = { textValue = it },
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = settings.padding.dp)
+                .padding(top = settings.value.padding.dp)
                 .height(
-                    settings.heightForLayer(3).dp
+                    settings.value.heightForLayer(3).dp
                 )
                 .onFocusChanged{focusState ->
                     viewModel.updateUI { it.copy(isFocusOnSettingTextField = focusState.hasFocus) }
                 }
             ,
             shape = RoundedCornerShape(
-                settings.cornerRadiusForLayer(3).dp
+                settings.value.cornerRadiusForLayer(3).dp
             ),
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = Color.Black,
@@ -471,12 +471,12 @@ fun SettingsPanel(
 
 
     val viewModel = LocalBrowserViewModel.current
-    val uiState = viewModel.uiState.collectAsState().value
-    val settings = viewModel.browserSettings.collectAsState().value
+    val uiState = viewModel.uiState.collectAsState()
+    val settings = viewModel.browserSettings.collectAsState()
 
     var currentView by remember { mutableStateOf(targetSetting) }
 
-    val onBackClick = { if (!settings.isFirstAppLoad) currentView = SettingPanelView.MAIN else viewModel.updateUI { it.copy(isSettingsPanelVisible = false) }}
+    val onBackClick = { if (!settings.value.isFirstAppLoad) currentView = SettingPanelView.MAIN else viewModel.updateUI { it.copy(isSettingsPanelVisible = false) }}
     
     // This state will hold the current value of the slider.
 //    var sliderValue by remember { mutableStateOf(browserSettings.value.deviceCornerRadius) }
@@ -488,16 +488,16 @@ fun SettingsPanel(
             viewModel.updateSettings{it.copy(isFullscreenMode = true)}
         } else {
             backgroundColor.value = Color.Black
-            if ( uiState.isSettingCornerRadius) viewModel.updateSettings{it.copy(isFullscreenMode = false)}
+            if ( uiState.value.isSettingCornerRadius) viewModel.updateSettings{it.copy(isFullscreenMode = false)}
             viewModel.updateUI { it.copy(isSettingCornerRadius = false) }
         }
 
     }
 
     // Effect to reset the view and slider value when the panel is hidden
-    LaunchedEffect(uiState.isSettingsPanelVisible) {
-        if (!uiState.isSettingsPanelVisible) {
-            delay(settings.animationSpeed.toLong()) // Wait for exit animation
+    LaunchedEffect(uiState.value.isSettingsPanelVisible) {
+        if (!uiState.value.isSettingsPanelVisible) {
+            delay(settings.value.animationSpeed.toLong()) // Wait for exit animation
             currentView = SettingPanelView.MAIN
         }
     }
@@ -574,19 +574,19 @@ fun SettingsPanel(
     val pagerState = rememberPagerState(pageCount = { optionPages.size })
 
     AnimatedVisibility(
-        visible = uiState.isSettingsPanelVisible || settings.isFirstAppLoad,
-        enter = expandVertically(tween(settings.animationSpeedForLayer(1))),
-        exit = shrinkVertically(tween(if ( settings.isFirstAppLoad) settings.animationSpeedForLayer(0 )* 6 else settings.animationSpeedForLayer(1)))
+        visible = uiState.value.isSettingsPanelVisible || settings.value.isFirstAppLoad,
+        enter = expandVertically(tween(settings.value.animationSpeedForLayer(1))),
+        exit = shrinkVertically(tween(if ( settings.value.isFirstAppLoad) settings.value.animationSpeedForLayer(0 )* 6 else settings.value.animationSpeedForLayer(1)))
     ) {
         Box(
             modifier = Modifier
-                .padding(horizontal = settings.padding.dp)
-                .padding(top = settings.padding.dp)
+                .padding(horizontal = settings.value.padding.dp)
+                .padding(top = settings.value.padding.dp)
                 .fillMaxWidth()
 
                 .animateContentSize(
                     tween(
-                        settings.animationSpeedForLayer(1)
+                        settings.value.animationSpeedForLayer(1)
                     )
                 )
 //
@@ -605,12 +605,12 @@ fun SettingsPanel(
                                 .background(
                                     Color.Black.copy(alpha = 0.3f),
                                     shape = RoundedCornerShape(
-                                        settings.cornerRadiusForLayer(2).dp
+                                        settings.value.cornerRadiusForLayer(2).dp
                                     )
                                 )
-//                                .padding(horizontal = settings.padding.dp /2)
+//                                .padding(horizontal = settings.value.padding.dp /2)
                             ,
-                            horizontalArrangement = Arrangement.spacedBy(settings.padding.dp)
+                            horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
                         ) {
                             val pageOptions = optionPages[pageIndex]
                             pageOptions.forEach { option ->
@@ -702,9 +702,9 @@ fun SettingsPanel(
 
 
 
-                    val initialHsv = remember(settings.highlightColor) {
+                    val initialHsv = remember(settings.value.highlightColor) {
                         val hsv = FloatArray(3)
-                        AndroidColor.colorToHSV(settings.highlightColor, hsv)
+                        AndroidColor.colorToHSV(settings.value.highlightColor, hsv)
                         hsv
                     }
                     var hue by remember { mutableFloatStateOf(initialHsv[0]) }
@@ -731,7 +731,7 @@ fun SettingsPanel(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(settings.padding.dp),
+                            .padding(settings.value.padding.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
 
@@ -739,11 +739,11 @@ fun SettingsPanel(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(
-                                    settings.heightForLayer( 3).dp
+                                    settings.value.heightForLayer( 3).dp
                                 )
                             ,
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(settings.padding.dp)
+                            horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
                         ) {
 
                             IconButton(
@@ -751,19 +751,19 @@ fun SettingsPanel(
                                 modifier = Modifier
                                     .clip(
                                         RoundedCornerShape(
-                                            settings.cornerRadiusForLayer(3).dp
+                                            settings.value.cornerRadiusForLayer(3).dp
                                         )
                                     )
                                     .fillMaxHeight()
                                     .background(Color.White)
                                     .defaultMinSize(
-                                        minWidth = settings.heightForLayer(3).dp
+                                        minWidth = settings.value.heightForLayer(3).dp
                                     )
 
 
                             ) {
                                 Icon(
-                                    painter = painterResource(id = if(settings.isFirstAppLoad) R.drawable.ic_check else R.drawable.ic_arrow_back),
+                                    painter = painterResource(id = if(settings.value.isFirstAppLoad) R.drawable.ic_check else R.drawable.ic_arrow_back),
                                     contentDescription = "Back to Settings",
                                     tint = Color.Black
                                 )
@@ -773,7 +773,7 @@ fun SettingsPanel(
                                 modifier = Modifier
                                     .weight(1f)
                                     .fillMaxHeight()
-                                    .clip(RoundedCornerShape(settings.cornerRadiusForLayer(3).dp))
+                                    .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(3).dp))
                                     .background(Color(selectedColorInt))
                                 ,
                                 contentAlignment = Alignment.Center // 2. Center the content of the Box
@@ -844,12 +844,12 @@ fun SettingsPanel(
                                 modifier = Modifier
                                     .clip(
                                         RoundedCornerShape(
-                                            settings.cornerRadiusForLayer(3).dp
+                                            settings.value.cornerRadiusForLayer(3).dp
                                         )
                                     )
                                     .fillMaxHeight()
                                     .defaultMinSize(
-                                        minWidth = settings.heightForLayer(3).dp
+                                        minWidth = settings.value.heightForLayer(3).dp
                                     )
 
 
@@ -865,10 +865,10 @@ fun SettingsPanel(
 
                         }
                         AnimatedVisibility(
-                            visible = !uiState.isFocusOnSettingTextField,
+                            visible = !uiState.value.isFocusOnSettingTextField,
 
-                            enter = expandVertically(tween(settings.animationSpeedForLayer(1))),
-                            exit = shrinkVertically(tween(settings.animationSpeedForLayer(1)))
+                            enter = expandVertically(tween(settings.value.animationSpeedForLayer(1))),
+                            exit = shrinkVertically(tween(settings.value.animationSpeedForLayer(1)))
 
                         ) {
 
@@ -955,7 +955,7 @@ fun SettingsPanel(
                     TextSetting(
                         onBackClick = onBackClick,
                         iconID = R.drawable.ic_link,
-                        currentSettingOriginalValue = settings.defaultUrl,
+                        currentSettingOriginalValue = settings.value.defaultUrl,
                          
                         field = BrowserSettingField.DEFAULT_URL
                         )
@@ -967,7 +967,7 @@ fun SettingsPanel(
                             Modifier
                                 .fillMaxWidth()
                                 .height(
-                                    settings.heightForLayer(2).dp
+                                    settings.value.heightForLayer(2).dp
                                 ),
                         contentAlignment = Alignment.Center
                     ) {

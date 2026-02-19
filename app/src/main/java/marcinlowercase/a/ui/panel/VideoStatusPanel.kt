@@ -1,5 +1,6 @@
 package marcinlowercase.a.ui.panel
 
+import android.util.Log
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -52,8 +53,8 @@ fun VideoStatusPanel(
 ) {
 
     val viewModel = LocalBrowserViewModel.current
-    val uiState = viewModel.uiState.collectAsState().value
-val settings = viewModel.browserSettings.collectAsState().value
+    val uiState = viewModel.uiState.collectAsState()
+    val settings = viewModel.browserSettings.collectAsState()
 
    
     var isTemporarilyVisible by remember { mutableStateOf(false) }
@@ -69,7 +70,7 @@ val settings = viewModel.browserSettings.collectAsState().value
     // 2. Calculate if the panel should be visible (Alpha = 1.0)
     val shouldShow by remember {
         derivedStateOf {
-            uiState.isMediaControlPanelVisible || // Main panel is open
+            uiState.value.isMediaControlPanelVisible || // Main panel is open
                     pendingSeekSeconds.value != 0.0 ||  // User is Seeking
                     isTemporarilyVisible                // User changed Vol/Bright
         }
@@ -84,7 +85,7 @@ val settings = viewModel.browserSettings.collectAsState().value
     // Local tick for live position updates
     var liveTick by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(uiState.isMediaControlPanelVisible, viewModel.geckoManager.isActiveMediaSessionPaused) {
+    LaunchedEffect(uiState.value.isMediaControlPanelVisible, viewModel.geckoManager.isActiveMediaSessionPaused) {
         if (!viewModel.geckoManager.isActiveMediaSessionPaused) {
             while (true) {
                 viewModel.geckoManager.tickLivePosition()
@@ -129,17 +130,20 @@ val settings = viewModel.browserSettings.collectAsState().value
     }
     var dragAccumulator by remember { mutableFloatStateOf(0f) }
 
+    Log.e("MediaDisplay", "uiState.value.isOnFullscreenVideo${uiState.value.isOnFullscreenVideo}")
+    Log.e("MediaDisplay", "uiState.value.isMediaControlPanelDisplayed${uiState.value.isMediaControlPanelDisplayed}")
+    Log.e("MediaDisplay", "shouldShow$shouldShow")
 
-    if (uiState.isOnFullscreenVideo && uiState.isMediaControlPanelDisplayed || shouldShow) Column (
+    if ((uiState.value.isOnFullscreenVideo && uiState.value.isMediaControlPanelDisplayed) || shouldShow) Column (
         modifier = modifier
-            .padding(settings.padding.dp)
-            .widthIn(min = settings.heightForLayer(1).dp)
-            .heightIn(min = settings.heightForLayer(1).dp)
-            .clip(RoundedCornerShape(settings.cornerRadiusForLayer(1).dp))
+            .padding(settings.value.padding.dp)
+            .widthIn(min = settings.value.heightForLayer(1).dp)
+            .heightIn(min = settings.value.heightForLayer(1).dp)
+            .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
             .alpha(opacity)
             .background(Color.Black)
             .clickable {
-                if (uiState.isMediaControlPanelVisible) {
+                if (uiState.value.isMediaControlPanelVisible) {
                     onSwapLayout()
                 } else {
                     viewModel.updateUI { it.copy(isMediaControlPanelVisible = true) }
@@ -177,7 +181,7 @@ val settings = viewModel.browserSettings.collectAsState().value
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .animateContentSize()
-                .padding(horizontal = settings.cornerRadiusForLayer(1).dp)
+                .padding(horizontal = settings.value.cornerRadiusForLayer(1).dp)
         )
     }
 }

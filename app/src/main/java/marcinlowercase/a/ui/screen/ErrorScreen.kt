@@ -33,9 +33,8 @@ fun ErrorScreen(
 ) {
 
     val viewModel = LocalBrowserViewModel.current
-    val uiState = viewModel.uiState.collectAsState().value
-val settings = viewModel.browserSettings.collectAsState().value
-    
+    val settings = viewModel.browserSettings.collectAsState()
+
     val userMessage = when (errorState.error.category) {
         WebRequestError.ERROR_CATEGORY_NETWORK -> "no connection"
         WebRequestError.ERROR_CATEGORY_SECURITY -> "this site is not secure"
@@ -44,7 +43,7 @@ val settings = viewModel.browserSettings.collectAsState().value
         else -> "error"
     }
 
-    val errorIcon = when (errorState.error.category) {
+    when (errorState.error.category) {
         WebRequestError.ERROR_CATEGORY_NETWORK -> R.drawable.ic_signal_wifi_off
         WebRequestError.ERROR_CATEGORY_SECURITY -> R.drawable.ic_gpp_bad
         WebRequestError.ERROR_CATEGORY_URI -> R.drawable.ic_link_off
@@ -55,7 +54,7 @@ val settings = viewModel.browserSettings.collectAsState().value
         modifier = modifier
             .fillMaxSize()
             .clickable(enabled = false) {} // Prevent clicking through to WebView
-            .clip(RoundedCornerShape(settings.deviceCornerRadius.dp))
+            .clip(RoundedCornerShape(settings.value.deviceCornerRadius.dp))
             .background(Color.White) // Or dynamic theme color
     ) {
         Column(
@@ -83,7 +82,7 @@ val settings = viewModel.browserSettings.collectAsState().value
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(settings.padding.dp))
+            Spacer(modifier = Modifier.height(settings.value.padding.dp))
 
             // URL (Optional, make it smaller)
             Text(

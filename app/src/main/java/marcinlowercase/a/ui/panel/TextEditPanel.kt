@@ -33,33 +33,32 @@ fun TextEditPanel(
     descriptionContent: MutableState<String>,
 ) {
     val viewModel = LocalBrowserViewModel.current
-    val uiState = viewModel.uiState.collectAsState().value
-val settings = viewModel.browserSettings.collectAsState().value
+    val settings = viewModel.browserSettings.collectAsState()
     AnimatedVisibility(
         visible = isVisible,
         enter = expandVertically(
             animationSpec = tween(
-                settings.animationSpeedForLayer(2)
+                settings.value.animationSpeedForLayer(2)
             )
         ) +
-                fadeIn(tween(settings.animationSpeedForLayer(2))),
+                fadeIn(tween(settings.value.animationSpeedForLayer(2))),
         exit = shrinkVertically(
             animationSpec = tween(
-                settings.animationSpeedForLayer(2)
+                settings.value.animationSpeedForLayer(2)
             )
         ) +
-                fadeOut(tween(settings.animationSpeedForLayer(2)))
+                fadeOut(tween(settings.value.animationSpeedForLayer(2)))
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = settings.padding.dp)
-                .padding(bottom = settings.padding.dp)
+                .padding(horizontal = settings.value.padding.dp)
+                .padding(bottom = settings.value.padding.dp)
                 .clip(RoundedCornerShape(
-                    settings.cornerRadiusForLayer(2).dp
+                    settings.value.cornerRadiusForLayer(2).dp
                 ))
-                .padding(settings.padding.dp),
-            horizontalArrangement = Arrangement.spacedBy(settings.padding.dp)
+                .padding(settings.value.padding.dp),
+            horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
         ) {
             // Dismiss
             CustomIconButton(

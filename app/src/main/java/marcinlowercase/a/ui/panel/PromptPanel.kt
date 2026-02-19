@@ -59,19 +59,19 @@ fun PromptPanel(
     onDismiss: () -> Unit,
 ) {
     val viewModel = LocalBrowserViewModel.current
-    val uiState = viewModel.uiState.collectAsState().value
-    val settings = viewModel.browserSettings.collectAsState().value
+    val uiState = viewModel.uiState.collectAsState()
+    val settings = viewModel.browserSettings.collectAsState()
     AnimatedVisibility(
 //        modifier = modifier,
-        visible = uiState.isPromptPanelVisible,
-        enter = fadeIn(tween(settings.animationSpeedForLayer(1))),
+        visible = uiState.value.isPromptPanelVisible,
+        enter = fadeIn(tween(settings.value.animationSpeedForLayer(1))),
         exit = shrinkVertically(
             tween(
-                settings.animationSpeedForLayer(1)
+                settings.value.animationSpeedForLayer(1)
             )
         ) + fadeOut(
             tween(
-                settings.animationSpeedForLayer(1)
+                settings.value.animationSpeedForLayer(1)
             )
         )
     ) {
@@ -81,21 +81,21 @@ fun PromptPanel(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = settings.padding.dp)
+                .padding(horizontal = settings.value.padding.dp)
                 .padding(
-                    top = settings.padding.dp,
-                    bottom = if (isUrlBarVisible) 0.dp else settings.padding.dp
+                    top = settings.value.padding.dp,
+                    bottom = if (isUrlBarVisible) 0.dp else settings.value.padding.dp
                 )
         ) {
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = settings.padding.dp)
-                    .padding(horizontal = settings.padding.dp * 3)
+                    .padding(bottom = settings.value.padding.dp)
+                    .padding(horizontal = settings.value.padding.dp * 3)
                     .clip(
                         RoundedCornerShape(
-                            settings.cornerRadiusForLayer(2).dp
+                            settings.value.cornerRadiusForLayer(2).dp
                         )
                     )
                     .background(
@@ -107,8 +107,8 @@ fun PromptPanel(
 //                        shape = RoundedCornerShape(
 //                            cornerRadiusForLayer(
 //                                2,
-//                                settings.deviceCornerRadius,
-//                                settings.padding
+//                                settings.value.deviceCornerRadius,
+//                                settings.value.padding
 //                            ).dp
 //                        )
 //                    )
@@ -119,7 +119,7 @@ fun PromptPanel(
                 // "from" Text - Fixed Size
                 Row(
                     modifier = Modifier
-                        .padding(settings.padding.dp)
+                        .padding(settings.value.padding.dp)
                 ) {
                     Text(
                         text = "from ", // Added a space for better readability
@@ -150,7 +150,7 @@ fun PromptPanel(
                     .background(
                         Color.Black,
                         shape = RoundedCornerShape(
-                            settings.cornerRadiusForLayer(2).dp
+                            settings.value.cornerRadiusForLayer(2).dp
                         )
                     )
 //                    .border(
@@ -159,8 +159,8 @@ fun PromptPanel(
 //                        shape = RoundedCornerShape(
 //                            cornerRadiusForLayer(
 //                                2,
-//                                settings.deviceCornerRadius,
-//                                settings.padding
+//                                settings.value.deviceCornerRadius,
+//                                settings.value.padding
 //                            ).dp
 //                        )
 //                    )
@@ -168,16 +168,16 @@ fun PromptPanel(
             {
 
                 val textModifier = Modifier
-                    .padding(settings.padding.dp)
+                    .padding(settings.value.padding.dp)
 
 
                 Column(
                     modifier = Modifier
-                        .padding(settings.padding.dp)
+                        .padding(settings.value.padding.dp)
                         .background(
                             color = Color.Transparent,
                             shape = RoundedCornerShape(
-                                settings.cornerRadiusForLayer(3).dp
+                                settings.value.cornerRadiusForLayer(3).dp
                             )
                         )
                 ) {
@@ -200,7 +200,7 @@ fun PromptPanel(
                                 color = Color.White,
                                 modifier = textModifier
                             )
-                            Spacer(Modifier.height(settings.padding.dp))
+                            Spacer(Modifier.height(settings.value.padding.dp))
                             OutlinedTextField(
                                 value = textInput,
                                 onValueChange = { textInput = it },
@@ -218,7 +218,7 @@ fun PromptPanel(
                                     }
                                 ),
                                 shape = RoundedCornerShape(
-                                    settings.cornerRadiusForLayer(3).dp
+                                    settings.value.cornerRadiusForLayer(3).dp
                                 ),
                                 colors = TextFieldDefaults.colors(
                                     focusedContainerColor = Color.Black.copy(0.95f), // Background when focused
@@ -246,9 +246,9 @@ fun PromptPanel(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(settings.padding.dp),
+                        .padding(settings.value.padding.dp),
                     horizontalArrangement = Arrangement.spacedBy(
-                        settings.padding.dp
+                        settings.value.padding.dp
                     ),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -259,7 +259,7 @@ fun PromptPanel(
                             modifier = Modifier
                                 .buttonSettingsForLayer(
                                     3,
-                                    settings,
+                                    settings.value,
                                     false
                                 )
                                 .weight(1f),
@@ -267,8 +267,8 @@ fun PromptPanel(
 //                                    1.dp, Color.White, shape = RoundedCornerShape(
 //                                        cornerRadiusForLayer(
 //                                            3,
-//                                            settings.deviceCornerRadius,
-//                                            settings.padding,
+//                                            settings.value.deviceCornerRadius,
+//                                            settings.value.padding,
 //                                        ).dp
 //                                    )
 //                                )
@@ -276,7 +276,7 @@ fun PromptPanel(
                                 containerColor = Color.Black
                             ),
                             shape = RoundedCornerShape(
-                                settings.cornerRadiusForLayer(
+                                settings.value.cornerRadiusForLayer(
                                     3
                                 ).dp
                             ),
@@ -306,16 +306,16 @@ fun PromptPanel(
                         modifier = Modifier
                             .buttonSettingsForLayer(
                                 3,
-                                settings
+                                settings.value
                             )
                             .weight(1f)
                             .background(
                                 Color.White, shape = RoundedCornerShape(
-                                    settings.cornerRadiusForLayer(3).dp
+                                    settings.value.cornerRadiusForLayer(3).dp
                                 )
                             ),
                         shape = RoundedCornerShape(
-                            settings.cornerRadiusForLayer(2).dp
+                            settings.value.cornerRadiusForLayer(2).dp
                         ),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color.White

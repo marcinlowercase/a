@@ -39,40 +39,39 @@ fun NavigationPanel(
 
     ) {
     val viewModel = LocalBrowserViewModel.current
-    val uiState = viewModel.uiState.collectAsState().value
-val settings = viewModel.browserSettings.collectAsState().value
+val settings = viewModel.browserSettings.collectAsState()
     AnimatedVisibility(
         visible = isNavPanelVisible,
         enter = expandVertically(
             tween(
-                settings.animationSpeedForLayer(1)
+                settings.value.animationSpeedForLayer(1)
             )
         ) + fadeIn(
             tween(
-                settings.animationSpeedForLayer(1)
+                settings.value.animationSpeedForLayer(1)
             )
         ),
         exit = shrinkVertically(
             tween(
-                settings.animationSpeedForLayer(1)
+                settings.value.animationSpeedForLayer(1)
             )
         ) + fadeOut(
             tween(
-                settings.animationSpeedForLayer(1)
+                settings.value.animationSpeedForLayer(1)
             )
         )
     ) {
         Box(
             modifier = Modifier
-                .padding(horizontal = settings.padding.dp)
-                .padding(top = settings.padding.dp)
+                .padding(horizontal = settings.value.padding.dp)
+                .padding(top = settings.value.padding.dp)
         ) {
             Column(
                 modifier = modifier
 
                     .clip(
                         RoundedCornerShape(
-                            settings.cornerRadiusForLayer(2).dp
+                            settings.value.cornerRadiusForLayer(2).dp
                         )
                     )
                     .background(Color.Black.copy(0.3f)),
@@ -81,8 +80,8 @@ val settings = viewModel.browserSettings.collectAsState().value
                 Row(
                     modifier = modifier
                         .fillMaxWidth()
-                        .padding(top = settings.padding.dp)
-                        .padding(horizontal = settings.padding.dp),
+                        .padding(top = settings.value.padding.dp)
+                        .padding(horizontal = settings.value.padding.dp),
 
 
                     horizontalArrangement = Arrangement.SpaceEvenly,
@@ -116,8 +115,8 @@ val settings = viewModel.browserSettings.collectAsState().value
                     modifier = modifier
                         .fillMaxWidth()
 
-                        .padding(settings.padding.dp),
-                    horizontalArrangement = Arrangement.spacedBy(settings.padding.dp),
+                        .padding(settings.value.padding.dp),
+                    horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Back Icon
@@ -161,18 +160,17 @@ fun NavigationItem(
 
     ) {
     val viewModel = LocalBrowserViewModel.current
-    val uiState = viewModel.uiState.collectAsState().value
-val settings = viewModel.browserSettings.collectAsState().value
+val settings = viewModel.browserSettings.collectAsState()
     // Cancel Icon
     val refreshColor by animateColorAsState(if (activeAction == gestureNavAction) Color.White else Color.Transparent)
     Box(
         modifier = modifier
             .height(
-                settings.heightForLayer(3).dp
+                settings.value.heightForLayer(3).dp
             )
             .clip(
                 RoundedCornerShape(
-                    settings.cornerRadiusForLayer(3).dp
+                    settings.value.cornerRadiusForLayer(3).dp
                 )
             )
             .background(refreshColor)

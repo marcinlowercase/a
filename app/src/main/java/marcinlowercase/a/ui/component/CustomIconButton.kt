@@ -13,7 +13,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.function.buttonPointerInput
 import marcinlowercase.a.core.function.buttonSettingsForLayer
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
@@ -36,15 +35,14 @@ fun CustomIconButton(
 
     ) {
     val viewModel = LocalBrowserViewModel.current
-    val uiState = viewModel.uiState.collectAsState().value
-    val settings = viewModel.browserSettings.collectAsState().value
+    val settings = viewModel.browserSettings.collectAsState()
 
 
     val  hapticFeedback = LocalHapticFeedback.current
     val sizeModifier = if (isLandscape) {
-        Modifier.width(settings.heightForLayer(layer).dp)
+        Modifier.width(settings.value.heightForLayer(layer).dp)
     } else {
-        Modifier.height(settings.heightForLayer(layer).dp)
+        Modifier.height(settings.value.heightForLayer(layer).dp)
     }
     Box(
         modifier = modifier
@@ -53,7 +51,7 @@ fun CustomIconButton(
 
             .buttonSettingsForLayer(
                 layer,
-                settings,
+                settings.value,
                 isWhite
             )
 

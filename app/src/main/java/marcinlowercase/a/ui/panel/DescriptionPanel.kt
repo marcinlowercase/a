@@ -30,26 +30,25 @@ fun DescriptionPanel(
     onDismiss: () -> Unit
 ) {
     val viewModel = LocalBrowserViewModel.current
-    val uiState = viewModel.uiState.collectAsState().value
-val settings = viewModel.browserSettings.collectAsState().value
+    val settings = viewModel.browserSettings.collectAsState()
     AnimatedVisibility(
         visible = isVisible,
         enter = expandVertically(
             tween(
-                settings.animationSpeedForLayer(2)
+                settings.value.animationSpeedForLayer(2)
             )
         ) + fadeIn(
             tween(
-                settings.animationSpeedForLayer(2)
+                settings.value.animationSpeedForLayer(2)
             )
         ),
         exit = shrinkVertically(
             tween(
-                settings.animationSpeedForLayer(2)
+                settings.value.animationSpeedForLayer(2)
             )
         ) + fadeOut(
             tween(
-                settings.animationSpeedForLayer(2)
+                settings.value.animationSpeedForLayer(2)
             )
         )
     ) {
@@ -57,7 +56,7 @@ val settings = viewModel.browserSettings.collectAsState().value
             modifier = Modifier
 
                 .fillMaxWidth()
-                .padding(horizontal = settings.padding.dp * 4)
+                .padding(horizontal = settings.value.padding.dp * 4)
                 .clickable(onClick = onDismiss),
             contentAlignment = Alignment.Center
         ) {
@@ -68,8 +67,8 @@ val settings = viewModel.browserSettings.collectAsState().value
                 maxLines = 1,
                 overflow = TextOverflow.Visible,
                 modifier = Modifier
-                    .padding(horizontal = settings.padding.dp)
-                    .padding(top = settings.padding.dp)
+                    .padding(horizontal = settings.value.padding.dp)
+                    .padding(top = settings.value.padding.dp)
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState())
             )
