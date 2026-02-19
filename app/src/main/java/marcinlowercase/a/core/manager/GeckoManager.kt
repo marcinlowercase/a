@@ -276,10 +276,6 @@ class GeckoManager(private val context: Context) {
         engineManagedSessionIds.remove(tab.id)
     }
 
-    fun isSessionKilled(tabId: Long): Boolean {
-        return killedSessionIds.contains(tabId)
-    }
-
     // TODO use for PiP mode later
     private var currentVideoWidth = 16
     private var currentVideoHeight = 9
@@ -326,6 +322,12 @@ class GeckoManager(private val context: Context) {
         killedSessionIds.add(tabId)
     }
 
+
+    fun forceKillSession(tabId: Long) {
+        val session = sessionPool.remove(tabId)
+        session?.close()
+        killedSessionIds.add(tabId)
+    }
 
     fun startReset() {
         // Save exactly where Video A was when we left the page
