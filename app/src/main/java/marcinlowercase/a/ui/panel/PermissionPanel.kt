@@ -26,7 +26,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import marcinlowercase.a.core.data_class.CustomPermissionRequest
 import marcinlowercase.a.core.function.buttonSettingsForLayer
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import androidx.compose.runtime.collectAsState
@@ -36,15 +35,14 @@ import kotlin.math.roundToInt
 fun PermissionPanel(
     isUrlBarVisible: Boolean,
     // The pending request, which also controls visibility. Null means hidden.
-    request: CustomPermissionRequest?,
     // Event for when the user clicks "Allow" on our panel.
     onAllow: () -> Unit,
     // Event for when the user clicks "Deny" on our panel.
-    onDeny: () -> Unit,
 
     ) {
     val viewModel = LocalBrowserViewModel.current
     val uiState = viewModel.uiState.collectAsState().value
+    val request = viewModel.pendingPermissionRequest.value
 val settings = viewModel.browserSettings.collectAsState().value
     var requestToShow by remember { mutableStateOf(request) }
 
@@ -94,12 +92,15 @@ val settings = viewModel.browserSettings.collectAsState().value
             ) {
                 // --- Deny Button ---
                 IconButton(
-                    onClick = onDeny,
-                    modifier = Modifier.buttonSettingsForLayer(
-                        layer = 2,
-                        settings,
-                        white = false // false = transparent background, white border
-                    )
+                    onClick = {
+                        viewModel.denyCurrentPermissionRequest()
+                    },
+                    modifier = Modifier
+                        .buttonSettingsForLayer(
+                            layer = 2,
+                            settings,
+                            white = false // false = transparent background, white border
+                        )
                         .weight(1f),
 
                     ) {
@@ -115,10 +116,10 @@ val settings = viewModel.browserSettings.collectAsState().value
                     onClick = onAllow,
                     modifier = Modifier
                         .buttonSettingsForLayer(
-                        layer = 2,
-                        settings,
-                        white = true // true = white background
-                    )
+                            layer = 2,
+                            settings,
+                            white = true // true = white background
+                        )
                         .weight(1f),
                 ) {
                     Icon(

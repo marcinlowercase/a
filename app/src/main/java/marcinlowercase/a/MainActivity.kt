@@ -14,7 +14,6 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
-import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -24,7 +23,6 @@ import android.provider.OpenableColumns
 import android.util.Log
 import android.view.MotionEvent
 import android.view.ViewGroup
-import android.webkit.URLUtil
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -91,7 +89,6 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -135,7 +132,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import marcinlowercase.a.core.constant.generic_location_permission
-import marcinlowercase.a.core.data_class.App
 import marcinlowercase.a.core.data_class.ConfirmationDialogState
 import marcinlowercase.a.core.data_class.ContextMenuData
 import marcinlowercase.a.core.data_class.CustomPermissionRequest
@@ -149,9 +145,6 @@ import marcinlowercase.a.core.data_class.JsConfirm
 import marcinlowercase.a.core.data_class.JsDateTimeState
 import marcinlowercase.a.core.data_class.JsDialogState
 import marcinlowercase.a.core.data_class.JsPrompt
-import marcinlowercase.a.core.data_class.PollData
-import marcinlowercase.a.core.data_class.SiteSettings
-import marcinlowercase.a.core.data_class.Suggestion
 import marcinlowercase.a.core.data_class.Tab
 import marcinlowercase.a.core.enum_class.ActivePanel
 import marcinlowercase.a.core.enum_class.BottomPanelMode
@@ -159,18 +152,11 @@ import marcinlowercase.a.core.enum_class.DownloadStatus
 import marcinlowercase.a.core.enum_class.GestureNavAction
 import marcinlowercase.a.core.enum_class.MediaControlOption
 import marcinlowercase.a.core.enum_class.RevealState
-import marcinlowercase.a.core.enum_class.SearchEngine
-import marcinlowercase.a.core.enum_class.SuggestionSource
-import marcinlowercase.a.core.enum_class.TabState
 import marcinlowercase.a.core.function.createNotificationChannel
 import marcinlowercase.a.core.function.rememberAnchoredDraggableState
 import marcinlowercase.a.core.function.toDomain
 import marcinlowercase.a.core.function.webViewLoad
-import marcinlowercase.a.core.manager.AppManager
-import marcinlowercase.a.core.manager.BrowserDownloadManager
 import marcinlowercase.a.core.manager.MediaGestureManager
-import marcinlowercase.a.core.manager.SiteSettingsManager
-import marcinlowercase.a.core.manager.VisitedUrlManager
 import marcinlowercase.a.ui.component.CursorPad
 import marcinlowercase.a.ui.component.LoadingIndicator
 import marcinlowercase.a.ui.panel.BottomPanel
@@ -185,7 +171,6 @@ import marcinlowercase.a.ui.screen.ErrorScreen
 import marcinlowercase.a.ui.theme.Theme
 import marcinlowercase.a.ui.viewmodel.BrowserViewModel
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
-import org.json.JSONArray
 import org.mozilla.gecko.util.ThreadUtils.runOnUiThread
 import org.mozilla.geckoview.GeckoResult
 import org.mozilla.geckoview.GeckoRuntime
@@ -194,10 +179,6 @@ import org.mozilla.geckoview.GeckoView
 import org.mozilla.geckoview.StorageController
 import java.io.File
 import java.io.FileOutputStream
-import java.net.URL
-import java.net.URLDecoder
-import java.net.URLEncoder
-import java.util.regex.Pattern
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 import kotlin.system.exitProcess
@@ -541,12 +522,12 @@ fun BrowserScreen(
         viewModel.geckoManager.getSession(viewModel.activeTab!!)
     }
 
-    val siteSettingsManager = remember { SiteSettingsManager(context) }
-    val siteSettings = remember {
-        mutableStateMapOf<String, SiteSettings>().apply {
-            putAll(siteSettingsManager.loadSettings())
-        }
-    }
+//    val siteSettingsManager = remember { SiteSettingsManager(context) }
+//    val siteSettings = remember {
+//        mutableStateMapOf<String, SiteSettings>().apply {
+//            putAll(siteSettingsManager.loadSettings())
+//        }
+//    }
 
     var isApplyImePaddingToWebView by remember { mutableStateOf(true) }
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -717,74 +698,33 @@ fun BrowserScreen(
 
 
     //region Permissions Handle
-
-    val pendingPermissionRequest = remember {
-        mutableStateOf<CustomPermissionRequest?>(null)
-    }
-
-    // because in location app -> android popup
-    // but in media android -> popup
-    // so we store this to keep the old permissionManager.
-    val pendingMediaPermissionRequest = remember {
-        mutableStateOf<CustomPermissionRequest?>(null)
-    }
-    val savePermissionDecision = { domain: String, permissions: Map<String, Boolean> ->
-        val currentSettings = siteSettings.getOrPut(domain) { SiteSettings(domain = domain) }
-        val updatedDecisions = currentSettings.permissionDecisions.toMutableMap()
-        // First, add all results from the system dialog
-        updatedDecisions.putAll(permissions)
-
-
-        // Now, check if any location permission was part of the request
-        if (updatedDecisions.containsKey(Manifest.permission.ACCESS_FINE_LOCATION) ||
-            updatedDecisions.containsKey(Manifest.permission.ACCESS_COARSE_LOCATION)
-        ) {
-            // Determine if location was granted (either fine or coarse is enough)
-            val isGranted = updatedDecisions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
-                    updatedDecisions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
-
-            // Remove the specific, detailed permissions
-            updatedDecisions.remove(Manifest.permission.ACCESS_FINE_LOCATION)
-            updatedDecisions.remove(Manifest.permission.ACCESS_COARSE_LOCATION)
-
-            // Add our single, generic permission entry
-            updatedDecisions[generic_location_permission] = isGranted
-
-        }
-
-        // Proceed with saving the consolidated map
-        val newSettings = currentSettings.copy(permissionDecisions = updatedDecisions)
-        siteSettings[domain] = newSettings // Trigger state update
-
-        siteSettingsManager.saveSettings(siteSettings)
-    }
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions(),
         onResult = { permissions ->
             // this result run when user click on the android dialog to result
 
             if (permissions.contains(Manifest.permission.CAMERA) || permissions.contains(Manifest.permission.RECORD_AUDIO)) {
-                // if it is media permission, use the stored pendingMediaPermissionRequest we stored later to display the app permission panel
-                pendingMediaPermissionRequest.value?.onResult?.invoke(
+                // if it is media permission, use the stored viewModel.pendingMediaPermissionRequest we stored later to display the app permission panel
+                viewModel.pendingMediaPermissionRequest.value?.onResult?.invoke(
                     permissions,
-                    pendingMediaPermissionRequest
+                    viewModel.pendingMediaPermissionRequest
                 )
 
             } else {
                 // if it is location we have displayed the app permission panel before the android panel so just grant the result from android level
-                pendingPermissionRequest.value?.let { request: CustomPermissionRequest ->
-                    siteSettingsManager.getDomain(request.origin)?.let { domain ->
-                        savePermissionDecision(domain, permissions)
+                viewModel.pendingPermissionRequest.value?.let { request: CustomPermissionRequest ->
+                    viewModel.siteSettingsManager.getDomain(request.origin)?.let { domain ->
+                        viewModel.savePermissionDecision(domain, permissions)
                     }
                 }
 
-                pendingPermissionRequest.value?.onResult?.invoke(
+                viewModel.pendingPermissionRequest.value?.onResult?.invoke(
                     permissions,
-                    pendingPermissionRequest
+                    viewModel.pendingPermissionRequest
                 )
 
                 // clear the request to hide the panel.
-                pendingPermissionRequest.value = null
+                viewModel.pendingPermissionRequest.value = null
             }
 
         }
@@ -836,11 +776,7 @@ fun BrowserScreen(
     val findInPageText = remember { mutableStateOf("") }
     val findInPageResult = remember { mutableStateOf(0 to 0) }
 
-    val visitedUrlManager = remember { VisitedUrlManager(context) }
-    val visitedUrlMap =
-        remember { mutableStateMapOf<String, String>().apply { putAll(visitedUrlManager.loadUrlMap()) } }
 
-    val suggestions = remember { mutableStateListOf<Suggestion>() }
 
     val initialX =
         if (settings.backSquareOffsetX != -1f) settings.backSquareOffsetX else 0f
@@ -1002,18 +938,6 @@ fun BrowserScreen(
         activity.finishAndRemoveTask()
         exitProcess(0)
     }
-    val removeSuggestionFromHistory = { suggestionToRemove: Suggestion ->
-        if (suggestionToRemove.source == SuggestionSource.HISTORY) {
-            // Remove from persistent storage
-            visitedUrlManager.removeUrl(suggestionToRemove.url)
-
-            // Remove from our in-memory state maps
-            visitedUrlMap.remove(suggestionToRemove.url)
-
-            // Remove from the currently displayed suggestion list for immediate UI feedback
-            suggestions.remove(suggestionToRemove)
-        }
-    }
 
 
     fun confirmationPopup(
@@ -1062,38 +986,7 @@ fun BrowserScreen(
                 )
             }
 
-            val currentSettings = siteSettings[domain] ?: SiteSettings(domain = domain)
-
-
-            // 2. Create a new, updated map of permissions.
-            val updatedPermissions = currentSettings.permissionDecisions.toMutableMap().apply {
-                this[permission]?.let { this[permission] = !it }
-            }
-
-            // 3. Create a new SiteSettings object using copy() with the updated map.
-            val newSettings = currentSettings.copy(permissionDecisions = updatedPermissions)
-
-            // 4. Update the state map. This is the crucial step for triggering recomposition.
-            siteSettings[domain] = newSettings
-
-            // 5. Save the entire map to persistent storage.
-            siteSettingsManager.saveSettings(siteSettings)
-
-
-//            NO NEED TO REFRESH
-//
-//
-//            confirmationPopup(
-//                message = "refresh ?",
-//                onConfirm = {
-//                    activeSession.reload()
-//                    isUrlBarVisible = false
-//                },
-//                onCancel = {
-//                    // Do nothing, the popup will just dismiss.
-//                }
-//            )
-
+            viewModel.toggleSitePermission(domain, permission)
         }
 
     }
@@ -1129,51 +1022,34 @@ fun BrowserScreen(
                 val inspectingTab = viewModel.currentInspectingTab
 
                 if (inspectingTab != null) {
-                    val domain = siteSettingsManager.getDomain(inspectingTab.currentURL)
+                    val domain = viewModel.siteSettingsManager.getDomain(inspectingTab.currentURL)
+
                     if (domain != null) {
-                        siteSettings.remove(domain)
-                        siteSettingsManager.saveSettings(siteSettings)
-                    }
-                    val runtime = viewModel.geckoManager.runtime
-                    val flags = StorageController.ClearFlags.ALL
-                    runtime.storageController.clearData(flags).then {
-                        runOnUiThread {
-                            // loop through ALL viewModel.tabs to find matches
-                            viewModel.tabs.forEachIndexed { index, tab ->
-                                val tabDomain = siteSettingsManager.getDomain(tab.currentURL)
+                        viewModel.clearDomainData(domain)
+                        val runtime = viewModel.geckoManager.runtime
+                        val flags = StorageController.ClearFlags.ALL
+                        runtime.storageController.clearData(flags).then {
+                            runOnUiThread {
+                                // loop through ALL viewModel.tabs to find matches
+                                viewModel.tabs.forEachIndexed { index, tab ->
+                                    val tabDomain = viewModel.siteSettingsManager.getDomain(tab.currentURL)
 
-                                // check if this tab belongs to the domain just cleared
-                                if (domain != null && tabDomain == domain) {
+                                    // check if this tab belongs to the domain just cleared
+                                    if (domain != null && tabDomain == domain) {
+                                        viewModel.updateTabById(tab.id) { it.copy(savedState = null) }
 
-                                    Log.i(
-                                        "ClearData",
-                                        "Killing session for tab ${tab.id} ($tabDomain)"
-                                    )
-
-                                    // A. Kill the Gecko Session (Wipes in-memory permission cache)
-                                    viewModel.geckoManager.closeSession(tab)
-
-                                    // B. Clear Saved State
-                                    // Important! If we don't do this, the tab might restore
-                                    // the old state (with old form data) when re-opened.
-                                    // We want a fresh reload.
-                                    viewModel.tabs[index] = tab.copy(savedState = null)
-
-                                    // C. Handle Active Tab Refresh
-                                    if (tab.id == viewModel.activeTab!!.id) {
-                                        // If we just killed the tab the user is looking at,
-                                        // we must force Compose to re-create the session immediately.
-                                        sessionRefreshTrigger++
-
-                                        // The new session will be created empty.
-                                        // Since we cleared savedState, createAndConfigureSession
-                                        // will automatically load the currentURL.
+                                        if (tab.id == viewModel.activeTab!!.id) {
+                                            viewModel.geckoManager.closeSession(tab)
+                                            sessionRefreshTrigger++
+                                        } else {
+                                            viewModel.geckoManager.forceKillSession(tab.id)
+                                        }
                                     }
                                 }
                             }
+                            // Return a result to satisfy the chain
+                            GeckoResult.fromValue(it)
                         }
-                        // Return a result to satisfy the chain
-                        GeckoResult.fromValue(it)
                     }
 
                     viewModel.updateUI { it.copy(isTabDataPanelVisible = false) }
@@ -1401,8 +1277,8 @@ fun BrowserScreen(
     LaunchedEffect(uiState.isAppsPanelVisible) {
         if (uiState.isAppsPanelVisible) activeMainPanel = ActivePanel.APPS
     }
-    LaunchedEffect(suggestions) {
-        if (suggestions.isNotEmpty()) activeMainPanel = ActivePanel.SUGGESTIONS
+    LaunchedEffect(viewModel.suggestions) {
+        if (viewModel.suggestions.isNotEmpty()) activeMainPanel = ActivePanel.SUGGESTIONS
     }
 
     LaunchedEffect(uiState.isDownloadPanelVisible) {
@@ -1420,8 +1296,8 @@ fun BrowserScreen(
     LaunchedEffect(uiState.isSettingsPanelVisible) {
         if (uiState.isSettingsPanelVisible) activeMainPanel = ActivePanel.SETTINGS
     }
-    LaunchedEffect(pendingPermissionRequest.value) {
-        if (pendingPermissionRequest.value != null) activeMainPanel = ActivePanel.PERMISSION
+    LaunchedEffect(viewModel.pendingPermissionRequest.value) {
+        if (viewModel.pendingPermissionRequest.value != null) activeMainPanel = ActivePanel.PERMISSION
     }
     LaunchedEffect(uiState.isTabsPanelVisible) {
         // When TabsPanel opens, it becomes the main panel.
@@ -1458,10 +1334,10 @@ fun BrowserScreen(
             viewModel.updateUI { it.copy(isSettingsPanelVisible = false) }
         }
 
-        if (current != ActivePanel.PERMISSION && pendingPermissionRequest.value != null) pendingPermissionRequest.value =
+        if (current != ActivePanel.PERMISSION && viewModel.pendingPermissionRequest.value != null) viewModel.pendingPermissionRequest.value =
             null
 
-        if (current != ActivePanel.SUGGESTIONS && suggestions.isNotEmpty()) suggestions.clear()
+        if (current != ActivePanel.SUGGESTIONS && viewModel.suggestions.isNotEmpty()) viewModel.suggestions.clear()
 
         // If the active panel is NOT TABS, close both TABS and TAB_DATA.
         if (current != ActivePanel.TABS) {
@@ -1669,124 +1545,15 @@ fun BrowserScreen(
                 isBackSquareInitialized = true
             }
         }
-
         LaunchedEffect(textFieldState.text, uiState.isFocusOnUrlTextField) {
-
-            if (!settings.showSuggestions || (textFieldState.text as String) == viewModel.currentInspectingTab?.currentURL || textFieldState.text.isBlank() || isPinningApp.value) {
-                suggestions.clear()
-                return@LaunchedEffect
-            }
-
-            val query = (textFieldState.text as String).trim()
-
-            if (query.isNotBlank() && uiState.isFocusOnUrlTextField) {
-//            delay(50L) // Debounce
-                if (query != textFieldState.text.trim()) return@LaunchedEffect
-
-                // --- COMBINED SUGGESTION LOGIC ---
-                val finalSuggestions = mutableListOf<Suggestion>()
-                val addedHistoryUrls = mutableSetOf<String>()
-
-                // A. Process History (ranked by match type and recency)
-                val historyMatches = visitedUrlMap.entries
-                    .filter { (url, title) ->
-                        url.contains(query, ignoreCase = true) || title.contains(
-                            query,
-                            ignoreCase = true
-                        )
-                    }
-                    .map { (url, title) ->
-                        // Determine which part matched for ranking
-                        val urlStartsWith = url.startsWith(query, ignoreCase = true)
-                        val titleStartsWith = title.startsWith(query, ignoreCase = true)
-
-                        // Create a rank: URL starts > Title starts > URL contains > Title contains
-                        val rank = when {
-                            urlStartsWith -> 1
-                            titleStartsWith -> 2
-                            url.contains(query, ignoreCase = true) -> 3
-                            else -> 4
-                        }
-                        // The text displayed is the title, and the payload is the URL
-                        Triple(
-                            Suggestion(text = title, source = SuggestionSource.HISTORY, url = url),
-                            rank,
-                            url
-                        )
-                    }
-                    .sortedBy { it.second } // Sort by the rank
-                    .map { it.first } // Get just the Suggestion object
-
-//            // Rank "starts with" matches higher
-//            val (startsWithHistory, containsHistory) = historyMatches.partition {
-//                it.text.startsWith(query, ignoreCase = true)
-//            }
-//            finalSuggestions.addAll(startsWithHistory)
-//            finalSuggestions.addAll(containsHistory)
-//            addedHistoryTexts.addAll(historyMatches.map { it.text })
-
-                finalSuggestions.addAll(historyMatches)
-                addedHistoryUrls.addAll(historyMatches.map { it.url })
-
-                // B. Fetch and process Google Suggestions
-                try {
-                    withContext(Dispatchers.IO) {
-                        val encodedQuery = URLEncoder.encode(query, "UTF-8")
-//                    val url = currentSearchEngine.value.getSuggestionUrl(encodedQuery)
-                        val url =
-                            SearchEngine.entries[settings.searchEngine].getSuggestionUrl(
-                                encodedQuery
-                            )
-//                        "https://suggestqueries.google.com/complete/search?client=chrome&ie=UTF-8&oe=UTF-8&q=$encodedQuery"
-//                        "https://duckduckgo.com/ac/?type=list&q=$encodedQuery"
-//                        "https://api.bing.com/osjson.aspx?query=$encodedQuery"
-                        val result = URL(url).readText(Charsets.UTF_8)
-
-                        val jsonArray = JSONArray(result)
-                        val suggestionsArray = jsonArray.getJSONArray(1)
-                        val googleSuggestions =
-                            List(suggestionsArray.length()) { suggestionsArray.getString(it) }
-
-                        googleSuggestions.forEach { suggestionText ->
-                            // Add Google suggestion only if it's not already in our history list
-                            if (!addedHistoryUrls.contains(suggestionText)) {
-//                            val searchUrl = "https://www.google.com/search?q=${
-//                            val searchUrl = "https://duckduckgo.com/?q=${
-//                            val searchUrl = "https://www.bing.com/search?q=${
-//                            val searchUrl = "https://www.bing.com/search?q=${
-//                                URLEncoder.encode(
-//                                    suggestionText,
-//                                    "UTF-8"
-//                                )
-//                            }"
-                                val searchUrl =
-                                    SearchEngine.entries[settings.searchEngine].getSearchUrl(
-                                        URLEncoder.encode(
-                                            suggestionText,
-                                            "UTF-8"
-                                        )
-                                    )
-                                finalSuggestions.add(
-                                    Suggestion(
-                                        text = suggestionText,
-                                        source = SuggestionSource.GOOGLE,
-                                        url = searchUrl
-                                    )
-                                )
-                            }
-                        }
-                    }
-                } catch (e: Exception) {
-                    if (e is kotlin.coroutines.cancellation.CancellationException) throw e
-
-                }
-
-                // C. Update the UI state
-                suggestions.clear()
-                if (textFieldState.text.isNotEmpty() && uiState.isFocusOnUrlTextField)
-                    suggestions.addAll(finalSuggestions.take(10)) // Limit to a reasonable number
+            // Only fetch if the user is actually typing in the URL bar
+            if (uiState.isFocusOnUrlTextField) {
+                viewModel.fetchSuggestions(
+                    query = textFieldState.text.toString(),
+                    isPinning = isPinningApp.value
+                )
             } else {
-                suggestions.clear()
+                viewModel.suggestions.clear()
             }
         }
         LaunchedEffect(uiState.isFindInPageVisible) {
@@ -1843,7 +1610,8 @@ fun BrowserScreen(
                     override var value: Tab
                         get() = viewModel.tabs.getOrElse(activeTabIndex) { Tab.createEmpty() }
                         set(newTab) {
-                            viewModel.tabs[activeTabIndex] = newTab
+//                            viewModel.tabs[activeTabIndex] = newTab
+                            viewModel.updateTabById(newTab.id) { newTab }
                         }
 
                     override fun component1() = value
@@ -1856,12 +1624,7 @@ fun BrowserScreen(
 
 
                     val url = viewModel.activeTab!!.currentURL
-                    // Pass both the URL and the title to the manager
-                    visitedUrlManager.addUrl(url, title)
-                    // Update our in-memory map
-                    if (title.isNotBlank()) {
-                        visitedUrlMap[url] = title
-                    }
+                    viewModel.addHistory(url, title)
 
 
                 },
@@ -1952,7 +1715,7 @@ fun BrowserScreen(
                     ) {
                         // this is the problem
                         if (request.isSystemRequest) {
-                            pendingMediaPermissionRequest.value = request
+                            viewModel.pendingMediaPermissionRequest.value = request
                             permissionLauncher.launch(request.permissionsToRequest.toTypedArray())
 
 //                        val hasAudio = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
@@ -1963,29 +1726,29 @@ fun BrowserScreen(
 //
 //                        if (!hasAudio || !hasVideo) {
 //                            // We don't have OS permission, so we can't give Site permission.
-////                            pendingMediaPermissionRequest = request
+////                            viewModel.pendingMediaPermissionRequest = request
 //                            permissionLauncher.launch(request.permissionsToRequest.toTypedArray())
 //                        } else {
 //
-//                            pendingPermissionRequest.value = request
+//                            viewModel.pendingPermissionRequest.value = request
 //                        }
                         } else {
-                            pendingPermissionRequest.value = request
+                            viewModel.pendingPermissionRequest.value = request
                         }
 
                     } else {
-                        pendingPermissionRequest.value = request
+                        viewModel.pendingPermissionRequest.value = request
                     }
                 },
                 onPageStartFun = { eventTabId, _, url ->
-                    pendingPermissionRequest.value?.let { request ->
+                    viewModel.pendingPermissionRequest.value?.let { request ->
                         // Check if the new URL's host is DIFFERENT from the origin of the permission request.
                         val newHost = url.toUri().host
                         val requestHost = request.origin.toUri().host
 
                         if (newHost != requestHost) {
                             // The user is navigating away, so clear the old permission request.
-                            pendingPermissionRequest.value = null
+                            viewModel.pendingPermissionRequest.value = null
                         }
                     }
                     if (eventTabId == viewModel.activeTab!!.id && url != "about:blank") {
@@ -2072,8 +1835,8 @@ fun BrowserScreen(
 
                     }
                 },
-                siteSettings = siteSettings,
-                siteSettingsManager = siteSettingsManager,
+                siteSettings = viewModel.siteSettings,
+                siteSettingsManager = viewModel.siteSettingsManager,
 
 
                 onFullScreenFun = { isFullscreen ->
@@ -2346,8 +2109,8 @@ fun BrowserScreen(
                 shakeDetector.stop()
             }
         }
-        LaunchedEffect(pendingPermissionRequest.value) {
-            viewModel.updateUI { it.copy(isPermissionPanelVisible = pendingPermissionRequest.value != null) }
+        LaunchedEffect(viewModel.pendingPermissionRequest.value) {
+            viewModel.updateUI { it.copy(isPermissionPanelVisible = viewModel.pendingPermissionRequest.value != null) }
         }
         // This effect will re-launch whenever isBottomPanelVisible changes.
         LaunchedEffect(uiState.isBottomPanelVisible) {
@@ -2864,7 +2627,6 @@ fun BrowserScreen(
                                     onCancel = {}
                                 )
                             },
-                            suggestions = suggestions,
                             onSuggestionClick = { suggestion ->
                                 webViewLoad(activeSession, suggestion.url, settings)
                                 focusManager.clearFocus()
@@ -2874,7 +2636,7 @@ fun BrowserScreen(
                                 confirmationPopup(
                                     message = "remove suggestion from history ? ",
                                     onConfirm = {
-                                        removeSuggestionFromHistory(suggestionToRemove)
+                                        viewModel.removeSuggestionFromHistory(suggestionToRemove)
                                     },
                                     onCancel = {}
                                 )
@@ -2894,34 +2656,8 @@ fun BrowserScreen(
 
                             confirmationState = confirmationState,
                             confirmationDisplayState = confirmationDisplayState,
-                            onPermissionDeny = {
-                                pendingPermissionRequest.value?.let { request ->
-                                    // --- SAVE THE DENIAL (NEW) ---
-                                    siteSettingsManager.getDomain(request.origin)?.let { domain ->
-                                        val deniedPermissions =
-                                            request.permissionsToRequest.associateWith { false }
-                                        savePermissionDecision(domain, deniedPermissions)
-                                    }
-                                    // --- END OF NEW LOGIC ---
-                                    request.onResult.invoke(emptyMap(), pendingPermissionRequest)
-                                }
-                                //                        pendingPermissionRequest.value = null
-                            },
-                            onMediaPermissionAllow = { permissions ->
-                                pendingPermissionRequest.value?.let { request ->
-                                    siteSettingsManager.getDomain(request.origin)?.let { domain ->
-                                        savePermissionDecision(domain, permissions)
-                                    }
-                                }
 
-                                pendingPermissionRequest.value?.onResult?.invoke(
-                                    permissions,
-                                    pendingPermissionRequest
-                                )
 
-                                // Clear the request to hide the panel.
-                                //                        pendingPermissionRequest.value = null
-                            },
                             updateInspectingTab = { tab ->
                                 if (tab.id != 0L) {
                                     viewModel.updateUI { it.copy(inspectingTabId = tab.id) }
@@ -2934,7 +2670,6 @@ fun BrowserScreen(
                             handleCloseInspectedTab = handleCloseInspectedTab,
                             handleClearInspectedTabData = handleClearInspectedTabData,
                             handlePermissionToggle = handlePermissionToggle,
-                            siteSettings = siteSettings,
 
 
                             onTabLongPressed = { tab ->
@@ -2964,7 +2699,6 @@ fun BrowserScreen(
                             onDismiss = { jsDialogState = null },
 
                             permissionLauncher = permissionLauncher,
-                            pendingPermissionRequest = pendingPermissionRequest,
 
                             focusManager = focusManager,
                             keyboardController = keyboardController,

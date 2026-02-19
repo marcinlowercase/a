@@ -35,7 +35,6 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import marcinlowercase.a.R
 import marcinlowercase.a.core.constant.generic_location_permission
-import marcinlowercase.a.core.data_class.SiteSettings
 import marcinlowercase.a.core.enum_class.TabState
 import marcinlowercase.a.core.function.toDomain
 import marcinlowercase.a.ui.component.CustomIconButton
@@ -55,7 +54,6 @@ fun TabDataPanel(
 //    webViewManager: WebViewManager,
     isTabDataPanelVisible: Boolean,
     onDismiss: () -> Unit,
-    siteSettings: Map<String, SiteSettings>,
     onPermissionToggle: (domain: String?, permission: String, isGranted: Boolean) -> Unit,
     onClearSiteData: () -> Unit,
     onCloseTab: () -> Unit,
@@ -130,8 +128,8 @@ fun TabDataPanel(
                         )
                 ) {
 
-//                    val siteSettings = currentSiteSettings
-//                    siteSettings?.domain
+//                    val viewModel.siteSettings = currentSiteSettings
+//                    viewModel.siteSettings?.domain
 //                    val domain =
 //                        SiteSettingsManager(LocalContext.current).getDomain(
 //                            webViewManager.getWebView(
@@ -139,7 +137,7 @@ fun TabDataPanel(
 //                            ).url ?: browserSettings.defaultUrl
 //                        )
                     val domain = viewModel.currentInspectingTab?.currentURL?.toDomain()
-                    val settings = siteSettings[domain]
+                    val settings = viewModel.siteSettings[domain]
                     Log.i("TabDataPanel", "domain $domain")
                     Log.i("TabDataPanel", "settings $settings")
 
@@ -265,7 +263,7 @@ fun TabDataPanel(
 //                                    webViewManager.getWebView(tab).url ?: browserSettings.defaultUrl
 //                                )
                             val domain = viewModel.currentInspectingTab?.currentURL?.toDomain()
-                            val settings = siteSettings[domain]
+                            val settings = viewModel.siteSettings[domain]
 
                             // Check if there are any permissions to display
                             if (settings != null && settings.permissionDecisions.isNotEmpty()) {

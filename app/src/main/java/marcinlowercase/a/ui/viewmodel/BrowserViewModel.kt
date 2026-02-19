@@ -1,5 +1,6 @@
 package marcinlowercase.a.ui.viewmodel
 
+import android.Manifest
 import android.app.Application
 import android.app.DownloadManager
 import android.content.Context
@@ -8,6 +9,8 @@ import android.os.Environment
 import android.util.Log
 import android.webkit.URLUtil
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
@@ -20,25 +23,35 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import marcinlowercase.a.CustomApplication
 import marcinlowercase.a.core.constant.default_url
+import marcinlowercase.a.core.constant.generic_location_permission
 import marcinlowercase.a.core.constant.pixel_9_corner_radius
 import marcinlowercase.a.core.data_class.App
 import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.BrowserUIState
+import marcinlowercase.a.core.data_class.CustomPermissionRequest
 import marcinlowercase.a.core.data_class.DownloadItem
 import marcinlowercase.a.core.data_class.DownloadParams
 import marcinlowercase.a.core.data_class.PanelVisibilityState
 import marcinlowercase.a.core.data_class.PollData
+import marcinlowercase.a.core.data_class.SiteSettings
+import marcinlowercase.a.core.data_class.Suggestion
 import marcinlowercase.a.core.data_class.Tab
 import marcinlowercase.a.core.enum_class.BrowserSettingField
 import marcinlowercase.a.core.enum_class.DownloadStatus
+import marcinlowercase.a.core.enum_class.SearchEngine
+import marcinlowercase.a.core.enum_class.SuggestionSource
 import marcinlowercase.a.core.enum_class.TabState
 import marcinlowercase.a.core.manager.AppManager
 import marcinlowercase.a.core.manager.BrowserDownloadManager
+import marcinlowercase.a.core.manager.SiteSettingsManager
 import marcinlowercase.a.core.manager.TabManager
+import marcinlowercase.a.core.manager.VisitedUrlManager
 import java.io.File
 import java.net.URLDecoder
+import java.net.URLEncoder
 import java.util.Collections
 import java.util.regex.Pattern
 
@@ -692,7 +705,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                         downloadTracker.saveDownloads(downloads)
                     }
                 }
-                delay(100L)
+                delay(500L)
             }
         }
     }
@@ -785,6 +798,206 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             counter++
         }
     }
+    //endregion
+
+    //region Site Settings logic
+    val siteSettingsManager = SiteSettingsManager(application)
+    val siteSettings = mutableStateMapOf<String, SiteSettings>().apply {
+        putAll(siteSettingsManager.loadSettings())
+    }
+    val togglePermission = { domain: String?, permission: String, isGranted: Boolean ->
+        if (domain != null) {
+            val currentSettings = siteSettings[domain] ?: SiteSettings(domain = domain)
+
+            // Toggle the boolean
+            val updatedDecisions = currentSettings.permissionDecisions.toMutableMap().apply {
+                this[permission] = ! (this[permission] ?: false)
+            }
+
+            val newSettings = currentSettings.copy(permissionDecisions = updatedDecisions)
+
+            // Update memory map and save to disk
+            siteSettings[domain] = newSettings
+            siteSettingsManager.saveSettings(siteSettings)
+        }
+    }
+
+    val visitedUrlManager = VisitedUrlManager(application)
+    val visitedUrlMap = mutableStateMapOf<String, String>().apply {
+        putAll(visitedUrlManager.loadUrlMap())
+    }
+
+    val addHistory = { url: String, title: String ->
+        visitedUrlManager.addUrl(url, title)
+        if (title.isNotBlank()) {
+            visitedUrlMap[url] = title
+        }
+    }
+
+    val clearDomainData = { domain: String ->
+        siteSettings.remove(domain)
+        siteSettingsManager.saveSettings(siteSettings)
+    }
+
+    //endregion
+
+    //region Permission Logic
+    val pendingPermissionRequest = mutableStateOf<CustomPermissionRequest?>(null)
+    val pendingMediaPermissionRequest = mutableStateOf<CustomPermissionRequest?>(null)
+
+    val savePermissionDecision = { domain: String, permissions: Map<String, Boolean> ->
+        val currentSettings = siteSettings.getOrPut(domain) { SiteSettings(domain = domain) }
+        val updatedDecisions = currentSettings.permissionDecisions.toMutableMap()
+
+        // 1. Add all results from the system dialog
+        updatedDecisions.putAll(permissions)
+
+        // 2. Location Consolidation Logic
+        if (updatedDecisions.containsKey(Manifest.permission.ACCESS_FINE_LOCATION) ||
+            updatedDecisions.containsKey(Manifest.permission.ACCESS_COARSE_LOCATION)
+        ) {
+            val isGranted = updatedDecisions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+                    updatedDecisions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+
+            updatedDecisions.remove(Manifest.permission.ACCESS_FINE_LOCATION)
+            updatedDecisions.remove(Manifest.permission.ACCESS_COARSE_LOCATION)
+            updatedDecisions[generic_location_permission] = isGranted
+        }
+
+        // 3. Update memory map and persist to disk
+        val newSettings = currentSettings.copy(permissionDecisions = updatedDecisions)
+        siteSettings[domain] = newSettings
+        siteSettingsManager.saveSettings(siteSettings)
+    }
+
+    val toggleSitePermission = { domain: String?, permission: String ->
+        if (domain != null) {
+            val currentSettings = siteSettings[domain] ?: SiteSettings(domain = domain)
+
+            // Create a new map with the flipped boolean
+            val updatedDecisions = currentSettings.permissionDecisions.toMutableMap().apply {
+                this[permission] = !(this[permission] ?: false)
+            }
+
+            // Update state map and persist to disk
+            val newSettings = currentSettings.copy(permissionDecisions = updatedDecisions)
+            siteSettings[domain] = newSettings
+            siteSettingsManager.saveSettings(siteSettings)
+        }
+    }
+
+    val denyCurrentPermissionRequest = {
+        val request = pendingPermissionRequest.value
+        if (request != null) {
+            // 1. Identify domain
+            val domain = siteSettingsManager.getDomain(request.origin)
+
+            // 2. Map all requested permissions to FALSE
+            if (domain != null) {
+                val deniedPermissions = request.permissionsToRequest.associateWith { false }
+                savePermissionDecision(domain, deniedPermissions)
+            }
+
+            // 3. Notify GeckoView that the request is finished (with empty result)
+            request.onResult.invoke(emptyMap(), pendingPermissionRequest)
+        }
+    }
+
+    val allowMediaPermissionRequest = { permissions: Map<String, Boolean> ->
+        val request = pendingPermissionRequest.value
+        if (request != null) {
+            // 1. Identify domain and save the "Allow" decision
+            siteSettingsManager.getDomain(request.origin)?.let { domain ->
+                savePermissionDecision(domain, permissions)
+            }
+
+            // 2. Invoke the callback to tell GeckoView the result
+            request.onResult.invoke(permissions, pendingPermissionRequest)
+
+        }
+    }
+    //endregion
+
+    //region Suggestions Logic
+    val suggestions = mutableStateListOf<Suggestion>()
+    fun fetchSuggestions(query: String, isPinning: Boolean) {
+        val settings = _browserSettings.value
+        val cleanQuery = query.trim()
+
+        // 1. Guard clauses
+        if (!settings.showSuggestions || cleanQuery.isBlank() || isPinning) {
+            suggestions.clear()
+            return
+        }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            val finalSuggestions = mutableListOf<Suggestion>()
+            val addedHistoryUrls = mutableSetOf<String>()
+
+            // A. Process Local History
+            val historyMatches = visitedUrlMap.entries
+                .filter { (url, title) ->
+                    url.contains(cleanQuery, ignoreCase = true) || title.contains(cleanQuery, ignoreCase = true)
+                }
+                .map { (url, title) ->
+                    val rank = when {
+                        url.startsWith(cleanQuery, ignoreCase = true) -> 1
+                        title.startsWith(cleanQuery, ignoreCase = true) -> 2
+                        url.contains(cleanQuery, ignoreCase = true) -> 3
+                        else -> 4
+                    }
+                    Triple(Suggestion(text = title, source = SuggestionSource.HISTORY, url = url), rank, url)
+                }
+                .sortedBy { it.second }
+                .map { it.first }
+
+            finalSuggestions.addAll(historyMatches)
+            addedHistoryUrls.addAll(historyMatches.map { it.url })
+
+            // B. Fetch Search Engine Suggestions
+            try {
+                val searchEngine = SearchEngine.entries[settings.searchEngine]
+                val encodedQuery = URLEncoder.encode(cleanQuery, "UTF-8")
+                val url = searchEngine.getSuggestionUrl(encodedQuery)
+
+                val result = java.net.URL(url).readText(Charsets.UTF_8)
+                val jsonArray = org.json.JSONArray(result)
+                val suggestionsArray = jsonArray.getJSONArray(1)
+
+                for (i in 0 until suggestionsArray.length()) {
+                    val suggestionText = suggestionsArray.getString(i)
+                    if (!addedHistoryUrls.contains(suggestionText)) {
+                        finalSuggestions.add(
+                            Suggestion(
+                                text = suggestionText,
+                                source = SuggestionSource.GOOGLE,
+                                url = searchEngine.getSearchUrl(URLEncoder.encode(suggestionText, "UTF-8"))
+                            )
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("Suggestions", "Network fetch failed", e)
+            }
+
+            // C. Update UI on Main Thread
+            withContext(Dispatchers.Main) {
+                // Ensure the query hasn't changed while we were fetching (simple verification)
+                suggestions.clear()
+                suggestions.addAll(finalSuggestions.take(10))
+            }
+        }
+
+    }
+
+    val removeSuggestionFromHistory = { suggestionToRemove: Suggestion ->
+        if (suggestionToRemove.source == SuggestionSource.HISTORY) {
+            visitedUrlManager.removeUrl(suggestionToRemove.url)
+            visitedUrlMap.remove(suggestionToRemove.url)
+            suggestions.remove(suggestionToRemove)
+        }
+    }
+
     //endregion
 
     init {

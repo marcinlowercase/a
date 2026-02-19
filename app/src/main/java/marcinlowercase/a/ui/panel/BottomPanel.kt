@@ -85,11 +85,9 @@ import marcinlowercase.a.R
 import marcinlowercase.a.core.data_class.App
 import marcinlowercase.a.core.data_class.ConfirmationDialogState
 import marcinlowercase.a.core.data_class.ContextMenuData
-import marcinlowercase.a.core.data_class.CustomPermissionRequest
 import marcinlowercase.a.core.data_class.DownloadItem
 import marcinlowercase.a.core.data_class.JsDialogState
 import marcinlowercase.a.core.data_class.PanelVisibilityState
-import marcinlowercase.a.core.data_class.SiteSettings
 import marcinlowercase.a.core.data_class.Suggestion
 import marcinlowercase.a.core.data_class.Tab
 import marcinlowercase.a.core.enum_class.BottomPanelMode
@@ -129,7 +127,6 @@ fun BottomPanel(
     onDismissContextMenu: () -> Unit,
     textFieldState: TextFieldState,
     onCloseAllTabs: () -> Unit,
-    suggestions: List<Suggestion>, // Changed from List<String>
     onSuggestionClick: (Suggestion) -> Unit, // Changed from (String)
     onRemoveSuggestion: (Suggestion) -> Unit,
     findInPageText: MutableState<String>,
@@ -145,14 +142,11 @@ fun BottomPanel(
     confirmationDisplayState: ConfirmationDialogState?, // Add this
 
     confirmationState: ConfirmationDialogState?,
-    onPermissionDeny: () -> Unit,
-    onMediaPermissionAllow: (Map<String, Boolean>) -> Unit,
     updateInspectingTab: (Tab) -> Unit,
     isTabDataPanelVisible: Boolean,
     handleCloseInspectedTab: () -> Unit,
     handleClearInspectedTabData: () -> Unit,
     handlePermissionToggle: (domain: String?, permission: String, isGranted: Boolean) -> Unit,
-    siteSettings: Map<String, SiteSettings>,
     onTabLongPressed: (Tab) -> Unit,
 
     onDownloadRowClicked: (DownloadItem) -> Unit,
@@ -170,7 +164,6 @@ fun BottomPanel(
     promptComponentDisplayState: JsDialogState?,
     onDismiss: () -> Unit,
     permissionLauncher: ManagedActivityResultLauncher<Array<String>, Map<String, @JvmSuppressWildcards Boolean>>,
-    pendingPermissionRequest: MutableState<CustomPermissionRequest?>,
     modifier: Modifier,
 //    url: String,
     focusManager: FocusManager,
@@ -373,12 +366,9 @@ fun BottomPanel(
                     //                onAddToHomeScreen = onAddToHomeScreen,
                     isTabDataPanelVisible = isTabDataPanelVisible ,
                     onDismiss = { viewModel.updateUI { it.copy(isTabDataPanelVisible = false) } },
-                    siteSettings = siteSettings,
                     onPermissionToggle = handlePermissionToggle,
                     onClearSiteData = handleClearInspectedTabData,
                     onCloseTab = handleCloseInspectedTab,
-                    //                onHistoryItemClicked = handleHistoryNavigation,
-                    //                webViewManager = webViewManager,
                 )
                 TabsPanel(
                     isTabsPanelVisible = isTabsPanelVisible,
@@ -387,25 +377,16 @@ fun BottomPanel(
                 )
                 PermissionPanel(
                     isUrlBarVisible = uiState.isUrlBarVisible,
-                    request = pendingPermissionRequest.value,
                     onAllow = {
                         // When user clicks allow, launch the system dialog with the permissions
                         // stored in our request object.
 
-                        pendingPermissionRequest.value?.let {
-                            //                        if ( request.isSystemRequest) {
-                            //                            permissionLauncher.launch(request.permissionsToRequest.toTypedArray())
-                            //                        } else {
-                            //                            val successMap = request.permissionsToRequest.associateWith { true }
-                            //                            request.onResult(successMap)
-                            //                            pendingPermissionRequest.value = null
-                            //
-                            //                        }
+                        viewModel.pendingPermissionRequest.value?.let {
                             if (it.permissionsToRequest.contains(Manifest.permission.CAMERA) || it.permissionsToRequest.contains(
                                     Manifest.permission.RECORD_AUDIO
                                 )
                             ) {
-                                onMediaPermissionAllow(it.permissionsToRequest.associateWith { true })
+                                viewModel.allowMediaPermissionRequest(it.permissionsToRequest.associateWith { true })
                             } else {
                                 permissionLauncher.launch(it.permissionsToRequest.toTypedArray())
 
@@ -413,15 +394,11 @@ fun BottomPanel(
 
                         }
                     },
-                    onDeny = {
-                        // When user clicks deny, immediately invoke the stored onResult callback
-                        // with an empty map (signifying denial) and clear the request.
-                        onPermissionDeny()
-                    }
+
                 )
 
 
-                AnimatedVisibility(visible = suggestions.isNotEmpty()) {
+                AnimatedVisibility(visible = viewModel.suggestions.isNotEmpty()) {
                     LazyColumn(
                         modifier = Modifier
                             .padding(horizontal = settings.padding.dp)
@@ -435,7 +412,7 @@ fun BottomPanel(
                         reverseLayout = true,
                     ) {
 
-                        items(suggestions) { suggestion ->
+                        items(viewModel.suggestions) { suggestion ->
                             val iconRes = when (suggestion.source) {
                                 SuggestionSource.HISTORY -> R.drawable.ic_history
                                 SuggestionSource.GOOGLE -> R.drawable.ic_search
@@ -446,7 +423,7 @@ fun BottomPanel(
                                     .padding(horizontal = settings.padding.dp)
                                     .padding(
                                         top = settings.padding.dp,
-                                        bottom = if (suggestions.indexOf(suggestion) == 0) settings.padding.dp else 0.dp
+                                        bottom = if (viewModel.suggestions.indexOf(suggestion) == 0) settings.padding.dp else 0.dp
                                     )
                                     .height(settings.heightForLayer(3).dp)
                                     .clip(
