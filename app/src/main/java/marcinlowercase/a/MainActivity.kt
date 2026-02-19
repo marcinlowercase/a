@@ -85,7 +85,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableFloatStateOf
@@ -162,7 +161,6 @@ import marcinlowercase.a.core.enum_class.MediaControlOption
 import marcinlowercase.a.core.enum_class.RevealState
 import marcinlowercase.a.core.enum_class.SearchEngine
 import marcinlowercase.a.core.enum_class.SuggestionSource
-import marcinlowercase.a.core.enum_class.TabState
 import marcinlowercase.a.core.function.createNotificationChannel
 import marcinlowercase.a.core.function.rememberAnchoredDraggableState
 import marcinlowercase.a.core.function.toDomain
@@ -527,9 +525,9 @@ fun BrowserScreen(
     val activeTabIndex by viewModel.activeTabIndex.collectAsState()
 
     // Derived state for the current active tab
-    val activeTab = remember(viewModel.tabs.size, activeTabIndex) {
-        if (viewModel.tabs.isNotEmpty()) viewModel.tabs[activeTabIndex] else Tab.createEmpty()
-    }
+//    val viewModel.activeTab!! = remember(viewModel.tabs.size, activeTabIndex) {
+//        if (viewModel.tabs.isNotEmpty()) viewModel.tabs[activeTabIndex] else Tab.createEmpty()
+//    }
     // active tab index must be declared after the viewModel.tabs because inside loadTabs() there is logic to update the activeTabIndex
 //    val activeTabIndex = remember {
 //        mutableIntStateOf(viewModel.tabManager.getActiveTabIndex().coerceAtLeast(0))
@@ -540,7 +538,7 @@ fun BrowserScreen(
 
 
     val recentlyClosedTabs = remember { mutableStateListOf<Tab>() }
-//    val activeTab = remember(viewModel.tabs, activeTabIndex) {
+//    val viewModel.activeTab!! = remember(viewModel.tabs, activeTabIndex) {
 //        object : MutableState<Tab> {
 //            override var value: Tab
 //                get() {
@@ -568,12 +566,12 @@ fun BrowserScreen(
    
     
     val textFieldState =
-        rememberTextFieldState(activeTab.currentURL)
+        rememberTextFieldState(viewModel.activeTab!!.currentURL)
 
     var sessionRefreshTrigger by remember { mutableIntStateOf(0) }
 
-    val activeSession = remember(activeTab.id, sessionRefreshTrigger) {
-        viewModel.geckoManager.getSession(activeTab)
+    val activeSession = remember(viewModel.activeTab!!.id, sessionRefreshTrigger) {
+        viewModel.geckoManager.getSession(viewModel.activeTab!!)
     }
 
     val siteSettingsManager = remember { SiteSettingsManager(context) }
@@ -1211,7 +1209,7 @@ fun BrowserScreen(
                                     viewModel.tabs[index] = tab.copy(savedState = null)
 
                                     // C. Handle Active Tab Refresh
-                                    if (tab.id == activeTab.id) {
+                                    if (tab.id == viewModel.activeTab!!.id) {
                                         // If we just killed the tab the user is looking at,
                                         // we must force Compose to re-create the session immediately.
                                         sessionRefreshTrigger++
@@ -1405,7 +1403,7 @@ fun BrowserScreen(
 
     fun navigateWebView() {
         when (activeNavAction) {
-            GestureNavAction.BACK -> if (activeTab.canGoBack) {
+            GestureNavAction.BACK -> if (viewModel.activeTab!!.canGoBack) {
                 activeSession.goBack(true)
             }
 
@@ -1413,7 +1411,7 @@ fun BrowserScreen(
                 activeSession.reload()
             }
 
-            GestureNavAction.FORWARD -> if (activeTab.canGoForward) {
+            GestureNavAction.FORWARD -> if (viewModel.activeTab!!.canGoForward) {
                 activeSession.goForward(true)
             }
 
@@ -2134,7 +2132,7 @@ fun BrowserScreen(
             }
             viewModel.geckoManager.setupDelegates(
                 session = activeSession,
-//                tab = activeTab,
+//                tab = viewModel.activeTab!!,
                 tab = object : MutableState<Tab> { // Bridge for the old delegate code
                     override var value: Tab
                         get() = viewModel.tabs[activeTabIndex]
@@ -2148,7 +2146,7 @@ fun BrowserScreen(
                     viewModel.updateTabById(eventTabId) { it.copy(currentTitle = title) }
 
 
-                    val url = activeTab.currentURL
+                    val url = viewModel.activeTab!!.currentURL
                     // Pass both the URL and the title to the manager
                     visitedUrlManager.addUrl(url, title)
                     // Update our in-memory map
@@ -2162,7 +2160,7 @@ fun BrowserScreen(
                     viewModel.updateUI { it.copy(isLoading = (int < 100)) }
                 },
                 onLocationChangeFun = { eventTabId, session, url, perms, userGesture ->
-                    if (eventTabId == activeTab.id
+                    if (eventTabId == viewModel.activeTab!!.id
                         && url != null
                         && url != "about:blank"
                         && !url.startsWith("javascript:")
@@ -2172,7 +2170,7 @@ fun BrowserScreen(
                         }
 
                         // Update the Tab data (this is safe to do for active tab)
-                        if (activeTab.currentURL != url) {
+                        if (viewModel.activeTab!!.currentURL != url) {
                             viewModel.updateTabById(eventTabId) { it.copy(currentURL = url) }
                         }
                     }
@@ -2187,12 +2185,12 @@ fun BrowserScreen(
 
                     // fe:  change  tab A -> B, the textbox changed to A.url
 //                if (session == activeSession) {
-                    if (eventTabId == activeTab.id && url.isNotBlank() && url != "about:blank") {
+                    if (eventTabId == viewModel.activeTab!!.id && url.isNotBlank() && url != "about:blank") {
                         if (!uiState.isFocusOnUrlTextField) {
                             textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
                         }
 
-                        if (activeTab.currentURL != url) {
+                        if (viewModel.activeTab!!.currentURL != url) {
                             // Get the current tab state
                             val currentTab = viewModel.tabs[activeTabIndex]
 
@@ -2208,17 +2206,17 @@ fun BrowserScreen(
                     }
                 },
                 onSessionStateChangeFun = { _, _ ->
-                    val stateToSave = viewModel.geckoManager.getSessionStateString(activeTab.id)
+                    val stateToSave = viewModel.geckoManager.getSessionStateString(viewModel.activeTab!!.id)
                     if (stateToSave != null) {
-                        activeTab.savedState = stateToSave
+                        viewModel.updateTabById(viewModel.activeTab!!.id) {it.copy(savedState = stateToSave)}
                         viewModel.tabManager.saveTabs(viewModel.tabs, activeTabIndex)
                     }
                 },
                 onCanGoBackFun = { _, canGoBack ->
-                    activeTab.canGoBack = canGoBack
+                    viewModel.updateTabById(viewModel.activeTab!!.id) {it.copy(canGoBack = canGoBack)}
                 },
                 onCanGoForwardFun = { _, canGoForward ->
-                    activeTab.canGoForward = canGoForward
+                    viewModel.updateTabById(viewModel.activeTab!!.id) {it.copy(canGoForward = canGoForward)}
                 },
                 setPermissionDelegate = { request ->
                     if (request.permissionsToRequest.contains(Manifest.permission.CAMERA) || request.permissionsToRequest.contains(
@@ -2263,9 +2261,9 @@ fun BrowserScreen(
                             pendingPermissionRequest.value = null
                         }
                     }
-                    if (eventTabId == activeTab.id && url != "about:blank") {
+                    if (eventTabId == viewModel.activeTab!!.id && url != "about:blank") {
                         viewModel.updateUI { it.copy(isLoading = true) }
-                        if (activeTab.errorState != null) {
+                        if (viewModel.activeTab!!.errorState != null) {
                             viewModel.updateTabById(eventTabId) {it.copy(errorState = null)}
                         }
 
@@ -2339,11 +2337,11 @@ fun BrowserScreen(
 
                         val newError = ErrorState(
                             error = error,
-                            failingUrl = uri ?: activeTab.currentURL
+                            failingUrl = uri ?: viewModel.activeTab!!.currentURL
                         )
 
                         // Update the Tab object
-                        viewModel.updateTabById(activeTab.id) {it.copy(errorState = newError)}
+                        viewModel.updateTabById(viewModel.activeTab!!.id) {it.copy(errorState = newError)}
 
                     }
                 },
@@ -2462,23 +2460,23 @@ fun BrowserScreen(
 
                 )
 
-            if (!uiState.initialLoadDone && initialIntentUrl != null && activeTab.currentURL == initialIntentUrl) {
+            if (!uiState.initialLoadDone && initialIntentUrl != null && viewModel.activeTab!!.currentURL == initialIntentUrl) {
                 Log.d("InitFlow", "open app by link")
 
                 webViewLoad(activeSession, initialIntentUrl, settings)
                 viewModel.updateUI { it.copy(initialLoadDone = true) }
 
-            } else if (activeTab.savedState != null) {
+            } else if (viewModel.activeTab!!.savedState != null) {
                 Log.d("InitFlow", "savestate")
 
                 // Only restore if the session hasn't loaded anything yet
                 val stateToRestore =
-                    viewModel.geckoManager.restoreStateFromString(activeTab.savedState!!)
+                    viewModel.geckoManager.restoreStateFromString(viewModel.activeTab!!.savedState!!)
                 if (stateToRestore != null) {
                     activeSession.restoreState(stateToRestore)
                 } else {
                     // State corruption fallback
-                    val url = activeTab.currentURL.ifBlank { settings.defaultUrl }
+                    val url = viewModel.activeTab!!.currentURL.ifBlank { settings.defaultUrl }
                     webViewLoad(activeSession, url, settings)
                 }
                 // Mark initial load done so we don't restore again on rotate
@@ -2490,8 +2488,8 @@ fun BrowserScreen(
 
                 // If the session is empty (no navigation history) and not being restored, load the URL.
                 // This covers "New Tab" clicks and "Target Blank" where engine didn't auto-load.
-                if (activeTab.savedState == null) {
-                    val urlToLoad = activeTab.currentURL.ifBlank { settings.defaultUrl }
+                if (viewModel.activeTab!!.savedState == null) {
+                    val urlToLoad = viewModel.activeTab!!.currentURL.ifBlank { settings.defaultUrl }
                     // Avoid reloading if it's already on that page (prevents loop)
                     // But since historyState is null, we are safe to load.
                     Log.d("InitFlow", "url $urlToLoad")
@@ -2716,7 +2714,7 @@ fun BrowserScreen(
 
 
                 // back the webview
-                activeTab.canGoBack -> {
+                viewModel.activeTab!!.canGoBack -> {
                     activeSession.goBack(true)
                 }
 
@@ -2831,7 +2829,7 @@ fun BrowserScreen(
                     ) {
                         // Webview Container
                         AnimatedVisibility(
-                            visible = activeTab.errorState == null,
+                            visible = viewModel.activeTab!!.errorState == null,
                             enter = slideInVertically(
                                 animationSpec = tween(settings.animationSpeedForLayer(0) * 4),
                                 initialOffsetY = { it }
@@ -3037,7 +3035,7 @@ fun BrowserScreen(
 
                         // 3. The Error Overlay (NEW)
                         AnimatedContent(
-                            targetState = activeTab.errorState,
+                            targetState = viewModel.activeTab!!.errorState,
                             transitionSpec = {
                                 if (targetState != null) {
                                     // Error Appears: Slide In from Bottom

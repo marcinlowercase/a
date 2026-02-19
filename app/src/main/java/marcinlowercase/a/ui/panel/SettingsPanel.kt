@@ -1,5 +1,6 @@
 package marcinlowercase.a.ui.panel
 
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
@@ -66,6 +67,7 @@ import marcinlowercase.a.core.data_class.OptionItem
 import marcinlowercase.a.core.enum_class.BrowserSettingField
 import marcinlowercase.a.core.enum_class.SearchEngine
 import marcinlowercase.a.ui.component.CustomIconButton
+import marcinlowercase.a.ui.theme.Orange
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import kotlin.math.roundToInt
 import android.graphics.Color as AndroidColor
@@ -335,7 +337,6 @@ fun TextSetting(
     iconID: Int,
     currentSettingOriginalValue: String,
     field: BrowserSettingField,
-
     ) {
 
     val viewModel = LocalBrowserViewModel.current
@@ -575,7 +576,7 @@ fun SettingsPanel(
     val pagerState = rememberPagerState(pageCount = { optionPages.size })
 
     AnimatedVisibility(
-        visible = uiState.isSettingsPanelVisible,
+        visible = uiState.isSettingsPanelVisible || settings.isFirstAppLoad,
         enter = expandVertically(tween(settings.animationSpeedForLayer(1))),
         exit = shrinkVertically(tween(if ( settings.isFirstAppLoad) settings.animationSpeedForLayer(0 )* 6 else settings.animationSpeedForLayer(1)))
     ) {
