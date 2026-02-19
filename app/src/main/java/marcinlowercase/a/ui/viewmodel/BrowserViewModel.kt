@@ -2,12 +2,18 @@ package marcinlowercase.a.ui.viewmodel
 
 import android.app.Application
 import android.content.Context
+import android.util.Log
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import marcinlowercase.a.CustomApplication
 import marcinlowercase.a.core.constant.default_url
 import marcinlowercase.a.core.constant.pixel_9_corner_radius
@@ -197,11 +203,19 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     val activeTab: Tab?
         get() = tabs.getOrNull(_activeTabIndex.value)
-    init {
-        // Load initial tabs
-        val loadedTabs = tabManager.loadTabs(null)
-        tabs.addAll(loadedTabs)
-        _activeTabIndex.value = tabManager.getActiveTabIndex().coerceAtLeast(0)
+    private var isInitialized = false
+    val initializeTabs = { initialUrl: String? ->
+        if (!isInitialized) {
+            // 1. Load tabs using the intent URL (if provided)
+            val loadedTabs = tabManager.loadTabs(initialUrl)
+            tabs.clear()
+            tabs.addAll(loadedTabs)
+
+            // 2. Set the active index
+            _activeTabIndex.value = tabManager.getActiveTabIndex().coerceAtLeast(0)
+
+            isInitialized = true
+        }
     }
 
 
@@ -214,6 +228,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
 
     val selectTab = { newIndex: Int ->
+        Log.d("TabFlow", "change to tab index $newIndex")
         val currentIndex = _activeTabIndex.value
 
         if (newIndex != currentIndex && newIndex in tabs.indices) {
@@ -221,6 +236,17 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             if (_uiState.value.isLoading) {
                 updateUI { it.copy(isLoading = false) }
             }
+//
+//            val currentTabId = tabs[currentIndex].id
+//            val currentState = geckoManager.getSessionStateString(currentTabId)
+//            if (currentState != null) {
+//                tabs[currentIndex] = tabs[currentIndex].copy(
+//                    savedState = currentState,
+//                    state = TabState.BACKGROUND
+//                )
+//            } else {
+//                tabs[currentIndex] = tabs[currentIndex].copy(state = TabState.BACKGROUND)
+//            }
 
             // 2. Deactivate current tab
             if (currentIndex in tabs.indices) {
@@ -489,16 +515,23 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             val oldTab = tabs[index]
             val newTab = transform(oldTab)
 
-            // Only update and save if the transformation actually changed the data
             if (oldTab != newTab) {
                 tabs[index] = newTab
                 saveTabs()
+
+                Log.e("TabFlow", "Memory Updated: $tabId | URL: ${newTab.currentURL}")
             }
         }
     }
+    private var saveJob: Job? = null
 
-    fun saveTabs() {
-        tabManager.saveTabs(tabs, _activeTabIndex.value)
+    val saveTabs = {
+        saveJob?.cancel()
+        saveJob = viewModelScope.launch(Dispatchers.IO) {
+            delay(500) // Wait for rapid events (like redirects) to finish
+            tabManager.saveTabs(tabs.toList(), _activeTabIndex.value)
+            Log.d("TabFlow", "Disk Save Complete")
+        }
     }
 
     //endregion

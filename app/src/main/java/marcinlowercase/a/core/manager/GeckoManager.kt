@@ -296,6 +296,7 @@ class GeckoManager(private val context: Context) {
 
         // RESTORE STATE
         if (tab.savedState != null) {
+            Log.e("TabFlow", "createand configure, restore")
             val stateToRestore = restoreStateFromString(tab.savedState ?: "")
             if (stateToRestore != null)
                 session.restoreState(stateToRestore)

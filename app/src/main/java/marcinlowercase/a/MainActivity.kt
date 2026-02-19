@@ -161,6 +161,7 @@ import marcinlowercase.a.core.enum_class.MediaControlOption
 import marcinlowercase.a.core.enum_class.RevealState
 import marcinlowercase.a.core.enum_class.SearchEngine
 import marcinlowercase.a.core.enum_class.SuggestionSource
+import marcinlowercase.a.core.enum_class.TabState
 import marcinlowercase.a.core.function.createNotificationChannel
 import marcinlowercase.a.core.function.rememberAnchoredDraggableState
 import marcinlowercase.a.core.function.toDomain
@@ -205,7 +206,7 @@ import kotlin.system.exitProcess
 //region Composable
 
 class MainActivity : ComponentActivity() {
-    
+
     val newUrlFromIntent = MutableStateFlow<String?>(null)
 
     private var pendingFilePrompt: GeckoSession.PromptDelegate.FilePrompt? = null
@@ -466,7 +467,7 @@ class MainActivity : ComponentActivity() {
         // If entering PiP, we MUST keep the session active and prevent Gecko from
         // interpreting this as a background event that stops media.
         if (isInPictureInPictureMode || isEnteringPip) {
-            val tabs = viewModel.tabManager.loadTabs(null)
+            viewModel.tabManager.loadTabs(null)
             val index = viewModel.tabManager.getActiveTabIndex()
             if (viewModel.tabs.isNotEmpty() && index in viewModel.tabs.indices) {
                 val activeTab = viewModel.tabs[index]
@@ -517,9 +518,9 @@ fun BrowserScreen(
     val settings = settingsState.value
     val uiState by viewModel.uiState.collectAsState()
 
+    viewModel.initializeTabs(initialIntentUrl)
 
     //endregion
-
 
 
     val activeTabIndex by viewModel.activeTabIndex.collectAsState()
@@ -563,8 +564,6 @@ fun BrowserScreen(
 //    }
 
 
-   
-    
     val textFieldState =
         rememberTextFieldState(viewModel.activeTab!!.currentURL)
 
@@ -971,9 +970,13 @@ fun BrowserScreen(
         colorState.value,
         dateTimeState.value,
     ) {
-        viewModel.updateUI { it.copy(isOtherPanelVisible = choiceState.value != null
-                || colorState.value != null
-                || dateTimeState.value != null) }
+        viewModel.updateUI {
+            it.copy(
+                isOtherPanelVisible = choiceState.value != null
+                        || colorState.value != null
+                        || dateTimeState.value != null
+            )
+        }
 
     }
 
@@ -1062,7 +1065,6 @@ fun BrowserScreen(
             suggestions.remove(suggestionToRemove)
         }
     }
-
 
 
     fun confirmationPopup(
@@ -1399,8 +1401,6 @@ fun BrowserScreen(
     }
 
 
-
-
     fun navigateWebView() {
         when (activeNavAction) {
             GestureNavAction.BACK -> if (viewModel.activeTab!!.canGoBack) {
@@ -1417,7 +1417,7 @@ fun BrowserScreen(
 
             GestureNavAction.CLOSE_TAB -> {
                 if (uiState.isLoading) viewModel.updateUI { it.copy(isLoading = false) }
-                viewModel.closeActiveTab{
+                viewModel.closeActiveTab {
                     activity.finishAndRemoveTask()
                     exitProcess(0)
 
@@ -1705,12 +1705,12 @@ fun BrowserScreen(
                 activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
             }
 
-            viewModel.updateSettings{it.copy(isFullscreenMode = uiState.isLandscapeByButton)}
+            viewModel.updateSettings { it.copy(isFullscreenMode = uiState.isLandscapeByButton) }
         }
         LaunchedEffect(uiState.isOnFullscreenVideo) {
             viewModel.updateUI { it.copy(isMediaControlPanelVisible = uiState.isOnFullscreenVideo) }
 
-            viewModel.updateSettings{it.copy(isFullscreenMode = uiState.isOnFullscreenVideo)}
+            viewModel.updateSettings { it.copy(isFullscreenMode = uiState.isOnFullscreenVideo) }
             if (uiState.isOnFullscreenVideo) {
                 gestureManager.ensureFullscreenBrightness()
             } else {
@@ -1743,7 +1743,7 @@ fun BrowserScreen(
 
         LaunchedEffect(uiState.isSettingsPanelVisible) {
             if (!uiState.isSettingsPanelVisible)
-                viewModel.updateSettings{it.copy(isFirstAppLoad = false)}
+                viewModel.updateSettings { it.copy(isFirstAppLoad = false) }
         }
         LaunchedEffect(inspectingAppId.longValue) {
             descriptionContent.value = apps.find { it.id == inspectingAppId.longValue }?.label ?: ""
@@ -1804,7 +1804,7 @@ fun BrowserScreen(
 
         LaunchedEffect(bottomPanelPagerState.currentPage) {
             if (bottomPanelPagerState.currentPage == BottomPanelMode.LOCK.ordinal) {
-                viewModel.updateSettings{it.copy(isFullscreenMode = !settings.isFullscreenMode)}
+                viewModel.updateSettings { it.copy(isFullscreenMode = !settings.isFullscreenMode) }
             }
         }
         LaunchedEffect(resetBottomPanelTrigger.value) {
@@ -2118,6 +2118,8 @@ fun BrowserScreen(
         LaunchedEffect(activeSession) {
 
             activeSession.setActive(true)
+            val currentTab = viewModel.activeTab ?: return@LaunchedEffect
+            val currentTabId = currentTab.id
 
             if (!activeSession.isOpen) {
                 try {
@@ -2135,8 +2137,11 @@ fun BrowserScreen(
 //                tab = viewModel.activeTab!!,
                 tab = object : MutableState<Tab> { // Bridge for the old delegate code
                     override var value: Tab
-                        get() = viewModel.tabs[activeTabIndex]
-                        set(newTab) { viewModel.tabs[activeTabIndex] = newTab }
+                        get() = viewModel.tabs.getOrElse(activeTabIndex) { Tab.createEmpty() }
+                        set(newTab) {
+                            viewModel.tabs[activeTabIndex] = newTab
+                        }
+
                     override fun component1() = value
                     override fun component2(): (Tab) -> Unit = { value = it }
                 },
@@ -2165,14 +2170,21 @@ fun BrowserScreen(
                         && url != "about:blank"
                         && !url.startsWith("javascript:")
                     ) {
-                        if (!uiState.isFocusOnUrlTextField) {
+//                        if (!uiState.isFocusOnUrlTextField) {
+//                            textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
+//                        }
+//
+//                        // Update the Tab data (this is safe to do for active tab)
+//                        if (viewModel.activeTab!!.currentURL != url) {
+//                            viewModel.updateTabById(eventTabId) { it.copy(currentURL = url) }
+//                        }
+
+                        if (eventTabId == viewModel.activeTab?.id && !uiState.isFocusOnUrlTextField) {
                             textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
                         }
+                        Log.d("TabFLow", "onLocationChange")
 
-                        // Update the Tab data (this is safe to do for active tab)
-                        if (viewModel.activeTab!!.currentURL != url) {
-                            viewModel.updateTabById(eventTabId) { it.copy(currentURL = url) }
-                        }
+                        viewModel.updateTabById(eventTabId) { it.copy(currentURL = url) }
                     }
                 },
 
@@ -2190,33 +2202,44 @@ fun BrowserScreen(
                             textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
                         }
 
-                        if (viewModel.activeTab!!.currentURL != url) {
-                            // Get the current tab state
-                            val currentTab = viewModel.tabs[activeTabIndex]
-
-                            // TRY TO RESTORE ICON FROM THIS TAB'S CACHE
-                            val cachedIcon = currentTab.faviconCache[url] ?: ""
-
-                            // Update URL and Icon immediately
-                            viewModel.tabs[activeTabIndex] = currentTab.copy(
-                                currentURL = url,
-                                currentFaviconUrl = cachedIcon
-                            )
+                        Log.d("TabFLow", "onHistoryStateChange")
+                        viewModel.updateTabById(eventTabId) { tab ->
+                            val cachedIcon = tab.faviconCache[url] ?: ""
+                            tab.copy(currentURL = url, currentFaviconUrl = cachedIcon)
                         }
+//                        if (viewModel.activeTab!!.currentURL != url) {
+//                            // Get the current tab state
+//                            val currentTab = viewModel.tabs[activeTabIndex]
+//
+//                            // TRY TO RESTORE ICON FROM THIS TAB'S CACHE
+//                            val cachedIcon = currentTab.faviconCache[url] ?: ""
+//
+//                            // Update URL and Icon immediately
+//                            viewModel.tabs[activeTabIndex] = currentTab.copy(
+//                                currentURL = url,
+//                                currentFaviconUrl = cachedIcon
+//                            )
+//                            viewModel.updateTabById(eventTabId) {tab ->
+//                                val cachedIcon = tab.faviconCache[url] ?: ""
+//                                tab.copy(currentURL = url, currentFaviconUrl = cachedIcon)
+//
+//                            }
+//                        }
                     }
                 },
                 onSessionStateChangeFun = { _, _ ->
-                    val stateToSave = viewModel.geckoManager.getSessionStateString(viewModel.activeTab!!.id)
+                    val stateToSave =
+                        viewModel.geckoManager.getSessionStateString(viewModel.activeTab!!.id)
                     if (stateToSave != null) {
-                        viewModel.updateTabById(viewModel.activeTab!!.id) {it.copy(savedState = stateToSave)}
+                        viewModel.updateTabById(viewModel.activeTab!!.id) { it.copy(savedState = stateToSave) }
                         viewModel.tabManager.saveTabs(viewModel.tabs, activeTabIndex)
                     }
                 },
                 onCanGoBackFun = { _, canGoBack ->
-                    viewModel.updateTabById(viewModel.activeTab!!.id) {it.copy(canGoBack = canGoBack)}
+                    viewModel.updateTabById(viewModel.activeTab!!.id) { it.copy(canGoBack = canGoBack) }
                 },
                 onCanGoForwardFun = { _, canGoForward ->
-                    viewModel.updateTabById(viewModel.activeTab!!.id) {it.copy(canGoForward = canGoForward)}
+                    viewModel.updateTabById(viewModel.activeTab!!.id) { it.copy(canGoForward = canGoForward) }
                 },
                 setPermissionDelegate = { request ->
                     if (request.permissionsToRequest.contains(Manifest.permission.CAMERA) || request.permissionsToRequest.contains(
@@ -2264,7 +2287,7 @@ fun BrowserScreen(
                     if (eventTabId == viewModel.activeTab!!.id && url != "about:blank") {
                         viewModel.updateUI { it.copy(isLoading = true) }
                         if (viewModel.activeTab!!.errorState != null) {
-                            viewModel.updateTabById(eventTabId) {it.copy(errorState = null)}
+                            viewModel.updateTabById(eventTabId) { it.copy(errorState = null) }
                         }
 
                         if (!uiState.isFocusOnUrlTextField) textFieldState.setTextAndPlaceCursorAtEnd(
@@ -2341,7 +2364,7 @@ fun BrowserScreen(
                         )
 
                         // Update the Tab object
-                        viewModel.updateTabById(viewModel.activeTab!!.id) {it.copy(errorState = newError)}
+                        viewModel.updateTabById(viewModel.activeTab!!.id) { it.copy(errorState = newError) }
 
                     }
                 },
@@ -2350,10 +2373,12 @@ fun BrowserScreen(
 
 
                 onFullScreenFun = { isFullscreen ->
-                    viewModel.updateUI { it.copy(
-                        isMediaControlPanelDisplayed = isFullscreen,
-                        isOnFullscreenVideo = isFullscreen
-                    ) }
+                    viewModel.updateUI {
+                        it.copy(
+                            isMediaControlPanelDisplayed = isFullscreen,
+                            isOnFullscreenVideo = isFullscreen
+                        )
+                    }
 
                     val inPip = mainActivity.isPipMode || mainActivity.isEnteringPip
 
@@ -2384,7 +2409,11 @@ fun BrowserScreen(
                             // Only exit landscape/immersive if NOT in PiP
                             if (!inPip) {
 
-                                if (uiState.isLandscapeByButton) viewModel.updateUI { it.copy(isLandscapeByButton = false) }
+                                if (uiState.isLandscapeByButton) viewModel.updateUI {
+                                    it.copy(
+                                        isLandscapeByButton = false
+                                    )
+                                }
                                 gestureManager.resetBrightness()
 
                                 activity.requestedOrientation =
@@ -2459,6 +2488,9 @@ fun BrowserScreen(
 
 
                 )
+            Log.e("InitFlow", "current url: ${viewModel.activeTab!!.currentURL}")
+            Log.e("InitFlow", "initialIntentUrl $initialIntentUrl")
+            Log.e("InitFlow", "state ${viewModel.activeTab!!.state}")
 
             if (!uiState.initialLoadDone && initialIntentUrl != null && viewModel.activeTab!!.currentURL == initialIntentUrl) {
                 Log.d("InitFlow", "open app by link")
@@ -2466,23 +2498,7 @@ fun BrowserScreen(
                 webViewLoad(activeSession, initialIntentUrl, settings)
                 viewModel.updateUI { it.copy(initialLoadDone = true) }
 
-            } else if (viewModel.activeTab!!.savedState != null) {
-                Log.d("InitFlow", "savestate")
-
-                // Only restore if the session hasn't loaded anything yet
-                val stateToRestore =
-                    viewModel.geckoManager.restoreStateFromString(viewModel.activeTab!!.savedState!!)
-                if (stateToRestore != null) {
-                    activeSession.restoreState(stateToRestore)
-                } else {
-                    // State corruption fallback
-                    val url = viewModel.activeTab!!.currentURL.ifBlank { settings.defaultUrl }
-                    webViewLoad(activeSession, url, settings)
-                }
-                // Mark initial load done so we don't restore again on rotate
-                if (!uiState.initialLoadDone) viewModel.updateUI { it.copy(initialLoadDone = true) }
             }
-            //  Standard Load (New Tab / Link Click)
             else {
                 Log.d("InitFlow", "standard")
 
@@ -3221,14 +3237,17 @@ fun BrowserScreen(
 
                             onTabLongPressed = { tab ->
                                 viewModel.updateUI { it.copy(isTabDataPanelVisible = !it.isTabDataPanelVisible) }
-                                if (uiState.inspectingTabId == null) viewModel.updateUI { it.copy(inspectingTabId = tab.id) }
+                                if (uiState.inspectingTabId == null) viewModel.updateUI {
+                                    it.copy(
+                                        inspectingTabId = tab.id
+                                    )
+                                }
                             },
                             onDownloadRowClicked = handleOpenFile,
                             onDeleteClicked = handleDeleteFile,
                             onOpenFolderClicked = handleOpenDownloadsFolder,
                             onClearAllClicked = handleClearAll,
                             downloads = downloads,
-
 
 
                             isTabsPanelVisible = uiState.isTabsPanelVisible,
@@ -3265,7 +3284,7 @@ fun BrowserScreen(
                             cursorPointerPosition = cursorPointerPosition,
                             webViewPaddingValue = webViewPaddingValue,
                             cursorPadHeight = cursorPadHeight,
-                            )
+                        )
 
                         // BackSquare
                         AnimatedVisibility(
@@ -3482,10 +3501,10 @@ fun BrowserScreen(
                                                                 )
                                                             }
                                                             viewModel.updateSettings {
-                                                            it.copy(
-                                                                backSquareOffsetX = targetX,
-                                                                backSquareOffsetY = targetY
-                                                            )
+                                                                it.copy(
+                                                                    backSquareOffsetX = targetX,
+                                                                    backSquareOffsetY = targetY
+                                                                )
                                                             }
                                                             // Fade out after snap
                                                             hideBackSquare(false)
