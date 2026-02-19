@@ -113,7 +113,7 @@ val settings = viewModel.browserSettings.collectAsState().value
                         ),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("no viewModel.downloads .", color = Color.White)
+                    Text("no downloads .", color = Color.White)
                 }
 
 
