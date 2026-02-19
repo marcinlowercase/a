@@ -248,6 +248,14 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 //                tabs[currentIndex] = tabs[currentIndex].copy(state = TabState.BACKGROUND)
 //            }
 
+            val oldTab = tabs[currentIndex]
+            val newTab = tabs[newIndex]
+
+            geckoManager.getSession(oldTab).setActive(false)
+
+            geckoManager.getSession(newTab).setActive(true)
+
+
             // 2. Deactivate current tab
             if (currentIndex in tabs.indices) {
                 tabs[currentIndex] = tabs[currentIndex].copy(state = TabState.BACKGROUND)
