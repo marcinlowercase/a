@@ -158,7 +158,9 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     //endregion
 
     //region UI State
-    private val _uiState = MutableStateFlow(BrowserUIState())
+    private val _uiState = MutableStateFlow(BrowserUIState(
+        isSettingsPanelVisible = sharedPrefs.getBoolean("is_first_app_load", true),
+    ))
     val uiState = _uiState.asStateFlow()
 
     /**
