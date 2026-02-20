@@ -500,17 +500,9 @@ fun BrowserScreen(
     val uiState by viewModel.uiState.collectAsState()
 
     viewModel.initializeTabs(initialIntentUrl)
-
-    //endregion
-
-
     val activeTabIndex by viewModel.activeTabIndex.collectAsState()
 
-
-//    val viewModel.appManager = remember { AppManager(context) }
-//    val viewModel.apps = remember { mutableStateListOf<App>().apply { addAll(viewModel.appManager.loadApps()) } }
-
-
+    //endregion
 
     val textFieldState =
         rememberTextFieldState(viewModel.activeTab!!.currentURL)
@@ -526,7 +518,6 @@ fun BrowserScreen(
     val focusManager = LocalFocusManager.current
 
     // TODO transfer
-    val descriptionContent = remember { mutableStateOf("") }
     var activeNavAction by remember { mutableStateOf(GestureNavAction.REFRESH) }
     val hapticFeedback = LocalHapticFeedback.current
     val resetBottomPanelTrigger = remember { mutableStateOf(false) }
@@ -1441,7 +1432,7 @@ fun BrowserScreen(
                 viewModel.updateSettings { it.copy(isFirstAppLoad = false) }
         }
         LaunchedEffect(inspectingAppId.longValue) {
-            descriptionContent.value = viewModel.apps.find { it.id == inspectingAppId.longValue }?.label ?: ""
+            viewModel.descriptionContent.value = viewModel.apps.find { it.id == inspectingAppId.longValue }?.label ?: ""
 
         }
 
@@ -2267,7 +2258,6 @@ fun BrowserScreen(
                         .padding(bottom = settings.padding.dp)
                 ) {
                     SettingsPanel(
-                        descriptionContent = descriptionContent,
                         backgroundColor = backgroundColor,
                         confirmationPopup = ::confirmationPopup,
                         resetBrowserSettings = resetBrowserSettings,
@@ -2436,7 +2426,6 @@ fun BrowserScreen(
                             ChoicePanel(
                                 choiceState = choiceDisplayState,
                                 onDismiss = { choiceState.value = null },
-                                descriptionContent = descriptionContent,
                             )
                         }
 
@@ -2453,7 +2442,6 @@ fun BrowserScreen(
                             ColorPickerPanel(
                                 colorState = colorDisplayState,
                                 onDismiss = { colorState.value = null },
-                                descriptionContent = descriptionContent,
                             )
 
                         }
@@ -2493,7 +2481,6 @@ fun BrowserScreen(
                                 .align(if (isControlsOnRight.value) Alignment.CenterEnd else Alignment.CenterStart)
                                 .padding(webViewPaddingValue),
                             hapticFeedback = hapticFeedback,
-                            descriptionContent = descriptionContent,
                             onExitFullscreen = {
                                 activeSession.exitFullScreen()
                             },
@@ -2637,7 +2624,6 @@ fun BrowserScreen(
 
                             findInPageResult = findInPageResult,
                             findInPageText = findInPageText,
-                            descriptionContent = descriptionContent,
                             confirmationPopup = ::confirmationPopup,
                             resetBrowserSettings = resetBrowserSettings,
                             backgroundColor = backgroundColor,

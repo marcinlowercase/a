@@ -133,7 +133,6 @@ fun BottomPanel(
     findInPageResult: MutableState<Pair<Int, Int>>,
 
 //    onAddToHomeScreen: () -> Unit,
-    descriptionContent: MutableState<String>,
     confirmationPopup: (message: String, url: String, onConfirm: () -> Unit, onCancel: () -> Unit) -> Unit,
     resetBrowserSettings: () -> Unit,
     backgroundColor: MutableState<Color>,
@@ -224,13 +223,7 @@ fun BottomPanel(
             ) {
 
 
-                DescriptionPanel(
-                    isVisible = descriptionContent.value.isNotEmpty(),
-                    description = descriptionContent.value,
-                    onDismiss = {
-                        descriptionContent.value = ""
-                    }
-                )
+                DescriptionPanel()
 
                 AppsPanel(
                     visibility = uiState.value.isAppsPanelVisible,
@@ -254,11 +247,9 @@ fun BottomPanel(
                     isDownloadPanelVisible = uiState.value.isDownloadPanelVisible,
                     onDownloadRowClicked = onDownloadRowClicked,
                     onOpenFolderClicked = onOpenFolderClicked,
-                    descriptionContent = descriptionContent,
                 )
 
                 ContextMenuPanel(
-                    descriptionContent = descriptionContent,
                     isVisible = contextMenuData != null,
                     data = displayContextMenuData,
 
@@ -343,7 +334,6 @@ fun BottomPanel(
                         findInPageText.value = ""
                         activeSession.finder.clear()
                     },
-                    descriptionContent = descriptionContent,
                 )
                 PromptPanel(
                     geckoViewRef = geckoViewRef,
@@ -353,14 +343,12 @@ fun BottomPanel(
                     promptComponentDisplayState = promptComponentDisplayState,
                     )
                 SettingsPanel(
-                    descriptionContent = descriptionContent,
                     backgroundColor = backgroundColor,
                     resetBrowserSettings = resetBrowserSettings,
                     confirmationPopup = confirmationPopup,
                     targetSetting = initialSettingPanelView,
                 )
                 TabDataPanel(
-                    descriptionContent = descriptionContent,
                     //                onAddToHomeScreen = onAddToHomeScreen,
                     isTabDataPanelVisible = isTabDataPanelVisible ,
                     onDismiss = { viewModel.updateUI { it.copy(isTabDataPanelVisible = false) } },
@@ -1078,7 +1066,6 @@ fun BottomPanel(
                 ) {
                     OptionsPanel(
                         onCloseAllTabs = onCloseAllTabs,
-                        descriptionContent = descriptionContent,
                         setIsOptionsPanelVisible = setIsOptionsPanelVisible,
                         addAppToPin = {
                             viewModel.updateUI { it.copy(isPinningApp = true) }
@@ -1109,7 +1096,6 @@ fun BottomPanel(
                         focusManager.clearFocus()
                     },
                     activeWebViewTitle = viewModel.activeTab!!.currentTitle,
-                    descriptionContent = descriptionContent,
                 )
             }
         }

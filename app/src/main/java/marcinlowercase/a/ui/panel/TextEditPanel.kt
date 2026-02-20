@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
@@ -29,7 +28,6 @@ fun TextEditPanel(
     onEditClick: () -> Unit,
     onDismiss: () -> Unit,
     activeWebViewTitle: String,
-    descriptionContent: MutableState<String>,
 ) {
     val viewModel = LocalBrowserViewModel.current
     val uiState = viewModel.uiState.collectAsState()
@@ -66,7 +64,7 @@ fun TextEditPanel(
                 layer = 3,
                 modifier = Modifier.weight(1f),
                 onTap = onDismiss,
-                descriptionContent = descriptionContent,
+                
                 buttonDescription = "cancel",
                 painterId = R.drawable.ic_arrow_back,
                 isWhite = false,
@@ -80,7 +78,7 @@ fun TextEditPanel(
                         layer = 3,
                         modifier = Modifier.weight(1f),
                         onTap = onEditClick,
-                        descriptionContent = descriptionContent,
+                        
                         buttonDescription = "edit pin name",
                         painterId = R.drawable.ic_edit,
 
@@ -93,7 +91,7 @@ fun TextEditPanel(
                     layer = 3,
                     modifier = Modifier.weight(1f),
                     onTap = onCopyClick,
-                    descriptionContent = descriptionContent,
+                    
                     buttonDescription = "copy current url",
                     painterId = R.drawable.ic_content_copy,
                 )
@@ -105,7 +103,7 @@ fun TextEditPanel(
                     layer = 3,
                     modifier = Modifier.weight(1f),
                     onTap = onEditClick,
-                    descriptionContent = descriptionContent,
+                    
                     buttonDescription = "edit current url",
                     painterId = R.drawable.ic_edit,
                 )

@@ -24,15 +24,11 @@ import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import androidx.compose.runtime.collectAsState
 
 @Composable
-fun DescriptionPanel(
-    isVisible: Boolean,
-    description: String,
-    onDismiss: () -> Unit
-) {
+fun DescriptionPanel() {
     val viewModel = LocalBrowserViewModel.current
     val settings = viewModel.browserSettings.collectAsState()
     AnimatedVisibility(
-        visible = isVisible,
+        visible = viewModel.descriptionContent.value.isNotEmpty(),
         enter = expandVertically(
             tween(
                 settings.value.animationSpeedForLayer(2)
@@ -57,11 +53,13 @@ fun DescriptionPanel(
 
                 .fillMaxWidth()
                 .padding(horizontal = settings.value.padding.dp * 4)
-                .clickable(onClick = onDismiss),
+                .clickable(onClick = {
+                    viewModel.descriptionContent.value = ""
+                }),
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = description,
+                text = viewModel.descriptionContent.value,
                 color = Color.White,
                 textAlign = TextAlign.Center,
                 maxLines = 1,

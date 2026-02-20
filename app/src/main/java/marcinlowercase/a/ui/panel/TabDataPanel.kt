@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -49,16 +48,11 @@ private enum class TabDataPanelView {
 
 @Composable
 fun TabDataPanel(
-//    currentRotation: Float,
-    descriptionContent: MutableState<String>,
-//    webViewManager: WebViewManager,
     isTabDataPanelVisible: Boolean,
     onDismiss: () -> Unit,
     onPermissionToggle: (domain: String?, permission: String, isGranted: Boolean) -> Unit,
     onClearSiteData: () -> Unit,
     onCloseTab: () -> Unit,
-//    onAddToHomeScreen: () -> Unit,
-//    onHistoryItemClicked: (tab: Tab, index: Int, webViewManager: WebViewManager) -> Unit
 ) {
     val viewModel = LocalBrowserViewModel.current
     val browserSettings = viewModel.browserSettings.collectAsState()
@@ -164,7 +158,7 @@ fun TabDataPanel(
 //                                        browserSettings = browserSettings,
 //                                        modifier = Modifier.fillMaxWidth(),
 //                                        onTap = { currentView = TabDataPanelView.HISTORY },
-//                                        descriptionContent = descriptionContent,
+//                                        
 //                                        buttonDescription = "history list",
 //                                        painterId = R.drawable.ic_history,
 //                                        isWhite = false,
@@ -180,7 +174,7 @@ fun TabDataPanel(
                                         layer = 3,
                                         modifier = Modifier.fillMaxWidth(),
                                         onTap = { currentView = TabDataPanelView.PERMISSIONS },
-                                        descriptionContent = descriptionContent,
+                                        
                                         buttonDescription = "permission list",
                                         painterId = R.drawable.ic_shield_toggle,
                                         isWhite = false,
@@ -290,7 +284,7 @@ fun TabDataPanel(
                                             layer = 3,
                                             modifier = Modifier.weight(1f),
                                             onTap = { onPermissionToggle(domain, permission, !isGranted)},
-                                            descriptionContent = descriptionContent,
+                                            
                                             buttonDescription = name,
                                             painterId = iconRes,
                                             isWhite = isGranted,
@@ -336,7 +330,7 @@ fun TabDataPanel(
 ////                                currentView = TabDataPanelView.MAIN
 ////                            }
 //                        },
-//                        descriptionContent = descriptionContent,
+//                        
 //                        buttonDescription = "back",
 //                        painterId = R.drawable.ic_arrow_back,
 //                        isWhite = false
@@ -349,7 +343,7 @@ fun TabDataPanel(
                             layer = 3,
                             modifier = Modifier.weight(1f),
                             onTap = onClearSiteData,
-                            descriptionContent = descriptionContent,
+                            
                             buttonDescription = "clear site data",
                             painterId = R.drawable.ic_database_off
                         )
@@ -362,7 +356,7 @@ fun TabDataPanel(
                         layer = 3,
                         modifier = Modifier.weight(1f),
                         onTap = { viewModel.duplicateInspectedTab() },
-                        descriptionContent = descriptionContent,
+                        
                         buttonDescription = "duplicate tab",
                         painterId = R.drawable.ic_tab_duplicate
                     )
@@ -372,7 +366,7 @@ fun TabDataPanel(
                         layer = 3,
                         modifier = Modifier.weight(1f),
                         onTap = onCloseTab,
-                        descriptionContent = descriptionContent,
+                        
                         buttonDescription = "close tab",
                         painterId = R.drawable.ic_tab_close
                     )

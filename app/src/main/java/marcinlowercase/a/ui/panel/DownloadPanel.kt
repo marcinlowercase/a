@@ -58,7 +58,6 @@ fun DownloadPanel(
     isDownloadPanelVisible: Boolean,
     onDownloadRowClicked: (DownloadItem) -> Unit,
     onOpenFolderClicked: () -> Unit,
-    descriptionContent: MutableState<String>
 ) {
     val viewModel = LocalBrowserViewModel.current
 val settings = viewModel.browserSettings.collectAsState()
@@ -164,7 +163,6 @@ val settings = viewModel.browserSettings.collectAsState()
                     layer = 3,
                     modifier = Modifier.weight(1f),
                     onTap = onOpenFolderClicked,
-                    descriptionContent = descriptionContent,
                     buttonDescription = "download folder",
                     painterId = R.drawable.ic_folder,
 //                    currentRotation = currentRotation,
@@ -184,7 +182,6 @@ val settings = viewModel.browserSettings.collectAsState()
                                 {}
                             )
                         },
-                        descriptionContent = descriptionContent,
                         buttonDescription = "clear download list",
                         painterId = R.drawable.ic_clear_all,
 

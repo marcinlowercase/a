@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.function.buttonPointerInput
 import marcinlowercase.a.core.function.buttonSettingsForLayer
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
@@ -26,7 +27,6 @@ fun CustomIconButton(
     onLongPress: () -> Boolean = {
         false
     },
-    descriptionContent: MutableState<String>,
     buttonDescription: String,
     painterId: Int,
     isWhite: Boolean = true,
@@ -58,7 +58,7 @@ fun CustomIconButton(
             .buttonPointerInput(
                 onTap = onTap,
                 hapticFeedback = hapticFeedback,
-                descriptionContent = descriptionContent,
+                descriptionContent = viewModel.descriptionContent,
                 buttonDescription = buttonDescription,
                 onLongPress = onLongPress,
                 useLongPress = useLongPress,

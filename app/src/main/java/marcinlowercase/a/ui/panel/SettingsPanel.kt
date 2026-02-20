@@ -244,7 +244,7 @@ fun SliderSetting(
                             }
                             false // Event not handled
                         }
-                        .onFocusChanged {focusState -> 
+                        .onFocusChanged {focusState ->
                             viewModel.updateUI { it.copy(isFocusOnSettingTextField = focusState.hasFocus) }
 
                             commitTextFieldValue()
@@ -462,7 +462,6 @@ fun TextSetting(
 }
 @Composable
 fun SettingsPanel(
-    descriptionContent: MutableState<String>,
     backgroundColor: MutableState<Color>,
     confirmationPopup: (String, String, () -> Unit, () -> Unit) -> Unit,
     resetBrowserSettings: () -> Unit,
@@ -477,7 +476,7 @@ fun SettingsPanel(
     var currentView by remember { mutableStateOf(targetSetting) }
 
     val onBackClick = { if (!settings.value.isFirstAppLoad) currentView = SettingPanelView.MAIN else viewModel.updateUI { it.copy(isSettingsPanelVisible = false) }}
-    
+
     // This state will hold the current value of the slider.
 //    var sliderValue by remember { mutableStateOf(browserSettings.value.deviceCornerRadius) }
 
@@ -619,7 +618,6 @@ fun SettingsPanel(
                                     layer = 2,
                                     modifier = Modifier.weight(1f),
                                     onTap = option.onClick,
-                                    descriptionContent = descriptionContent,
                                     buttonDescription = option.contentDescription,
                                     painterId = option.iconRes,
                                     isWhite = option.enabled,
@@ -645,7 +643,7 @@ fun SettingsPanel(
                             src.take(2) + "." + src.substring(2, 4)
                         },
                         iconID = R.drawable.ic_adjust_corner_radius,
-                         
+
                         field = BrowserSettingField.CORNER_RADIUS
                     )
                 }
@@ -661,7 +659,7 @@ fun SettingsPanel(
                         },
                         afterDecimal = false,
                         iconID = R.drawable.ic_animation,
-                         
+
                         field = BrowserSettingField.ANIMATION_SPEED
                         )
                 }
@@ -676,7 +674,7 @@ fun SettingsPanel(
                         },
                         afterDecimal = false,
                         iconID = R.drawable.ic_expand,
-                         
+
                         field = BrowserSettingField.SINGLE_LINE_HEIGHT
                         )
                 }
@@ -693,7 +691,7 @@ fun SettingsPanel(
                         afterDecimal = false,
                         iconID = R.drawable.ic_padding,
                         digitCount = 2,
-                         
+
                         field = BrowserSettingField.PADDING
                         )
                 }
@@ -930,7 +928,7 @@ fun SettingsPanel(
                         afterDecimal = false,
                         iconID = R.drawable.ic_cursor_size,
                         digitCount = 2,
-                         
+
                         field = BrowserSettingField.CURSOR_CONTAINER_SIZE
                         )
                 }
@@ -946,7 +944,7 @@ fun SettingsPanel(
                         afterDecimal = true,
                         iconID = R.drawable.ic_cursor_speed,
                         digitCount = 4,
-                         
+
                         field = BrowserSettingField.CURSOR_TRACKING_SPEED
                         )
                 }
@@ -956,7 +954,7 @@ fun SettingsPanel(
                         onBackClick = onBackClick,
                         iconID = R.drawable.ic_link,
                         currentSettingOriginalValue = settings.value.defaultUrl,
-                         
+
                         field = BrowserSettingField.DEFAULT_URL
                         )
                 }

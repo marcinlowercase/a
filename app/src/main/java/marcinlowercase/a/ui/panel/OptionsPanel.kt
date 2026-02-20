@@ -11,7 +11,6 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -31,7 +30,6 @@ import kotlin.math.roundToInt
 @Composable
 fun OptionsPanel(
     onCloseAllTabs: () -> Unit,
-    descriptionContent: MutableState<String>,
     setIsOptionsPanelVisible: (Boolean) -> Job,
     addAppToPin: () -> Unit,
 ) {
@@ -242,7 +240,6 @@ fun OptionsPanel(
                         layer = 2,
                         modifier = Modifier.weight(1f),
                         onTap = option.onClick,
-                        descriptionContent = descriptionContent,
                         buttonDescription = option.contentDescription,
                         painterId = option.iconRes,
                         isWhite = option.enabled

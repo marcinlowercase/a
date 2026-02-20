@@ -55,5 +55,6 @@ data class BrowserUIState(
 
 
     // State Restoration (used when focusing URL bar)
-    val savedPanelState: PanelVisibilityState? = null
+    val savedPanelState: PanelVisibilityState? = null,
+
 )

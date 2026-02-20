@@ -56,7 +56,6 @@ const val sliderHeight = 16
 @Composable
 fun ColorPickerPanel(
     colorState: MutableState<JsColorState?>,
-    descriptionContent: MutableState<String>,
     onDismiss: () -> Unit,
 ) {
     val viewModel = LocalBrowserViewModel.current
@@ -230,7 +229,6 @@ fun ColorPickerPanel(
                         onDismiss()
                     },
                     buttonDescription = "cancel",
-                    descriptionContent = descriptionContent,
                     painterId = R.drawable.ic_close,
                     isWhite = false
                 )
@@ -244,7 +242,6 @@ fun ColorPickerPanel(
                         onDismiss()
                     },
                     buttonDescription = "confirm",
-                    descriptionContent = descriptionContent,
                     painterId = R.drawable.ic_check,
                     isWhite = true
                 )

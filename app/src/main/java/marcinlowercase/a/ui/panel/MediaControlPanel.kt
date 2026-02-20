@@ -45,7 +45,6 @@ import kotlin.math.abs
 fun MediaControlPanel(
     hapticFeedback: HapticFeedback,
     modifier: Modifier,
-    descriptionContent:  MutableState<String>,
     onExitFullscreen: () -> Unit,
     gestureManager: MediaGestureManager,
     controlOption: MutableState<MediaControlOption>,
@@ -122,7 +121,6 @@ fun MediaControlPanel(
                     viewModel.updateUI { it.copy(isMediaControlPanelDisplayed = false)}
                         true
                 },
-                descriptionContent = descriptionContent,
                 buttonDescription = "plus/minus",
                 painterId = R.drawable.ic_fullscreen_exit,
                 isWhite = true
@@ -319,7 +317,6 @@ fun MediaControlPanel(
                         viewModel.updateUI { it.copy(isMediaControlPanelVisible = true)}
                     }
                 },
-                descriptionContent = descriptionContent,
                 buttonDescription = "control option",
                 painterId = controlOption.value.iconRes,
                 isWhite = true

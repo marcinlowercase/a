@@ -35,7 +35,6 @@ import org.mozilla.geckoview.GeckoSession
 @Composable
 fun ChoicePanel(
     choiceState: MutableState<JsChoiceState?>,
-    descriptionContent: MutableState<String>,
     onDismiss: () -> Unit
 ) {
     val viewModel = LocalBrowserViewModel.current
@@ -141,7 +140,6 @@ fun ChoicePanel(
                     },
                     buttonDescription = "submit",
                     painterId = R.drawable.ic_check,
-                    descriptionContent = descriptionContent,
                     isWhite = true
                 )
             }

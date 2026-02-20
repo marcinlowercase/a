@@ -44,9 +44,7 @@ fun FindInPagePanel(
     onFindNext: () -> Unit,
     onFindPrevious: () -> Unit,
     onClose: () -> Unit,
-    descriptionContent: MutableState<String>,
-
-    ) {
+) {
     val viewModel = LocalBrowserViewModel.current
     val settings = viewModel.browserSettings.collectAsState()
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -132,7 +130,7 @@ fun FindInPagePanel(
                     layer = 2,
                     modifier = Modifier.weight(1f),
                     onTap = onClose,
-                    descriptionContent = descriptionContent,
+
                     buttonDescription = "cancel",
                     painterId = R.drawable.ic_arrow_back,
                     isWhite = false,
@@ -141,7 +139,7 @@ fun FindInPagePanel(
                     layer = 2,
                     modifier = Modifier.weight(1f),
                     onTap = onFindNext,
-                    descriptionContent = descriptionContent,
+
                     buttonDescription = "next",
                     painterId = R.drawable.ic_arrow_downward,
                     isWhite = searchResult.second > 0,
@@ -163,7 +161,7 @@ fun FindInPagePanel(
                     layer = 2,
                     modifier = Modifier.weight(1f),
                     onTap = onFindPrevious,
-                    descriptionContent = descriptionContent,
+
                     buttonDescription = "previous",
                     painterId = R.drawable.ic_arrow_upward,
                     isWhite = searchResult.second > 0,
