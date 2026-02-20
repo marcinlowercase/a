@@ -125,6 +125,7 @@ fun BottomPanel(
 
 
 //    onAddToHomeScreen: () -> Unit,
+    confirmationPopup: (message: String, url: String, onConfirm: () -> Unit, onCancel: () -> Unit) -> Unit,
     urlBarFocusRequester: FocusRequester,
 
     updateInspectingTab: (Tab) -> Unit,
@@ -220,6 +221,7 @@ fun BottomPanel(
                 )
 
                 DownloadPanel(
+                    confirmationPopup = confirmationPopup,
                     isDownloadPanelVisible = uiState.value.isDownloadPanelVisible,
                     onDownloadRowClicked = onDownloadRowClicked,
                     onOpenFolderClicked = onOpenFolderClicked,
@@ -308,7 +310,9 @@ fun BottomPanel(
                     onDismiss = onDismiss,
                     state = state,
                 )
-                SettingsPanel()
+                SettingsPanel(
+                    confirmationPopup = confirmationPopup,
+                )
                 TabDataPanel(
                     //                onAddToHomeScreen = onAddToHomeScreen,
                     isTabDataPanelVisible = isTabDataPanelVisible,

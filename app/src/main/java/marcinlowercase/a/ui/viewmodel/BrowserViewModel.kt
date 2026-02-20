@@ -1120,26 +1120,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     //region Confirmation logic
     val confirmationState = mutableStateOf<ConfirmationDialogState?>(null)
     val confirmationDisplayState = mutableStateOf<ConfirmationDialogState?>(null)
-    fun showConfirmation(
-        message: String,
-        url: String = "",
-        onConfirm: () -> Unit,
-        onCancel: () -> Unit = {}
-    ) {
-        confirmationDisplayState.value = confirmationState.value
-        confirmationState.value = ConfirmationDialogState(
-            message = message,
-            url = url,
-            onConfirm = {
-                onConfirm()
-                confirmationState.value = null // Automatically dismiss after action
-            },
-            onCancel = {
-                onCancel()
-                confirmationState.value = null // Automatically dismiss after action
-            }
-        )
-    }
 
     //endregion
     init {

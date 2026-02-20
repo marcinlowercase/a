@@ -129,6 +129,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import marcinlowercase.a.core.constant.generic_location_permission
+import marcinlowercase.a.core.data_class.ConfirmationDialogState
 import marcinlowercase.a.core.data_class.CustomPermissionRequest
 import marcinlowercase.a.core.data_class.DownloadItem
 import marcinlowercase.a.core.data_class.DownloadParams
@@ -766,6 +767,38 @@ fun BrowserScreen(
 
     //endregion
 
+
+
+
+
+
+
+
+
+    fun confirmationPopup(
+        message: String,
+        url: String = "",
+        onConfirm: () -> Unit,
+        onCancel: () -> Unit = {}
+    ) {
+        viewModel.confirmationState.value = ConfirmationDialogState(
+            message = message,
+            url = url,
+            onConfirm = {
+                onConfirm()
+                viewModel.confirmationState.value = null // Automatically dismiss after action
+            },
+            onCancel = {
+                onCancel()
+                viewModel.confirmationState.value = null // Automatically dismiss after action
+            }
+        )
+        viewModel.confirmationDisplayState.value = viewModel.confirmationState.value
+    }
+
+
+
+
     // region Top Function
     suspend fun hideBackSquare(blinkEffect: Boolean = true) {
         val idle = settings.backSquareIdleOpacity
@@ -844,7 +877,7 @@ fun BrowserScreen(
     val handleCloseInspectedTab = {
         val tabToClose = viewModel.currentInspectingTab
         if (tabToClose != null && viewModel.tabs.indexOf(tabToClose) > -1) {
-            viewModel.showConfirmation(
+            confirmationPopup(
                 message = "close tab ?",
                 onConfirm = {
                     viewModel.closeInspectedTab {
@@ -857,6 +890,7 @@ fun BrowserScreen(
     }
     val closeAllTabs = {
 
+
         viewModel.tabs.clear()
 
         // clear the persisted list in SharedPreferences
@@ -868,7 +902,7 @@ fun BrowserScreen(
     }
 
     val handleClearInspectedTabData = {
-        viewModel.showConfirmation(
+        confirmationPopup(
             message = "clear site data ?",
             onConfirm = {
                 val inspectingTab = viewModel.currentInspectingTab
@@ -1591,7 +1625,7 @@ fun BrowserScreen(
                 },
                 onDownloadRequested = { url, userAgent, contentDisposition, mimeType ->
                     // Trigger your existing download logic
-                    viewModel.showConfirmation(
+                    confirmationPopup(
                         message = "download file on",
                         url = url,
                         onConfirm = {
@@ -2051,7 +2085,10 @@ fun BrowserScreen(
                         .background(Color.Black)
                         .padding(bottom = settings.padding.dp)
                 ) {
-                    SettingsPanel(targetSetting = SettingPanelView.CORNER_RADIUS)
+                    SettingsPanel(
+                        confirmationPopup = ::confirmationPopup,
+                        targetSetting = SettingPanelView.CORNER_RADIUS,
+                    )
                 }
             }
 
@@ -2352,7 +2389,7 @@ fun BrowserScreen(
                             bottomPanelPagerState = bottomPanelPagerState,
                             onDownload = { url ->
                                 // Simple generic download for images found via context menu
-                                viewModel.showConfirmation(
+                                confirmationPopup(
                                     message = "download file on",
                                     url = url,
                                     onConfirm = {
@@ -2371,8 +2408,8 @@ fun BrowserScreen(
                             },
                             textFieldState = textFieldState,
                             onCloseAllTabs = {
-                                viewModel.showConfirmation(
-                                    message = "close all viewModel.tabs and exit ? ",
+                                confirmationPopup(
+                                    message = "close all tabs and exit ? ",
                                     onConfirm = {
                                         closeAllTabs()
                                     },
@@ -2385,7 +2422,7 @@ fun BrowserScreen(
                                 keyboardController?.hide()
                             },
                             onRemoveSuggestion = { suggestionToRemove ->
-                                viewModel.showConfirmation(
+                                confirmationPopup(
                                     message = "remove suggestion from history ? ",
                                     onConfirm = {
                                         viewModel.removeSuggestionFromHistory(suggestionToRemove)
@@ -2394,6 +2431,7 @@ fun BrowserScreen(
                                 )
                             },
                             activeSession = activeSession,
+                            confirmationPopup = ::confirmationPopup,
                             urlBarFocusRequester = urlBarFocusRequester,
 
                             updateInspectingTab = { tab ->

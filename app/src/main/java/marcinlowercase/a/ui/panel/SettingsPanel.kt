@@ -461,6 +461,7 @@ fun TextSetting(
 }
 @Composable
 fun SettingsPanel(
+    confirmationPopup: (String, String, () -> Unit, () -> Unit) -> Unit,
     targetSetting: SettingPanelView = SettingPanelView.MAIN,
 ) {
 
@@ -547,7 +548,7 @@ fun SettingsPanel(
 
             OptionItem(R.drawable.ic_reset_settings, "reset settings", false) {
 
-                viewModel.showConfirmation(
+                confirmationPopup(
                     "reset all settings?",
                     "",
                     {
