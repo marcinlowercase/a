@@ -34,7 +34,6 @@ fun OptionsPanel(
     onCloseAllTabs: () -> Unit,
     descriptionContent: MutableState<String>,
     setIsOptionsPanelVisible: (Boolean) -> Job,
-    closedTabsCount: Int,
     addAppToPin: () -> Unit,
 ) {
     val viewModel = LocalBrowserViewModel.current
@@ -91,7 +90,7 @@ fun OptionsPanel(
             OptionItem(
                 R.drawable.ic_reopen_window, // You'll need an icon for this
                 "reopen closed tab",
-                enabled = closedTabsCount > 0, // Only enable if there are tabs to reopen
+                enabled = viewModel.recentlyClosedTabs.isNotEmpty(), // Only enable if there are tabs to reopen
             ) {
                 viewModel.reopenClosedTab()
                 setIsOptionsPanelVisible(false) // Close the panel after action

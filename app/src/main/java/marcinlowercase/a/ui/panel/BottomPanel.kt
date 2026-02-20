@@ -134,7 +134,6 @@ fun BottomPanel(
 
 //    onAddToHomeScreen: () -> Unit,
     descriptionContent: MutableState<String>,
-    recentlyClosedTabs: SnapshotStateList<Tab>,
     confirmationPopup: (message: String, url: String, onConfirm: () -> Unit, onCancel: () -> Unit) -> Unit,
     resetBrowserSettings: () -> Unit,
     backgroundColor: MutableState<Color>,
@@ -1084,7 +1083,6 @@ fun BottomPanel(
                         onCloseAllTabs = onCloseAllTabs,
                         descriptionContent = descriptionContent,
                         setIsOptionsPanelVisible = setIsOptionsPanelVisible,
-                        closedTabsCount = recentlyClosedTabs.size,
                         addAppToPin = {
                             isPinningApp.value = true
                             urlBarFocusRequester.requestFocus()

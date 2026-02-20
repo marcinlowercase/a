@@ -511,7 +511,6 @@ fun BrowserScreen(
 //    val viewModel.apps = remember { mutableStateListOf<App>().apply { addAll(viewModel.appManager.loadApps()) } }
 
 
-    val recentlyClosedTabs = remember { mutableStateListOf<Tab>() }
 
     val textFieldState =
         rememberTextFieldState(viewModel.activeTab!!.currentURL)
@@ -2641,7 +2640,6 @@ fun BrowserScreen(
                             findInPageResult = findInPageResult,
                             findInPageText = findInPageText,
                             descriptionContent = descriptionContent,
-                            recentlyClosedTabs = recentlyClosedTabs,
                             confirmationPopup = ::confirmationPopup,
                             resetBrowserSettings = resetBrowserSettings,
                             backgroundColor = backgroundColor,
