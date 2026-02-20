@@ -27,33 +27,29 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import marcinlowercase.a.R
-import marcinlowercase.a.core.data_class.ConfirmationDialogState
 import marcinlowercase.a.core.function.buttonSettingsForLayer
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 
 @Composable
-fun ConfirmationPanel(
-    isConfirmationPanelVisible: Boolean,
-    isUrlBarVisible: Boolean,
-    state: ConfirmationDialogState?,
-) {
+fun ConfirmationPanel() {
     val viewModel = LocalBrowserViewModel.current
+    val uiState = viewModel.uiState.collectAsState()
     val settings = viewModel.browserSettings.collectAsState()
     AnimatedVisibility(
-        visible = isConfirmationPanelVisible,
+        visible = viewModel.confirmationState.value != null,
         enter = expandVertically(tween(settings.value.animationSpeedForLayer(1))),
         exit = shrinkVertically(tween(settings.value.animationSpeedForLayer(1))) +
                 fadeOut(tween(settings.value.animationSpeedForLayer(1)))
     ) {
 
-        if (state == null) return@AnimatedVisibility
+        val state = viewModel.confirmationDisplayState.value ?: return@AnimatedVisibility
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = settings.value.padding.dp)
                 .padding(
                     top = settings.value.padding.dp,
-                    bottom = if (isUrlBarVisible) 0.dp else settings.value.padding.dp
+                    bottom = if (uiState.value.isUrlBarVisible) 0.dp else settings.value.padding.dp
                 )
                 .background(
                     Color.Black,

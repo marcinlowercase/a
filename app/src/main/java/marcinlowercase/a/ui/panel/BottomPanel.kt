@@ -118,13 +118,10 @@ fun BottomPanel(
     draggableState: AnchoredDraggableState<RevealState>,
     flingBehavior: FlingBehavior,
     initialSettingPanelView: SettingPanelView = SettingPanelView.MAIN,
-    resetBottomPanelTrigger: MutableState<Boolean>,
 
     bottomPanelPagerState: PagerState,
     onDownload: (String) -> Unit,
-    contextMenuData: ContextMenuData?,
-    displayContextMenuData: ContextMenuData?,
-    onDismissContextMenu: () -> Unit,
+
     textFieldState: TextFieldState,
     onCloseAllTabs: () -> Unit,
     onSuggestionClick: (Suggestion) -> Unit, // Changed from (String)
@@ -137,9 +134,7 @@ fun BottomPanel(
     resetBrowserSettings: () -> Unit,
     backgroundColor: MutableState<Color>,
     urlBarFocusRequester: FocusRequester,
-    confirmationDisplayState: ConfirmationDialogState?, // Add this
 
-    confirmationState: ConfirmationDialogState?,
     updateInspectingTab: (Tab) -> Unit,
     isTabDataPanelVisible: Boolean,
     handleCloseInspectedTab: () -> Unit,
@@ -156,10 +151,7 @@ fun BottomPanel(
     navigateWebView: () -> Unit,
     hapticFeedback: HapticFeedback,
     setActiveNavAction: (GestureNavAction) -> Unit,
-
-    activeNavAction: GestureNavAction,
     state: JsDialogState?,
-    promptComponentDisplayState: JsDialogState?,
     onDismiss: () -> Unit,
     permissionLauncher: ManagedActivityResultLauncher<Array<String>, Map<String, @JvmSuppressWildcards Boolean>>,
     modifier: Modifier,
@@ -217,7 +209,7 @@ fun BottomPanel(
                         orientation = Orientation.Vertical,
                         flingBehavior = flingBehavior,
 //                                            enabled = !isFocusOnTextField && contextMenuData == null && !isPromptPanelVisible  && (!isPermissionPanelVisible || (isPermissionPanelVisible &&  isUrlBarVisible) )
-                        enabled = uiState.value.isUrlBarVisible && (!uiState.value.isFocusOnTextField && contextMenuData == null && !uiState.value.isPromptPanelVisible && (!uiState.value.isPermissionPanelVisible))
+                        enabled = uiState.value.isUrlBarVisible && (!uiState.value.isFocusOnTextField && viewModel.contextMenuData.value == null && !uiState.value.isPromptPanelVisible && (!uiState.value.isPermissionPanelVisible))
                     )
 
             ) {
@@ -239,7 +231,6 @@ fun BottomPanel(
                 )
                 NavigationPanel(
                     isNavPanelVisible = uiState.value.isNavPanelVisible,
-                    activeAction = activeNavAction,
                 )
 
                 DownloadPanel(
@@ -250,14 +241,6 @@ fun BottomPanel(
                 )
 
                 ContextMenuPanel(
-                    isVisible = contextMenuData != null,
-                    data = displayContextMenuData,
-
-                    onDismiss = onDismissContextMenu,
-                    onOpenInNewTab = { url ->
-                        viewModel.createNewTab(viewModel.activeTabIndex.value + 1, url)
-                        onDismissContextMenu()
-                    },
                     onDownload = onDownload,
                 )
 
@@ -340,7 +323,6 @@ fun BottomPanel(
                     isUrlBarVisible = uiState.value.isUrlBarVisible,
                     onDismiss = onDismiss,
                     state = state,
-                    promptComponentDisplayState = promptComponentDisplayState,
                     )
                 SettingsPanel(
                     backgroundColor = backgroundColor,
@@ -458,11 +440,7 @@ fun BottomPanel(
                         }
                     }
                 }
-                ConfirmationPanel(
-                    isUrlBarVisible = uiState.value.isUrlBarVisible,
-                    state = confirmationDisplayState, // Use the display state here
-                    isConfirmationPanelVisible = confirmationState != null // Visibility is controlled by the primary state
-                )
+                ConfirmationPanel()
                 // URL BAR
                 AnimatedVisibility(
                     modifier = modifier
@@ -646,8 +624,8 @@ fun BottomPanel(
                                                     )
                                                 )
                                                 .clickable {
-                                                    resetBottomPanelTrigger.value =
-                                                        !resetBottomPanelTrigger.value
+                                                    viewModel.resetBottomPanelTrigger.value =
+                                                        !viewModel.resetBottomPanelTrigger.value
                                                 },
                                             contentAlignment = Alignment.Center
                                         ) {

@@ -8,10 +8,16 @@ import android.media.MediaScannerConnection
 import android.os.Environment
 import android.util.Log
 import android.webkit.URLUtil
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.geometry.Offset
 import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -31,9 +37,15 @@ import marcinlowercase.a.core.constant.pixel_9_corner_radius
 import marcinlowercase.a.core.data_class.App
 import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.BrowserUIState
+import marcinlowercase.a.core.data_class.ConfirmationDialogState
+import marcinlowercase.a.core.data_class.ContextMenuData
 import marcinlowercase.a.core.data_class.CustomPermissionRequest
 import marcinlowercase.a.core.data_class.DownloadItem
 import marcinlowercase.a.core.data_class.DownloadParams
+import marcinlowercase.a.core.data_class.JsChoiceState
+import marcinlowercase.a.core.data_class.JsColorState
+import marcinlowercase.a.core.data_class.JsDateTimeState
+import marcinlowercase.a.core.data_class.JsDialogState
 import marcinlowercase.a.core.data_class.PanelVisibilityState
 import marcinlowercase.a.core.data_class.PollData
 import marcinlowercase.a.core.data_class.SiteSettings
@@ -41,6 +53,7 @@ import marcinlowercase.a.core.data_class.Suggestion
 import marcinlowercase.a.core.data_class.Tab
 import marcinlowercase.a.core.enum_class.BrowserSettingField
 import marcinlowercase.a.core.enum_class.DownloadStatus
+import marcinlowercase.a.core.enum_class.GestureNavAction
 import marcinlowercase.a.core.enum_class.SearchEngine
 import marcinlowercase.a.core.enum_class.SuggestionSource
 import marcinlowercase.a.core.enum_class.TabState
@@ -1003,6 +1016,35 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     //region Single Purpose State
     val descriptionContent = mutableStateOf("")
+    val resetBottomPanelTrigger = mutableStateOf(false)
+    val isApplyImePaddingToWebView = mutableStateOf(true)
+    val sessionRefreshTrigger = mutableIntStateOf(0)
+    val isBackSquareInitialized = mutableStateOf(_browserSettings.value.backSquareOffsetX != -1f)
+    val activeNavAction = mutableStateOf(GestureNavAction.REFRESH)
+    val overlayHeightPx = mutableFloatStateOf(0f)
+    val cursorPointerPosition = mutableStateOf(Offset.Zero)
+
+    //endregion
+
+    //region JS/Complex State
+    val jsDialogState = mutableStateOf<JsDialogState?>(null)
+    val jsDialogDisplayState = mutableStateOf<JsDialogState?>(null)
+
+    val choiceState = mutableStateOf<JsChoiceState?>(null)
+    val choiceDisplayState = mutableStateOf<JsChoiceState?>(null)
+
+    val colorState = mutableStateOf<JsColorState?>(null)
+    val colorDisplayState = mutableStateOf<JsColorState?>(null)
+
+    val dateTimeState = mutableStateOf<JsDateTimeState?>(null)
+    val dateTimeDisplayState = mutableStateOf<JsDateTimeState?>(null)
+
+    val confirmationState = mutableStateOf<ConfirmationDialogState?>(null)
+    val confirmationDisplayState = mutableStateOf<ConfirmationDialogState?>(null)
+
+    val contextMenuData = mutableStateOf<ContextMenuData?>(null)
+    val contextMenuDisplayData = mutableStateOf<ContextMenuData?>(null)
+
     //endregion
 
     init {

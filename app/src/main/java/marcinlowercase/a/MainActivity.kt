@@ -85,10 +85,8 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -133,17 +131,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import marcinlowercase.a.core.constant.generic_location_permission
 import marcinlowercase.a.core.data_class.ConfirmationDialogState
-import marcinlowercase.a.core.data_class.ContextMenuData
 import marcinlowercase.a.core.data_class.CustomPermissionRequest
 import marcinlowercase.a.core.data_class.DownloadItem
 import marcinlowercase.a.core.data_class.DownloadParams
 import marcinlowercase.a.core.data_class.ErrorState
 import marcinlowercase.a.core.data_class.JsAlert
-import marcinlowercase.a.core.data_class.JsChoiceState
-import marcinlowercase.a.core.data_class.JsColorState
 import marcinlowercase.a.core.data_class.JsConfirm
-import marcinlowercase.a.core.data_class.JsDateTimeState
-import marcinlowercase.a.core.data_class.JsDialogState
 import marcinlowercase.a.core.data_class.JsPrompt
 import marcinlowercase.a.core.data_class.Tab
 import marcinlowercase.a.core.enum_class.ActivePanel
@@ -503,28 +496,20 @@ fun BrowserScreen(
     val activeTabIndex by viewModel.activeTabIndex.collectAsState()
 
     //endregion
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
+    val hapticFeedback = LocalHapticFeedback.current
 
-    val textFieldState =
-        rememberTextFieldState(viewModel.activeTab!!.currentURL)
-
-    var sessionRefreshTrigger by remember { mutableIntStateOf(0) }
-
-    val activeSession = remember(viewModel.activeTab!!.id, sessionRefreshTrigger) {
+    
+    val textFieldState = rememberTextFieldState(viewModel.activeTab!!.currentURL)
+    val activeSession = remember(viewModel.activeTab!!.id, viewModel.sessionRefreshTrigger.intValue) {
         viewModel.geckoManager.getSession(viewModel.activeTab!!)
     }
 
-    var isApplyImePaddingToWebView by remember { mutableStateOf(true) }
-    val keyboardController = LocalSoftwareKeyboardController.current
-    val focusManager = LocalFocusManager.current
-
-    // TODO transfer
-    var activeNavAction by remember { mutableStateOf(GestureNavAction.REFRESH) }
-    val hapticFeedback = LocalHapticFeedback.current
-    val resetBottomPanelTrigger = remember { mutableStateOf(false) }
 
 
     val offsetY = remember { Animatable(0f) }
-    var overlayHeightPx by remember { mutableFloatStateOf(0f) }
+    // TODO transfer
     val animatedCornerRadius by animateDpAsState(
         targetValue = if (settings.isSharpMode
 
@@ -719,26 +704,12 @@ fun BrowserScreen(
     val gestureManager = remember { MediaGestureManager(activity) }
     val isDarkTheme = isSystemInDarkTheme()
     val view = LocalView.current
+    val density = LocalDensity.current
 
 
     val squareAlpha = remember { Animatable(0f) }
+    
 
-    //  hold the currently active dialog
-    var jsDialogState by remember { mutableStateOf<JsDialogState?>(null) }
-    var promptComponentDisplayState by remember { mutableStateOf<JsDialogState?>(null) }
-
-
-
-
-
-    //region ConfirmationPanel
-    var confirmationState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
-    // use display state to display and the actual data to decide if the panel display or not, so the text will not just disappear from the air
-    var confirmationDisplayState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
-    //endregion
-
-    val cursorPointerPosition = remember { mutableStateOf(Offset.Zero) }
-    val density = LocalDensity.current
     var screenSize by remember { mutableStateOf(IntSize.Zero) }
     var screenSizeDp by remember { mutableStateOf(IntSize.Zero) }
     rememberLauncherForActivityResult(
@@ -767,12 +738,7 @@ fun BrowserScreen(
         if (settings.backSquareOffsetY != -1f) settings.backSquareOffsetY else 0f
     val backSquareOffsetX = remember { Animatable(initialX) }
     val backSquareOffsetY = remember { Animatable(initialY) }
-    var isBackSquareInitialized by remember {
-        mutableStateOf(settings.backSquareOffsetX != -1f)
-    }
-
-    var contextMenuData by remember { mutableStateOf<ContextMenuData?>(null) }
-    var displayContextMenuData by remember { mutableStateOf<ContextMenuData?>(null) }
+    
 
     val bottomPanelPagerState = rememberPagerState(initialPage = 1, pageCount = { 3 })
 
@@ -810,38 +776,31 @@ fun BrowserScreen(
 
     val geckoViewRef = remember { mutableStateOf<GeckoView?>(null) }
 
-    val choiceState = remember { mutableStateOf<JsChoiceState?>(null) }
-    val choiceDisplayState = remember { mutableStateOf<JsChoiceState?>(null) }
-    LaunchedEffect(choiceState.value) {
-        if (choiceState.value != null)
-            choiceDisplayState.value = choiceState.value
+    
+    LaunchedEffect(viewModel.choiceState.value) {
+        if (viewModel.choiceState.value != null)
+            viewModel.choiceDisplayState.value = viewModel.choiceState.value
     }
-
-    val colorState = remember { mutableStateOf<JsColorState?>(null) }
-    val colorDisplayState = remember { mutableStateOf<JsColorState?>(null) }
-    LaunchedEffect(colorState.value) {
-        if (colorState.value != null)
-            colorDisplayState.value = colorState.value
+    LaunchedEffect(viewModel.colorState.value) {
+        if (viewModel.colorState.value != null)
+            viewModel.colorDisplayState.value = viewModel.colorState.value
     }
-
-    val dateTimeState = remember { mutableStateOf<JsDateTimeState?>(null) }
-    val dateTimeDisplayState = remember { mutableStateOf<JsDateTimeState?>(null) }
-
-    LaunchedEffect(dateTimeState.value) {
-        if (dateTimeState.value != null)
-            dateTimeDisplayState.value = dateTimeState.value
+    
+    LaunchedEffect(viewModel.dateTimeState.value) {
+        if (viewModel.dateTimeState.value != null)
+            viewModel.dateTimeDisplayState.value = viewModel.dateTimeState.value
     }
 
     LaunchedEffect(
-        choiceState.value,
-        colorState.value,
-        dateTimeState.value,
+        viewModel.choiceState.value,
+        viewModel.colorState.value,
+        viewModel.dateTimeState.value,
     ) {
         viewModel.updateUI {
             it.copy(
-                isOtherPanelVisible = choiceState.value != null
-                        || colorState.value != null
-                        || dateTimeState.value != null
+                isOtherPanelVisible = viewModel.choiceState.value != null
+                        || viewModel.colorState.value != null
+                        || viewModel.dateTimeState.value != null
             )
         }
 
@@ -928,19 +887,19 @@ fun BrowserScreen(
         onConfirm: () -> Unit,
         onCancel: () -> Unit = {}
     ) {
-        confirmationState = ConfirmationDialogState(
+        viewModel.confirmationState.value = ConfirmationDialogState(
             message = message,
             url = url,
             onConfirm = {
                 onConfirm()
-                confirmationState = null // Automatically dismiss after action
+                viewModel.confirmationState.value = null // Automatically dismiss after action
             },
             onCancel = {
                 onCancel()
-                confirmationState = null // Automatically dismiss after action
+                viewModel.confirmationState.value = null // Automatically dismiss after action
             }
         )
-        confirmationDisplayState = confirmationState
+        viewModel.confirmationDisplayState.value = viewModel.confirmationState.value
     }
 
     val handlePermissionToggle = { domain: String?, permission: String, isGranted: Boolean ->
@@ -972,8 +931,6 @@ fun BrowserScreen(
         }
 
     }
-
-
     val handleCloseInspectedTab = {
         val tabToClose = viewModel.currentInspectingTab
         if (tabToClose != null && viewModel.tabs.indexOf(tabToClose) > -1) {
@@ -1013,16 +970,18 @@ fun BrowserScreen(
                         runtime.storageController.clearData(flags).then {
                             runOnUiThread {
                                 // loop through ALL viewModel.tabs to find matches
-                                viewModel.tabs.forEachIndexed { index, tab ->
+                                viewModel.tabs.forEachIndexed { _, tab ->
                                     val tabDomain = viewModel.siteSettingsManager.getDomain(tab.currentURL)
 
                                     // check if this tab belongs to the domain just cleared
-                                    if (domain != null && tabDomain == domain) {
-                                        viewModel.updateTabById(tab.id) { it.copy(savedState = null) }
+                                    if (tabDomain == domain) {
+                                        viewModel.updateTabById(tab.id) {t ->
+                                            t.copy(savedState = null)
+                                        }
 
                                         if (tab.id == viewModel.activeTab!!.id) {
                                             viewModel.geckoManager.closeSession(tab)
-                                            sessionRefreshTrigger++
+                                            viewModel.sessionRefreshTrigger.intValue++
                                         } else {
                                             viewModel.geckoManager.forceKillSession(tab.id)
                                         }
@@ -1117,7 +1076,7 @@ fun BrowserScreen(
 
 
     fun navigateWebView() {
-        when (activeNavAction) {
+        when (viewModel.activeNavAction.value) {
             GestureNavAction.BACK -> if (viewModel.activeTab!!.canGoBack) {
                 activeSession.goBack(true)
             }
@@ -1266,14 +1225,14 @@ fun BrowserScreen(
     LaunchedEffect(uiState.isDownloadPanelVisible) {
         if (uiState.isDownloadPanelVisible) activeMainPanel = ActivePanel.DOWNLOADS
     }
-    LaunchedEffect(contextMenuData) {
-        if (contextMenuData != null) activeMainPanel = ActivePanel.CONTEXT_MENU
+    LaunchedEffect(viewModel.contextMenuData.value) {
+        if (viewModel.contextMenuData.value != null) activeMainPanel = ActivePanel.CONTEXT_MENU
     }
     LaunchedEffect(uiState.isFindInPageVisible) {
         if (uiState.isFindInPageVisible) activeMainPanel = ActivePanel.FIND_IN_PAGE
     }
-    LaunchedEffect(jsDialogState) {
-        if (jsDialogState != null) activeMainPanel = ActivePanel.PROMPT
+    LaunchedEffect(viewModel.jsDialogState.value) {
+        if (viewModel.jsDialogState.value != null) activeMainPanel = ActivePanel.PROMPT
     }
     LaunchedEffect(uiState.isSettingsPanelVisible) {
         if (uiState.isSettingsPanelVisible) activeMainPanel = ActivePanel.SETTINGS
@@ -1305,13 +1264,13 @@ fun BrowserScreen(
                 isDownloadPanelVisible = false
             )
         }
-        if (current != ActivePanel.CONTEXT_MENU && contextMenuData != null) contextMenuData = null
+        if (current != ActivePanel.CONTEXT_MENU && viewModel.contextMenuData.value != null) viewModel.contextMenuData.value = null
         if (current != ActivePanel.FIND_IN_PAGE && uiState.isFindInPageVisible) viewModel.updateUI {
             it.copy(
                 isFindInPageVisible = false
             )
         }
-        if (current != ActivePanel.PROMPT && jsDialogState != null) jsDialogState = null
+        if (current != ActivePanel.PROMPT && viewModel.jsDialogState.value != null) viewModel.jsDialogState.value = null
         if (current != ActivePanel.SETTINGS && uiState.isSettingsPanelVisible) {
             viewModel.updateUI { it.copy(isSettingsPanelVisible = false) }
         }
@@ -1409,9 +1368,9 @@ fun BrowserScreen(
         LaunchedEffect(uiState.isFocusOnTextField, uiState.isPromptPanelVisible) {
             if (!uiState.isFocusOnTextField && !uiState.isPromptPanelVisible) {
                 delay(300)
-                isApplyImePaddingToWebView = true
+                viewModel.isApplyImePaddingToWebView.value = true
             } else {
-                isApplyImePaddingToWebView = false
+                viewModel.isApplyImePaddingToWebView.value = false
             }
 
         }
@@ -1438,7 +1397,7 @@ fun BrowserScreen(
 
         LaunchedEffect(viewModel.apps.size) {
             if (viewModel.apps.isEmpty()) {
-                resetBottomPanelTrigger.value = !resetBottomPanelTrigger.value
+                viewModel.resetBottomPanelTrigger.value = !viewModel.resetBottomPanelTrigger.value
             }
         }
 
@@ -1492,7 +1451,7 @@ fun BrowserScreen(
                 viewModel.updateSettings { it.copy(isFullscreenMode = !settings.isFullscreenMode) }
             }
         }
-        LaunchedEffect(resetBottomPanelTrigger.value) {
+        LaunchedEffect(viewModel.resetBottomPanelTrigger.value) {
             if (bottomPanelPagerState.settledPage != BottomPanelMode.SEARCH.ordinal) {
                 bottomPanelPagerState.animateScrollToPage(BottomPanelMode.SEARCH.ordinal)
             }
@@ -1511,7 +1470,7 @@ fun BrowserScreen(
         }
         LaunchedEffect(screenSize) {
             Log.i("marcPip", "onscreenSize")
-            if (screenSize.width > 0 && !isBackSquareInitialized && !isPipMode) {
+            if (screenSize.width > 0 && !viewModel.isBackSquareInitialized.value && !isPipMode) {
                 val buttonSize = with(density) {
                     settings.heightForLayer(1).dp.toPx()
                 }
@@ -1524,7 +1483,7 @@ fun BrowserScreen(
                 backSquareOffsetX.snapTo(defaultX)
                 backSquareOffsetY.snapTo(defaultY)
                 // one time assignment
-                isBackSquareInitialized = true
+                viewModel.isBackSquareInitialized.value = true
             }
         }
         LaunchedEffect(textFieldState.text, uiState.isFocusOnUrlTextField) {
@@ -1571,8 +1530,6 @@ fun BrowserScreen(
         LaunchedEffect(activeSession) {
 
             activeSession.setActive(true)
-            val currentTab = viewModel.activeTab ?: return@LaunchedEffect
-            val currentTabId = currentTab.id
 
             if (!activeSession.isOpen) {
                 try {
@@ -1600,7 +1557,7 @@ fun BrowserScreen(
                     override fun component2(): (Tab) -> Unit = { value = it }
                 },
                 browserSettings = settingsState,
-                onTitleChangeFun = { eventTabId, session, title ->
+                onTitleChangeFun = { eventTabId, _, title ->
 
                     viewModel.updateTabById(eventTabId) { it.copy(currentTitle = title) }
 
@@ -1613,7 +1570,7 @@ fun BrowserScreen(
                 onProgressChange = { int ->
                     viewModel.updateUI { it.copy(isLoading = (int < 100)) }
                 },
-                onLocationChangeFun = { eventTabId, session, url, perms, userGesture ->
+                onLocationChangeFun = { eventTabId, _, url, _, _ ->
                     if (eventTabId == viewModel.activeTab!!.id
                         && url != null
                         && url != "about:blank"
@@ -1640,7 +1597,7 @@ fun BrowserScreen(
                 onNewSessionFunWithId = { id, uri ->
                     viewModel.handleNewSession(id, uri)
                 },
-                onHistoryStateChangeFun = { eventTabId, session, realtimeHistory ->
+                onHistoryStateChangeFun = { eventTabId, _, realtimeHistory ->
 
                     val url = realtimeHistory[realtimeHistory.lastIndex].uri
 
@@ -1774,8 +1731,8 @@ fun BrowserScreen(
                     if (data.linkUrl.isNullOrBlank() && data.srcUrl.isNullOrBlank()) {
                         // do nothing
                     } else {
-                        contextMenuData = data
-                        displayContextMenuData = contextMenuData
+                        viewModel.contextMenuData.value = data
+                        viewModel.contextMenuDisplayData.value = viewModel.contextMenuData.value
                         hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                     }
 
@@ -1793,13 +1750,13 @@ fun BrowserScreen(
                     )
                 },
                 onJsAlert = { message ->
-                    jsDialogState = JsAlert(message)
+                    viewModel.jsDialogState.value = JsAlert(message)
                 },
                 onJsConfirm = { message, callback ->
-                    jsDialogState = JsConfirm(message, callback)
+                    viewModel.jsDialogState.value = JsConfirm(message, callback)
                 },
                 onJsPrompt = { message, defaultValue, callback ->
-                    jsDialogState = JsPrompt(message, defaultValue, callback)
+                    viewModel.jsDialogState.value = JsPrompt(message, defaultValue, callback)
                 },
 
                 onLoadErrorFun = { session, uri, error ->
@@ -1922,16 +1879,16 @@ fun BrowserScreen(
 
                 },
                 onSessionCrash = {
-                    sessionRefreshTrigger++
+                    viewModel.sessionRefreshTrigger.intValue++
                 },
-                onChoicePromptFun = { choiceState.value = it },
+                onChoicePromptFun = { viewModel.choiceState.value = it },
                 onFilePromptFun = { prompt, result ->
                     mainActivity.openFilePicker(prompt, result)
                 },
                 onColorPromptFun = {
-                    colorState.value = it
+                    viewModel.colorState.value = it
                 },
-                onDateTimePromptFun = { dateTimeState.value = it },
+                onDateTimePromptFun = { viewModel.dateTimeState.value = it },
                 onCloseTabFun = { id ->
                     viewModel.closeTabById(id)
                 },
@@ -1974,9 +1931,9 @@ fun BrowserScreen(
             }
         }
 
-        LaunchedEffect(jsDialogState) {
-            if (jsDialogState != null) {
-                promptComponentDisplayState = jsDialogState
+        LaunchedEffect(viewModel.jsDialogState.value) {
+            if (viewModel.jsDialogState.value != null) {
+                viewModel.jsDialogDisplayState.value = viewModel.jsDialogState.value
             }
         }
         LaunchedEffect(uiState.isUrlBarVisible) {
@@ -2000,26 +1957,26 @@ fun BrowserScreen(
                 if (uiState.isCursorMode) viewModel.updateUI { it.copy(isCursorMode = false) }
             }
         }
-        LaunchedEffect(jsDialogState) {
-            viewModel.updateUI { it.copy(isPromptPanelVisible = jsDialogState != null) }
+        LaunchedEffect(viewModel.jsDialogState.value) {
+            viewModel.updateUI { it.copy(isPromptPanelVisible = viewModel.jsDialogState.value != null) }
         }
 
         LaunchedEffect(
             uiState.isUrlBarVisible,
             uiState.isPermissionPanelVisible,
             uiState.isPromptPanelVisible,
-            confirmationState,
-            contextMenuData,
-            choiceState.value
+            viewModel.confirmationState.value,
+            viewModel.contextMenuData.value,
+            viewModel.choiceState.value
         ) {
             viewModel.updateUI {
                 it.copy(
                     isBottomPanelVisible = uiState.isUrlBarVisible
                             || uiState.isPermissionPanelVisible
                             || uiState.isPromptPanelVisible
-                            || confirmationState != null
-                            || contextMenuData != null
-                            || choiceState.value != null
+                            || viewModel.confirmationState.value != null
+                            || viewModel.contextMenuData.value != null
+                            || viewModel.choiceState.value != null
                 )
             }
         }
@@ -2127,13 +2084,13 @@ fun BrowserScreen(
             insetsController.isAppearanceLightNavigationBars = !isDarkTheme
         }
 
-        LaunchedEffect(overlayHeightPx) {
+        LaunchedEffect(viewModel.overlayHeightPx.floatValue) {
             // We only want to act the first time the height is measured (it changes from 0f to a positive value).
             // The `offsetY.value == 0f` check is an extra safeguard to ensure we only do this once on startup.
-            if (overlayHeightPx > 0f && offsetY.value == 0f) {
+            if (viewModel.overlayHeightPx.floatValue > 0f && offsetY.value == 0f) {
                 // Instantly "snap" the overlay to its hidden position without any animation.
                 // The hidden position is its full height negated, moving it off-screen upwards.
-                offsetY.snapTo(-overlayHeightPx * 2)
+                offsetY.snapTo(-viewModel.overlayHeightPx.floatValue * 2)
             }
         }
 
@@ -2309,7 +2266,7 @@ fun BrowserScreen(
                                     .fillMaxWidth()
                                     .weight(1f)
                                     .run {
-                                        if (isApplyImePaddingToWebView) {
+                                        if (viewModel.isApplyImePaddingToWebView.value) {
                                             this.windowInsetsPadding(WindowInsets.ime)
                                         } else {
                                             this
@@ -2357,16 +2314,16 @@ fun BrowserScreen(
                                                             )
                                                         }
 
-                                                        if (contextMenuData != null) contextMenuData =
+                                                        if (viewModel.contextMenuData.value != null) viewModel.contextMenuData.value =
                                                             null
-                                                        if (choiceState.value != null) choiceState.value =
+                                                        if (viewModel.choiceState.value != null) viewModel.choiceState.value =
                                                             null
-                                                        if (colorState.value != null) {
-                                                            colorState.value?.result?.complete(
-                                                                colorState.value?.prompt?.dismiss()
+                                                        if (viewModel.colorState.value != null) {
+                                                            viewModel.colorState.value?.result?.complete(
+                                                                viewModel.colorState.value?.prompt?.dismiss()
                                                             )
 
-                                                            colorState.value = null
+                                                            viewModel.colorState.value = null
                                                         }
                                                     }
                                                     false
@@ -2396,7 +2353,7 @@ fun BrowserScreen(
 
 
                         AnimatedVisibility(
-                            visible = dateTimeState.value != null,
+                            visible = viewModel.dateTimeState.value != null,
                             enter = slideInVertically { (it * 1.5).toInt() },
                             exit = slideOutVertically { (it * 1.5).toInt() },
                             modifier = Modifier
@@ -2406,14 +2363,11 @@ fun BrowserScreen(
                                 .padding(bottom = floatingPanelBottomPadding)
 
                         ) {
-                            DateTimePickerPanel(
-                                dateTimeState = dateTimeDisplayState,
-                                onDismiss = { dateTimeState.value = null },
-                            )
+                            DateTimePickerPanel()
                         }
 
                         AnimatedVisibility(
-                            visible = choiceState.value != null,
+                            visible = viewModel.choiceState.value != null,
                             enter = slideInVertically { (it * 1.5).toInt() },
                             exit = slideOutVertically { (it * 1.5).toInt() },
                             modifier = Modifier
@@ -2423,14 +2377,11 @@ fun BrowserScreen(
                                 .padding(bottom = floatingPanelBottomPadding)
 
                         ) {
-                            ChoicePanel(
-                                choiceState = choiceDisplayState,
-                                onDismiss = { choiceState.value = null },
-                            )
+                            ChoicePanel()
                         }
 
                         AnimatedVisibility(
-                            visible = colorState.value != null,
+                            visible = viewModel.colorState.value != null,
                             enter = slideInVertically { (it * 1.5).toInt() },
                             exit = slideOutVertically { (it * 1.5).toInt() },
                             modifier = Modifier
@@ -2439,10 +2390,7 @@ fun BrowserScreen(
                                 .padding(bottom = settings.padding.dp)
                                 .padding(bottom = floatingPanelBottomPadding)
                         ) {
-                            ColorPickerPanel(
-                                colorState = colorDisplayState,
-                                onDismiss = { colorState.value = null },
-                            )
+                            ColorPickerPanel()
 
                         }
 
@@ -2491,7 +2439,7 @@ fun BrowserScreen(
                         )
                         CursorPointer(
                             isCursorPadVisible = uiState.isCursorPadVisible,
-                            position = cursorPointerPosition.value,
+                            position = viewModel.cursorPointerPosition.value,
                         )
 
 
@@ -2570,7 +2518,6 @@ fun BrowserScreen(
                             flingBehavior = flingBehavior,
                             initialSettingPanelView = initialSettingPanelView,
                             inspectingAppId = inspectingAppId,
-                            resetBottomPanelTrigger = resetBottomPanelTrigger,
 
                             bottomPanelPagerState = bottomPanelPagerState,
                             onDownload = { url ->
@@ -2592,9 +2539,6 @@ fun BrowserScreen(
 
 
                             },
-                            contextMenuData = contextMenuData,
-                            displayContextMenuData = displayContextMenuData,
-                            onDismissContextMenu = { contextMenuData = null },
                             textFieldState = textFieldState,
                             onCloseAllTabs = {
                                 confirmationPopup(
@@ -2629,11 +2573,6 @@ fun BrowserScreen(
                             backgroundColor = backgroundColor,
                             urlBarFocusRequester = urlBarFocusRequester,
 
-
-                            confirmationState = confirmationState,
-                            confirmationDisplayState = confirmationDisplayState,
-
-
                             updateInspectingTab = { tab ->
                                 if (tab.id != 0L) {
                                     viewModel.updateUI { it.copy(inspectingTabId = tab.id) }
@@ -2666,13 +2605,10 @@ fun BrowserScreen(
                                 navigateWebView()
                             },
                             hapticFeedback = hapticFeedback,
-                            setActiveNavAction = { activeNavAction = it },
+                            setActiveNavAction = { viewModel.activeNavAction.value = it },
 
-                            activeNavAction = activeNavAction,
-
-                            state = if (jsDialogState != null) jsDialogState!! else null,
-                            promptComponentDisplayState = if (promptComponentDisplayState != null) promptComponentDisplayState else null,
-                            onDismiss = { jsDialogState = null },
+                            state = if (viewModel.jsDialogState.value != null) viewModel.jsDialogState.value!! else null,
+                            onDismiss = { viewModel.jsDialogState.value = null },
 
                             permissionLauncher = permissionLauncher,
 
@@ -2690,7 +2626,6 @@ fun BrowserScreen(
                             coroutineScope = coroutineScope,
                             //                    activeWebView = activeWebView,
                             activeSession = activeSession,
-                            cursorPointerPosition = cursorPointerPosition,
                             webViewPaddingValue = webViewPaddingValue,
                             cursorPadHeight = cursorPadHeight,
                         )
@@ -2767,7 +2702,7 @@ fun BrowserScreen(
                                                         ((screenSize.height - cutoutTop.toPx()) / 2) - (screenSize.height - backSquareOffsetY.value) + down.position.y + cutoutTop.toPx()
 
 
-                                                    cursorPointerPosition.value =
+                                                    viewModel.cursorPointerPosition.value =
                                                         Offset(initialCursorX, initialCursorY)
 
 
@@ -2794,23 +2729,23 @@ fun BrowserScreen(
                                                                 (change.position.y - change.previousPosition.y) * settings.cursorTrackingSpeed
 
                                                             //                                                val newCursorX =
-                                                            //                                                    cursorPointerPosition.value.x + changeSpaceX
+                                                            //                                                    viewModel.cursorPointerPosition.value.x + changeSpaceX
                                                             //
                                                             //                                                val newCursorY =
-                                                            //                                                    (cursorPointerPosition.value.y + changeSpaceY)
-                                                            //                                                cursorPointerPosition.value =
+                                                            //                                                    (viewModel.cursorPointerPosition.value.y + changeSpaceY)
+                                                            //                                                viewModel.cursorPointerPosition.value =
                                                             //                                                    Offset(newCursorX, newCursorY)
                                                             var newX =
-                                                                cursorPointerPosition.value.x + changeSpaceX
+                                                                viewModel.cursorPointerPosition.value.x + changeSpaceX
                                                             var newY =
-                                                                cursorPointerPosition.value.y + changeSpaceY
+                                                                viewModel.cursorPointerPosition.value.y + changeSpaceY
                                                             if (newX < 0) newX = 0f
                                                             if (newX > screenSize.width) newX =
                                                                 screenSize.width.toFloat()
                                                             if (newY < 0) newY = 0f
                                                             if (newY > screenSize.height) newY =
                                                                 screenSize.height.toFloat()
-                                                            cursorPointerPosition.value =
+                                                            viewModel.cursorPointerPosition.value =
                                                                 Offset(newX, newY)
 
                                                         }
@@ -2827,9 +2762,9 @@ fun BrowserScreen(
                                                             downTime,
                                                             downTime,
                                                             MotionEvent.ACTION_DOWN,
-                                                            cursorPointerPosition.value.x,
-                                                            //                                                    cursorPointerPosition.value.y - webViewTopPadding.toPx(),
-                                                            cursorPointerPosition.value.y - innerPadding.calculateTopPadding()
+                                                            viewModel.cursorPointerPosition.value.x,
+                                                            //                                                    viewModel.cursorPointerPosition.value.y - webViewTopPadding.toPx(),
+                                                            viewModel.cursorPointerPosition.value.y - innerPadding.calculateTopPadding()
                                                                 .toPx(),
                                                             0
                                                         )
@@ -2837,8 +2772,8 @@ fun BrowserScreen(
                                                             downTime,
                                                             downTime + 10,
                                                             MotionEvent.ACTION_UP,
-                                                            cursorPointerPosition.value.x,
-                                                            cursorPointerPosition.value.y - innerPadding.calculateTopPadding()
+                                                            viewModel.cursorPointerPosition.value.x,
+                                                            viewModel.cursorPointerPosition.value.y - innerPadding.calculateTopPadding()
                                                                 .toPx(),
                                                             0
                                                         )

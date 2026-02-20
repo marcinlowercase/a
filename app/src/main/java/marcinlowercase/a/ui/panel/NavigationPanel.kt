@@ -35,11 +35,9 @@ import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 fun NavigationPanel(
     isNavPanelVisible: Boolean,
     modifier: Modifier = Modifier,
-    activeAction: GestureNavAction,
-
-    ) {
+) {
     val viewModel = LocalBrowserViewModel.current
-val settings = viewModel.browserSettings.collectAsState()
+    val settings = viewModel.browserSettings.collectAsState()
     AnimatedVisibility(
         visible = isNavPanelVisible,
         enter = expandVertically(
@@ -90,7 +88,7 @@ val settings = viewModel.browserSettings.collectAsState()
 
                     NavigationItem(
                         modifier = Modifier.weight(1f),
-                        activeAction = activeAction,
+
                         gestureNavAction = GestureNavAction.CLOSE_TAB,
                         actionIcon = painterResource(R.drawable.ic_close),
                     )
@@ -99,14 +97,14 @@ val settings = viewModel.browserSettings.collectAsState()
                     // Refresh Icon
                     NavigationItem(
                         modifier = Modifier.weight(1f),
-                        activeAction = activeAction,
+
                         gestureNavAction = GestureNavAction.REFRESH,
                         actionIcon = painterResource(R.drawable.ic_refresh),
                     )
 
                     NavigationItem(
                         modifier = Modifier.weight(1f),
-                        activeAction = activeAction,
+
                         gestureNavAction = GestureNavAction.NEW_TAB,
                         actionIcon = painterResource(R.drawable.ic_add),
                     )
@@ -122,16 +120,16 @@ val settings = viewModel.browserSettings.collectAsState()
                     // Back Icon
                     NavigationItem(
                         modifier = Modifier.weight(1f),
-                        activeAction = activeAction,
+
                         gestureNavAction = GestureNavAction.BACK,
                         actionIcon = painterResource(R.drawable.ic_arrow_back),
                         visibility = viewModel.activeTab!!.canGoBack,
-                        )
+                    )
 
                     // Cancel Icon
                     NavigationItem(
                         modifier = Modifier.weight(1f),
-                        activeAction = activeAction,
+
                         gestureNavAction = GestureNavAction.NONE,
                         actionIcon = painterResource(R.drawable.ic_minimize),
                     )
@@ -140,29 +138,29 @@ val settings = viewModel.browserSettings.collectAsState()
                     // Back Icon
                     NavigationItem(
                         modifier = Modifier.weight(1f),
-                        activeAction = activeAction,
+
                         gestureNavAction = GestureNavAction.FORWARD,
                         actionIcon = painterResource(R.drawable.ic_arrow_forward),
                         visibility = viewModel.activeTab!!.canGoForward,
-                        )
+                    )
                 }
             }
         }
     }
 }
+
 @Composable
 fun NavigationItem(
     modifier: Modifier,
-    activeAction: GestureNavAction,
     gestureNavAction: GestureNavAction,
     actionIcon: Painter,
     visibility: Boolean = true,
 
     ) {
     val viewModel = LocalBrowserViewModel.current
-val settings = viewModel.browserSettings.collectAsState()
+    val settings = viewModel.browserSettings.collectAsState()
     // Cancel Icon
-    val refreshColor by animateColorAsState(if (activeAction == gestureNavAction) Color.White else Color.Transparent)
+    val refreshColor by animateColorAsState(if (viewModel.activeNavAction.value == gestureNavAction) Color.White else Color.Transparent)
     Box(
         modifier = modifier
             .height(
@@ -180,7 +178,7 @@ val settings = viewModel.browserSettings.collectAsState()
                 actionIcon,
                 "Refresh",
                 Modifier.align(Alignment.Center),
-                tint = if (activeAction == gestureNavAction) Color.Black else Color.White
+                tint = if (viewModel.activeNavAction.value == gestureNavAction) Color.Black else Color.White
             )
         }
 

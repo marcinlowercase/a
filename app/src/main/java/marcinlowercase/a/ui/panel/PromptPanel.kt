@@ -55,7 +55,6 @@ fun PromptPanel(
     geckoViewRef: MutableState<GeckoView?>,
     isUrlBarVisible: Boolean,
     state: JsDialogState?,
-    promptComponentDisplayState: JsDialogState?,
     onDismiss: () -> Unit,
 ) {
     val viewModel = LocalBrowserViewModel.current
@@ -75,6 +74,7 @@ fun PromptPanel(
             )
         )
     ) {
+        val displayState = viewModel.jsDialogDisplayState.value ?: return@AnimatedVisibility
         var textInput by remember(state) {
             mutableStateOf(if (state is JsPrompt) state.defaultValue else "")
         }
@@ -181,22 +181,22 @@ fun PromptPanel(
                             )
                         )
                 ) {
-                    when (promptComponentDisplayState) {
+                    when (displayState) {
                         is JsAlert -> Text(
-                            text = promptComponentDisplayState.message,
+                            text = displayState.message,
                             color = Color.White,
                             modifier = textModifier
                         )
 
                         is JsConfirm -> Text(
-                            text = promptComponentDisplayState.message,
+                            text = displayState.message,
                             color = Color.White,
                             modifier = textModifier
                         )
 
                         is JsPrompt -> {
                             Text(
-                                text = promptComponentDisplayState.message,
+                                text = displayState.message,
                                 color = Color.White,
                                 modifier = textModifier
                             )
@@ -213,7 +213,7 @@ fun PromptPanel(
                                     onDone = {
 
                                         geckoViewRef.value?.requestFocus()
-                                        promptComponentDisplayState.onResult(textInput)
+                                        displayState.onResult(textInput)
                                         onDismiss()
                                     }
                                 ),
@@ -235,10 +235,6 @@ fun PromptPanel(
                                 )
                             )
                         }
-
-                        null -> {
-
-                        }
                     }
                 }
 
@@ -254,7 +250,7 @@ fun PromptPanel(
                 ) {
 
                     // Dismiss/Cancel Button (only for confirm/prompt)
-                    if (promptComponentDisplayState is JsConfirm || promptComponentDisplayState is JsPrompt) {
+                    if (displayState is JsConfirm || displayState is JsPrompt) {
                         Button(
                             modifier = Modifier
                                 .buttonSettingsForLayer(

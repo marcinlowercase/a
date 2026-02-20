@@ -1,6 +1,5 @@
 package marcinlowercase.a.ui.panel
 
-import marcinlowercase.a.core.data_class.JsChoiceState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -11,12 +10,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.rememberLazyListState // Added
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect // Added
-import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,15 +31,12 @@ import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import org.mozilla.geckoview.GeckoSession
 
 @Composable
-fun ChoicePanel(
-    choiceState: MutableState<JsChoiceState?>,
-    onDismiss: () -> Unit
-) {
+fun ChoicePanel() {
     val viewModel = LocalBrowserViewModel.current
     val settings = viewModel.browserSettings.collectAsState()
 
-    val prompt = choiceState.value?.prompt
-    val result = choiceState.value?.result
+    val prompt = viewModel.choiceDisplayState.value?.prompt
+    val result = viewModel.choiceDisplayState.value?.result
 
     if (prompt == null || result == null) return
 
@@ -115,7 +110,7 @@ fun ChoicePanel(
                                 } else {
                                     // Single selection: Confirm immediately
                                     result.complete(prompt.confirm(choice.id))
-                                    onDismiss()
+                                    viewModel.choiceState.value = null
                                 }
                             }
                             .padding(16.dp),
@@ -136,7 +131,7 @@ fun ChoicePanel(
                     modifier = Modifier.fillMaxWidth(),
                     onTap = {
                         result.complete(prompt.confirm(selectedIds.toTypedArray()))
-                        onDismiss()
+                        viewModel.choiceState.value = null
                     },
                     buttonDescription = "submit",
                     painterId = R.drawable.ic_check,

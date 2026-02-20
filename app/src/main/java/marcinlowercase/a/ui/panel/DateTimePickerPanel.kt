@@ -24,7 +24,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import marcinlowercase.a.R
-import marcinlowercase.a.core.data_class.JsDateTimeState
 import marcinlowercase.a.ui.component.CustomIconButton
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import androidx.compose.runtime.collectAsState
@@ -37,15 +36,12 @@ import java.time.temporal.IsoFields
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DateTimePickerPanel(
-    dateTimeState: MutableState<JsDateTimeState?>,
-    onDismiss: () -> Unit
-) {
+fun DateTimePickerPanel() {
 
     val viewModel = LocalBrowserViewModel.current
     val settings = viewModel.browserSettings.collectAsState()
 
-    val state = dateTimeState.value ?: return
+    val state = viewModel.dateTimeDisplayState.value ?: return
     val prompt = state.prompt
     val result = state.result
 
@@ -107,7 +103,7 @@ fun DateTimePickerPanel(
             else -> ""
         }
         result.complete(prompt.confirm(finalString))
-        onDismiss()
+        viewModel.dateTimeState.value = null
     }
 
     // --- UI CONTAINER ---
@@ -231,7 +227,7 @@ fun DateTimePickerPanel(
                             step = 0
                         } else {
                             result.complete(prompt.dismiss())
-                            onDismiss()
+                            viewModel.dateTimeState.value = null
                         }
                     },
                     buttonDescription = if (step == 1 && prompt.type == DateTimePrompt.Type.DATETIME_LOCAL) "back" else "cancel",

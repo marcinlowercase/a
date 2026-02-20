@@ -23,7 +23,6 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,7 +54,6 @@ fun CursorPad(
     screenSize: IntSize,
     coroutineScope: CoroutineScope,
     activeSession: GeckoSession,
-    cursorPointerPosition: MutableState<Offset>,
     webViewPaddingValue: PaddingValues,
     cursorPadHeight: Dp,
 ) {
@@ -130,8 +128,8 @@ fun CursorPad(
                                         longPressDownTime,
                                         longPressDownTime,
                                         MotionEvent.ACTION_DOWN,
-                                        cursorPointerPosition.value.x,
-                                        cursorPointerPosition.value.y - webViewPaddingValue.calculateTopPadding()
+                                        viewModel.cursorPointerPosition.value.x,
+                                        viewModel.cursorPointerPosition.value.y - webViewPaddingValue.calculateTopPadding()
                                             .toPx(),
                                         0
                                     )
@@ -160,16 +158,16 @@ fun CursorPad(
 
 
                                                 var newX =
-                                                    cursorPointerPosition.value.x + changeSpaceX
+                                                    viewModel.cursorPointerPosition.value.x + changeSpaceX
                                                 var newY =
-                                                    cursorPointerPosition.value.y + changeSpaceY
+                                                    viewModel.cursorPointerPosition.value.y + changeSpaceY
                                                 if (newX < 0) newX = 0f
                                                 if (newX > screenSize.width) newX =
                                                     screenSize.width.toFloat()
                                                 if (newY < 0) newY = 0f
                                                 if (newY > screenSize.height) newY =
                                                     screenSize.height.toFloat()
-                                                cursorPointerPosition.value = Offset(newX, newY)
+                                                viewModel.cursorPointerPosition.value = Offset(newX, newY)
 
 
 
@@ -178,8 +176,8 @@ fun CursorPad(
                                                         System.currentTimeMillis(),
                                                         System.currentTimeMillis(),
                                                         MotionEvent.ACTION_MOVE,
-                                                        cursorPointerPosition.value.x,
-                                                        cursorPointerPosition.value.y - webViewPaddingValue.calculateTopPadding()
+                                                        viewModel.cursorPointerPosition.value.x,
+                                                        viewModel.cursorPointerPosition.value.y - webViewPaddingValue.calculateTopPadding()
                                                             .toPx(),
                                                         0
                                                     )
@@ -191,7 +189,7 @@ fun CursorPad(
 
                                                 }
 
-//                                            cursorPointerPosition.value += Offset(
+//                                            viewModel.cursorPointerPosition.value += Offset(
 //                                                changeSpaceX,
 //                                                changeSpaceY
 //                                            )
@@ -244,8 +242,8 @@ fun CursorPad(
                                         longPressDownTime,
                                         System.currentTimeMillis(),
                                         MotionEvent.ACTION_UP,
-                                        cursorPointerPosition.value.x,
-                                        cursorPointerPosition.value.y - webViewPaddingValue.calculateTopPadding()
+                                        viewModel.cursorPointerPosition.value.x,
+                                        viewModel.cursorPointerPosition.value.y - webViewPaddingValue.calculateTopPadding()
                                             .toPx(),
                                         0
                                     )
@@ -277,9 +275,9 @@ fun CursorPad(
 
 
                                                 var newX =
-                                                    cursorPointerPosition.value.x + changeSpaceX
+                                                    viewModel.cursorPointerPosition.value.x + changeSpaceX
                                                 var newY =
-                                                    cursorPointerPosition.value.y + changeSpaceY
+                                                    viewModel.cursorPointerPosition.value.y + changeSpaceY
                                                 if (newX < 0) newX = 0f
                                                 if (newX > screenSize.width) newX =
                                                     screenSize.width.toFloat()
@@ -287,12 +285,12 @@ fun CursorPad(
                                                 if (newY > screenSize.height) newY =
                                                     screenSize.height.toFloat()
 
-                                                cursorPointerPosition.value = Offset(newX, newY)
+                                                viewModel.cursorPointerPosition.value = Offset(newX, newY)
 //                                                activeWebView?.evaluateJavascript(
 //                                                    "window.simulateHover($newX, $newY)",
 //                                                    null
 //                                                )
-//                                            cursorPointerPosition.value += Offset(
+//                                            viewModel.cursorPointerPosition.value += Offset(
 //                                                changeSpaceX,
 //                                                changeSpaceY
 //                                            )
@@ -341,8 +339,8 @@ fun CursorPad(
 //                                 Work but cannot click under the cursor pad
                                     // -> use for 2 finger capture?
 //                                            CursorAccessibilityService.instance?.performClick(
-//                                                cursorPointerPosition.value.x,
-//                                                cursorPointerPosition.value.y
+//                                                viewModel.cursorPointerPosition.value.x,
+//                                                viewModel.cursorPointerPosition.value.y
 //                                            )
 
                                     activeSession.let { _ ->
@@ -351,8 +349,8 @@ fun CursorPad(
                                             downTime,
                                             downTime,
                                             MotionEvent.ACTION_DOWN,
-                                            cursorPointerPosition.value.x,
-                                            cursorPointerPosition.value.y - webViewPaddingValue.calculateTopPadding()
+                                            viewModel.cursorPointerPosition.value.x,
+                                            viewModel.cursorPointerPosition.value.y - webViewPaddingValue.calculateTopPadding()
                                                 .toPx(),
                                             0
                                         )
@@ -360,8 +358,8 @@ fun CursorPad(
                                             downTime,
                                             downTime + 10,
                                             MotionEvent.ACTION_UP,
-                                            cursorPointerPosition.value.x,
-                                            cursorPointerPosition.value.y - webViewPaddingValue.calculateTopPadding()
+                                            viewModel.cursorPointerPosition.value.x,
+                                            viewModel.cursorPointerPosition.value.y - webViewPaddingValue.calculateTopPadding()
                                                 .toPx(),
                                             0
                                         )

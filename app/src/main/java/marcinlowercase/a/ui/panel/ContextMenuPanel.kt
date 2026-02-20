@@ -47,7 +47,6 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import marcinlowercase.a.R
-import marcinlowercase.a.core.data_class.ContextMenuData
 import marcinlowercase.a.core.enum_class.ContextMenuType
 import marcinlowercase.a.core.function.copyImageToClipboard
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
@@ -58,10 +57,6 @@ import kotlin.math.roundToInt
 
 @Composable
 fun ContextMenuPanel(
-    isVisible: Boolean,
-    data: ContextMenuData?,
-    onDismiss: () -> Unit,
-    onOpenInNewTab: (String) -> Unit,
     onDownload: (String) -> Unit,
 ) {
     val viewModel = LocalBrowserViewModel.current
@@ -72,13 +67,13 @@ fun ContextMenuPanel(
 
 
     AnimatedVisibility(
-        visible = isVisible,
+        visible = viewModel.contextMenuData.value != null,
         enter = expandVertically(tween(settings.value.animationSpeed.roundToInt())) + fadeIn(),
         exit = shrinkVertically(tween(settings.value.animationSpeed.roundToInt())) + fadeOut()
     ) {
 
 
-        if (data == null) return@AnimatedVisibility
+        val data = viewModel.contextMenuDisplayData.value?: return@AnimatedVisibility
 
         // Determine if the target is an image (IMAGE_TYPE) or a Link (SRC_ANCHOR / SRC_IMAGE_ANCHOR)
         // Note: SRC_IMAGE_ANCHOR usually provides the Link URL in 'extra', not the image source.
@@ -120,21 +115,14 @@ fun ContextMenuPanel(
                 targetUrl = data.linkUrl?: ""
 
                 actions.add(Triple(R.drawable.ic_add, "open link in new tab") {
-                    onOpenInNewTab(targetUrl)
+                    viewModel.createNewTab(viewModel.activeTabIndex.value + 1, targetUrl)
+                    viewModel.contextMenuData.value = null
                 })
                 actions.add(Triple(R.drawable.ic_content_copy, "copy link") {
                     val clip = ClipData.newPlainText("Link", targetUrl)
                     clipboard.nativeClipboard.setPrimaryClip(clip)
-                    onDismiss()
+                    viewModel.contextMenuData.value = null
                 })
-//                actions.add(Triple(R.drawable.ic_share, "share link") {
-//                    val intent = Intent(Intent.ACTION_SEND).apply {
-//                        type = "text/plain"
-//                        putExtra(Intent.EXTRA_TEXT, targetUrl)
-//                    }
-//                    context.startActivity(Intent.createChooser(intent, "Share Link"))
-//                    onDismiss()
-//                })
 
             } else {
                 if (data.linkUrl != null) {
@@ -144,7 +132,8 @@ fun ContextMenuPanel(
 
                     targetUrl = data.linkUrl
                     actions.add(Triple(R.drawable.ic_add, "open link in new tab") {
-                        onOpenInNewTab(targetUrl)
+                        viewModel.createNewTab(viewModel.activeTabIndex.value + 1, targetUrl)
+                        viewModel.contextMenuData.value = null
                     })
 //                    actions.add(Triple(R.drawable.ic_share, "share link") {
 //                        val intent = Intent(Intent.ACTION_SEND).apply {
@@ -152,27 +141,28 @@ fun ContextMenuPanel(
 //                            putExtra(Intent.EXTRA_TEXT, targetUrl)
 //                        }
 //                        context.startActivity(Intent.createChooser(intent, "Share Link"))
-//                        onDismiss()
+//                        viewModel.contextMenuData.value = null
 //                    })
                     actions.add(Triple(R.drawable.ic_content_copy, "copy link") {
                         val clip = ClipData.newPlainText("Link", targetUrl)
                         clipboard.nativeClipboard.setPrimaryClip(clip)
-                        onDismiss()
+                        viewModel.contextMenuData.value = null
                     })
                     secondTargetUrl = data.srcUrl
                     secondActions.add(Triple(R.drawable.ic_add, "open media in new tab") {
-                        onOpenInNewTab(secondTargetUrl)
+                        viewModel.createNewTab(viewModel.activeTabIndex.value + 1, secondTargetUrl)
+                        viewModel.contextMenuData.value = null
                     })
                     secondActions.add(Triple(R.drawable.ic_content_copy, "copy media link") {
                         val clip = ClipData.newPlainText("Link", secondTargetUrl)
                         clipboard.nativeClipboard.setPrimaryClip(clip)
-                        onDismiss()
+                        viewModel.contextMenuData.value = null
                     })
                     secondActions.add(Triple(R.drawable.ic_download, "download media file") {
                         onDownload(secondTargetUrl)
                     })
                     secondActions.add(Triple(R.drawable.ic_file_copy, "copy image") {
-                        onDismiss()
+                        viewModel.contextMenuData.value = null
                         coroutineScope.launch {
                             copyImageToClipboard(context, targetUrl)
                         }
@@ -183,7 +173,7 @@ fun ContextMenuPanel(
 ////                            putExtra(Intent.EXTRA_TEXT, secondTargetUrl)
 ////                        }
 ////                        context.startActivity(Intent.createChooser(intent, "Share Link"))
-//                        onDismiss()
+//                        viewModel.contextMenuData.value = null
 //                        coroutineScope.launch {
 //                            shareImage(context, secondTargetUrl)
 //                        }
@@ -193,12 +183,13 @@ fun ContextMenuPanel(
                     // only media
                     targetUrl = data.srcUrl
                     actions.add(Triple(R.drawable.ic_add, "open media in new tab") {
-                        onOpenInNewTab(targetUrl)
+                        viewModel.createNewTab(viewModel.activeTabIndex.value + 1, targetUrl)
+                        viewModel.contextMenuData.value = null
                     })
                     actions.add(Triple(R.drawable.ic_content_copy, "copy media link") {
                         val clip = ClipData.newPlainText("Link", targetUrl)
                         clipboard.nativeClipboard.setPrimaryClip(clip)
-                        onDismiss()
+                        viewModel.contextMenuData.value = null
                     })
 //                    actions.add(Triple(R.drawable.ic_share, "share link") {
 //                        val intent = Intent(Intent.ACTION_SEND).apply {
@@ -206,14 +197,14 @@ fun ContextMenuPanel(
 //                            putExtra(Intent.EXTRA_TEXT, targetUrl)
 //                        }
 //                        context.startActivity(Intent.createChooser(intent, "Share Link"))
-//                        onDismiss()
+//                        viewModel.contextMenuData.value = null
 //                    })
                     actions.add(Triple(R.drawable.ic_download, "download media file") {
                         onDownload(targetUrl)
                     })
                     if (data.type == ContextMenuType.IMAGE) {
                         actions.add(Triple(R.drawable.ic_file_copy, "copy image") {
-                            onDismiss()
+                            viewModel.contextMenuData.value = null
 
                             coroutineScope.launch {
                                 copyImageToClipboard(context, targetUrl)
@@ -327,7 +318,7 @@ fun ContextMenuPanel(
 //                            .clickable(onClick = {
 //                                val clip = ClipData.newPlainText("Link", urlSrc)
 //                                clipboard.nativeClipboard.setPrimaryClip(clip)
-//                                onDismiss()
+//                                viewModel.contextMenuData.value = null
 //                            })
                         ,
                         verticalAlignment = Alignment.CenterVertically
