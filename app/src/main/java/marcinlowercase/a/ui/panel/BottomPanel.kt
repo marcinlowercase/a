@@ -170,7 +170,6 @@ fun BottomPanel(
     onNewUrl: (String) -> Unit = {},
     setTextFieldHeightPx: (Int) -> Unit = {},
     inspectingAppId: MutableState<Long>,
-    isPinningApp: MutableState<Boolean>,
 ) {
     val viewModel = LocalBrowserViewModel.current
     val uiState = viewModel.uiState.collectAsState()
@@ -738,8 +737,7 @@ fun BottomPanel(
 
 
                                                 } else {
-                                                    if (isPinningApp.value) isPinningApp.value =
-                                                        false
+                                                    if (uiState.value.isPinningApp) viewModel.updateUI { it.copy(isPinningApp = false) }
                                                     viewModel.updateUI { it.copy(isUrlOverlayBoxVisible = true) }
 
                                                     uiState.value.savedPanelState?.let { savedState ->
@@ -781,7 +779,7 @@ fun BottomPanel(
                                                 )
                                             ),
                                         placeholder = {
-                                            if (!isPinningApp.value) Text("search / url") else Text(
+                                            if (!uiState.value.isPinningApp) Text("search / url") else Text(
                                                 "pin label"
                                             )
                                         },
@@ -800,13 +798,13 @@ fun BottomPanel(
 
                                             if (input.isEmpty()) {
 
-                                                if (isPinningApp.value) {
+                                                if (uiState.value.isPinningApp) {
                                                     viewModel.pinApp(
                                                         title = viewModel.activeTab!!.currentTitle,
                                                         url = resetUrl,
                                                         iconUrl = viewModel.activeTab!!.currentFaviconUrl,
                                                     )
-                                                    isPinningApp.value = false
+                                                    viewModel.updateUI { it.copy(isPinningApp = false) }
                                                 } else {
                                                     activeSession.reload()
                                                 }
@@ -830,7 +828,7 @@ fun BottomPanel(
                                                 false
                                             }
 
-                                            if (isPinningApp.value) {
+                                            if (uiState.value.isPinningApp) {
                                                 viewModel.apps.add(
                                                     App(
                                                         id = System.currentTimeMillis(),
@@ -1079,20 +1077,18 @@ fun BottomPanel(
                     dragOffset = draggableState.offset
                 ) {
                     OptionsPanel(
-                        isPinningApp = isPinningApp,
                         onCloseAllTabs = onCloseAllTabs,
                         descriptionContent = descriptionContent,
                         setIsOptionsPanelVisible = setIsOptionsPanelVisible,
                         addAppToPin = {
-                            isPinningApp.value = true
+                            viewModel.updateUI { it.copy(isPinningApp = true) }
                             urlBarFocusRequester.requestFocus()
                         },
                     )
                 }
                 TextEditPanel(
 //                    currentRotation =  currentRotation,
-                    isPinningApp = isPinningApp,
-                    isVisible = isPinningApp.value || (uiState.value.isFocusOnUrlTextField  && textFieldState.text.isBlank()),
+                    isVisible = uiState.value.isPinningApp || (uiState.value.isFocusOnUrlTextField  && textFieldState.text.isBlank()),
                     onCopyClick = {
                         val clipData = ClipData.newPlainText("url", viewModel.activeTab!!.currentURL)
 
@@ -1101,7 +1097,7 @@ fun BottomPanel(
                     },
                     onEditClick = {
                         textFieldState.setTextAndPlaceCursorAtEnd(
-                            if (isPinningApp.value) {
+                            if (uiState.value.isPinningApp) {
                                 viewModel.activeTab!!.currentTitle
                             } else viewModel.activeTab!!.currentURL
                         )

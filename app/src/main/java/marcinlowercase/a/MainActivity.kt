@@ -790,7 +790,6 @@ fun BrowserScreen(
 
     var initialSettingPanelView by remember { mutableStateOf(SettingPanelView.MAIN) }
 
-    val isPinningApp = remember { mutableStateOf(false) }
 
 
     //region OptionsPanel Drag State
@@ -1542,7 +1541,7 @@ fun BrowserScreen(
             if (uiState.isFocusOnUrlTextField) {
                 viewModel.fetchSuggestions(
                     query = textFieldState.text.toString(),
-                    isPinning = isPinningApp.value
+                    isPinning = uiState.isPinningApp
                 )
             } else {
                 viewModel.suggestions.clear()
@@ -2582,7 +2581,6 @@ fun BrowserScreen(
                             optionsPanelHeightPx = optionsPanelHeightPx,
                             draggableState = draggableState,
                             flingBehavior = flingBehavior,
-                            isPinningApp = isPinningApp,
                             initialSettingPanelView = initialSettingPanelView,
                             inspectingAppId = inspectingAppId,
                             resetBottomPanelTrigger = resetBottomPanelTrigger,

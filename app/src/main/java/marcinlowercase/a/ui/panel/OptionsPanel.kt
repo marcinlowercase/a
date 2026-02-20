@@ -30,7 +30,6 @@ import kotlin.math.roundToInt
 @SuppressLint("SuspiciousIndentation")
 @Composable
 fun OptionsPanel(
-    isPinningApp: MutableState<Boolean>,
     onCloseAllTabs: () -> Unit,
     descriptionContent: MutableState<String>,
     setIsOptionsPanelVisible: (Boolean) -> Job,
@@ -49,7 +48,7 @@ fun OptionsPanel(
             OptionItem(
                 R.drawable.ic_keep, // You'll need an icon for this
                 "pin", // Display the number of open tabs
-                isPinningApp.value
+                uiState.value.isPinningApp
             ) {
                 addAppToPin()
             },

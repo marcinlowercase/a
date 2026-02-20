@@ -27,12 +27,12 @@ fun TextEditPanel(
     isVisible: Boolean,
     onCopyClick: () -> Unit,
     onEditClick: () -> Unit,
-    isPinningApp: MutableState<Boolean>,
     onDismiss: () -> Unit,
     activeWebViewTitle: String,
     descriptionContent: MutableState<String>,
 ) {
     val viewModel = LocalBrowserViewModel.current
+    val uiState = viewModel.uiState.collectAsState()
     val settings = viewModel.browserSettings.collectAsState()
     AnimatedVisibility(
         visible = isVisible,
@@ -72,7 +72,7 @@ fun TextEditPanel(
                 isWhite = false,
             )
 
-            if (isPinningApp.value) {
+            if (uiState.value.isPinningApp) {
                 if (activeWebViewTitle.isNotBlank()) {
                     // Edit Button (ensures keyboard is shown)
                     CustomIconButton(

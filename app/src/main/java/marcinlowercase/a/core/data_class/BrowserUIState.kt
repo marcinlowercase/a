@@ -41,6 +41,8 @@ data class BrowserUIState(
     val isFocusOnUrlTextField: Boolean = false,
     val isFocusOnSettingTextField: Boolean = false,
     val isFocusOnFindTextField: Boolean = false,
+    val isPinningApp: Boolean = false,
+
 
     // Web Load
     val initialLoadDone: Boolean = false,
