@@ -33,7 +33,6 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -462,9 +461,6 @@ fun TextSetting(
 }
 @Composable
 fun SettingsPanel(
-    backgroundColor: MutableState<Color>,
-    confirmationPopup: (String, String, () -> Unit, () -> Unit) -> Unit,
-    resetBrowserSettings: () -> Unit,
     targetSetting: SettingPanelView = SettingPanelView.MAIN,
 ) {
 
@@ -482,11 +478,11 @@ fun SettingsPanel(
 
     LaunchedEffect(currentView) {
         if (currentView == SettingPanelView.CORNER_RADIUS) {
-            backgroundColor.value = Color.Red
+            viewModel.backgroundColor.value = Color.Red
             viewModel.updateUI { it.copy(isSettingCornerRadius = true) }
             viewModel.updateSettings{it.copy(isFullscreenMode = true)}
         } else {
-            backgroundColor.value = Color.Black
+            viewModel.backgroundColor.value = Color.Black
             if ( uiState.value.isSettingCornerRadius) viewModel.updateSettings{it.copy(isFullscreenMode = false)}
             viewModel.updateUI { it.copy(isSettingCornerRadius = false) }
         }
@@ -551,11 +547,11 @@ fun SettingsPanel(
 
             OptionItem(R.drawable.ic_reset_settings, "reset settings", false) {
 
-                confirmationPopup(
+                viewModel.showConfirmation(
                     "reset all settings?",
                     "",
                     {
-                        resetBrowserSettings()
+                        viewModel.resetSettings()
                     },
                     {}
                 )

@@ -54,7 +54,6 @@ import androidx.compose.runtime.collectAsState
 @Composable
 fun DownloadPanel(
 //    currentRotation: Float,
-    confirmationPopup: (message: String,url: String, onConfirm: () -> Unit, onCancel: () -> Unit) -> Unit,
     isDownloadPanelVisible: Boolean,
     onDownloadRowClicked: (DownloadItem) -> Unit,
     onOpenFolderClicked: () -> Unit,
@@ -173,7 +172,7 @@ val settings = viewModel.browserSettings.collectAsState()
                         layer = 3,
                         modifier = Modifier.weight(1f),
                         onTap = {
-                            confirmationPopup(
+                            viewModel.showConfirmation(
                                 "clear download list ?",
                                 "",
                                 {

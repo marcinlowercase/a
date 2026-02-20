@@ -129,7 +129,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import marcinlowercase.a.core.constant.generic_location_permission
-import marcinlowercase.a.core.data_class.ConfirmationDialogState
 import marcinlowercase.a.core.data_class.CustomPermissionRequest
 import marcinlowercase.a.core.data_class.DownloadItem
 import marcinlowercase.a.core.data_class.DownloadParams
@@ -729,7 +728,16 @@ fun BrowserScreen(
         if (settings.backSquareOffsetY != -1f) settings.backSquareOffsetY else 0f
     val backSquareOffsetX = remember { Animatable(initialX) }
     val backSquareOffsetY = remember { Animatable(initialY) }
-    
+
+    val geckoViewRef = remember { mutableStateOf<GeckoView?>(null) }
+
+    val insetsController = activity.let {
+        WindowCompat.getInsetsController(
+            it.window,
+            it.window.decorView
+        )
+    }
+
 
     val bottomPanelPagerState = rememberPagerState(initialPage = 1, pageCount = { 3 })
 
@@ -758,46 +766,7 @@ fun BrowserScreen(
 
     //endregion
 
-    val geckoViewRef = remember { mutableStateOf<GeckoView?>(null) }
-
-    
-    LaunchedEffect(viewModel.choiceState.value) {
-        if (viewModel.choiceState.value != null)
-            viewModel.choiceDisplayState.value = viewModel.choiceState.value
-    }
-    LaunchedEffect(viewModel.colorState.value) {
-        if (viewModel.colorState.value != null)
-            viewModel.colorDisplayState.value = viewModel.colorState.value
-    }
-    
-    LaunchedEffect(viewModel.dateTimeState.value) {
-        if (viewModel.dateTimeState.value != null)
-            viewModel.dateTimeDisplayState.value = viewModel.dateTimeState.value
-    }
-
-    LaunchedEffect(
-        viewModel.choiceState.value,
-        viewModel.colorState.value,
-        viewModel.dateTimeState.value,
-    ) {
-        viewModel.updateUI {
-            it.copy(
-                isOtherPanelVisible = viewModel.choiceState.value != null
-                        || viewModel.colorState.value != null
-                        || viewModel.dateTimeState.value != null
-            )
-        }
-
-    }
-
-
-    LaunchedEffect(uiState.isOtherPanelVisible) {
-        if (uiState.isOtherPanelVisible) viewModel.updateUI { it.copy(isBottomPanelVisible = false) }
-    }
-
-    //endregion
-
-    //region Functions
+    // region Top Function
     suspend fun hideBackSquare(blinkEffect: Boolean = true) {
         val idle = settings.backSquareIdleOpacity
         if (blinkEffect) {
@@ -820,12 +789,6 @@ fun BrowserScreen(
         squareAlpha.animateTo(idle, animationSpec = tween(400))
 
     }
-
-//    val updateCurrentRotation = remember {
-//        {
-//            viewModel.updateUI { it.copy(isLandscapeByButton = true) }
-//        }
-//    }
 
     val setIsOptionsPanelVisible = { setToVisible: Boolean ->
 
@@ -851,44 +814,7 @@ fun BrowserScreen(
 
     }
 
-    val closeAllTabs = {
-
-
-        viewModel.tabs.clear()
-
-        // clear the persisted list in SharedPreferences
-        viewModel.tabManager.clearAllTabs()
-
-        // close the application
-        activity.finishAndRemoveTask()
-        exitProcess(0)
-    }
-
-
-    fun confirmationPopup(
-        message: String,
-        url: String = "",
-        onConfirm: () -> Unit,
-        onCancel: () -> Unit = {}
-    ) {
-        viewModel.confirmationState.value = ConfirmationDialogState(
-            message = message,
-            url = url,
-            onConfirm = {
-                onConfirm()
-                viewModel.confirmationState.value = null // Automatically dismiss after action
-            },
-            onCancel = {
-                onCancel()
-                viewModel.confirmationState.value = null // Automatically dismiss after action
-            }
-        )
-        viewModel.confirmationDisplayState.value = viewModel.confirmationState.value
-    }
-
     val handlePermissionToggle = { domain: String?, permission: String, isGranted: Boolean ->
-
-
         if (domain != null) {
             // 1. Get the current settings for the domain, or create a new one if it doesn't exist.
 
@@ -918,7 +844,7 @@ fun BrowserScreen(
     val handleCloseInspectedTab = {
         val tabToClose = viewModel.currentInspectingTab
         if (tabToClose != null && viewModel.tabs.indexOf(tabToClose) > -1) {
-            confirmationPopup(
+            viewModel.showConfirmation(
                 message = "close tab ?",
                 onConfirm = {
                     viewModel.closeInspectedTab {
@@ -929,17 +855,20 @@ fun BrowserScreen(
             )
         }
     }
+    val closeAllTabs = {
 
-    LaunchedEffect(activeTabIndex) {
-        val currentUrl = viewModel.tabs.getOrNull(activeTabIndex)?.currentURL ?: ""
-        if (!uiState.isFocusOnUrlTextField) {
-            textFieldState.setTextAndPlaceCursorAtEnd(currentUrl.toDomain())
-        }
+        viewModel.tabs.clear()
+
+        // clear the persisted list in SharedPreferences
+        viewModel.tabManager.clearAllTabs()
+
+        // close the application
+        activity.finishAndRemoveTask()
+        exitProcess(0)
     }
 
-
     val handleClearInspectedTabData = {
-        confirmationPopup(
+        viewModel.showConfirmation(
             message = "clear site data ?",
             onConfirm = {
                 val inspectingTab = viewModel.currentInspectingTab
@@ -983,10 +912,6 @@ fun BrowserScreen(
             }
         )
     }
-
-
-
-
     val storagePermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -1000,10 +925,7 @@ fun BrowserScreen(
         // not use but still need to keep here to reset the pending download
         viewModel.pendingDownload = null
     }
-
-
-    val startDownload =
-        { url: String, userAgent: String, contentDisposition: String?, mimeType: String? ->
+    val startDownload = { url: String, userAgent: String, contentDisposition: String?, mimeType: String? ->
             val params = DownloadParams(url, userAgent, contentDisposition, mimeType)
 
 //            val needsPermission = Build.VERSION.SDK_INT <= Build.VERSION_CODES.P
@@ -1020,45 +942,6 @@ fun BrowserScreen(
                 viewModel.performDownloadEnqueue(params)
             }
         }
-
-//    { url: String, userAgent: String, contentDisposition: String?, mimeType: String? ->
-//        if (!isUrlBarVisible) isUrlBarVisible = true
-//        if (!uiState.isDownloadPanelVisible) uiState.isDownloadPanelVisible = true
-//
-//        // (Reuse your existing filename/unique logic here)
-//        val initialFilename = getBestGuessFilename(url, contentDisposition, mimeType)
-//        val finalFilename = generateUniqueFilename(initialFilename, downloads)
-//
-//        val request = DownloadManager.Request(url.toUri())
-//            .setTitle(finalFilename)
-//            .setDescription("Downloading...")
-//            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-//            .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, finalFilename)
-//            .addRequestHeader("User-Agent", userAgent)
-//
-//        val downloadManager =
-//            context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-//        val downloadId = downloadManager.enqueue(request)
-//
-//        val newDownload = DownloadItem(
-//            id = downloadId,
-//            url = url,
-//            filename = finalFilename,
-//            mimeType = mimeType ?: "application/octet-stream",
-//            status = DownloadStatus.PENDING
-//        )
-//        downloads.add(0, newDownload)
-//        downloadTracker.saveDownloads(downloads)
-//    }
-
-    // This function will be our single, safe way to update settings.
-
-
-    val resetBrowserSettings = {
-        viewModel.resetSettings()
-    }
-
-
     fun navigateWebView() {
         when (viewModel.activeNavAction.value) {
             GestureNavAction.BACK -> if (viewModel.activeTab!!.canGoBack) {
@@ -1093,7 +976,6 @@ fun BrowserScreen(
             }
         }
     }
-
     val handleOpenDownloadsFolder = {
         val intent = Intent(DownloadManager.ACTION_VIEW_DOWNLOADS).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -1107,15 +989,6 @@ fun BrowserScreen(
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
                 setDataAndType(MediaStore.Downloads.EXTERNAL_CONTENT_URI, "*/*")
-
-//                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-//                    // Android 10+ (API 29+) supports the Downloads URI
-//                    setDataAndType(MediaStore.Downloads.EXTERNAL_CONTENT_URI, "*/*")
-//                } else {
-//                    // Android 9 and below: Just use type.
-//                    // The user can still pick 'Downloads' from the system sidebar.
-//                    type = "*/*"
-//                }
             }
             try {
                 context.startActivity(genericFileManagerIntent)
@@ -1125,9 +998,6 @@ fun BrowserScreen(
             }
         }
     }
-
-
-
     val handleOpenFile = { item: DownloadItem ->
         if (item.status == DownloadStatus.SUCCESSFUL) {
 
@@ -1174,23 +1044,12 @@ fun BrowserScreen(
             Toast.makeText(context, "Download has not completed.", Toast.LENGTH_SHORT).show()
         }
     }
-
-
-    val backgroundColor = remember { mutableStateOf(Color.Black) }
-
-    val insetsController = activity.let {
-        WindowCompat.getInsetsController(
-            it.window,
-            it.window.decorView
-        )
-    }
+    // endregion
+    
 
 
     //endregion
-
-
-    // This effect now ONLY handles the very first restoration of state.
-
+    
 
     //region Single Panel
 
@@ -1288,20 +1147,51 @@ fun BrowserScreen(
     CompositionLocalProvider(
         LocalBrowserViewModel provides viewModel
     ) {
-
         //region LaunchedEffect
+        LaunchedEffect(activeTabIndex) {
+            val currentUrl = viewModel.tabs.getOrNull(activeTabIndex)?.currentURL ?: ""
+            if (!uiState.isFocusOnUrlTextField) {
+                textFieldState.setTextAndPlaceCursorAtEnd(currentUrl.toDomain())
+            }
+        }
+        LaunchedEffect(viewModel.choiceState.value) {
+            if (viewModel.choiceState.value != null)
+                viewModel.choiceDisplayState.value = viewModel.choiceState.value
+        }
+        LaunchedEffect(viewModel.colorState.value) {
+            if (viewModel.colorState.value != null)
+                viewModel.colorDisplayState.value = viewModel.colorState.value
+        }
+
+        LaunchedEffect(viewModel.dateTimeState.value) {
+            if (viewModel.dateTimeState.value != null)
+                viewModel.dateTimeDisplayState.value = viewModel.dateTimeState.value
+        }
+
         LaunchedEffect(
-            uiState.isFocusOnSettingTextField,
-            uiState.isFocusOnUrlTextField,
-            uiState.isFocusOnFindTextField,
+            viewModel.choiceState.value,
+            viewModel.colorState.value,
+            viewModel.dateTimeState.value,
         ) {
+            viewModel.updateUI {
+                it.copy(
+                    isOtherPanelVisible = viewModel.choiceState.value != null
+                            || viewModel.colorState.value != null
+                            || viewModel.dateTimeState.value != null
+                )
+            }
+
+        }
+        LaunchedEffect(uiState.isOtherPanelVisible) {
+            if (uiState.isOtherPanelVisible) viewModel.updateUI { it.copy(isBottomPanelVisible = false) }
+        }
+        LaunchedEffect(uiState.isFocusOnSettingTextField, uiState.isFocusOnUrlTextField, uiState.isFocusOnFindTextField) {
             viewModel.updateUI {
                 it.copy(
                     isFocusOnTextField = uiState.isFocusOnFindTextField || uiState.isFocusOnUrlTextField || uiState.isFocusOnSettingTextField
                 )
             }
         }
-
         LaunchedEffect(Unit) {
             newUrlFlow.collect { urlFromIntent ->
                 if (urlFromIntent != null) {
@@ -1320,11 +1210,9 @@ fun BrowserScreen(
             }
 
         }
-
         LaunchedEffect(uiState.isLandscapeByButton, uiState.isOnFullscreenVideo) {
             viewModel.updateUI { it.copy(isLandscape = uiState.isLandscapeByButton || uiState.isOnFullscreenVideo) }
         }
-
         LaunchedEffect(uiState.isLandscapeByButton) {
             if (uiState.isLandscapeByButton) {
                 activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
@@ -1369,7 +1257,6 @@ fun BrowserScreen(
                 insetsController.isAppearanceLightStatusBars = false
             }
         }
-
         LaunchedEffect(uiState.isSettingsPanelVisible) {
             if (!uiState.isSettingsPanelVisible)
                 viewModel.updateSettings { it.copy(isFirstAppLoad = false) }
@@ -1378,19 +1265,12 @@ fun BrowserScreen(
             viewModel.descriptionContent.value = viewModel.apps.find { it.id == viewModel.inspectingAppId.longValue }?.label ?: ""
 
         }
-
         LaunchedEffect(viewModel.apps.size) {
             if (viewModel.apps.isEmpty()) {
                 viewModel.resetBottomPanelTrigger.value = !viewModel.resetBottomPanelTrigger.value
             }
         }
-
-
-        LaunchedEffect(
-            bottomPanelPagerState.settledPage,
-            bottomPanelPagerState.currentPage,
-            uiState.isUrlOverlayBoxVisible
-        ) {
+        LaunchedEffect(bottomPanelPagerState.settledPage, bottomPanelPagerState.currentPage, uiState.isUrlOverlayBoxVisible) {
 
             if (bottomPanelPagerState.currentPage == BottomPanelMode.SEARCH.ordinal) {
                 viewModel.updateUI { it.copy(isUrlOverlayBoxVisible = true) }
@@ -1428,8 +1308,6 @@ fun BrowserScreen(
             }
 
         }
-
-
         LaunchedEffect(bottomPanelPagerState.currentPage) {
             if (bottomPanelPagerState.currentPage == BottomPanelMode.LOCK.ordinal) {
                 viewModel.updateSettings { it.copy(isFullscreenMode = !settings.isFullscreenMode) }
@@ -1466,12 +1344,10 @@ fun BrowserScreen(
 
                 backSquareOffsetX.snapTo(defaultX)
                 backSquareOffsetY.snapTo(defaultY)
-                // one time assignment
                 viewModel.isBackSquareInitialized.value = true
             }
         }
         LaunchedEffect(textFieldState.text, uiState.isFocusOnUrlTextField) {
-            // Only fetch if the user is actually typing in the URL bar
             if (uiState.isFocusOnUrlTextField) {
                 viewModel.fetchSuggestions(
                     query = textFieldState.text.toString(),
@@ -1487,30 +1363,22 @@ fun BrowserScreen(
                 viewModel.findInPageResult.value = 0 to 0
             }
         }
-
         LaunchedEffect(uiState.isSettingsPanelVisible) {
             if (!uiState.isSettingsPanelVisible) {
-                backgroundColor.value = Color.Black
+                viewModel.backgroundColor.value = Color.Black
             }
         }
-
         LaunchedEffect(uiState.isCursorMode) {
-
             viewModel.updateUI { it.copy(isCursorPadVisible = uiState.isCursorMode) }
             if (uiState.isCursorMode) {
                 viewModel.updateUI { it.copy(isUrlBarVisible = false) }
             }
         }
-
-
-
-
         LaunchedEffect(uiState.inspectingTabId) {
             if (uiState.inspectingTabId == null) {
                 viewModel.updateUI { it.copy(isTabDataPanelVisible = false) }
             }
         }
-
         LaunchedEffect(activeSession) {
 
             activeSession.setActive(true)
@@ -1723,7 +1591,7 @@ fun BrowserScreen(
                 },
                 onDownloadRequested = { url, userAgent, contentDisposition, mimeType ->
                     // Trigger your existing download logic
-                    confirmationPopup(
+                    viewModel.showConfirmation(
                         message = "download file on",
                         url = url,
                         onConfirm = {
@@ -1879,33 +1747,22 @@ fun BrowserScreen(
 
 
                 )
-            Log.e("InitFlow", "current url: ${viewModel.activeTab!!.currentURL}")
-            Log.e("InitFlow", "initialIntentUrl $initialIntentUrl")
-            Log.e("InitFlow", "state ${viewModel.activeTab!!.state}")
 
             if (!uiState.initialLoadDone && initialIntentUrl != null && viewModel.activeTab!!.currentURL == initialIntentUrl) {
-                Log.d("InitFlow", "open app by link")
-
                 webViewLoad(activeSession, initialIntentUrl, settings)
                 viewModel.updateUI { it.copy(initialLoadDone = true) }
-
             }
             else {
-                Log.d("InitFlow", "standard")
-
                 // If the session is empty (no navigation history) and not being restored, load the URL.
                 // This covers "New Tab" clicks and "Target Blank" where engine didn't auto-load.
                 if (viewModel.activeTab!!.savedState == null) {
                     val urlToLoad = viewModel.activeTab!!.currentURL.ifBlank { settings.defaultUrl }
                     // Avoid reloading if it's already on that page (prevents loop)
                     // But since historyState is null, we are safe to load.
-                    Log.d("InitFlow", "url $urlToLoad")
-
                     webViewLoad(activeSession, urlToLoad, settings)
                 }
             }
         }
-
         DisposableEffect(activeSession) {
             Log.i("marcPip", "DisposableEffect")
             activeSession.setActive(true)
@@ -1914,7 +1771,6 @@ fun BrowserScreen(
                 activeSession.setActive(false)
             }
         }
-
         LaunchedEffect(viewModel.jsDialogState.value) {
             if (viewModel.jsDialogState.value != null) {
                 viewModel.jsDialogDisplayState.value = viewModel.jsDialogState.value
@@ -1944,7 +1800,6 @@ fun BrowserScreen(
         LaunchedEffect(viewModel.jsDialogState.value) {
             viewModel.updateUI { it.copy(isPromptPanelVisible = viewModel.jsDialogState.value != null) }
         }
-
         LaunchedEffect(
             uiState.isUrlBarVisible,
             uiState.isPermissionPanelVisible,
@@ -1964,7 +1819,6 @@ fun BrowserScreen(
                 )
             }
         }
-
         LaunchedEffect(settings.isFullscreenMode) {
             if (settings.isFullscreenMode) {
                 insetsController.hide(WindowInsetsCompat.Type.systemBars())
@@ -1977,7 +1831,6 @@ fun BrowserScreen(
 
 
         }
-
         LaunchedEffect(viewModel.screenSize.value) {
             val squareBoxSize = settings.heightForLayer(1).dp
 
@@ -2136,7 +1989,7 @@ fun BrowserScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(backgroundColor.value)
+                .background(viewModel.backgroundColor.value)
         ) {
 
 
@@ -2198,12 +2051,7 @@ fun BrowserScreen(
                         .background(Color.Black)
                         .padding(bottom = settings.padding.dp)
                 ) {
-                    SettingsPanel(
-                        backgroundColor = backgroundColor,
-                        confirmationPopup = ::confirmationPopup,
-                        resetBrowserSettings = resetBrowserSettings,
-                        targetSetting = SettingPanelView.CORNER_RADIUS,
-                    )
+                    SettingsPanel(targetSetting = SettingPanelView.CORNER_RADIUS)
                 }
             }
 
@@ -2504,7 +2352,7 @@ fun BrowserScreen(
                             bottomPanelPagerState = bottomPanelPagerState,
                             onDownload = { url ->
                                 // Simple generic download for images found via context menu
-                                confirmationPopup(
+                                viewModel.showConfirmation(
                                     message = "download file on",
                                     url = url,
                                     onConfirm = {
@@ -2523,7 +2371,7 @@ fun BrowserScreen(
                             },
                             textFieldState = textFieldState,
                             onCloseAllTabs = {
-                                confirmationPopup(
+                                viewModel.showConfirmation(
                                     message = "close all viewModel.tabs and exit ? ",
                                     onConfirm = {
                                         closeAllTabs()
@@ -2537,7 +2385,7 @@ fun BrowserScreen(
                                 keyboardController?.hide()
                             },
                             onRemoveSuggestion = { suggestionToRemove ->
-                                confirmationPopup(
+                                viewModel.showConfirmation(
                                     message = "remove suggestion from history ? ",
                                     onConfirm = {
                                         viewModel.removeSuggestionFromHistory(suggestionToRemove)
@@ -2546,9 +2394,6 @@ fun BrowserScreen(
                                 )
                             },
                             activeSession = activeSession,
-                            confirmationPopup = ::confirmationPopup,
-                            resetBrowserSettings = resetBrowserSettings,
-                            backgroundColor = backgroundColor,
                             urlBarFocusRequester = urlBarFocusRequester,
 
                             updateInspectingTab = { tab ->

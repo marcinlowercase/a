@@ -19,6 +19,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.IntSize
 import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
@@ -74,6 +75,7 @@ import java.util.regex.Pattern
 val LocalBrowserViewModel = staticCompositionLocalOf<BrowserViewModel> {
     error("No BrowserViewModel provided! Check your root Composable.")
 }
+
 class BrowserViewModel(application: Application) : AndroidViewModel(application) {
 
 
@@ -85,7 +87,10 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         return BrowserSettings(
             isFirstAppLoad = sharedPrefs.getBoolean("is_first_app_load", true),
             padding = sharedPrefs.getFloat("padding", 8f),
-            deviceCornerRadius = sharedPrefs.getFloat("device_corner_radius", pixel_9_corner_radius),
+            deviceCornerRadius = sharedPrefs.getFloat(
+                "device_corner_radius",
+                pixel_9_corner_radius
+            ),
             defaultUrl = sharedPrefs.getString("default_url", default_url) ?: default_url,
             animationSpeed = sharedPrefs.getFloat("animation_speed", 300f),
             singleLineHeight = sharedPrefs.getFloat("single_line_height", 100f),
@@ -104,6 +109,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             highlightColor = sharedPrefs.getInt("highlight_color", 0xFFFFFF00.toInt())
         )
     }
+
     fun updateSettings(mutation: (BrowserSettings) -> BrowserSettings) {
         _browserSettings.update(mutation)
         // Persist the resulting value after the update
@@ -124,21 +130,23 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 BrowserSettingField.MAX_LIST_HEIGHT -> current.copy(maxListHeight = value as Float)
                 BrowserSettingField.SINGLE_LINE_HEIGHT -> current.copy(singleLineHeight = value as Float)
                 BrowserSettingField.SEARCH_ENGINE -> {
-                    val index = when(value) {
+                    val index = when (value) {
                         is Float -> value.toInt()
                         is Int -> value
                         else -> current.searchEngine
                     }
                     current.copy(searchEngine = index)
                 }
+
                 BrowserSettingField.HIGHLIGHT_COLOR -> {
-                    val color = when(value) {
+                    val color = when (value) {
                         is Int -> value
                         is Long -> value.toInt()
                         else -> current.highlightColor
                     }
                     current.copy(highlightColor = color)
                 }
+
                 BrowserSettingField.INFO -> current
             }
         }
@@ -191,9 +199,11 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     //endregion
 
     //region UI State
-    private val _uiState = MutableStateFlow(BrowserUIState(
-        isSettingsPanelVisible = sharedPrefs.getBoolean("is_first_app_load", true)
-    ))
+    private val _uiState = MutableStateFlow(
+        BrowserUIState(
+            isSettingsPanelVisible = sharedPrefs.getBoolean("is_first_app_load", true)
+        )
+    )
     val uiState = _uiState.asStateFlow()
 
     /**
@@ -270,8 +280,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         get() = _uiState.value.inspectingTabId?.let { id ->
             tabs.find { it.id == id }
         }
-
-
 
 
     val selectTab = { newIndex: Int ->
@@ -364,10 +372,10 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             saveTabs()
         }
     }
-    val duplicateInspectedTab =  {
+    val duplicateInspectedTab = {
         val originalTab = currentInspectingTab
 
-        if(originalTab != null){
+        if (originalTab != null) {
             val liveState = geckoManager.getSessionStateString(originalTab.id)
                 ?: originalTab.savedState
 
@@ -439,7 +447,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         if (tabToClose != null) {
             val indexToClose = tabs.indexOf(tabToClose)
 
-            if (indexToClose != -1){
+            if (indexToClose != -1) {
                 if (tabs.size > 1) {
                     // 1. Handle Recently Closed History
                     recentlyClosedTabs.add(tabToClose)
@@ -597,6 +605,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         apps.add(newApp)
         saveApps()
     }
+
     fun removeApp(appId: Long) {
         val index = apps.indexOfFirst { it.id == appId }
         if (index != -1) {
@@ -619,7 +628,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     //region Download Logic
     val downloadTracker = BrowserDownloadManager(application)
-    val downloads = mutableStateListOf<DownloadItem>().apply { addAll(downloadTracker.loadDownloads()) }
+    val downloads =
+        mutableStateListOf<DownloadItem>().apply { addAll(downloadTracker.loadDownloads()) }
 
     var pendingDownload: DownloadParams? = null
     private val lastPollData = mutableMapOf<Long, PollData>()
@@ -627,7 +637,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     private fun startDownloadPolling() {
         viewModelScope.launch(Dispatchers.IO) {
-            val downloadManager = getApplication<Application>().getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+            val downloadManager =
+                getApplication<Application>().getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
 
             while (isActive) { // Runs as long as ViewModel is alive
                 val activeDownloads = downloads.filter {
@@ -645,9 +656,12 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                             val query = DownloadManager.Query().setFilterById(item.id)
                             downloadManager.query(query)?.use { cursor ->
                                 if (cursor.moveToFirst()) {
-                                    val statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS)
-                                    val downloadedBytesIndex = cursor.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)
-                                    val totalBytesIndex = cursor.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES)
+                                    val statusIndex =
+                                        cursor.getColumnIndex(DownloadManager.COLUMN_STATUS)
+                                    val downloadedBytesIndex =
+                                        cursor.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)
+                                    val totalBytesIndex =
+                                        cursor.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES)
 
                                     if (statusIndex != -1 && downloadedBytesIndex != -1 && totalBytesIndex != -1) {
                                         val downloadedBytes = cursor.getLong(downloadedBytesIndex)
@@ -661,23 +675,33 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                                         val lastData = lastPollData[item.id]
                                         if (lastData != null) {
                                             if (downloadedBytes > lastData.bytesDownloaded) {
-                                                val timeDeltaMs = currentTimeMs - lastData.timestampMs
-                                                val bytesDelta = downloadedBytes - lastData.bytesDownloaded
+                                                val timeDeltaMs =
+                                                    currentTimeMs - lastData.timestampMs
+                                                val bytesDelta =
+                                                    downloadedBytes - lastData.bytesDownloaded
                                                 if (timeDeltaMs > 0) {
                                                     speedBps = (bytesDelta * 1000f) / timeDeltaMs
                                                     if (totalBytes > 0L) {
-                                                        val bytesRemaining = totalBytes - downloadedBytes
-                                                        etrMs = ((bytesRemaining / speedBps) * 1000).toLong()
+                                                        val bytesRemaining =
+                                                            totalBytes - downloadedBytes
+                                                        etrMs =
+                                                            ((bytesRemaining / speedBps) * 1000).toLong()
                                                     }
-                                                    lastPollData[item.id] = PollData(currentTimeMs, downloadedBytes, speedBps)
+                                                    lastPollData[item.id] = PollData(
+                                                        currentTimeMs,
+                                                        downloadedBytes,
+                                                        speedBps
+                                                    )
                                                 }
                                             } else if ((currentTimeMs - lastData.timestampMs) > 2000) {
                                                 speedBps = 0f
                                                 etrMs = 0L
-                                                lastPollData[item.id] = lastData.copy(lastSpeedBps = 0f)
+                                                lastPollData[item.id] =
+                                                    lastData.copy(lastSpeedBps = 0f)
                                             }
                                         } else {
-                                            lastPollData[item.id] = PollData(currentTimeMs, downloadedBytes)
+                                            lastPollData[item.id] =
+                                                PollData(currentTimeMs, downloadedBytes)
                                         }
 
                                         val status = when (statusInt) {
@@ -688,7 +712,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                                             else -> item.status
                                         }
 
-                                        val progress = if (totalBytes > 0) ((downloadedBytes * 100) / totalBytes).toInt() else 0
+                                        val progress =
+                                            if (totalBytes > 0) ((downloadedBytes * 100) / totalBytes).toInt() else 0
                                         val itemIndex = downloads.indexOfFirst { it.id == item.id }
 
                                         if (itemIndex != -1) {
@@ -726,11 +751,13 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             }
         }
     }
+
     fun performDownloadEnqueue(params: DownloadParams) {
         updateUI { it.copy(isUrlBarVisible = true, isDownloadPanelVisible = true) }
 
         val context = getApplication<Application>()
-        val initialFilename = getBestGuessFilename(params.url, params.contentDisposition, params.mimeType)
+        val initialFilename =
+            getBestGuessFilename(params.url, params.contentDisposition, params.mimeType)
         val finalFilename = generateUniqueFilename(initialFilename, downloads)
 
         val request = DownloadManager.Request(params.url.toUri()).apply {
@@ -758,17 +785,25 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             // Ideally, emit a UI Event here to show a Toast
         }
     }
+
     fun deleteDownload(item: DownloadItem) {
         if (item.isBlobDownload) {
-            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            val downloadsDir =
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
             val file = File(downloadsDir, item.filename)
             if (file.exists()) {
                 if (file.delete()) {
-                    MediaScannerConnection.scanFile(getApplication(), arrayOf(file.absolutePath), null, null)
+                    MediaScannerConnection.scanFile(
+                        getApplication(),
+                        arrayOf(file.absolutePath),
+                        null,
+                        null
+                    )
                 }
             }
         } else {
-            val downloadManager = getApplication<Application>().getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+            val downloadManager =
+                getApplication<Application>().getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
             downloadManager.remove(item.id)
         }
         downloads.remove(item)
@@ -779,15 +814,24 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         downloads.clear()
         downloadTracker.saveDownloads(downloads)
     }
+
     // Helper functions (moved from UI)
-    private fun getBestGuessFilename(url: String, contentDisposition: String?, mimeType: String?): String {
+    private fun getBestGuessFilename(
+        url: String,
+        contentDisposition: String?,
+        mimeType: String?
+    ): String {
         if (contentDisposition != null) {
-            val pattern = Pattern.compile("filename\\*?=['\"]?([^'\"\\s]+)['\"]?", Pattern.CASE_INSENSITIVE)
+            val pattern =
+                Pattern.compile("filename\\*?=['\"]?([^'\"\\s]+)['\"]?", Pattern.CASE_INSENSITIVE)
             val matcher = pattern.matcher(contentDisposition)
             if (matcher.find()) {
                 val filename = matcher.group(1)
                 if (filename != null) {
-                    try { return URLDecoder.decode(filename, "UTF-8") } catch (_: Exception) {}
+                    try {
+                        return URLDecoder.decode(filename, "UTF-8")
+                    } catch (_: Exception) {
+                    }
                 }
             }
         }
@@ -797,11 +841,15 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 val lastSegment = path.substringAfterLast('/')
                 if (lastSegment.isNotBlank()) return lastSegment
             }
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
         return URLUtil.guessFileName(url, contentDisposition, mimeType)
     }
 
-    private fun generateUniqueFilename(initialName: String, existingDownloads: List<DownloadItem>): String {
+    private fun generateUniqueFilename(
+        initialName: String,
+        existingDownloads: List<DownloadItem>
+    ): String {
         val existingFilenames = existingDownloads.map { it.filename }.toSet()
         if (!existingFilenames.contains(initialName)) return initialName
 
@@ -828,7 +876,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
             // Toggle the boolean
             val updatedDecisions = currentSettings.permissionDecisions.toMutableMap().apply {
-                this[permission] = ! (this[permission] ?: false)
+                this[permission] = !(this[permission] ?: false)
             }
 
             val newSettings = currentSettings.copy(permissionDecisions = updatedDecisions)
@@ -954,7 +1002,10 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             // A. Process Local History
             val historyMatches = visitedUrlMap.entries
                 .filter { (url, title) ->
-                    url.contains(cleanQuery, ignoreCase = true) || title.contains(cleanQuery, ignoreCase = true)
+                    url.contains(cleanQuery, ignoreCase = true) || title.contains(
+                        cleanQuery,
+                        ignoreCase = true
+                    )
                 }
                 .map { (url, title) ->
                     val rank = when {
@@ -963,7 +1014,11 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                         url.contains(cleanQuery, ignoreCase = true) -> 3
                         else -> 4
                     }
-                    Triple(Suggestion(text = title, source = SuggestionSource.HISTORY, url = url), rank, url)
+                    Triple(
+                        Suggestion(text = title, source = SuggestionSource.HISTORY, url = url),
+                        rank,
+                        url
+                    )
                 }
                 .sortedBy { it.second }
                 .map { it.first }
@@ -988,7 +1043,12 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                             Suggestion(
                                 text = suggestionText,
                                 source = SuggestionSource.GOOGLE,
-                                url = searchEngine.getSearchUrl(URLEncoder.encode(suggestionText, "UTF-8"))
+                                url = searchEngine.getSearchUrl(
+                                    URLEncoder.encode(
+                                        suggestionText,
+                                        "UTF-8"
+                                    )
+                                )
                             )
                         )
                     }
@@ -1030,7 +1090,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     val screenSize = mutableStateOf(IntSize.Zero)
     val screenSizeDp = mutableStateOf(IntSize.Zero)
 
-    val initialSettingPanelView = mutableStateOf(SettingPanelView.MAIN)
+    val backgroundColor = mutableStateOf(Color.Black)
 
 
     //endregion
@@ -1048,8 +1108,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     val dateTimeState = mutableStateOf<JsDateTimeState?>(null)
     val dateTimeDisplayState = mutableStateOf<JsDateTimeState?>(null)
 
-    val confirmationState = mutableStateOf<ConfirmationDialogState?>(null)
-    val confirmationDisplayState = mutableStateOf<ConfirmationDialogState?>(null)
 
     val contextMenuData = mutableStateOf<ContextMenuData?>(null)
     val contextMenuDisplayData = mutableStateOf<ContextMenuData?>(null)
@@ -1059,6 +1117,31 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     //endregion
 
+    //region Confirmation logic
+    val confirmationState = mutableStateOf<ConfirmationDialogState?>(null)
+    val confirmationDisplayState = mutableStateOf<ConfirmationDialogState?>(null)
+    fun showConfirmation(
+        message: String,
+        url: String = "",
+        onConfirm: () -> Unit,
+        onCancel: () -> Unit = {}
+    ) {
+        confirmationDisplayState.value = confirmationState.value
+        confirmationState.value = ConfirmationDialogState(
+            message = message,
+            url = url,
+            onConfirm = {
+                onConfirm()
+                confirmationState.value = null // Automatically dismiss after action
+            },
+            onCancel = {
+                onCancel()
+                confirmationState.value = null // Automatically dismiss after action
+            }
+        )
+    }
+
+    //endregion
     init {
         startDownloadPolling()
     }
