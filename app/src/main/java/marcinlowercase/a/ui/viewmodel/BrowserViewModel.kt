@@ -11,6 +11,7 @@ import android.webkit.URLUtil
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -18,6 +19,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.unit.IntSize
 import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -62,6 +64,7 @@ import marcinlowercase.a.core.manager.BrowserDownloadManager
 import marcinlowercase.a.core.manager.SiteSettingsManager
 import marcinlowercase.a.core.manager.TabManager
 import marcinlowercase.a.core.manager.VisitedUrlManager
+import marcinlowercase.a.ui.panel.SettingPanelView
 import java.io.File
 import java.net.URLDecoder
 import java.net.URLEncoder
@@ -582,6 +585,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     val apps = mutableStateListOf<App>().apply {
         addAll(appManager.loadApps())
     }
+    val inspectingAppId = mutableLongStateOf(0L)
 
     fun pinApp(title: String, url: String, iconUrl: String) {
         val newApp = App(
@@ -1023,6 +1027,11 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     val activeNavAction = mutableStateOf(GestureNavAction.REFRESH)
     val overlayHeightPx = mutableFloatStateOf(0f)
     val cursorPointerPosition = mutableStateOf(Offset.Zero)
+    val screenSize = mutableStateOf(IntSize.Zero)
+    val screenSizeDp = mutableStateOf(IntSize.Zero)
+
+    val initialSettingPanelView = mutableStateOf(SettingPanelView.MAIN)
+
 
     //endregion
 
@@ -1044,6 +1053,9 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     val contextMenuData = mutableStateOf<ContextMenuData?>(null)
     val contextMenuDisplayData = mutableStateOf<ContextMenuData?>(null)
+
+    val findInPageText = mutableStateOf("")
+    val findInPageResult = mutableStateOf(0 to 0)
 
     //endregion
 

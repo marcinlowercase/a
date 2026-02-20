@@ -35,7 +35,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
@@ -51,7 +50,6 @@ import kotlin.math.roundToInt
 @Composable
 fun CursorPad(
     urlBarFocusRequester: FocusRequester,
-    screenSize: IntSize,
     coroutineScope: CoroutineScope,
     activeSession: GeckoSession,
     webViewPaddingValue: PaddingValues,
@@ -162,11 +160,11 @@ fun CursorPad(
                                                 var newY =
                                                     viewModel.cursorPointerPosition.value.y + changeSpaceY
                                                 if (newX < 0) newX = 0f
-                                                if (newX > screenSize.width) newX =
-                                                    screenSize.width.toFloat()
+                                                if (newX > viewModel.screenSize.value.width) newX =
+                                                    viewModel.screenSize.value.width.toFloat()
                                                 if (newY < 0) newY = 0f
-                                                if (newY > screenSize.height) newY =
-                                                    screenSize.height.toFloat()
+                                                if (newY > viewModel.screenSize.value.height) newY =
+                                                    viewModel.screenSize.value.height.toFloat()
                                                 viewModel.cursorPointerPosition.value = Offset(newX, newY)
 
 
@@ -279,11 +277,11 @@ fun CursorPad(
                                                 var newY =
                                                     viewModel.cursorPointerPosition.value.y + changeSpaceY
                                                 if (newX < 0) newX = 0f
-                                                if (newX > screenSize.width) newX =
-                                                    screenSize.width.toFloat()
+                                                if (newX > viewModel.screenSize.value.width) newX =
+                                                    viewModel.screenSize.value.width.toFloat()
                                                 if (newY < 0) newY = 0f
-                                                if (newY > screenSize.height) newY =
-                                                    screenSize.height.toFloat()
+                                                if (newY > viewModel.screenSize.value.height) newY =
+                                                    viewModel.screenSize.value.height.toFloat()
 
                                                 viewModel.cursorPointerPosition.value = Offset(newX, newY)
 //                                                activeWebView?.evaluateJavascript(

@@ -19,7 +19,6 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,12 +35,10 @@ import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 
 @Composable
 fun AppsPanel(
-    visibility: Boolean,
     onAppClick: (App) -> Unit = {},
-    inspectingAppId: MutableState<Long>
-
 ) {
     val viewModel = LocalBrowserViewModel.current
+    val uiState = viewModel.uiState.collectAsState()
     val settings = viewModel.browserSettings.collectAsState()
 
 
@@ -49,7 +46,7 @@ fun AppsPanel(
         (settings.value.heightForLayer(2).dp * 2.5f) + (settings.value.padding.dp * 2)
 
     AnimatedVisibility(
-        visible = visibility,
+        visible = uiState.value.isAppsPanelVisible,
         modifier = Modifier.fillMaxWidth()
 
     ) {
@@ -94,11 +91,9 @@ fun AppsPanel(
                 items(viewModel.apps) { app ->
                     AppIcon(
                         app = app,
-                        inspectingAppId = inspectingAppId,
-
                         onClick = {
-                            if (inspectingAppId.value != 0L && inspectingAppId.value != app.id) {
-                                inspectingAppId.value = app.id
+                            if (viewModel.inspectingAppId.longValue != 0L && viewModel.inspectingAppId.longValue != app.id) {
+                                viewModel.inspectingAppId.longValue = app.id
                             } else {
                                 onAppClick(app)
 
@@ -110,8 +105,8 @@ fun AppsPanel(
                             viewModel.updateUI { it.copy(isUrlBarVisible = false) }
                         },
                         onLongClick = {
-                            inspectingAppId.value =
-                                if (inspectingAppId.value != app.id) app.id else 0
+                            viewModel.inspectingAppId.longValue =
+                                if (viewModel.inspectingAppId.longValue != app.id) app.id else 0
                         }
 
                     )
@@ -124,7 +119,6 @@ fun AppsPanel(
 
 @Composable
 fun AppIcon(
-    inspectingAppId: MutableState<Long>,
     app: App,
     onClick: () -> Unit,
     onDoubleClick: () -> Unit,
@@ -150,7 +144,7 @@ fun AppIcon(
                 )
             .border(
                 width = 2.dp,
-                color = if (inspectingAppId.value == app.id) Color.Red else Color.Transparent,
+                color = if (viewModel.inspectingAppId.longValue == app.id) Color.Red else Color.Transparent,
                 shape = RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp)
             ),
         contentAlignment = Alignment.Center

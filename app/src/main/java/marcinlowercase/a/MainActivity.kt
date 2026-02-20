@@ -86,7 +86,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -509,7 +508,6 @@ fun BrowserScreen(
 
 
     val offsetY = remember { Animatable(0f) }
-    // TODO transfer
     val animatedCornerRadius by animateDpAsState(
         targetValue = if (settings.isSharpMode
 
@@ -710,8 +708,6 @@ fun BrowserScreen(
     val squareAlpha = remember { Animatable(0f) }
     
 
-    var screenSize by remember { mutableStateOf(IntSize.Zero) }
-    var screenSizeDp by remember { mutableStateOf(IntSize.Zero) }
     rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { isGranted ->
@@ -721,17 +717,12 @@ fun BrowserScreen(
         }
     )
     val cursorPadHeight by animateDpAsState(
-        targetValue = if (isKeyboardVisible) ((screenSizeDp.height.dp - webViewTopPadding) / 8
-                ) else (screenSizeDp.height.dp - webViewTopPadding) / 2,
+        targetValue = if (isKeyboardVisible) ((viewModel.screenSizeDp.value.height.dp - webViewTopPadding) / 8
+                ) else (viewModel.screenSizeDp.value.height.dp - webViewTopPadding) / 2,
         label = "Cursor Pad Height Animation"
     )
     val urlBarFocusRequester = remember { FocusRequester() }
-
-    val findInPageText = remember { mutableStateOf("") }
-    val findInPageResult = remember { mutableStateOf(0 to 0) }
-
-
-
+    
     val initialX =
         if (settings.backSquareOffsetX != -1f) settings.backSquareOffsetX else 0f
     val initialY =
@@ -741,13 +732,6 @@ fun BrowserScreen(
     
 
     val bottomPanelPagerState = rememberPagerState(initialPage = 1, pageCount = { 3 })
-
-    val inspectingAppId = remember { mutableLongStateOf(0L) }
-
-
-    var initialSettingPanelView by remember { mutableStateOf(SettingPanelView.MAIN) }
-
-
 
     //region OptionsPanel Drag State
     val optionsPanelHeight =
@@ -1390,8 +1374,8 @@ fun BrowserScreen(
             if (!uiState.isSettingsPanelVisible)
                 viewModel.updateSettings { it.copy(isFirstAppLoad = false) }
         }
-        LaunchedEffect(inspectingAppId.longValue) {
-            viewModel.descriptionContent.value = viewModel.apps.find { it.id == inspectingAppId.longValue }?.label ?: ""
+        LaunchedEffect(viewModel.inspectingAppId.longValue) {
+            viewModel.descriptionContent.value = viewModel.apps.find { it.id == viewModel.inspectingAppId.longValue }?.label ?: ""
 
         }
 
@@ -1418,7 +1402,7 @@ fun BrowserScreen(
                         isTabsPanelVisible = true
                     )
                 }
-                if (inspectingAppId.longValue != 0L) inspectingAppId.longValue = 0L
+                if (viewModel.inspectingAppId.longValue != 0L) viewModel.inspectingAppId.longValue = 0L
             } else {
                 viewModel.updateUI {
                     it.copy(
@@ -1468,17 +1452,17 @@ fun BrowserScreen(
                 }
             }
         }
-        LaunchedEffect(screenSize) {
+        LaunchedEffect(viewModel.screenSize.value) {
             Log.i("marcPip", "onscreenSize")
-            if (screenSize.width > 0 && !viewModel.isBackSquareInitialized.value && !isPipMode) {
+            if (viewModel.screenSize.value.width > 0 && !viewModel.isBackSquareInitialized.value && !isPipMode) {
                 val buttonSize = with(density) {
                     settings.heightForLayer(1).dp.toPx()
                 }
 
                 val defaultX =
-                    screenSize.width - buttonSize - with(density) { settings.padding.dp.toPx() }
+                    viewModel.screenSize.value.width - buttonSize - with(density) { settings.padding.dp.toPx() }
                 val defaultY =
-                    screenSize.height - buttonSize - with(density) { settings.padding.dp.toPx() }
+                    viewModel.screenSize.value.height - buttonSize - with(density) { settings.padding.dp.toPx() }
 
                 backSquareOffsetX.snapTo(defaultX)
                 backSquareOffsetY.snapTo(defaultY)
@@ -1499,8 +1483,8 @@ fun BrowserScreen(
         }
         LaunchedEffect(uiState.isFindInPageVisible) {
             if (!uiState.isFindInPageVisible) {
-                findInPageText.value = ""
-                findInPageResult.value = 0 to 0
+                viewModel.findInPageText.value = ""
+                viewModel.findInPageResult.value = 0 to 0
             }
         }
 
@@ -1994,22 +1978,22 @@ fun BrowserScreen(
 
         }
 
-        LaunchedEffect(screenSize) {
+        LaunchedEffect(viewModel.screenSize.value) {
             val squareBoxSize = settings.heightForLayer(1).dp
 
             val squareBoxSizePx = with(density) { squareBoxSize.toPx() }
             val paddingPx = with(density) { settings.padding.dp.toPx() }
 
 
-            if (screenSize.height.toFloat() > (squareBoxSizePx - paddingPx)
-                && backSquareOffsetY.value > screenSize.height.toFloat() - squareBoxSizePx - paddingPx
+            if (viewModel.screenSize.value.height.toFloat() > (squareBoxSizePx - paddingPx)
+                && backSquareOffsetY.value > viewModel.screenSize.value.height.toFloat() - squareBoxSizePx - paddingPx
                 && !uiState.isLandscape
                 && !uiState.isBottomPanelVisible
             ) {
                 // Clamp Y to screen bounds
                 val targetY = backSquareOffsetY.value.coerceIn(
                     paddingPx,
-                    screenSize.height.toFloat() - squareBoxSizePx - paddingPx
+                    viewModel.screenSize.value.height.toFloat() - squareBoxSizePx - paddingPx
                 )
                 coroutineScope.launch {
 
@@ -2516,8 +2500,6 @@ fun BrowserScreen(
                             optionsPanelHeightPx = optionsPanelHeightPx,
                             draggableState = draggableState,
                             flingBehavior = flingBehavior,
-                            initialSettingPanelView = initialSettingPanelView,
-                            inspectingAppId = inspectingAppId,
 
                             bottomPanelPagerState = bottomPanelPagerState,
                             onDownload = { url ->
@@ -2563,11 +2545,7 @@ fun BrowserScreen(
                                     onCancel = {}
                                 )
                             },
-
                             activeSession = activeSession,
-
-                            findInPageResult = findInPageResult,
-                            findInPageText = findInPageText,
                             confirmationPopup = ::confirmationPopup,
                             resetBrowserSettings = resetBrowserSettings,
                             backgroundColor = backgroundColor,
@@ -2622,9 +2600,7 @@ fun BrowserScreen(
                             )
                         CursorPad(
                             urlBarFocusRequester = urlBarFocusRequester,
-                            screenSize = screenSize,
                             coroutineScope = coroutineScope,
-                            //                    activeWebView = activeWebView,
                             activeSession = activeSession,
                             webViewPaddingValue = webViewPaddingValue,
                             cursorPadHeight = cursorPadHeight,
@@ -2637,10 +2613,9 @@ fun BrowserScreen(
                                 .fillMaxSize()
                                 .padding(webViewPaddingValue)
                                 .onSizeChanged {
-                                    screenSize = it
+                                    viewModel.screenSize.value = it
                                     with(density) {
-                                        @Suppress("AssignedValueIsNeverRead")
-                                        screenSizeDp = IntSize(
+                                        viewModel.screenSizeDp.value = IntSize(
                                             it.width.toDp().value.roundToInt(),
                                             it.height.toDp().value.roundToInt()
                                         )
@@ -2699,7 +2674,7 @@ fun BrowserScreen(
                                                         backSquareOffsetX.value + settings.padding + down.position.x
 
                                                     val initialCursorY =
-                                                        ((screenSize.height - cutoutTop.toPx()) / 2) - (screenSize.height - backSquareOffsetY.value) + down.position.y + cutoutTop.toPx()
+                                                        ((viewModel.screenSize.value.height - cutoutTop.toPx()) / 2) - (viewModel.screenSize.value.height - backSquareOffsetY.value) + down.position.y + cutoutTop.toPx()
 
 
                                                     viewModel.cursorPointerPosition.value =
@@ -2740,11 +2715,11 @@ fun BrowserScreen(
                                                             var newY =
                                                                 viewModel.cursorPointerPosition.value.y + changeSpaceY
                                                             if (newX < 0) newX = 0f
-                                                            if (newX > screenSize.width) newX =
-                                                                screenSize.width.toFloat()
+                                                            if (newX > viewModel.screenSize.value.width) newX =
+                                                                viewModel.screenSize.value.width.toFloat()
                                                             if (newY < 0) newY = 0f
-                                                            if (newY > screenSize.height) newY =
-                                                                screenSize.height.toFloat()
+                                                            if (newY > viewModel.screenSize.value.height) newY =
+                                                                viewModel.screenSize.value.height.toFloat()
                                                             viewModel.cursorPointerPosition.value =
                                                                 Offset(newX, newY)
 
@@ -2811,7 +2786,7 @@ fun BrowserScreen(
                                                         }
 
                                                         // snap logic
-                                                        val screenWidth = screenSize.width.toFloat()
+                                                        val screenWidth = viewModel.screenSize.value.width.toFloat()
                                                         val currentX = backSquareOffsetX.value
 
                                                         // snap back square to left or right side of the screen
@@ -2826,7 +2801,7 @@ fun BrowserScreen(
                                                         val targetY =
                                                             backSquareOffsetY.value.coerceIn(
                                                                 paddingPx,
-                                                                screenSize.height.toFloat() - squareBoxSizePx - paddingPx
+                                                                viewModel.screenSize.value.height.toFloat() - squareBoxSizePx - paddingPx
                                                             )
 
                                                         coroutineScope.launch {

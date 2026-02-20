@@ -20,7 +20,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,8 +37,7 @@ import androidx.compose.runtime.collectAsState
 fun FindInPagePanel(
 //    currentRotation: Float,
     isVisible: Boolean,
-    searchText: String,
-    searchResult: Pair<Int, Int>,
+   
     onSearchTextChanged: (String) -> Unit,
     onFindNext: () -> Unit,
     onFindPrevious: () -> Unit,
@@ -82,7 +80,7 @@ fun FindInPagePanel(
 
         ) {
             TextField(
-                value = searchText,
+                value = viewModel.findInPageText.value,
                 onValueChange = onSearchTextChanged,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -142,7 +140,7 @@ fun FindInPagePanel(
 
                     buttonDescription = "next",
                     painterId = R.drawable.ic_arrow_downward,
-                    isWhite = searchResult.second > 0,
+                    isWhite = viewModel.findInPageResult.value.second > 0,
                 )
 
 
@@ -152,7 +150,7 @@ fun FindInPagePanel(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        "${searchResult.first}/${searchResult.second}",
+                        "${viewModel.findInPageResult.value.first}/${viewModel.findInPageResult.value.second}",
                         color = Color.White,
 
                         )
@@ -164,7 +162,7 @@ fun FindInPagePanel(
 
                     buttonDescription = "previous",
                     painterId = R.drawable.ic_arrow_upward,
-                    isWhite = searchResult.second > 0,
+                    isWhite = viewModel.findInPageResult.value.second > 0,
                 )
             }
         }

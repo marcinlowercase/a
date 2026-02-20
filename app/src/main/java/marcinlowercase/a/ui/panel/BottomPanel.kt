@@ -55,7 +55,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -83,8 +82,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import marcinlowercase.a.R
 import marcinlowercase.a.core.data_class.App
-import marcinlowercase.a.core.data_class.ConfirmationDialogState
-import marcinlowercase.a.core.data_class.ContextMenuData
 import marcinlowercase.a.core.data_class.DownloadItem
 import marcinlowercase.a.core.data_class.JsDialogState
 import marcinlowercase.a.core.data_class.PanelVisibilityState
@@ -112,12 +109,11 @@ import kotlin.math.abs
 @Composable
 fun BottomPanel(
     setIsOptionsPanelVisible: (Boolean) -> Job,
-    geckoViewRef : MutableState<GeckoView?>,
+    geckoViewRef: MutableState<GeckoView?>,
     floatingPanelBottomPadding: Dp,
     optionsPanelHeightPx: Float,
     draggableState: AnchoredDraggableState<RevealState>,
     flingBehavior: FlingBehavior,
-    initialSettingPanelView: SettingPanelView = SettingPanelView.MAIN,
 
     bottomPanelPagerState: PagerState,
     onDownload: (String) -> Unit,
@@ -126,8 +122,7 @@ fun BottomPanel(
     onCloseAllTabs: () -> Unit,
     onSuggestionClick: (Suggestion) -> Unit, // Changed from (String)
     onRemoveSuggestion: (Suggestion) -> Unit,
-    findInPageText: MutableState<String>,
-    findInPageResult: MutableState<Pair<Int, Int>>,
+
 
 //    onAddToHomeScreen: () -> Unit,
     confirmationPopup: (message: String, url: String, onConfirm: () -> Unit, onCancel: () -> Unit) -> Unit,
@@ -160,7 +155,6 @@ fun BottomPanel(
     keyboardController: SoftwareKeyboardController?,
     onNewUrl: (String) -> Unit = {},
     setTextFieldHeightPx: (Int) -> Unit = {},
-    inspectingAppId: MutableState<Long>,
 ) {
     val viewModel = LocalBrowserViewModel.current
     val uiState = viewModel.uiState.collectAsState()
@@ -218,16 +212,11 @@ fun BottomPanel(
                 DescriptionPanel()
 
                 AppsPanel(
-                    visibility = uiState.value.isAppsPanelVisible,
                     onAppClick = { app ->
-
                         webViewLoad(activeSession, app.url, settings.value)
                         viewModel.updateUI { it.copy(isSettingsPanelVisible = false) }
                         viewModel.updateUI { it.copy(isUrlBarVisible = false) }
-
                     },
-
-                    inspectingAppId = inspectingAppId,
                 )
                 NavigationPanel(
                     isNavPanelVisible = uiState.value.isNavPanelVisible,
@@ -246,15 +235,13 @@ fun BottomPanel(
 
                 FindInPagePanel(
                     isVisible = uiState.value.isFindInPageVisible,
-                    searchText = findInPageText.value,
-                    searchResult = findInPageResult.value,
                     onSearchTextChanged = { newText ->
-                        findInPageText.value = newText
+                        viewModel.findInPageText.value = newText
                         activeSession.let { session ->
                             if (newText.isEmpty()) {
                                 session.finder.clear()
                                 // Update UI to show 0/0 results
-                                findInPageResult.value = 0 to 0
+                                viewModel.findInPageResult.value = 0 to 0
                             } else {
                                 // 0 means no special flags (case insensitive, forward direction)
                                 session.finder.find(newText, 0).then { result ->
@@ -266,7 +253,8 @@ fun BottomPanel(
 
                                         val currentMatch =
                                             if (result.total > 0) result.current + 1 else 0
-                                        findInPageResult.value = currentMatch to result.total
+                                        viewModel.findInPageResult.value =
+                                            currentMatch to result.total
                                     }
                                     GeckoResult.fromValue(result)
                                 }
@@ -275,7 +263,7 @@ fun BottomPanel(
                     },
                     onFindNext = {
                         activeSession.finder.find(
-                            findInPageText.value,
+                            viewModel.findInPageText.value,
                             GeckoSession.FINDER_FIND_FORWARD
                         )
                             .then { result ->
@@ -286,7 +274,7 @@ fun BottomPanel(
                                     // Actually Gecko's 'current' is 0-based index of the match, or -1 if none.
 
                                     val currentMatch = if (result.total > 0) result.current else 0
-                                    findInPageResult.value = currentMatch to result.total
+                                    viewModel.findInPageResult.value = currentMatch to result.total
                                 }
 
                                 GeckoResult.fromValue(result)
@@ -296,7 +284,7 @@ fun BottomPanel(
                     },
                     onFindPrevious = {
                         activeSession.finder.find(
-                            findInPageText.value,
+                            viewModel.findInPageText.value,
                             GeckoSession.FINDER_FIND_BACKWARDS
                         )
                             .then { result ->
@@ -307,14 +295,14 @@ fun BottomPanel(
                                     // Actually Gecko's 'current' is 0-based index of the match, or -1 if none.
 
                                     val currentMatch = if (result.total > 0) result.current else 0
-                                    findInPageResult.value = currentMatch to result.total
+                                    viewModel.findInPageResult.value = currentMatch to result.total
                                 }
                                 GeckoResult.fromValue(result)
                             }
                     },
                     onClose = {
                         viewModel.updateUI { it.copy(isFindInPageVisible = false) }
-                        findInPageText.value = ""
+                        viewModel.findInPageText.value = ""
                         activeSession.finder.clear()
                     },
                 )
@@ -323,16 +311,15 @@ fun BottomPanel(
                     isUrlBarVisible = uiState.value.isUrlBarVisible,
                     onDismiss = onDismiss,
                     state = state,
-                    )
+                )
                 SettingsPanel(
                     backgroundColor = backgroundColor,
                     resetBrowserSettings = resetBrowserSettings,
                     confirmationPopup = confirmationPopup,
-                    targetSetting = initialSettingPanelView,
                 )
                 TabDataPanel(
                     //                onAddToHomeScreen = onAddToHomeScreen,
-                    isTabDataPanelVisible = isTabDataPanelVisible ,
+                    isTabDataPanelVisible = isTabDataPanelVisible,
                     onDismiss = { viewModel.updateUI { it.copy(isTabDataPanelVisible = false) } },
                     onPermissionToggle = handlePermissionToggle,
                     onClearSiteData = handleClearInspectedTabData,
@@ -363,7 +350,7 @@ fun BottomPanel(
                         }
                     },
 
-                )
+                    )
 
 
                 AnimatedVisibility(visible = viewModel.suggestions.isNotEmpty()) {
@@ -494,7 +481,7 @@ fun BottomPanel(
                                 ) {
 
                                     AnimatedVisibility(
-                                        visible = inspectingAppId.value > 0L,
+                                        visible = viewModel.inspectingAppId.longValue > 0L,
                                         enter = fadeIn(
                                             tween(
                                                 settings.value.animationSpeedForLayer(
@@ -523,7 +510,7 @@ fun BottomPanel(
                                         ) {
 
                                             val currentIndex =
-                                                viewModel.apps.indexOfFirst { it.id == inspectingAppId.value }
+                                                viewModel.apps.indexOfFirst { it.id == viewModel.inspectingAppId.longValue }
                                             Box(
                                                 modifier = Modifier
                                                     .buttonSettingsForLayer(
@@ -534,7 +521,10 @@ fun BottomPanel(
                                                     .weight(1f)
                                                     .clickable {
                                                         if (currentIndex > 0) {
-                                                            viewModel.swapApps(currentIndex, currentIndex - 1)
+                                                            viewModel.swapApps(
+                                                                currentIndex,
+                                                                currentIndex - 1
+                                                            )
                                                         }
                                                     },
                                                 contentAlignment = Alignment.Center
@@ -556,8 +546,8 @@ fun BottomPanel(
                                                     )
                                                     .weight(1f)
                                                     .clickable {
-                                                        viewModel.removeApp(inspectingAppId.value)
-                                                        inspectingAppId.value = 0L
+                                                        viewModel.removeApp(viewModel.inspectingAppId.longValue)
+                                                        viewModel.inspectingAppId.longValue = 0L
                                                     },
                                                 contentAlignment = Alignment.Center
                                             ) {
@@ -579,7 +569,10 @@ fun BottomPanel(
                                                     .clickable {
 
                                                         if (currentIndex < viewModel.apps.lastIndex) {
-                                                            viewModel.swapApps(currentIndex, currentIndex + 1)
+                                                            viewModel.swapApps(
+                                                                currentIndex,
+                                                                currentIndex + 1
+                                                            )
                                                         }
                                                     },
                                                 contentAlignment = Alignment.Center
@@ -594,7 +587,7 @@ fun BottomPanel(
                                     }
 
                                     AnimatedVisibility(
-                                        visible = inspectingAppId.value == 0L,
+                                        visible = viewModel.inspectingAppId.longValue == 0L,
                                         enter = fadeIn(
                                             tween(
                                                 settings.value.animationSpeedForLayer(
@@ -668,13 +661,17 @@ fun BottomPanel(
                                                     //                                                    keyboardController?.show()
                                                     //                                                }
 
-                                                    viewModel.updateUI { it.copy(savedPanelState = PanelVisibilityState(
-                                                        options = draggableState.currentValue == RevealState.Visible,
-                                                        tabs = isTabsPanelVisible,
-                                                        downloads = uiState.value.isDownloadPanelVisible,
-                                                        tabData = isTabDataPanelVisible,
-                                                        nav = uiState.value.isNavPanelVisible
-                                                    )) }
+                                                    viewModel.updateUI {
+                                                        it.copy(
+                                                            savedPanelState = PanelVisibilityState(
+                                                                options = draggableState.currentValue == RevealState.Visible,
+                                                                tabs = isTabsPanelVisible,
+                                                                downloads = uiState.value.isDownloadPanelVisible,
+                                                                tabData = isTabDataPanelVisible,
+                                                                nav = uiState.value.isNavPanelVisible
+                                                            )
+                                                        )
+                                                    }
 
                                                     setIsOptionsPanelVisible(false)
                                                     viewModel.updateUI { it.copy(isTabsPanelVisible = false) }
@@ -696,15 +693,27 @@ fun BottomPanel(
                                                         )
                                                     }
 
-                                                    viewModel.updateUI { it.copy(isUrlOverlayBoxVisible = false) }
+                                                    viewModel.updateUI {
+                                                        it.copy(
+                                                            isUrlOverlayBoxVisible = false
+                                                        )
+                                                    }
 
                                                     //                                    textFieldState.edit { selectAll() }
                                                     textFieldState.setTextAndPlaceCursorAtEnd("")
 
 
                                                 } else {
-                                                    if (uiState.value.isPinningApp) viewModel.updateUI { it.copy(isPinningApp = false) }
-                                                    viewModel.updateUI { it.copy(isUrlOverlayBoxVisible = true) }
+                                                    if (uiState.value.isPinningApp) viewModel.updateUI {
+                                                        it.copy(
+                                                            isPinningApp = false
+                                                        )
+                                                    }
+                                                    viewModel.updateUI {
+                                                        it.copy(
+                                                            isUrlOverlayBoxVisible = true
+                                                        )
+                                                    }
 
                                                     uiState.value.savedPanelState?.let { savedState ->
                                                         if (bottomPanelPagerState.currentPage == BottomPanelMode.SEARCH.ordinal) {
@@ -724,7 +733,11 @@ fun BottomPanel(
                                                                     isTabDataPanelVisible = false
                                                                 )
                                                             }
-                                                            viewModel.updateUI { it.copy(isNavPanelVisible = savedState.nav) }
+                                                            viewModel.updateUI {
+                                                                it.copy(
+                                                                    isNavPanelVisible = savedState.nav
+                                                                )
+                                                            }
                                                         }
 
                                                         viewModel.updateUI { it.copy(savedPanelState = null) }
@@ -734,7 +747,11 @@ fun BottomPanel(
                                                     )
 
 
-                                                    viewModel.updateUI { it.copy(isUrlOverlayBoxVisible = true) }
+                                                    viewModel.updateUI {
+                                                        it.copy(
+                                                            isUrlOverlayBoxVisible = true
+                                                        )
+                                                    }
                                                 }
                                             }
                                             //
@@ -752,7 +769,7 @@ fun BottomPanel(
                                         state = textFieldState,
                                         textStyle = LocalTextStyle.current.copy(
                                             //                            fontFamily = FontFamily.Monospace,
-                                            textAlign = if (uiState.value.isFocusOnUrlTextField ) TextAlign.Start else TextAlign.Center
+                                            textAlign = if (uiState.value.isFocusOnUrlTextField) TextAlign.Start else TextAlign.Center
                                         ),
                                         //                        state = rememberTextFieldState("Hello"),
                                         lineLimits = TextFieldLineLimits.SingleLine,
@@ -854,7 +871,7 @@ fun BottomPanel(
                                         ),
                                     )
 
-                                    if (uiState.value.isUrlOverlayBoxVisible && !uiState.value.isFocusOnUrlTextField ) Box(
+                                    if (uiState.value.isUrlOverlayBoxVisible && !uiState.value.isFocusOnUrlTextField) Box(
                                         modifier = Modifier
                                             .background(
                                                 Color.Transparent, shape = RoundedCornerShape(
@@ -890,7 +907,11 @@ fun BottomPanel(
                                                             HapticFeedbackType.LongPress
                                                         )
                                                         focusManager.clearFocus(true)
-                                                        viewModel.updateUI { it.copy(isNavPanelVisible = true) }
+                                                        viewModel.updateUI {
+                                                            it.copy(
+                                                                isNavPanelVisible = true
+                                                            )
+                                                        }
                                                         setActiveNavAction(GestureNavAction.NONE)
 
                                                     }
@@ -967,7 +988,11 @@ fun BottomPanel(
                                                                         verticalDragAccumulator
                                                                     )
                                                                 ) {
-                                                                    viewModel.updateUI { it.copy(isUrlOverlayBoxVisible = false) }
+                                                                    viewModel.updateUI {
+                                                                        it.copy(
+                                                                            isUrlOverlayBoxVisible = false
+                                                                        )
+                                                                    }
 
                                                                 }
 
@@ -986,7 +1011,11 @@ fun BottomPanel(
                                                                 } else {
                                                                     urlBarFocusRequester.requestFocus()
                                                                 }
-                                                                viewModel.updateUI { it.copy(isUrlOverlayBoxVisible = false) }
+                                                                viewModel.updateUI {
+                                                                    it.copy(
+                                                                        isUrlOverlayBoxVisible = false
+                                                                    )
+                                                                }
                                                             }
                                                         }
                                                     }
@@ -1053,9 +1082,10 @@ fun BottomPanel(
                 }
                 TextEditPanel(
 //                    currentRotation =  currentRotation,
-                    isVisible = uiState.value.isPinningApp || (uiState.value.isFocusOnUrlTextField  && textFieldState.text.isBlank()),
+                    isVisible = uiState.value.isPinningApp || (uiState.value.isFocusOnUrlTextField && textFieldState.text.isBlank()),
                     onCopyClick = {
-                        val clipData = ClipData.newPlainText("url", viewModel.activeTab!!.currentURL)
+                        val clipData =
+                            ClipData.newPlainText("url", viewModel.activeTab!!.currentURL)
 
                         clipboard.nativeClipboard.setPrimaryClip(clipData)
 
