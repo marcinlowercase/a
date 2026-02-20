@@ -77,7 +77,15 @@ val LocalBrowserViewModel = staticCompositionLocalOf<BrowserViewModel> {
 }
 
 class BrowserViewModel(application: Application) : AndroidViewModel(application) {
+    //region Manager
+    val tabManager = TabManager(application)
+    val geckoManager = (application as CustomApplication).geckoManager
+    val appManager = AppManager(application)
+    val downloadTracker = BrowserDownloadManager(application)
+    val siteSettingsManager = SiteSettingsManager(application)
+    val visitedUrlManager = VisitedUrlManager(application)
 
+    //endregion
 
     //region Browser Settings
     private val sharedPrefs = application.getSharedPreferences("BrowserPrefs", Context.MODE_PRIVATE)
@@ -249,8 +257,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     //endregion
 
     //region Tab logic
-    val tabManager = TabManager(application)
-    val geckoManager = (application as CustomApplication).geckoManager
 
     val tabs = mutableStateListOf<Tab>()
     val recentlyClosedTabs = mutableStateListOf<Tab>()
@@ -589,7 +595,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     //endregion
 
     //region App/Pin Logic
-    val appManager = AppManager(application)
     val apps = mutableStateListOf<App>().apply {
         addAll(appManager.loadApps())
     }
@@ -627,7 +632,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     //endregion
 
     //region Download Logic
-    val downloadTracker = BrowserDownloadManager(application)
     val downloads =
         mutableStateListOf<DownloadItem>().apply { addAll(downloadTracker.loadDownloads()) }
 
@@ -866,7 +870,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     //endregion
 
     //region Site Settings logic
-    val siteSettingsManager = SiteSettingsManager(application)
     val siteSettings = mutableStateMapOf<String, SiteSettings>().apply {
         putAll(siteSettingsManager.loadSettings())
     }
@@ -887,7 +890,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    val visitedUrlManager = VisitedUrlManager(application)
     val visitedUrlMap = mutableStateMapOf<String, String>().apply {
         putAll(visitedUrlManager.loadUrlMap())
     }
