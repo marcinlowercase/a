@@ -208,6 +208,7 @@ class GeckoManager(private val context: Context) {
                 { extensions ->
                     val existing = extensions?.find { it.id == extId }
                     if (existing != null) {
+                        Log.e("GeckoExt", "existing: ${existing.id}")
                         Log.i("GeckoExt", "uBlock already installed.")
                         configureExtension(existing)
                     } else {
@@ -352,11 +353,9 @@ class GeckoManager(private val context: Context) {
             "play" -> controller.play()
             "pause" -> controller.pause()
             "next_5" -> {
-//                val target = (currentPosition + 5.0).coerceAtMost(duration)
                 val target = (currentLivePos + 5.0).coerceAtMost(totalDuration)
                 controller.seekTo(target, false)
                 updateLocalSnapshotOptimistically(target)
-
             }
 
             "prev_5" -> {
@@ -373,9 +372,6 @@ class GeckoManager(private val context: Context) {
                 updateLocalSnapshotOptimistically(target)
 
             }
-//            "next_track" -> controller.nextTrack()
-//            "prev_track" -> controller.previousTrack()
-
         }
     }
 
