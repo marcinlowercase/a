@@ -1,5 +1,6 @@
 package marcinlowercase.a.ui.panel
 
+import android.app.Activity
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
@@ -8,6 +9,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,21 +27,25 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import marcinlowercase.a.R
 import marcinlowercase.a.core.enum_class.GestureNavAction
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
+import org.mozilla.geckoview.GeckoSession
+import kotlin.system.exitProcess
 
 @Composable
 fun NavigationPanel(
-    isNavPanelVisible: Boolean,
+    activeSession: GeckoSession,
     modifier: Modifier = Modifier,
 ) {
     val viewModel = LocalBrowserViewModel.current
+    val uiState = viewModel.uiState.collectAsState()
     val settings = viewModel.browserSettings.collectAsState()
     AnimatedVisibility(
-        visible = isNavPanelVisible,
+        visible = uiState.value.isNavPanelVisible,
         enter = expandVertically(
             tween(
                 settings.value.animationSpeedForLayer(1)
@@ -88,6 +94,7 @@ fun NavigationPanel(
 
                     NavigationItem(
                         modifier = Modifier.weight(1f),
+activeSession = activeSession,
 
                         gestureNavAction = GestureNavAction.CLOSE_TAB,
                         actionIcon = painterResource(R.drawable.ic_close),
@@ -97,6 +104,7 @@ fun NavigationPanel(
                     // Refresh Icon
                     NavigationItem(
                         modifier = Modifier.weight(1f),
+activeSession = activeSession,
 
                         gestureNavAction = GestureNavAction.REFRESH,
                         actionIcon = painterResource(R.drawable.ic_refresh),
@@ -104,6 +112,7 @@ fun NavigationPanel(
 
                     NavigationItem(
                         modifier = Modifier.weight(1f),
+activeSession = activeSession,
 
                         gestureNavAction = GestureNavAction.NEW_TAB,
                         actionIcon = painterResource(R.drawable.ic_add),
@@ -120,6 +129,7 @@ fun NavigationPanel(
                     // Back Icon
                     NavigationItem(
                         modifier = Modifier.weight(1f),
+activeSession = activeSession,
 
                         gestureNavAction = GestureNavAction.BACK,
                         actionIcon = painterResource(R.drawable.ic_arrow_back),
@@ -129,15 +139,15 @@ fun NavigationPanel(
                     // Cancel Icon
                     NavigationItem(
                         modifier = Modifier.weight(1f),
-
+activeSession = activeSession,
                         gestureNavAction = GestureNavAction.NONE,
                         actionIcon = painterResource(R.drawable.ic_minimize),
                     )
 
                     // Forward Icon
-                    // Back Icon
                     NavigationItem(
                         modifier = Modifier.weight(1f),
+activeSession = activeSession,
 
                         gestureNavAction = GestureNavAction.FORWARD,
                         actionIcon = painterResource(R.drawable.ic_arrow_forward),
@@ -152,13 +162,19 @@ fun NavigationPanel(
 @Composable
 fun NavigationItem(
     modifier: Modifier,
+    activeSession: GeckoSession,
     gestureNavAction: GestureNavAction,
     actionIcon: Painter,
     visibility: Boolean = true,
 
     ) {
     val viewModel = LocalBrowserViewModel.current
+    val uiState = viewModel.uiState.collectAsState()
     val settings = viewModel.browserSettings.collectAsState()
+    val activeTabIndex by viewModel.activeTabIndex.collectAsState()
+    val context = LocalContext.current
+    val activity = context as Activity
+
     // Cancel Icon
     val refreshColor by animateColorAsState(if (viewModel.activeNavAction.value == gestureNavAction) Color.White else Color.Transparent)
     Box(
@@ -172,6 +188,37 @@ fun NavigationItem(
                 )
             )
             .background(refreshColor)
+            .clickable{
+                when (gestureNavAction) {
+                    GestureNavAction.BACK -> if (viewModel.activeTab!!.canGoBack) {
+                        activeSession.goBack(true)
+                    }
+
+                    GestureNavAction.REFRESH -> {
+                        activeSession.reload()
+                    }
+
+                    GestureNavAction.FORWARD -> if (viewModel.activeTab!!.canGoForward) {
+                        activeSession.goForward(true)
+                    }
+
+                    GestureNavAction.CLOSE_TAB -> {
+                        if (uiState.value.isLoading) viewModel.updateUI { it.copy(isLoading = false) }
+                        viewModel.closeActiveTab {
+                            activity.finishAndRemoveTask()
+                            exitProcess(0)
+
+                        }
+                    }
+                    GestureNavAction.NEW_TAB -> {
+                        val newIndex = activeTabIndex + 1
+                        viewModel.createNewTab(newIndex, "")
+                    }
+                    GestureNavAction.NONE -> { /* Do nothing */
+                    }
+                }
+                viewModel.updateUI { it.copy(isNavPanelVisible = false) }
+            }
     ) {
         if (visibility) {
             Icon(

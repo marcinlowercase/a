@@ -1079,7 +1079,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     //endregion
 
-
     //region Single Purpose State
     val descriptionContent = mutableStateOf("")
     val resetBottomPanelTrigger = mutableStateOf(false)

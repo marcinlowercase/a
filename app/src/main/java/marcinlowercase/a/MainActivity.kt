@@ -998,14 +998,10 @@ fun BrowserScreen(
 
                 }
             }
-
             GestureNavAction.NEW_TAB -> {
-
                 val newIndex = activeTabIndex + 1
                 viewModel.createNewTab(newIndex, "")
             }
-
-
             GestureNavAction.NONE -> { /* Do nothing */
             }
         }

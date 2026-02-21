@@ -217,7 +217,7 @@ fun BottomPanel(
                     },
                 )
                 NavigationPanel(
-                    isNavPanelVisible = uiState.value.isNavPanelVisible,
+                    activeSession = activeSession
                 )
 
                 DownloadPanel(
