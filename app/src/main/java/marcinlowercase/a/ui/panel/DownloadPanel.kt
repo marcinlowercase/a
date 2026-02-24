@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -225,17 +226,6 @@ val settings = viewModel.browserSettings.collectAsState()
                 onClick()
             }
             .background(Color.Black.copy(alpha = 0.5f))
-//            .border(
-//                width = 1.dp,
-//                color = Color.White,
-//                shape = RoundedCornerShape(
-//                    cornerRadiusForLayer(
-//                        3,
-//                        settings.value.deviceCornerRadius,
-//                        settings.value.padding
-//                    ).dp
-//                )
-//            )
 
             .pointerInput(item.status) { // Re-read when status changes
                 detectTapGestures(
@@ -252,26 +242,6 @@ val settings = viewModel.browserSettings.collectAsState()
 
 
     ) {
-        // --- LAYER 1: The Progress Background ---
-
-
-        AnimatedVisibility(
-            visible = item.status == DownloadStatus.RUNNING,
-            modifier = Modifier.matchParentSize(),
-            enter = fadeIn(animationSpec = tween(300)),
-            exit = fadeOut(animationSpec = tween(300))
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .matchParentSize()
-                    // This is the key: fillMaxWidth takes a fraction from 0.0 to 1.0.
-                    // We calculate this from the item's progress (0-100).
-                    .fillMaxWidth(fraction = item.progress / 100f)
-                    .background(Color.White.copy(alpha = 0.3f))
-                // A semi-transparent color for the progress
-            )
-        }
 
         // --- LAYER 2: The Content Foreground ---
 
@@ -293,7 +263,19 @@ val settings = viewModel.browserSettings.collectAsState()
                     modifier = Modifier
                         .clip(CircleShape)
                         .background(Color.White)
+                        .fillMaxHeight(),
+                    contentAlignment = Alignment.Center
                 ) {
+                    if (item.status == DownloadStatus.RUNNING) {
+                        CircularProgressIndicator(
+                            progress = { (item.progress / 100f).coerceIn(0f, 1f) },
+                            modifier = Modifier.matchParentSize(),
+                            color = Color(settings.value.highlightColor),
+                            strokeWidth = 2.dp,
+                            trackColor = Color(settings.value.highlightColor).copy(alpha = 0.3f)
+                        )
+                    }
+
                     Icon(
                         painter = painterResource(
                             id =
@@ -306,12 +288,14 @@ val settings = viewModel.browserSettings.collectAsState()
                         ),
                         contentDescription = "Download Icon",
                         // Change the tint based on status for better visual feedback
-                        tint = Color.Black,
+                        tint = if(item.status == DownloadStatus.RUNNING) Color(settings.value.highlightColor) else Color.Black,
                         modifier = Modifier
                             .size(24.dp)
                             .padding(4.dp)
 
                     )
+
+
                 }
                 Spacer(Modifier.width(settings.value.padding.dp))
                 Column(modifier = Modifier.weight(1f)) {
