@@ -14,7 +14,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.Layout
@@ -24,7 +23,6 @@ import marcinlowercase.a.R
 import marcinlowercase.a.core.data_class.OptionItem
 import marcinlowercase.a.core.enum_class.BrowserSettingField
 import marcinlowercase.a.ui.component.CustomIconButton
-import marcinlowercase.a.ui.theme.Orange
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import kotlin.math.roundToInt
 

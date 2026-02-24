@@ -95,7 +95,7 @@ android {
 }
 
 dependencies {
-    implementation("androidx.media:media:1.7.0")
+    implementation(libs.androidx.media)
     implementation(libs.androidx.lifecycle.viewmodel)
     implementation(libs.androidx.lifecycle.runtime)
     implementation(libs.androidx.core.ktx)
