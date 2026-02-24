@@ -14,4 +14,5 @@ enum class BrowserSettingField {
     SEARCH_ENGINE,
     SINGLE_LINE_HEIGHT,
     HIGHLIGHT_COLOR,
+    AD_BLOCK_ENABLED
 }

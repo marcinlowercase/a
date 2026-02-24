@@ -80,6 +80,9 @@ class GeckoManager(private val context: Context) {
 
     private var faviconExtensionFuture: GeckoResult<WebExtension>? = null
 
+    private var uBlockExtension: WebExtension? = null
+    var isAdBlockEnabledTarget = true
+
     init {
         runtime.settings.consoleOutputEnabled = true
         setupExtensionPrompts()
@@ -88,6 +91,16 @@ class GeckoManager(private val context: Context) {
 
     }
 
+    fun setAdBlockEnabled(isEnabled: Boolean) {
+        isAdBlockEnabledTarget = isEnabled
+        uBlockExtension?.let { ext ->
+            if (isEnabled) {
+                runtime.webExtensionController.enable(ext, WebExtensionController.EnableSource.APP)
+            } else {
+                runtime.webExtensionController.disable(ext, WebExtensionController.EnableSource.APP)
+            }
+        }
+    }
     fun tickLivePosition() {
         if (lastPositionSnapshot.doubleValue >= 0.0) {
             val now = System.currentTimeMillis()
@@ -242,8 +255,18 @@ class GeckoManager(private val context: Context) {
     }
 
     private fun configureExtension(extension: WebExtension) {
-        // 4. ENABLE (Critical)
-        runtime.webExtensionController.enable(extension, WebExtensionController.EnableSource.APP)
+
+        if (extension.id == UBLOCK_ID) {
+            uBlockExtension = extension
+            if (isAdBlockEnabledTarget) {
+                runtime.webExtensionController.enable(extension, WebExtensionController.EnableSource.APP)
+            } else {
+                runtime.webExtensionController.disable(extension, WebExtensionController.EnableSource.APP)
+            }
+        } else {
+            // Default behavior for Favicon or other extensions
+            runtime.webExtensionController.enable(extension, WebExtensionController.EnableSource.APP)
+        }
 
     }
 

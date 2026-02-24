@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Job
 import marcinlowercase.a.R
 import marcinlowercase.a.core.data_class.OptionItem
+import marcinlowercase.a.core.enum_class.BrowserSettingField
 import marcinlowercase.a.ui.component.CustomIconButton
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import kotlin.math.roundToInt
@@ -138,7 +139,22 @@ fun OptionsPanel(
                 setIsOptionsPanelVisible(false)
 
             },
+            OptionItem(
+                // Use an appropriate icon, maybe a shield or block icon
+                iconRes = if (settings.value.isAdBlockEnabled) R.drawable.ic_verified_user else R.drawable.ic_remove_moderator,
+                contentDescription = "AdBlock (uBlock)",
+                enabled = settings.value.isAdBlockEnabled
+            ) {
+                // Toggle the setting
+                val newState = !settings.value.isAdBlockEnabled
 
+                // Use your BrowserSettingsController to update the field.
+                // This will automatically tell the ViewModel, which will tell GeckoManager!
+                viewModel.updateField(BrowserSettingField.AD_BLOCK_ENABLED, newState)
+
+                // Optional: Close the options panel after clicking, or leave it open
+                setIsOptionsPanelVisible(false)
+            },
             OptionItem(
                 iconRes = R.drawable.ic_close_all_tabs, // Ensure you have this drawable
                 contentDescription = "close all tabs",

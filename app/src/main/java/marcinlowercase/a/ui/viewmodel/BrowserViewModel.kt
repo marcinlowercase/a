@@ -114,7 +114,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             maxListHeight = sharedPrefs.getFloat("max_list_height", 2.5f),
             searchEngine = sharedPrefs.getInt("search_engine", 0),
             isFullscreenMode = sharedPrefs.getBoolean("is_fullscreen_mode", false),
-            highlightColor = sharedPrefs.getInt("highlight_color", 0xFFFFFF00.toInt())
+            highlightColor = sharedPrefs.getInt("highlight_color", 0xFFFFFF00.toInt()),
+            isAdBlockEnabled = sharedPrefs.getBoolean("is_ad_block_enabled", true),
         )
     }
 
@@ -154,7 +155,17 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                     }
                     current.copy(highlightColor = color)
                 }
+                BrowserSettingField.AD_BLOCK_ENABLED -> {
+                    val isEnabled = value as Boolean
+                    geckoManager.setAdBlockEnabled(isEnabled)
 
+                    // Optional: Reload the current tab so the user sees the ads disappear/reappear instantly
+                    activeTab?.let { tab ->
+                        geckoManager.getSession(tab).reload()
+                    }
+
+                    current.copy(isAdBlockEnabled = isEnabled)
+                }
                 BrowserSettingField.INFO -> current
             }
         }
@@ -199,6 +210,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             putInt("search_engine", settings.searchEngine)
             putBoolean("is_fullscreen_mode", settings.isFullscreenMode)
             putInt("highlight_color", settings.highlightColor)
+            putBoolean("is_ad_block_enabled", settings.isAdBlockEnabled)
 
             apply()
         }
@@ -1124,6 +1136,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     //endregion
     init {
+        geckoManager.setAdBlockEnabled(_browserSettings.value.isAdBlockEnabled)
         startDownloadPolling()
     }
 }

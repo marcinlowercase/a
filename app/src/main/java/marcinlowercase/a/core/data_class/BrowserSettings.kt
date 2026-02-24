@@ -9,6 +9,7 @@ data class BrowserSettings(
     val defaultUrl: String,
     val animationSpeed: Float,
     val singleLineHeight: Float,
+    val isAdBlockEnabled: Boolean = true,
 //    val isDesktopMode: Boolean,
 //    val desktopModeWidth: Int,
     val isSharpMode: Boolean,
