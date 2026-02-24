@@ -88,7 +88,7 @@ fun CursorPad(
                         cursorPadHeight
                     )
                     .align(Alignment.BottomCenter)
-                    .pointerInput(Unit) {
+                    .pointerInput(activeSession) {
                         // This is the correct "main loop". It handles one gesture at a time
                         // and then automatically resets to wait for the next one.
                         awaitEachGesture {

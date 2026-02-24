@@ -1410,7 +1410,7 @@ fun BrowserScreen(
             }
         }
         LaunchedEffect(activeSession) {
-
+            Log.i("CursorMode", "change Active Session")
             activeSession.setActive(true)
 
             if (!activeSession.isOpen) {
@@ -2532,7 +2532,7 @@ fun BrowserScreen(
                                         .graphicsLayer {
                                             alpha = squareAlpha.value
                                         }
-                                        .pointerInput(Unit, uiState.isCursorMode) {
+                                        .pointerInput(activeSession, uiState.isCursorMode) {
 
                                             if (!uiState.isCursorMode) awaitEachGesture {
                                                 val down = awaitFirstDown(requireUnconsumed = false)
@@ -2609,6 +2609,11 @@ fun BrowserScreen(
 
                                                     // --- SIMULATE CLICK AT CURSOR POSITION ---
 
+                                                    Log.e("CursorMode", "click")
+                                                    Log.e(
+                                                        "CursorMode",
+                                                        "actoveSessopm = ${activeSession.isOpen}"
+                                                    )
 
                                                     activeSession.let { _ ->
                                                         val downTime = System.currentTimeMillis()
@@ -2665,7 +2670,8 @@ fun BrowserScreen(
                                                         }
 
                                                         // snap logic
-                                                        val screenWidth = viewModel.screenSize.value.width.toFloat()
+                                                        val screenWidth =
+                                                            viewModel.screenSize.value.width.toFloat()
                                                         val currentX = backSquareOffsetX.value
 
                                                         // snap back square to left or right side of the screen
@@ -2709,6 +2715,7 @@ fun BrowserScreen(
                                                         }
                                                     } else {
                                                         // TAP
+                                                        Log.e("CursorMode", "tab")
                                                         if (longPressJob.isActive) {
                                                             longPressJob.cancel()
                                                             coroutineScope.launch {
