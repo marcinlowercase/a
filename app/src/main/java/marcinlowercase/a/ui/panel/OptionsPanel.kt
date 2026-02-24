@@ -24,6 +24,7 @@ import marcinlowercase.a.R
 import marcinlowercase.a.core.data_class.OptionItem
 import marcinlowercase.a.core.enum_class.BrowserSettingField
 import marcinlowercase.a.ui.component.CustomIconButton
+import marcinlowercase.a.ui.theme.Orange
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import kotlin.math.roundToInt
 
@@ -141,8 +142,8 @@ fun OptionsPanel(
             },
             OptionItem(
                 // Use an appropriate icon, maybe a shield or block icon
-                iconRes = if (settings.value.isAdBlockEnabled) R.drawable.ic_verified_user else R.drawable.ic_remove_moderator,
-                contentDescription = "AdBlock (uBlock)",
+                iconRes = if (settings.value.isAdBlockEnabled) R.drawable.ic_ublock else R.drawable.ic_remove_moderator,
+                contentDescription = "adblock (uBlock Origin)",
                 enabled = settings.value.isAdBlockEnabled
             ) {
                 // Toggle the setting
@@ -216,27 +217,23 @@ fun OptionsPanel(
 
     Box(
         modifier = Modifier
-            .padding(horizontal = settings.value.padding.dp)
-            .padding(bottom = settings.value.padding.dp)
             .fillMaxWidth()
-            .clip(
-                RoundedCornerShape(
-                    settings.value.cornerRadiusForLayer(2).dp
-                )
-            )
-
+//            .clip(
+//                RoundedCornerShape(
+//                    settings.value.cornerRadiusForLayer(2).dp
+//                )
+//            )
     ) {
 
         HorizontalPager(
             state = pagerState,
             modifier = Modifier.fillMaxWidth()
         ) { pageIndex ->
-            // This composable block is called for each page.
-
-            // A Row holds the 4 buttons for the current page.
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .padding(horizontal = settings.value.padding.dp)
+                    .padding(bottom = settings.value.padding.dp)
                     .background(
                         Color.Black.copy(alpha = 0.3f),
                         shape = RoundedCornerShape(
@@ -246,7 +243,6 @@ fun OptionsPanel(
 
                 horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
             ) {
-                // Get the options for the current page
                 val pageOptions = optionPages[pageIndex]
 
                 // Create an IconButton for each option on the page
