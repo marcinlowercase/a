@@ -49,6 +49,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.AnchoredDraggableDefaults
 import androidx.compose.foundation.gestures.DraggableAnchors
 import androidx.compose.foundation.gestures.animateTo
@@ -74,6 +75,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -150,7 +152,6 @@ import marcinlowercase.a.core.function.toDomain
 import marcinlowercase.a.core.function.webViewLoad
 import marcinlowercase.a.core.manager.MediaGestureManager
 import marcinlowercase.a.ui.component.CursorPad
-import marcinlowercase.a.ui.component.LoadingIndicator
 import marcinlowercase.a.ui.panel.BottomPanel
 import marcinlowercase.a.ui.panel.ChoicePanel
 import marcinlowercase.a.ui.panel.ColorPickerPanel
@@ -499,12 +500,12 @@ fun BrowserScreen(
     val focusManager = LocalFocusManager.current
     val hapticFeedback = LocalHapticFeedback.current
 
-    
-    val textFieldState = rememberTextFieldState(viewModel.activeTab!!.currentURL)
-    val activeSession = remember(viewModel.activeTab!!.id, viewModel.sessionRefreshTrigger.intValue) {
-        viewModel.geckoManager.getSession(viewModel.activeTab!!)
-    }
 
+    val textFieldState = rememberTextFieldState(viewModel.activeTab!!.currentURL)
+    val activeSession =
+        remember(viewModel.activeTab!!.id, viewModel.sessionRefreshTrigger.intValue) {
+            viewModel.geckoManager.getSession(viewModel.activeTab!!)
+        }
 
 
     val offsetY = remember { Animatable(0f) }
@@ -706,7 +707,7 @@ fun BrowserScreen(
 
 
     val squareAlpha = remember { Animatable(0f) }
-    
+
 
     rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
@@ -722,7 +723,7 @@ fun BrowserScreen(
         label = "Cursor Pad Height Animation"
     )
     val urlBarFocusRequester = remember { FocusRequester() }
-    
+
     val initialX =
         if (settings.backSquareOffsetX != -1f) settings.backSquareOffsetX else 0f
     val initialY =
@@ -768,13 +769,6 @@ fun BrowserScreen(
     //endregion
 
 
-
-
-
-
-
-
-
     fun confirmationPopup(
         message: String,
         url: String = "",
@@ -795,8 +789,6 @@ fun BrowserScreen(
         )
         viewModel.confirmationDisplayState.value = viewModel.confirmationState.value
     }
-
-
 
 
     // region Top Function
@@ -918,11 +910,12 @@ fun BrowserScreen(
                             runOnUiThread {
                                 // loop through ALL viewModel.tabs to find matches
                                 viewModel.tabs.forEachIndexed { _, tab ->
-                                    val tabDomain = viewModel.siteSettingsManager.getDomain(tab.currentURL)
+                                    val tabDomain =
+                                        viewModel.siteSettingsManager.getDomain(tab.currentURL)
 
                                     // check if this tab belongs to the domain just cleared
                                     if (tabDomain == domain) {
-                                        viewModel.updateTabById(tab.id) {t ->
+                                        viewModel.updateTabById(tab.id) { t ->
                                             t.copy(savedState = null)
                                         }
 
@@ -959,7 +952,8 @@ fun BrowserScreen(
         // not use but still need to keep here to reset the pending download
         viewModel.pendingDownload = null
     }
-    val startDownload = { url: String, userAgent: String, contentDisposition: String?, mimeType: String? ->
+    val startDownload =
+        { url: String, userAgent: String, contentDisposition: String?, mimeType: String? ->
             val params = DownloadParams(url, userAgent, contentDisposition, mimeType)
 
 //            val needsPermission = Build.VERSION.SDK_INT <= Build.VERSION_CODES.P
@@ -976,6 +970,7 @@ fun BrowserScreen(
                 viewModel.performDownloadEnqueue(params)
             }
         }
+
     fun navigateWebView() {
         when (viewModel.activeNavAction.value) {
             GestureNavAction.BACK -> if (viewModel.activeTab!!.canGoBack) {
@@ -998,14 +993,17 @@ fun BrowserScreen(
 
                 }
             }
+
             GestureNavAction.NEW_TAB -> {
                 val newIndex = activeTabIndex + 1
                 viewModel.createNewTab(newIndex, "")
             }
+
             GestureNavAction.NONE -> { /* Do nothing */
             }
         }
     }
+
     val handleOpenDownloadsFolder = {
         val intent = Intent(DownloadManager.ACTION_VIEW_DOWNLOADS).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -1075,11 +1073,10 @@ fun BrowserScreen(
         }
     }
     // endregion
-    
 
 
     //endregion
-    
+
 
     //region Single Panel
 
@@ -1111,7 +1108,8 @@ fun BrowserScreen(
         if (uiState.isSettingsPanelVisible) activeMainPanel = ActivePanel.SETTINGS
     }
     LaunchedEffect(viewModel.pendingPermissionRequest.value) {
-        if (viewModel.pendingPermissionRequest.value != null) activeMainPanel = ActivePanel.PERMISSION
+        if (viewModel.pendingPermissionRequest.value != null) activeMainPanel =
+            ActivePanel.PERMISSION
     }
     LaunchedEffect(uiState.isTabsPanelVisible) {
         // When TabsPanel opens, it becomes the main panel.
@@ -1137,13 +1135,15 @@ fun BrowserScreen(
                 isDownloadPanelVisible = false
             )
         }
-        if (current != ActivePanel.CONTEXT_MENU && viewModel.contextMenuData.value != null) viewModel.contextMenuData.value = null
+        if (current != ActivePanel.CONTEXT_MENU && viewModel.contextMenuData.value != null) viewModel.contextMenuData.value =
+            null
         if (current != ActivePanel.FIND_IN_PAGE && uiState.isFindInPageVisible) viewModel.updateUI {
             it.copy(
                 isFindInPageVisible = false
             )
         }
-        if (current != ActivePanel.PROMPT && viewModel.jsDialogState.value != null) viewModel.jsDialogState.value = null
+        if (current != ActivePanel.PROMPT && viewModel.jsDialogState.value != null) viewModel.jsDialogState.value =
+            null
         if (current != ActivePanel.SETTINGS && uiState.isSettingsPanelVisible) {
             viewModel.updateUI { it.copy(isSettingsPanelVisible = false) }
         }
@@ -1215,7 +1215,11 @@ fun BrowserScreen(
         LaunchedEffect(uiState.isOtherPanelVisible) {
             if (uiState.isOtherPanelVisible) viewModel.updateUI { it.copy(isBottomPanelVisible = false) }
         }
-        LaunchedEffect(uiState.isFocusOnSettingTextField, uiState.isFocusOnUrlTextField, uiState.isFocusOnFindTextField) {
+        LaunchedEffect(
+            uiState.isFocusOnSettingTextField,
+            uiState.isFocusOnUrlTextField,
+            uiState.isFocusOnFindTextField
+        ) {
             viewModel.updateUI {
                 it.copy(
                     isFocusOnTextField = uiState.isFocusOnFindTextField || uiState.isFocusOnUrlTextField || uiState.isFocusOnSettingTextField
@@ -1292,7 +1296,8 @@ fun BrowserScreen(
                 viewModel.updateSettings { it.copy(isFirstAppLoad = false) }
         }
         LaunchedEffect(viewModel.inspectingAppId.longValue) {
-            viewModel.descriptionContent.value = viewModel.apps.find { it.id == viewModel.inspectingAppId.longValue }?.label ?: ""
+            viewModel.descriptionContent.value =
+                viewModel.apps.find { it.id == viewModel.inspectingAppId.longValue }?.label ?: ""
 
         }
         LaunchedEffect(viewModel.apps.size) {
@@ -1300,7 +1305,11 @@ fun BrowserScreen(
                 viewModel.resetBottomPanelTrigger.value = !viewModel.resetBottomPanelTrigger.value
             }
         }
-        LaunchedEffect(bottomPanelPagerState.settledPage, bottomPanelPagerState.currentPage, uiState.isUrlOverlayBoxVisible) {
+        LaunchedEffect(
+            bottomPanelPagerState.settledPage,
+            bottomPanelPagerState.currentPage,
+            uiState.isUrlOverlayBoxVisible
+        ) {
 
             if (bottomPanelPagerState.currentPage == BottomPanelMode.SEARCH.ordinal) {
                 viewModel.updateUI { it.copy(isUrlOverlayBoxVisible = true) }
@@ -1312,7 +1321,8 @@ fun BrowserScreen(
                         isTabsPanelVisible = true
                     )
                 }
-                if (viewModel.inspectingAppId.longValue != 0L) viewModel.inspectingAppId.longValue = 0L
+                if (viewModel.inspectingAppId.longValue != 0L) viewModel.inspectingAppId.longValue =
+                    0L
             } else {
                 viewModel.updateUI {
                     it.copy(
@@ -1781,8 +1791,7 @@ fun BrowserScreen(
             if (!uiState.initialLoadDone && initialIntentUrl != null && viewModel.activeTab!!.currentURL == initialIntentUrl) {
                 webViewLoad(activeSession, initialIntentUrl, settings)
                 viewModel.updateUI { it.copy(initialLoadDone = true) }
-            }
-            else {
+            } else {
                 // If the session is empty (no navigation history) and not being restored, load the URL.
                 // This covers "New Tab" clicks and "Target Blank" where engine didn't auto-load.
                 if (viewModel.activeTab!!.savedState == null) {
@@ -2205,8 +2214,6 @@ fun BrowserScreen(
                                         }
                                     )
                                 }
-
-                                if (!isPipMode) LoadingIndicator()
                             }
                         }
                     }
@@ -2609,12 +2616,6 @@ fun BrowserScreen(
 
                                                     // --- SIMULATE CLICK AT CURSOR POSITION ---
 
-                                                    Log.e("CursorMode", "click")
-                                                    Log.e(
-                                                        "CursorMode",
-                                                        "actoveSessopm = ${activeSession.isOpen}"
-                                                    )
-
                                                     activeSession.let { _ ->
                                                         val downTime = System.currentTimeMillis()
                                                         val downEvent = MotionEvent.obtain(
@@ -2755,16 +2756,41 @@ fun BrowserScreen(
                                                 }
                                             }
                                         }
-
                                         .clip(
                                             RoundedCornerShape(
                                                 settings.cornerRadiusForLayer(1).dp
                                             )
                                         )
-                                        .background(Color.Black.copy(alpha = 0.5f))
-                                        .background(Color.White.copy(alpha = 0.5f)),
+                                        // 2. ADD BORDER: A faint white ring guarantees visibility even on pitch-black websites
+                                        .border(
+                                            width = 1.dp,
+                                            color = Color.White.copy(alpha = 0.4f),
+                                            shape = RoundedCornerShape(
+                                                settings.cornerRadiusForLayer(
+                                                    1
+                                                ).dp
+                                            )
+                                        )
+                                        .background(Color.Black.copy(alpha = 0.6f)),
                                     contentAlignment = Alignment.Center
                                 ) {
+
+                                    // Animate the appearance and disappearance of the overlay.
+                                    AnimatedVisibility(
+                                        visible = uiState.isLoading,
+                                        modifier = modifier,
+                                        enter = fadeIn(animationSpec = tween(300)),
+                                        exit = fadeOut(animationSpec = tween(300))
+                                    ) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier
+                                                .padding(settings.padding.dp)
+                                                .size(settings.heightForLayer(4).dp),
+                                            // Use a contrasting color that works well on the dark scrim.
+                                            color = Color.White,
+                                            strokeWidth = settings.padding.dp
+                                        )
+                                    }
                                 }
                             }
                         }

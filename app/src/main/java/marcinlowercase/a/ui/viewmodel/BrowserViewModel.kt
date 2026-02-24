@@ -8,15 +8,12 @@ import android.media.MediaScannerConnection
 import android.os.Environment
 import android.util.Log
 import android.webkit.URLUtil
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -65,7 +62,6 @@ import marcinlowercase.a.core.manager.BrowserDownloadManager
 import marcinlowercase.a.core.manager.SiteSettingsManager
 import marcinlowercase.a.core.manager.TabManager
 import marcinlowercase.a.core.manager.VisitedUrlManager
-import marcinlowercase.a.ui.panel.SettingPanelView
 import java.io.File
 import java.net.URLDecoder
 import java.net.URLEncoder
@@ -155,6 +151,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                     }
                     current.copy(highlightColor = color)
                 }
+
                 BrowserSettingField.AD_BLOCK_ENABLED -> {
                     val isEnabled = value as Boolean
                     geckoManager.setAdBlockEnabled(isEnabled)
@@ -166,6 +163,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
                     current.copy(isAdBlockEnabled = isEnabled)
                 }
+
                 BrowserSettingField.INFO -> current
             }
         }
@@ -769,7 +767,18 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun performDownloadEnqueue(params: DownloadParams) {
-        updateUI { it.copy(isUrlBarVisible = true, isDownloadPanelVisible = true) }
+        updateUI {
+            it.copy(
+                isUrlBarVisible = true, isDownloadPanelVisible = true,
+                isTabsPanelVisible = false,
+                isTabsPanelLock = false,
+                isSettingsPanelVisible = false,
+                isAppsPanelVisible = false,
+                isFindInPageVisible = false,
+                isNavPanelVisible = false,
+                savedPanelState = null
+            )
+        }
 
         val context = getApplication<Application>()
         val initialFilename =

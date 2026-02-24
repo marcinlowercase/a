@@ -97,6 +97,7 @@ import marcinlowercase.a.core.function.buttonSettingsForLayer
 import marcinlowercase.a.core.function.consumeChangePointerInput
 import marcinlowercase.a.core.function.toDomain
 import marcinlowercase.a.core.function.webViewLoad
+import marcinlowercase.a.ui.component.LoadingIndicator
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import org.mozilla.geckoview.GeckoResult
 import org.mozilla.geckoview.GeckoSession
@@ -424,6 +425,7 @@ fun BottomPanel(
                     }
                 }
                 ConfirmationPanel()
+                LoadingIndicator()
                 // URL BAR
                 AnimatedVisibility(
                     modifier = modifier
