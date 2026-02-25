@@ -6,6 +6,7 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.DownloadManager
 import android.content.ActivityNotFoundException
+import android.content.ComponentCallbacks2
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
@@ -86,6 +87,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -357,6 +359,24 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handleIntent(intent)
+    }
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        val browserViewModel: BrowserViewModel by viewModels()
+
+        // TRIM_MEMORY_UI_HIDDEN (20) means the UI is no longer visible to the user.
+        // This is the best time to release resources to prevent the OS from killing the app.
+        if (level == ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN) {
+            // If we are NOT in PiP mode (where the UI is actually still visible), pause the session.
+            if (!isInPictureInPictureMode && !isEnteringPip) {
+                // Tells Gecko to release aggressive caching, making the process smaller
+                // and less likely to be killed by the OS.
+                browserViewModel.activeTab?.let { tab ->
+                    browserViewModel.geckoManager.getSession(tab).setActive(false)
+                }
+                Log.d("MemoryFix", "UI Hidden: Set Gecko Session to Inactive to save RAM")
+            }
+        }
     }
     //endregion
 
@@ -1420,7 +1440,7 @@ fun BrowserScreen(
             }
         }
         LaunchedEffect(activeSession) {
-            Log.i("CursorMode", "change Active Session")
+            Log.i("MemoryFix", "change Active Session")
             activeSession.setActive(true)
 
             if (!activeSession.isOpen) {
@@ -1771,7 +1791,10 @@ fun BrowserScreen(
 
                 },
                 onSessionCrash = {
+                    viewModel.geckoManager.forceKillSession(viewModel.activeTab!!.id)
                     viewModel.sessionRefreshTrigger.intValue++
+                    viewModel.updateUI { it.copy(isLoading = false) }
+
                 },
                 onChoicePromptFun = { viewModel.choiceState.value = it },
                 onFilePromptFun = { prompt, result ->
@@ -1803,7 +1826,7 @@ fun BrowserScreen(
             }
         }
         DisposableEffect(activeSession) {
-            Log.i("marcPip", "DisposableEffect")
+            Log.i("MemoryFix", "DisposableEffect")
             activeSession.setActive(true)
 
             onDispose {
@@ -2124,95 +2147,97 @@ fun BrowserScreen(
                             .padding(webViewPaddingValue),
                     ) {
                         // Webview Container
-                        AnimatedVisibility(
-                            visible = viewModel.activeTab!!.errorState == null,
-                            enter = slideInVertically(
-                                animationSpec = tween(settings.animationSpeedForLayer(0) * 4),
-                                initialOffsetY = { it }
-                            ),
-                            exit = slideOutVertically(
-                                animationSpec = tween(settings.animationSpeedForLayer(0) * 4),
-                                targetOffsetY = { -it }
-                            )
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .weight(1f)
-                                    .run {
-                                        if (viewModel.isApplyImePaddingToWebView.value) {
-                                            this.windowInsetsPadding(WindowInsets.ime)
-                                        } else {
-                                            this
-                                        }
-                                    }
-                                    .clip(
-                                        RoundedCornerShape(
-                                            animatedCornerRadius
-                                        )
-                                    )
-                                    //                            .background(color = Color.White)
-                                    .testTag("WebViewContainer")
-
-
+                        key(viewModel.sessionRefreshTrigger.intValue) {
+                            AnimatedVisibility(
+                                visible = viewModel.activeTab!!.errorState == null,
+                                enter = slideInVertically(
+                                    animationSpec = tween(settings.animationSpeedForLayer(0) * 4),
+                                    initialOffsetY = { it }
+                                ),
+                                exit = slideOutVertically(
+                                    animationSpec = tween(settings.animationSpeedForLayer(0) * 4),
+                                    targetOffsetY = { -it }
+                                )
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .fillMaxSize()
+                                        .fillMaxWidth()
+                                        .weight(1f)
+                                        .run {
+                                            if (viewModel.isApplyImePaddingToWebView.value) {
+                                                this.windowInsetsPadding(WindowInsets.ime)
+                                            } else {
+                                                this
+                                            }
+                                        }
+                                        .clip(
+                                            RoundedCornerShape(
+                                                animatedCornerRadius
+                                            )
+                                        )
+                                        //                            .background(color = Color.White)
+                                        .testTag("WebViewContainer")
+
 
                                 ) {
-                                    AndroidView(
-                                        modifier = Modifier.fillMaxSize(),
-                                        factory = { context ->
-                                            // Create the View ONCE.
-                                            // We never need to recreate this View during tab switching.
-                                            GeckoView(context).apply {
-                                                layoutParams = ViewGroup.LayoutParams(
-                                                    ViewGroup.LayoutParams.MATCH_PARENT,
-                                                    ViewGroup.LayoutParams.MATCH_PARENT
-                                                )
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
 
-                                                setOnTouchListener { _, event ->
-                                                    if (event.action == MotionEvent.ACTION_DOWN) {
-                                                        // The user touched the web content
-                                                        if (uiState.isUrlBarVisible) {
-                                                            viewModel.updateUI {
+                                    ) {
+                                        AndroidView(
+                                            modifier = Modifier.fillMaxSize(),
+                                            factory = { context ->
+                                                // Create the View ONCE.
+                                                // We never need to recreate this View during tab switching.
+                                                GeckoView(context).apply {
+                                                    layoutParams = ViewGroup.LayoutParams(
+                                                        ViewGroup.LayoutParams.MATCH_PARENT,
+                                                        ViewGroup.LayoutParams.MATCH_PARENT
+                                                    )
+
+                                                    setOnTouchListener { _, event ->
+                                                        if (event.action == MotionEvent.ACTION_DOWN) {
+                                                            // The user touched the web content
+                                                            if (uiState.isUrlBarVisible) {
+                                                                viewModel.updateUI {
+                                                                    it.copy(
+                                                                        isUrlBarVisible = false
+                                                                    )
+                                                                }
+                                                            }
+                                                            if (uiState.isMediaControlPanelVisible) viewModel.updateUI {
                                                                 it.copy(
-                                                                    isUrlBarVisible = false
+                                                                    isMediaControlPanelVisible = false
                                                                 )
                                                             }
-                                                        }
-                                                        if (uiState.isMediaControlPanelVisible) viewModel.updateUI {
-                                                            it.copy(
-                                                                isMediaControlPanelVisible = false
-                                                            )
-                                                        }
 
-                                                        if (viewModel.contextMenuData.value != null) viewModel.contextMenuData.value =
-                                                            null
-                                                        if (viewModel.choiceState.value != null) viewModel.choiceState.value =
-                                                            null
-                                                        if (viewModel.colorState.value != null) {
-                                                            viewModel.colorState.value?.result?.complete(
-                                                                viewModel.colorState.value?.prompt?.dismiss()
-                                                            )
+                                                            if (viewModel.contextMenuData.value != null) viewModel.contextMenuData.value =
+                                                                null
+                                                            if (viewModel.choiceState.value != null) viewModel.choiceState.value =
+                                                                null
+                                                            if (viewModel.colorState.value != null) {
+                                                                viewModel.colorState.value?.result?.complete(
+                                                                    viewModel.colorState.value?.prompt?.dismiss()
+                                                                )
 
-                                                            viewModel.colorState.value = null
+                                                                viewModel.colorState.value = null
+                                                            }
                                                         }
+                                                        false
                                                     }
-                                                    false
+                                                    geckoViewRef.value = this
                                                 }
-                                                geckoViewRef.value = this
+                                            },
+                                            update = { geckoView ->
+                                                // 4. THE SWITCH: Just swap the session!
+                                                // When 'activeSession' changes, this block runs automatically.
+                                                // GeckoView handles detaching the old one and attaching the new one.
+                                                geckoView.setSession(activeSession)
+                                                geckoViewRef.value = geckoView
                                             }
-                                        },
-                                        update = { geckoView ->
-                                            // 4. THE SWITCH: Just swap the session!
-                                            // When 'activeSession' changes, this block runs automatically.
-                                            // GeckoView handles detaching the old one and attaching the new one.
-                                            geckoView.setSession(activeSession)
-                                            geckoViewRef.value = geckoView
-                                        }
-                                    )
+                                        )
+                                    }
                                 }
                             }
                         }

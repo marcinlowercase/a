@@ -349,7 +349,9 @@ class GeckoManager(private val context: Context) {
 
     fun forceKillSession(tabId: Long) {
         val session = sessionPool.remove(tabId)
-        session?.close()
+        if (session?.isOpen == true) {
+            session.close()
+        }
         killedSessionIds.add(tabId)
     }
 
