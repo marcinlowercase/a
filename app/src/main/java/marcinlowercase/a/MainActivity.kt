@@ -360,24 +360,24 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         handleIntent(intent)
     }
-    override fun onTrimMemory(level: Int) {
-        super.onTrimMemory(level)
-        val browserViewModel: BrowserViewModel by viewModels()
-
-        // TRIM_MEMORY_UI_HIDDEN (20) means the UI is no longer visible to the user.
-        // This is the best time to release resources to prevent the OS from killing the app.
-        if (level == ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN) {
-            // If we are NOT in PiP mode (where the UI is actually still visible), pause the session.
-            if (!isInPictureInPictureMode && !isEnteringPip) {
-                // Tells Gecko to release aggressive caching, making the process smaller
-                // and less likely to be killed by the OS.
-                browserViewModel.activeTab?.let { tab ->
-                    browserViewModel.geckoManager.getSession(tab).setActive(false)
-                }
-                Log.d("MemoryFix", "UI Hidden: Set Gecko Session to Inactive to save RAM")
-            }
-        }
-    }
+//    override fun onTrimMemory(level: Int) {
+//        super.onTrimMemory(level)
+//        val browserViewModel: BrowserViewModel by viewModels()
+//
+//        // TRIM_MEMORY_UI_HIDDEN (20) means the UI is no longer visible to the user.
+//        // This is the best time to release resources to prevent the OS from killing the app.
+//        if (level == ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN) {
+//            // If we are NOT in PiP mode (where the UI is actually still visible), pause the session.
+//            if (!isInPictureInPictureMode && !isEnteringPip) {
+//                // Tells Gecko to release aggressive caching, making the process smaller
+//                // and less likely to be killed by the OS.
+//                browserViewModel.activeTab?.let { tab ->
+//                    browserViewModel.geckoManager.getSession(tab).setActive(false)
+//                }
+//                Log.d("MemoryFix", "UI Hidden: Set Gecko Session to Inactive to save RAM")
+//            }
+//        }
+//    }
     //endregion
 
     //region Pip
