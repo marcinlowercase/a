@@ -567,7 +567,14 @@ fun SettingsPanel(
     val optionPages = remember(allSettingsOptions) {
         allSettingsOptions.chunked(4)
     }
-    val pagerState = rememberPagerState(pageCount = { optionPages.size })
+    val realPageCount = optionPages.size
+    // Start in the middle, aligned to the start of the first page
+    val initialInfinitePage = (Int.MAX_VALUE / 2) - ((Int.MAX_VALUE / 2) % realPageCount)
+
+    val pagerState = rememberPagerState(
+        initialPage = initialInfinitePage,
+        pageCount = { Int.MAX_VALUE }
+    )
 
     AnimatedVisibility(
         visible = uiState.value.isSettingsPanelVisible || settings.value.isFirstAppLoad,
@@ -608,7 +615,8 @@ fun SettingsPanel(
                             ,
                             horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
                         ) {
-                            val pageOptions = optionPages[pageIndex]
+                            val actualPageIndex = pageIndex % realPageCount
+                            val pageOptions = optionPages[actualPageIndex]
                             pageOptions.forEach { option ->
 
                                 CustomIconButton(
@@ -618,7 +626,6 @@ fun SettingsPanel(
                                     buttonDescription = option.contentDescription,
                                     painterId = option.iconRes,
                                     isWhite = option.enabled,
-//                                    currentRotation = currentRotation,
                                 )
 
                             }

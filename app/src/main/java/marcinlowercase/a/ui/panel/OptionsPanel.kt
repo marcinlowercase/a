@@ -37,9 +37,6 @@ fun OptionsPanel(
     val uiState = viewModel.uiState.collectAsState()
     val settings = viewModel.browserSettings.collectAsState()
 
-//    val currentIsSettingsVisible by rememberUpdatedState(isSettingsPanelVisible)
-//    val currentOnToggleSettings by rememberUpdatedState(setIsSettingsPanelVisible)
-    // This remains the same
     val allOptions =
         listOf(
 //            OptionItem(
@@ -212,29 +209,32 @@ fun OptionsPanel(
 //                OptionItem(R.drawable.ic_fullscreen, "Button 8", false) { /* ... */ }
         )
 
-// --- NEW: Group the options into pages of 4 ---
     val optionPages = remember(allOptions) {
         allOptions.chunked(4)
     }
 
     // --- Pager State ---
-    // The pagerState remembers the current page and handles scroll animations.
-    val pagerState = rememberPagerState(pageCount = { optionPages.size })
 
+    val realPageCount = optionPages.size
+    // Start in the middle, aligned to the start of the first page
+    val initialInfinitePage = (Int.MAX_VALUE / 2) - ((Int.MAX_VALUE / 2) % realPageCount)
+
+    val pagerState = rememberPagerState(
+        initialPage = initialInfinitePage,
+        pageCount = { Int.MAX_VALUE }
+    )
     Box(
         modifier = Modifier
             .fillMaxWidth()
-//            .clip(
-//                RoundedCornerShape(
-//                    settings.value.cornerRadiusForLayer(2).dp
-//                )
-//            )
     ) {
 
         HorizontalPager(
             state = pagerState,
             modifier = Modifier.fillMaxWidth()
         ) { pageIndex ->
+
+            val actualPageIndex = pageIndex % realPageCount
+            val pageOptions = optionPages[actualPageIndex]
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -249,23 +249,18 @@ fun OptionsPanel(
 
                 horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
             ) {
-                val pageOptions = optionPages[pageIndex]
 
                 // Create an IconButton for each option on the page
                 pageOptions.forEach { option ->
                     CustomIconButton(
-//                            currentRotation = currentRotation,
                         layer = 2,
                         modifier = Modifier.weight(1f),
                         onTap = option.onClick,
                         buttonDescription = option.contentDescription,
                         painterId = option.iconRes,
                         isWhite = option.enabled
-
                     )
-
                 }
-
 //                    // If a page has fewer than 4 items, we add spacers to keep the layout consistent.
 //                    repeat(4 - pageOptions.size) {
 //                        Spacer(modifier = Modifier.weight(1f))
@@ -274,7 +269,6 @@ fun OptionsPanel(
         }
 
     }
-//    }
 }
 
 
