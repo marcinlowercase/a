@@ -42,6 +42,14 @@ fun OptionsPanel(
     // This remains the same
     val allOptions =
         listOf(
+            OptionItem(
+                iconRes = R.drawable.ic_info, // Or any help/guide icon you have
+                contentDescription = "guide mode",
+                enabled = settings.value.isGuideModeEnabled
+            ) {
+                viewModel.updateField(BrowserSettingField.GUIDE_MODE, !settings.value.isGuideModeEnabled)
+                setIsOptionsPanelVisible(false)
+            },
 
             OptionItem(
                 R.drawable.ic_keep, // You'll need an icon for this

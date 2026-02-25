@@ -360,24 +360,6 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         handleIntent(intent)
     }
-//    override fun onTrimMemory(level: Int) {
-//        super.onTrimMemory(level)
-//        val browserViewModel: BrowserViewModel by viewModels()
-//
-//        // TRIM_MEMORY_UI_HIDDEN (20) means the UI is no longer visible to the user.
-//        // This is the best time to release resources to prevent the OS from killing the app.
-//        if (level == ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN) {
-//            // If we are NOT in PiP mode (where the UI is actually still visible), pause the session.
-//            if (!isInPictureInPictureMode && !isEnteringPip) {
-//                // Tells Gecko to release aggressive caching, making the process smaller
-//                // and less likely to be killed by the OS.
-//                browserViewModel.activeTab?.let { tab ->
-//                    browserViewModel.geckoManager.getSession(tab).setActive(false)
-//                }
-//                Log.d("MemoryFix", "UI Hidden: Set Gecko Session to Inactive to save RAM")
-//            }
-//        }
-//    }
     //endregion
 
     //region Pip
@@ -1379,15 +1361,31 @@ fun BrowserScreen(
             }
         }
         LaunchedEffect(bottomPanelPagerState.settledPage) {
-            if (bottomPanelPagerState.settledPage == BottomPanelMode.LOCK.ordinal) {
-                bottomPanelPagerState.animateScrollToPage(BottomPanelMode.SEARCH.ordinal)
-            } else if (
-                bottomPanelPagerState.settledPage == BottomPanelMode.APPS.ordinal
-            ) {
-                if (viewModel.apps.isEmpty()) {
-                    bottomPanelPagerState.animateScrollToPage(BottomPanelMode.SEARCH.ordinal)
+//            if (bottomPanelPagerState.settledPage == BottomPanelMode.LOCK.ordinal) {
+//                bottomPanelPagerState.animateScrollToPage(BottomPanelMode.SEARCH.ordinal)
+//            } else if (
+//                bottomPanelPagerState.settledPage == BottomPanelMode.APPS.ordinal
+//            ) {
+//                if (viewModel.apps.isEmpty()) {
+//                    bottomPanelPagerState.animateScrollToPage(BottomPanelMode.SEARCH.ordinal)
+//
+//                }
+//            }
+            val shouldBounceBack = (bottomPanelPagerState.settledPage == BottomPanelMode.LOCK.ordinal) ||
+                    (bottomPanelPagerState.settledPage == BottomPanelMode.APPS.ordinal && viewModel.apps.isEmpty())
 
-                }
+            if (shouldBounceBack) {
+                // Get the animation speed from settings
+                val speed = settings.animationSpeed.toInt()
+
+                // 1. Wait so the user sees the page briefly (smoother UX)
+                delay(speed.toLong())
+
+                // 2. Animate back to Search using the same speed setting
+                bottomPanelPagerState.animateScrollToPage(
+                    BottomPanelMode.SEARCH.ordinal,
+                    animationSpec = tween(durationMillis = speed)
+                )
             }
         }
         LaunchedEffect(viewModel.screenSize.value) {

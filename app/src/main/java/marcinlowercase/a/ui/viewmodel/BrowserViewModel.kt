@@ -112,6 +112,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             isFullscreenMode = sharedPrefs.getBoolean("is_fullscreen_mode", false),
             highlightColor = sharedPrefs.getInt("highlight_color", 0xFFFFFF00.toInt()),
             isAdBlockEnabled = sharedPrefs.getBoolean("is_ad_block_enabled", true),
+            isGuideModeEnabled = sharedPrefs.getBoolean("is_guide_mode_enabled", true)
+
         )
     }
 
@@ -163,6 +165,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
                     current.copy(isAdBlockEnabled = isEnabled)
                 }
+                BrowserSettingField.GUIDE_MODE -> current.copy(isGuideModeEnabled = value as Boolean)
+
 
                 BrowserSettingField.INFO -> current
             }
@@ -209,6 +213,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             putBoolean("is_fullscreen_mode", settings.isFullscreenMode)
             putInt("highlight_color", settings.highlightColor)
             putBoolean("is_ad_block_enabled", settings.isAdBlockEnabled)
+            putBoolean("is_guide_mode_enabled", settings.isGuideModeEnabled)
+
 
             apply()
         }

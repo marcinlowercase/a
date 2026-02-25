@@ -155,9 +155,86 @@ fun BottomPanel(
     onNewUrl: (String) -> Unit = {},
     setTextFieldHeightPx: (Int) -> Unit = {},
 ) {
+
+
+
+
     val viewModel = LocalBrowserViewModel.current
     val uiState = viewModel.uiState.collectAsState()
     val settings = viewModel.browserSettings.collectAsState()
+
+
+//    var interactionTrigger by remember { mutableLongStateOf(System.currentTimeMillis()) }
+//
+//    // 2. The Auto-Guide Logic
+//    LaunchedEffect(
+//        settings.value.isGuideModeEnabled,
+//        uiState.value.isFocusOnTextField,
+//        interactionTrigger // <--- Adding this key is the magic!
+//    ) {
+//        // Only run if guide is enabled AND user is not typing
+//        if (settings.value.isGuideModeEnabled && !uiState.value.isFocusOnTextField) {
+//
+//            // 3. The Idleness Timer
+//            // This line pauses execution. If the user touches the screen,
+//            // 'interactionTrigger' changes, this coroutine is CANCELLED,
+//            // and a new one starts, effectively resetting the timer to 0.
+//            delay(10000)
+//
+//            // 4. If we reached here, the user hasn't touched the panel for 10 seconds.
+//            // Start the animation loop.
+//            while (uiState.value.isBottomPanelVisible) {
+//                // Safety check: Only animate if in "Search" mode and not currently dragging
+//                if (bottomPanelPagerState.currentPage == BottomPanelMode.SEARCH.ordinal &&
+//                    draggableState.currentValue == RevealState.Hidden &&
+//                    !bottomPanelPagerState.isScrollInProgress) {
+//
+//                    val animSpeed = settings.value.animationSpeed.toInt()
+//
+//                    // --- Animation 1: Swipe Up (Options) ---
+//                    setIsOptionsPanelVisible(true)
+//                    delay(animSpeed.toLong() + 1000)
+//                    setIsOptionsPanelVisible(false)
+//                    delay(animSpeed.toLong() + 500)
+//
+//                    // --- Animation 2: Swipe Left (Apps) ---
+//                    bottomPanelPagerState.animateScrollToPage(
+//                        BottomPanelMode.APPS.ordinal,
+//                        animationSpec = tween(animSpeed)
+//                    )
+//                    delay(1000)
+//                    bottomPanelPagerState.animateScrollToPage(
+//                        BottomPanelMode.SEARCH.ordinal,
+//                        animationSpec = tween(animSpeed)
+//                    )
+//                    delay(1000)
+//
+//                    viewModel.updateUI { it.copy(isNavPanelVisible = true) }
+//                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+//                    delay(animSpeed.toLong() + 1000)
+//                    viewModel.updateUI { it.copy(isNavPanelVisible = false) }
+//                    delay(animSpeed.toLong() + 500)
+//
+//                    // --- Animation 3: Swipe Right (Lock) ---
+//                    bottomPanelPagerState.animateScrollToPage(
+//                        BottomPanelMode.LOCK.ordinal,
+//                        animationSpec = tween(animSpeed)
+//                    )
+//                    delay(1000)
+//                    bottomPanelPagerState.animateScrollToPage(
+//                        BottomPanelMode.SEARCH.ordinal,
+//                        animationSpec = tween(animSpeed)
+//                    )
+//
+//                    // Wait a bit before repeating the loop (e.g., 3 seconds interval mentioned)
+//                    delay(1000)
+//                } else {
+//                    // If state wasn't right (e.g. user scrolled manually), wait a bit and check again
+//                    delay(1000)
+//                }
+//            }
+//        }
+//    }
 
     AnimatedVisibility(
         modifier = modifier,
@@ -197,6 +274,18 @@ fun BottomPanel(
                     .background(
                         Color.Black,
                     )
+//                    .pointerInput(Unit) {
+//                        awaitEachGesture {
+//                            // Wait for the first touch down event
+//                            awaitFirstDown(requireUnconsumed = false)
+//
+//                            // Update the trigger. This causes the LaunchedEffect above to RESTART.
+//                            interactionTrigger = System.currentTimeMillis()
+//
+//                            // We do NOT consume the event.
+//                            // The click will pass through to buttons/pagers below normally.
+//                        }
+//                    }
                     .anchoredDraggable(
                         state = draggableState,
                         orientation = Orientation.Vertical,
