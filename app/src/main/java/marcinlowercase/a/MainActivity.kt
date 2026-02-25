@@ -6,7 +6,6 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.DownloadManager
 import android.content.ActivityNotFoundException
-import android.content.ComponentCallbacks2
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
@@ -1928,6 +1927,33 @@ fun BrowserScreen(
             }
 
         }
+
+        LaunchedEffect(isKeyboardVisible, keyboardHeight, settings.backSquareOffsetY) {
+            val squareBoxSize = settings.heightForLayer(1).dp
+            val squareBoxSizePx = with(density) { squareBoxSize.toPx() }
+            val paddingPx = with(density) { settings.padding.dp.toPx() }
+            val screenHeight = viewModel.screenSize.value.height.toFloat()
+
+            if (isKeyboardVisible) {
+                val keyboardHeightPx = with(density) { keyboardHeight.toPx() }
+
+                // Calculate where the top of the BackSquare should be to sit exactly on top of the keyboard + padding
+                val targetY = screenHeight - keyboardHeightPx - squareBoxSizePx - paddingPx
+
+                // Only move it if the saved position is actually LOWER (visually below) the keyboard top
+                if (settings.backSquareOffsetY > targetY) {
+                    backSquareOffsetY.animateTo(targetY, spring())
+                }
+            } else {
+                // Keyboard is hidden.
+                // If the square is currently not at its saved position (meaning it was moved by the keyboard logic),
+                // put it back where the user left it.
+                // We use a small threshold (1f) to avoid floating point comparison issues
+                if (kotlin.math.abs(backSquareOffsetY.value - settings.backSquareOffsetY) > 1f) {
+                    backSquareOffsetY.animateTo(settings.backSquareOffsetY, spring())
+                }
+            }
+        }
         DisposableEffect(Unit) {
             val shakeDetector = ShakeDetector(context) {
                 // This code runs when a shake is detected
@@ -2728,6 +2754,7 @@ fun BrowserScreen(
                                                                     spring()
                                                                 )
                                                             }
+
                                                             viewModel.updateSettings {
                                                                 it.copy(
                                                                     backSquareOffsetX = targetX,
