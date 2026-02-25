@@ -163,7 +163,8 @@ fun BottomPanel(
     val uiState = viewModel.uiState.collectAsState()
     val settings = viewModel.browserSettings.collectAsState()
 
-
+//    val ghostPressScale = remember { Animatable(1f) }
+//
 //    var interactionTrigger by remember { mutableLongStateOf(System.currentTimeMillis()) }
 //
 //    // 2. The Auto-Guide Logic
@@ -209,11 +210,39 @@ fun BottomPanel(
 //                    )
 //                    delay(1000)
 //
-//                    viewModel.updateUI { it.copy(isNavPanelVisible = true) }
+//                    // --- Animation 4: Ghost Long Press (Nav Panel) ---
+//
+//                    // 1. PRESS DOWN: Shrink slightly to simulate a finger pressing
+//                    launch {
+//                        ghostPressScale.animateTo(
+//                            targetValue = 0.9f,
+//                            animationSpec = tween(200)
+//                        )
+//                    }
+//
+//                    // 2. HOLD: Wait for the standard long-press duration (approx 500-600ms)
+//                    delay(600)
+//
+//                    // 3. TRIGGER: Provide feedback and show the panel
 //                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-//                    delay(animSpeed.toLong() + 1000)
+//                    viewModel.updateUI { it.copy(isNavPanelVisible = true) }
+//
+//                    // 4. RELEASE: Bounce back to normal size
+//                    launch {
+//                        ghostPressScale.animateTo(
+//                            targetValue = 1f,
+//                            animationSpec = spring(dampingRatio = 0.6f, stiffness = 400f) // Bouncy release
+//                        )
+//                    }
+//
+//                    // 5. WAIT: Let the user see the panel for a moment
+//                    delay(animSpeed.toLong() + 1500)
+//
+//                    // 6. RESET: Hide the panel
 //                    viewModel.updateUI { it.copy(isNavPanelVisible = false) }
 //                    delay(animSpeed.toLong() + 500)
+//
+//                    // ... loop continues ...
 //
 //                    // --- Animation 3: Swipe Right (Lock) ---
 //                    bottomPanelPagerState.animateScrollToPage(
@@ -285,6 +314,10 @@ fun BottomPanel(
 //                            // We do NOT consume the event.
 //                            // The click will pass through to buttons/pagers below normally.
 //                        }
+//                    }
+//                    .graphicsLayer {
+//                        scaleX = ghostPressScale.value
+//                        scaleY = ghostPressScale.value
 //                    }
                     .anchoredDraggable(
                         state = draggableState,
