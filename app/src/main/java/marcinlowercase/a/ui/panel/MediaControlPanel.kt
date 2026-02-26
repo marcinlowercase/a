@@ -59,7 +59,7 @@ fun MediaControlPanel(
         Log.d("MediaDisplay", "isMediaControlPanelVisible ${uiState.value.isMediaControlPanelVisible}")
     }
     val opacity by animateFloatAsState(
-        targetValue = if (uiState.value.isMediaControlPanelVisible) 1.0f else 0.0f,
+        targetValue = if (uiState.value.isMediaControlPanelVisible) 0.7f else 0.0f,
         animationSpec = spring(stiffness = Spring.StiffnessLow),
         label = "media control panel opacity"
     )
@@ -135,7 +135,7 @@ fun MediaControlPanel(
                     .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp))
                     .fillMaxHeight()
                     .width(settings.value.heightForLayer(2).dp)
-                    .background(Color.Red)
+                    .background(Color(settings.value.highlightColor))
                     .pointerInput(Unit) {
                         detectVerticalDragGestures(
                             onDragEnd = {
