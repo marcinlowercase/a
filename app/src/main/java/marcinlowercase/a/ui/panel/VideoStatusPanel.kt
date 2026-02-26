@@ -77,7 +77,7 @@ fun VideoStatusPanel(
     }
 
     val opacity by animateFloatAsState(
-        targetValue = if (shouldShow) 1.0f else 0.0f,
+        targetValue = if (shouldShow) 0.7f else 0.0f,
         animationSpec = spring(stiffness = Spring.StiffnessLow),
         label = "video status opacity"
     )
@@ -105,7 +105,7 @@ fun VideoStatusPanel(
                     // If we are currently dragging (pendingSeekSeconds != 0), calculate target
                     if (pendingSeekSeconds.value != 0.0) {
                         val current = viewModel.geckoManager.lastPositionSnapshot.doubleValue
-                        val targetTime = (current + pendingSeekSeconds.value).coerceIn(0.0, duration)
+                        val targetTime = (current + pendingSeekSeconds.value).coerceAtLeast(0.0)
 
                         val sign = if (pendingSeekSeconds.value > 0) "+" else ""
                         // Format: "1:20 / 5:00 (+15s)"
