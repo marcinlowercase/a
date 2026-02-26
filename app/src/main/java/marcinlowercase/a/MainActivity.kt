@@ -308,7 +308,7 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             cacheDir.listFiles()?.forEach { it.delete() }
         }
-        GeckoRuntime.getDefault(applicationContext)
+//        GeckoRuntime.getDefault(applicationContext)
 
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
 

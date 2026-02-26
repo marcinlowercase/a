@@ -36,6 +36,7 @@ import androidx.compose.runtime.setValue
 import marcinlowercase.a.core.data_class.JsChoiceState
 import marcinlowercase.a.core.data_class.JsColorState
 import marcinlowercase.a.core.data_class.JsDateTimeState
+import org.mozilla.geckoview.GeckoRuntimeSettings
 import kotlin.math.abs
 
 private const val UBLOCK_ID = "uBlock0@raymondhill.net"
@@ -65,10 +66,16 @@ class GeckoManager(private val context: Context) {
 
     var isActiveMediaSessionPaused by mutableStateOf(true)
 
-    val runtime: GeckoRuntime by lazy {
-        GeckoRuntime.getDefault(context)
-    }
+//    val runtime: GeckoRuntime by lazy {
+//        GeckoRuntime.getDefault(context)
+//    }
 
+    val runtime: GeckoRuntime by lazy {
+        val settings = GeckoRuntimeSettings.Builder()
+            .consoleOutput(true) // Forces console logs ON immediately
+            .build()
+        GeckoRuntime.create(context, settings)
+    }
     private val stateCache = mutableMapOf<Long, GeckoSession.SessionState>()
 
     private val engineManagedSessionIds = mutableSetOf<Long>()
@@ -84,7 +91,7 @@ class GeckoManager(private val context: Context) {
     var isAdBlockEnabledTarget = true
 
     init {
-        runtime.settings.consoleOutputEnabled = true
+//        runtime.settings.consoleOutputEnabled = true
         setupExtensionPrompts()
         setupExtension(UBLOCK_NAME, UBLOCK_ID)
         installFaviconFetcher()
@@ -612,8 +619,8 @@ class GeckoManager(private val context: Context) {
                             document.documentElement.style.setProperty('--padding', '${browserSettings.value.padding}px');
                             document.documentElement.style.setProperty('--single-line-height', '${browserSettings.value.singleLineHeight}px');
                             window.deviceCornerRadius = ${browserSettings.value.deviceCornerRadius};
-                            if (typeof window.render === 'function') window.render($browserSettings.value.deviceCornerRadius);
-                            alert("marc_console_log: Injection Success! Radius is " + window.deviceCornerRadius);
+                            if (typeof window.render === 'function') window.render(${browserSettings.value.deviceCornerRadius});
+                            console.log("Injection Success! Radius is " + window.deviceCornerRadius);
                             })()
                             """
                         .trimIndent()
@@ -872,17 +879,6 @@ class GeckoManager(private val context: Context) {
                 prompt: GeckoSession.PromptDelegate.AlertPrompt
             ): GeckoResult<GeckoSession.PromptDelegate.PromptResponse> {
                 val message = prompt.message ?: ""
-
-
-                // Current way to shows log, just TEMPORARY
-                if (message.startsWith("marc_console_log:")) {
-                    // print to Android Logcat
-                    val logContent = message.removePrefix("marc_console_log:")
-                    Log.d("marc_console_log", logContent)
-
-                    // Dismiss immediately without showing UI
-                    return GeckoResult.fromValue(prompt.dismiss())
-                }
 
                 // Show UI
                 onJsAlert(message)
