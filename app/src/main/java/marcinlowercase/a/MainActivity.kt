@@ -1486,21 +1486,17 @@ fun BrowserScreen(
                         && url != "about:blank"
                         && !url.startsWith("javascript:")
                     ) {
-//                        if (!uiState.isFocusOnUrlTextField) {
-//                            textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
-//                        }
-//
-//                        // Update the Tab data (this is safe to do for active tab)
-//                        if (viewModel.activeTab!!.currentURL != url) {
-//                            viewModel.updateTabById(eventTabId) { it.copy(currentURL = url) }
-//                        }
-
-                        if (eventTabId == viewModel.activeTab?.id && !uiState.isFocusOnUrlTextField) {
+                        if (!uiState.isFocusOnUrlTextField) {
                             textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
                         }
-                        Log.d("TabFLow", "onLocationChange")
+                        viewModel.updateTabById(eventTabId) { tab ->
+                            val cachedIcon = tab.faviconCache[url] ?: ""
 
-                        viewModel.updateTabById(eventTabId) { it.copy(currentURL = url) }
+                            tab.copy(
+                                currentURL = url,
+                                currentFaviconUrl = cachedIcon
+                            )
+                        }
                     }
                 },
 

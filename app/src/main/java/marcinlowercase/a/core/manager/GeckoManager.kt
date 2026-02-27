@@ -568,6 +568,7 @@ class GeckoManager(private val context: Context) {
                 perms: MutableList<GeckoSession.PermissionDelegate.ContentPermission>,
                 userGesture: Boolean
             ) {
+                Log.i("GeckoNav", "onLocationChange")
                 onLocationChangeFun(eventTabId, session, url, perms, userGesture)
             }
 
