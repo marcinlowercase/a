@@ -20,6 +20,7 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Job
 import marcinlowercase.a.R
+import marcinlowercase.a.core.constant.privacy_policy_url
 import marcinlowercase.a.core.data_class.OptionItem
 import marcinlowercase.a.core.enum_class.BrowserSettingField
 import marcinlowercase.a.ui.component.CustomIconButton
@@ -175,6 +176,14 @@ fun OptionsPanel(
                 uiState.value.isSettingsPanelVisible,
             ) {
                 viewModel.updateUI { it.copy(isSettingsPanelVisible = !it.isSettingsPanelVisible) }
+                setIsOptionsPanelVisible(false)
+            },
+            OptionItem(
+                R.drawable.ic_developer_guide, // You'll need a settings icon
+                "privacy policy",
+                false,
+            ) {
+                viewModel.createNewTab(viewModel.activeTabIndex.value + 1, privacy_policy_url)
                 setIsOptionsPanelVisible(false)
             },
 
