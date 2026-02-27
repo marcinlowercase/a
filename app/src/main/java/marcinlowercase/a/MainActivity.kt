@@ -1805,7 +1805,9 @@ fun BrowserScreen(
                     viewModel.closeTabById(id)
                 },
 
-
+                onExternalAppRequest = { url ->
+                    viewModel.handleExternalIntent(activity, url)
+                }
                 )
 
             if (!uiState.initialLoadDone && initialIntentUrl != null && viewModel.activeTab!!.currentURL == initialIntentUrl) {

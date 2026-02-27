@@ -1,13 +1,19 @@
 package marcinlowercase.a.ui.viewmodel
 
 import android.Manifest
+import android.app.Activity
 import android.app.Application
 import android.app.DownloadManager
+import android.content.ActivityNotFoundException
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.media.MediaScannerConnection
+import android.net.Uri
 import android.os.Environment
 import android.util.Log
 import android.webkit.URLUtil
+import android.widget.Toast
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -83,6 +89,129 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     //endregion
 
+    //region Gecko
+    fun handleExternalIntent(activity: Activity, url: String) {
+        try {
+            val intent: Intent
+            val isIntentScheme = url.startsWith("intent://")
+
+            if (isIntentScheme) {
+                try {
+                    intent = Intent.parseUri(url, Intent.URI_INTENT_SCHEME)
+                    // Security: Do not allow the target app to access your browser's components
+                    intent.addCategory(Intent.CATEGORY_BROWSABLE)
+                    intent.component = null
+                    intent.selector = null
+                } catch (e: Exception) {
+                    Log.e("Intent", "Bad intent URI: $url", e)
+                    return
+                }
+            } else {
+                // Standard schemes (mailto, tel, market)
+                intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+            }
+
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+            // --- THE FIX: Try to launch immediately ---
+            // Don't check resolveActivity() first. It returns null on Android 11+
+            // unless you declare <queries> in Manifest. Just try to start it.
+            try {
+                activity.startActivity(intent)
+                return // Success! We are done.
+            } catch (e: ActivityNotFoundException) {
+                // App not installed. Now we handle the fallback.
+            }
+
+            // --- FALLBACK LOGIC (Only runs if startActivity failed) ---
+            if (isIntentScheme) {
+                val fallbackUrl = intent.getStringExtra("browser_fallback_url")
+                if (!fallbackUrl.isNullOrEmpty()) {
+                    // 1. Load Fallback URL (Mobile Website)
+                    activeTab?.let { tab ->
+                        val session = geckoManager.getSession(tab)
+                        session.loadUri(fallbackUrl)
+                    }
+                } else {
+                    // 2. Open Play Store
+                    val pack = intent.`package`
+                    if (!pack.isNullOrEmpty()) {
+                        val marketIntent = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$pack"))
+                        marketIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        try {
+                            activity.startActivity(marketIntent)
+                        } catch (e: Exception) {
+                            Log.e("Intent", "Play Store not found", e)
+                        }
+                    }
+                }
+            } else {
+                Toast.makeText(activity, "No app found to open this link", Toast.LENGTH_SHORT).show()
+            }
+
+        } catch (e: Exception) {
+            Log.e("Intent", "Failed to handle intent", e)
+        }
+    }
+//    fun handleExternalIntent(activity: Activity, url: String) {
+//        try {
+//            val intent: Intent
+//
+//            // 1. Special handling for Android "intent://" scheme
+//            if (url.startsWith("intent://")) {
+//                try {
+//                    intent = Intent.parseUri(url, Intent.URI_INTENT_SCHEME)
+//                } catch (e: Exception) {
+//                    Log.e("Intent", "Bad intent URI", e)
+//                    return
+//                }
+//
+//                // Check if an app exists to handle this
+//                val packageManager = activity.packageManager
+//                val info = packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)
+//
+//                if (info == null) {
+//                    // App not installed. Check if there is a fallback URL (e.g. Play Store link)
+//                    val fallbackUrl = intent.getStringExtra("browser_fallback_url")
+//                    if (!fallbackUrl.isNullOrEmpty()) {
+//                        // Load the fallback URL in our browser
+//                        activeTab?.let { tab ->
+//                            val session = geckoManager.getSession(tab)
+//                            session.loadUri(fallbackUrl)
+//                        }
+//                    } else {
+//                        // No fallback? Try to open the Play Store for the package
+//                        val pack = intent.`package`
+//                        if (!pack.isNullOrEmpty()) {
+//                            val marketIntent = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$pack"))
+//                            try {
+//                                activity.startActivity(marketIntent)
+//                            } catch (e: Exception) {
+//                                // If no Play Store, try web play store
+//                                val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=$pack"))
+//                                activity.startActivity(webIntent)
+//                            }
+//                        }
+//                    }
+//                    return
+//                }
+//            } else {
+//                // 2. Standard schemes (mailto:, tel:, market://, etc.)
+//                intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+//            }
+//
+//            // 3. Launch the external app
+//            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+//            activity.startActivity(intent)
+//
+//        } catch (e: ActivityNotFoundException) {
+//            Log.e("Intent", "No app found for $url")
+//            // Optional: Show a Toast "No app found to open this link"
+//        } catch (e: Exception) {
+//            Log.e("Intent", "Failed to launch external app", e)
+//        }
+//    }
+    //endregion
     //region Browser Settings
     private val sharedPrefs = application.getSharedPreferences("BrowserPrefs", Context.MODE_PRIVATE)
     private val _browserSettings = MutableStateFlow(loadSettingsFromPrefs())

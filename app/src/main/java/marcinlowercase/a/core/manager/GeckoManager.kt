@@ -411,7 +411,21 @@ class GeckoManager(private val context: Context) {
         lastPositionSnapshot.doubleValue = newTime
         lastSnapshotTime.longValue = System.currentTimeMillis()
     }
-
+    private fun isExternalScheme(uri: String): Boolean {
+        // These are standard web schemes. Everything else should likely be handled by an external app.
+        if (uri.startsWith("http://") ||
+            uri.startsWith("https://") ||
+            uri.startsWith("file://") ||
+            uri.startsWith("about:") ||
+            uri.startsWith("resource://") ||
+            uri.startsWith("javascript:") ||
+            uri.startsWith("blob:") ||
+            uri.startsWith("data:")
+        ) {
+            return false
+        }
+        return true
+    }
     fun setupDelegates(
         session: GeckoSession,
         tab: MutableState<Tab>,
@@ -452,8 +466,10 @@ class GeckoManager(private val context: Context) {
         onColorPromptFun: (JsColorState) -> Unit,
         onDateTimePromptFun: (JsDateTimeState) -> Unit,
         onCloseTabFun: (Long) -> Unit,
+        onExternalAppRequest: (String) -> Unit
 
-        ) {
+
+    ) {
         Log.i("NewTabFlow", "setupDelegates")
         val eventTabId = tab.value.id
 
@@ -593,6 +609,27 @@ class GeckoManager(private val context: Context) {
                 Log.e("GeckoNav", "Load Error: $uri (${error.category})")
                 onLoadErrorFun(session, uri, error)
                 return GeckoResult.fromValue("about:blank")
+            }
+
+            override fun onLoadRequest(
+                session: GeckoSession,
+                request: GeckoSession.NavigationDelegate.LoadRequest
+            ): GeckoResult<AllowOrDeny> {
+                val uri = request.uri
+
+                // 1. Check if this is a "Special" scheme (mailto, tel, intent, market)
+                if (isExternalScheme(uri)) {
+                    Log.i("GeckoNav", "External scheme detected: $uri")
+
+                    // Trigger the UI to launch the intent
+                    onExternalAppRequest(uri)
+
+                    // Tell Gecko NOT to load this in the webview
+                    return GeckoResult.fromValue(AllowOrDeny.DENY)
+                }
+
+                // 2. Allow normal web pages to load
+                return GeckoResult.fromValue(AllowOrDeny.ALLOW)
             }
         }
 
