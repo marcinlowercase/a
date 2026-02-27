@@ -27,7 +27,7 @@ data class BrowserSettings(
     val maxListHeight: Float = 2.5f,
     val searchEngine: Int = 0,
     val isFullscreenMode: Boolean,
-    val highlightColor: Int = 0xFFFFFF00.toInt(),
+    val highlightColor: Int = 0xFFBA160C.toInt(),
     val isGuideModeEnabled: Boolean = true,
 ) {
     fun cornerRadiusForLayer(layer: Int): Float {

@@ -110,7 +110,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             maxListHeight = sharedPrefs.getFloat("max_list_height", 2.5f),
             searchEngine = sharedPrefs.getInt("search_engine", 0),
             isFullscreenMode = sharedPrefs.getBoolean("is_fullscreen_mode", false),
-            highlightColor = sharedPrefs.getInt("highlight_color", 0xFFFFFF00.toInt()),
+            highlightColor = sharedPrefs.getInt("highlight_color", 0xFFBA160C.toInt()),
             isAdBlockEnabled = sharedPrefs.getBoolean("is_ad_block_enabled", true),
             isGuideModeEnabled = sharedPrefs.getBoolean("is_guide_mode_enabled", true)
 
@@ -185,7 +185,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 cursorContainerSize = 50f,
                 cursorPointerSize = 5f,
                 cursorTrackingSpeed = 1.75f,
-                backSquareIdleOpacity = 0.2f
+                backSquareIdleOpacity = 0.2f,
+                highlightColor = 0xFFBA160C.toInt(),
             )
         }
     }
