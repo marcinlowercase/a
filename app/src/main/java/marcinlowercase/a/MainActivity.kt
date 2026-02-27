@@ -503,6 +503,7 @@ fun BrowserScreen(
 
 
     val textFieldState = rememberTextFieldState(viewModel.activeTab!!.currentURL)
+
     val activeSession =
         remember(viewModel.activeTab!!.id, viewModel.sessionRefreshTrigger.intValue) {
             viewModel.geckoManager.getSession(viewModel.activeTab!!)
