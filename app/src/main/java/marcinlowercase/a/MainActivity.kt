@@ -2045,6 +2045,8 @@ fun BrowserScreen(
         //endregion
 
         BackHandler(enabled = true) {
+            Log.i("BackH", "canGoBack ${viewModel.activeTab!!.canGoBack}")
+
             when {
 
                 // when full screen video ( 100 % landscape mode)
@@ -2058,10 +2060,25 @@ fun BrowserScreen(
                     }
                 }
 
+                viewModel.confirmationState.value != null -> {
+                    viewModel.confirmationState.value = null
+                }
 
                 // back the webview
                 viewModel.activeTab!!.canGoBack -> {
                     activeSession.goBack(true)
+                }
+                !viewModel.activeTab!!.canGoBack -> {
+                    confirmationPopup(
+                        message = "reach the beginning of tab history ,\nclose tab ? ",
+                        onConfirm = {
+                            viewModel.closeActiveTab {
+                                activity.finishAndRemoveTask()
+                                exitProcess(0)
+                            }
+                        },
+                    )
+
                 }
 
                 else -> {

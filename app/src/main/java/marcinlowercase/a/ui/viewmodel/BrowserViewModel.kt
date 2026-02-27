@@ -1150,6 +1150,10 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     val confirmationDisplayState = mutableStateOf<ConfirmationDialogState?>(null)
 
     //endregion
+
+    //region functions
+
+    //endregion
     init {
         geckoManager.setAdBlockEnabled(_browserSettings.value.isAdBlockEnabled)
         startDownloadPolling()
