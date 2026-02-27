@@ -49,6 +49,7 @@ private const val RESET = -2.0
 
 class GeckoManager(private val context: Context) {
     var activeGeckoMediaSession: MediaSession? = null
+    var activeMediaGeckoSession: GeckoSession? = null
 
     var lastPositionSnapshot = mutableDoubleStateOf(INIT)
     var lastPositionSnapshotByGecko = mutableDoubleStateOf(INIT)
@@ -301,7 +302,14 @@ class GeckoManager(private val context: Context) {
 
 
     fun closeSession(tab: Tab) {
-        sessionPool.remove(tab.id)?.apply {
+        val sessionToClose = sessionPool.remove(tab.id)
+        sessionToClose?.apply {
+            // If the tab we are closing holds the active media, stop the service
+            if (this == activeMediaGeckoSession) {
+                context.stopService(Intent(context, MediaPlaybackService::class.java))
+                activeGeckoMediaSession = null
+                activeMediaGeckoSession = null
+            }
             close()
         }
         engineManagedSessionIds.remove(tab.id)
@@ -346,6 +354,11 @@ class GeckoManager(private val context: Context) {
     }
 
     private fun handleSessionDeath(session: GeckoSession, tabId: Long) {
+        if (session == activeMediaGeckoSession) {
+            context.stopService(Intent(context, MediaPlaybackService::class.java))
+            activeGeckoMediaSession = null
+            activeMediaGeckoSession = null
+        }
         // if the active session is killed, reload immediately.
         sessionPool.remove(tabId)
         session.close()
@@ -356,6 +369,12 @@ class GeckoManager(private val context: Context) {
 
     fun forceKillSession(tabId: Long) {
         val session = sessionPool.remove(tabId)
+
+        if (session == activeMediaGeckoSession) {
+            context.stopService(Intent(context, MediaPlaybackService::class.java))
+            activeGeckoMediaSession = null
+            activeMediaGeckoSession = null
+        }
         if (session?.isOpen == true) {
             session.close()
         }
@@ -970,7 +989,7 @@ class GeckoManager(private val context: Context) {
             override fun onActivated(session: GeckoSession, mediaSession: MediaSession) {
                 Log.i("marcMedia", "onActivated")
                 activeGeckoMediaSession = mediaSession
-
+                activeMediaGeckoSession = session
                 isActiveMediaSessionPaused = false
                 // website started playing media! Start the background service.
                 val intent = Intent(context, MediaPlaybackService::class.java)
@@ -978,11 +997,12 @@ class GeckoManager(private val context: Context) {
             }
 
             override fun onDeactivated(session: GeckoSession, mediaSession: MediaSession) {
-                activeGeckoMediaSession = null
-                isActiveMediaSessionPaused = true
-
-                // media stopped. Stop the background service.
-                context.stopService(Intent(context, MediaPlaybackService::class.java))
+                if (activeGeckoMediaSession == mediaSession) {
+                    activeGeckoMediaSession = null
+                    activeMediaGeckoSession = null
+                    isActiveMediaSessionPaused = true
+                    context.stopService(Intent(context, MediaPlaybackService::class.java))
+                }
             }
 
             // this is the primary way to know when user change video

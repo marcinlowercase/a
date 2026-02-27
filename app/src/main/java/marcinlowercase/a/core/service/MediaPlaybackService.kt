@@ -211,6 +211,12 @@ class MediaPlaybackService : Service() {
             getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
         }
     }
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        // Stop the foreground service immediately when the user swipes the app away
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
+    }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         // Handle button clicks from the notification actions
