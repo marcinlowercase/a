@@ -2045,8 +2045,6 @@ fun BrowserScreen(
         //endregion
 
         BackHandler(enabled = true) {
-            Log.i("BackH", "canGoBack ${viewModel.activeTab!!.canGoBack}")
-
             when {
 
                 // when full screen video ( 100 % landscape mode)

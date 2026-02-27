@@ -329,6 +329,7 @@ fun BottomPanel(
 
             ) {
 
+                LoadingIndicator()
 
                 DescriptionPanel()
 
@@ -547,7 +548,6 @@ fun BottomPanel(
                     }
                 }
                 ConfirmationPanel()
-                LoadingIndicator()
                 // URL BAR
                 AnimatedVisibility(
                     modifier = modifier
