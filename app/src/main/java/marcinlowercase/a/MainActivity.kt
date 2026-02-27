@@ -1505,39 +1505,20 @@ fun BrowserScreen(
                 },
                 onHistoryStateChangeFun = { eventTabId, _, realtimeHistory ->
 
-                    val url = realtimeHistory[realtimeHistory.lastIndex].uri
-
-                    // fe:  change  tab A -> B, the textbox changed to A.url
-//                if (session == activeSession) {
-                    if (eventTabId == viewModel.activeTab!!.id && url.isNotBlank() && url != "about:blank") {
-                        if (!uiState.isFocusOnUrlTextField) {
-                            textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
-                        }
-
-                        Log.d("TabFLow", "onHistoryStateChange")
-                        viewModel.updateTabById(eventTabId) { tab ->
-                            val cachedIcon = tab.faviconCache[url] ?: ""
-                            tab.copy(currentURL = url, currentFaviconUrl = cachedIcon)
-                        }
-//                        if (viewModel.activeTab!!.currentURL != url) {
-//                            // Get the current tab state
-//                            val currentTab = viewModel.tabs[activeTabIndex]
 //
-//                            // TRY TO RESTORE ICON FROM THIS TAB'S CACHE
-//                            val cachedIcon = currentTab.faviconCache[url] ?: ""
+//                    val url = realtimeHistory[realtimeHistory.lastIndex].uri
 //
-//                            // Update URL and Icon immediately
-//                            viewModel.tabs[activeTabIndex] = currentTab.copy(
-//                                currentURL = url,
-//                                currentFaviconUrl = cachedIcon
-//                            )
-//                            viewModel.updateTabById(eventTabId) {tab ->
-//                                val cachedIcon = tab.faviconCache[url] ?: ""
-//                                tab.copy(currentURL = url, currentFaviconUrl = cachedIcon)
-//
-//                            }
+//                    // fe:  change  tab A -> B, the textbox changed to A.url
+////                if (session == activeSession) {
+//                    if (eventTabId == viewModel.activeTab!!.id && url.isNotBlank() && url != "about:blank") {
+//                        if (!uiState.isFocusOnUrlTextField) {
+//                            textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
 //                        }
-                    }
+//                        viewModel.updateTabById(eventTabId) { tab ->
+//                            val cachedIcon = tab.faviconCache[url] ?: ""
+//                            tab.copy(currentURL = url, currentFaviconUrl = cachedIcon)
+//                        }
+//                    }
                 },
                 onSessionStateChangeFun = { _, _ ->
                     val stateToSave =

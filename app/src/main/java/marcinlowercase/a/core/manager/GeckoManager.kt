@@ -832,6 +832,7 @@ class GeckoManager(private val context: Context) {
                 session: GeckoSession,
                 realtimeHistory: GeckoSession.HistoryDelegate.HistoryList
             ) {
+                Log.i("GeckoNav","onHistoryStateChange")
                 onHistoryStateChangeFun(eventTabId, session, realtimeHistory)
             }
         }
