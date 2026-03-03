@@ -618,8 +618,11 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                     val wasActive = (indexToClose == _activeTabIndex.value)
 
                     if (wasActive) {
-                        val nextTabIndex =
-                            if (indexToClose >= tabs.size) tabs.lastIndex else indexToClose
+//                        val nextTabIndex =
+//                            if (indexToClose >= tabs.size) tabs.lastIndex else indexToClose
+
+                        val nextTabIndex = (indexToClose - 1).coerceAtLeast(0)
+
                         _activeTabIndex.value = nextTabIndex
                         tabs[nextTabIndex] = tabs[nextTabIndex].copy(state = TabState.ACTIVE)
 
@@ -665,7 +668,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             tabs.removeAt(indexToRemove)
 
             // 5. Determine the next active tab index
-            val nextTabIndex = if (indexToRemove >= tabs.size) tabs.lastIndex else indexToRemove
+//            val nextTabIndex = if (indexToRemove >= tabs.size) tabs.lastIndex else indexToRemove
+            val nextTabIndex = (indexToRemove - 1).coerceAtLeast(0)
 
             // 6. Update state: Set new index and make that tab ACTIVE
             _activeTabIndex.value = nextTabIndex

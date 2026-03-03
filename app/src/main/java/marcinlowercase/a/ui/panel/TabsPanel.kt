@@ -193,132 +193,111 @@ fun TabItem(
 
 @Composable
 fun TabsPanel(
-
     isTabsPanelVisible: Boolean,
     modifier: Modifier = Modifier,
     onTabLongPressed: (Tab) -> Unit,
     updateInspectingTab: (Tab) -> Unit,
 ) {
-
     val viewModel = LocalBrowserViewModel.current
     if (viewModel.tabs.isEmpty()) return
-    val settings = viewModel.browserSettings.collectAsState()
-    val pagerState =
-        rememberPagerState(
-            initialPage = viewModel.activeTabIndex.collectAsState().value + 1,
-            pageCount = { viewModel.tabs.size + 2 })
 
-    // This effect is still useful to sync the pager if a new tab is created
-    LaunchedEffect(viewModel.activeTabIndex.collectAsState().value, viewModel.tabs.size) {
-        if (pagerState.currentPage != viewModel.activeTabIndex.value + 1) {
-            pagerState.animateScrollToPage(viewModel.activeTabIndex.value + 1)
+    val settings = viewModel.browserSettings.collectAsState()
+    val activeTabIndex = viewModel.activeTabIndex.collectAsState()
+    val tabsSize = viewModel.tabs.size
+
+    val pagerState = rememberPagerState(
+        initialPage = activeTabIndex.value + 1,
+        pageCount = { tabsSize + 2 }
+    )
+
+    LaunchedEffect(activeTabIndex.value, tabsSize) {
+        val targetPage = activeTabIndex.value + 1
+        if (pagerState.currentPage != targetPage) {
+            pagerState.animateScrollToPage(targetPage, animationSpec = tween(settings.value.animationSpeedForLayer(1)))
         }
     }
-
 
     LaunchedEffect(pagerState.currentPage) {
-        if (pagerState.currentPage in 1..viewModel.tabs.size)
-            updateInspectingTab(viewModel.tabs[pagerState.currentPage - 1])
-//            inspectingTab.value = viewModel.tabs[pagerState.currentPage - 1]
-        else {
+        if (pagerState.currentPage in 1..tabsSize) {
+            // Safely get the tab, avoiding crashes if it was just removed
+            val tab = viewModel.tabs.getOrNull(pagerState.currentPage - 1)
+            if (tab != null) {
+                updateInspectingTab(tab)
+            } else {
+                updateInspectingTab(Tab.createEmpty(0L))
+            }
+        } else {
             updateInspectingTab(Tab.createEmpty(0L))
-//            inspectingTab.value = null
         }
     }
-
 
     AnimatedVisibility(
         visible = isTabsPanelVisible,
-        enter = expandVertically(
-            tween(
-                settings.value.animationSpeedForLayer(1)
-            )
-        ) + fadeIn(
-            tween(
-                settings.value.animationSpeedForLayer(1)
-            )
-        ),
-        exit = shrinkVertically(
-            tween(
-                settings.value.animationSpeedForLayer(1)
-            )
-        ) + fadeOut(
-            tween(
-                settings.value.animationSpeedForLayer(1)
-            )
-        )
-
+        enter = expandVertically(tween(settings.value.animationSpeedForLayer(1))) +
+                fadeIn(tween(settings.value.animationSpeedForLayer(1))),
+        exit = shrinkVertically(tween(settings.value.animationSpeedForLayer(1))) +
+                fadeOut(tween(settings.value.animationSpeedForLayer(1)))
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = settings.value.padding.dp)
                 .padding(horizontal = settings.value.padding.dp)
-
-                .clip(
-                    RoundedCornerShape(
-                        settings.value.cornerRadiusForLayer(2).dp
-                    )
-                )
+                .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp))
         ) {
             HorizontalPager(
                 state = pagerState,
-                modifier = modifier
-                    .fillMaxWidth(),
-                // We use a smaller content padding so the active tab is larger
+                key = { pageIndex ->
+                    when (pageIndex) {
+                        0 -> "new_tab_left"
+                        in 1..tabsSize -> {
+                            // THE FIX: Use getOrNull() so if the item was just deleted, it doesn't crash
+                            viewModel.tabs.getOrNull(pageIndex - 1)?.id ?: "animating_out_$pageIndex"
+                        }
+                        else -> "new_tab_right_$pageIndex"
+                    }
+                },
+                modifier = modifier.fillMaxWidth(),
                 contentPadding = PaddingValues(horizontal = settings.value.padding.dp * 4),
                 pageSpacing = settings.value.padding.dp / 2
             ) { pageIndex ->
 
-                when (pageIndex) {
-                    0 -> {
-                        // This is the FIRST page: New Tab button on the left
+                when {
+                    pageIndex == 0 -> {
                         NewTabButton(
-                            onClick = {
-                                viewModel.createNewTab(
-                                    0,
-                                    ""
-                                )
-                            } // Request new tab at index 0
+                            onClick = { viewModel.createNewTab(0, "") }
                         )
                     }
 
-                    in 1..viewModel.tabs.size -> {
-                        // This is a regular tab page. Map pageIndex back to tabIndex.
+                    pageIndex in 1..tabsSize -> {
                         val tabIndex = pageIndex - 1
 
-                        val tab = viewModel.tabs[tabIndex]
+                        // THE FIX: Use getOrNull() here too!
+                        val tab = viewModel.tabs.getOrNull(tabIndex)
 
-                        val title = tab.currentTitle
-
-                        val faviconUrl = tab.currentFaviconUrl.ifBlank {
-                            getFaviconUrlFromGoogleServer(
-                                tab.currentURL
-                            )
-                        }
-                        TabItem(
-                            faviconUrl = faviconUrl,
-                            title = title,
-                            isActive = pagerState.currentPage == pageIndex,
-                            onClick = {
-                                viewModel.selectTab(tabIndex)
-
-                            },
-                            onLongClick = {
-                                onTabLongPressed(tab)
+                        if (tab != null) {
+                            val title = tab.currentTitle
+                            val faviconUrl = tab.currentFaviconUrl.ifBlank {
+                                getFaviconUrlFromGoogleServer(tab.currentURL)
                             }
-                        )
+
+                            TabItem(
+                                faviconUrl = faviconUrl,
+                                title = title,
+                                isActive = pagerState.currentPage == pageIndex,
+                                onClick = { viewModel.selectTab(tabIndex) },
+                                onLongClick = { onTabLongPressed(tab) }
+                            )
+                        } else {
+                            // If the tab is null, it means it's currently animating away
+                            // after being closed. Render an empty Box to fill the space temporarily.
+                            Box(modifier = Modifier.fillMaxSize())
+                        }
                     }
 
                     else -> {
-                        // This is the LAST page: New Tab button on the right
                         NewTabButton(
-                            onClick = {
-                                viewModel.createNewTab(
-                                    viewModel.tabs.size,
-                                    ""
-                                )
-                            } // Request new tab at the end
+                            onClick = { viewModel.createNewTab(tabsSize, "") }
                         )
                     }
                 }
