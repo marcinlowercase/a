@@ -13,8 +13,8 @@ android {
     defaultConfig {
         minSdk = 29 // android 10
         targetSdk = 36
-        versionCode = 9
-        versionName = "0.3.1"
+        versionCode = 10
+        versionName = "0.3.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -84,14 +84,6 @@ android {
     buildFeatures {
         compose = true
     }
-//    kotlin {
-//        target {
-//            compilerOptions {
-//                optIn.add("kotlin.RequiresOptIn")
-//                jvmTarget.set(JvmTarget.JVM_21)
-//            }
-//        }
-//    }
 }
 
 dependencies {
