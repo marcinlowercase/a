@@ -51,7 +51,6 @@ import marcinlowercase.a.core.enum_class.ContextMenuType
 import marcinlowercase.a.core.function.copyImageToClipboard
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import androidx.compose.runtime.collectAsState
-import marcinlowercase.a.ui.theme.Orange
 
 //import marcinlowercase.a.core.function.shareImage
 import kotlin.math.roundToInt
@@ -87,7 +86,6 @@ fun ContextMenuPanel(
             modifier = Modifier
                 .padding(top = settings.value.padding.dp)
                 .fillMaxWidth()
-                .background(Orange)
         ) {
             // 1. Header (URL or "Image")
 
