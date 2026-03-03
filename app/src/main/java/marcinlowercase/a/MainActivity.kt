@@ -22,6 +22,7 @@ import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.util.Log
 import android.view.MotionEvent
+import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -50,6 +51,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.AnchoredDraggableDefaults
 import androidx.compose.foundation.gestures.DraggableAnchors
 import androidx.compose.foundation.gestures.animateTo
@@ -95,8 +97,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -378,8 +382,26 @@ class MainActivity : ComponentActivity() {
     var isCurrentlyFullscreen by mutableStateOf(false)
     var isEnteringPip by mutableStateOf(false)
 
+    private fun hideKeyboardAndClearFocus() {
+        try {
+            // 1. Hide the keyboard at the window level
+            val view = window.decorView
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+            imm.hideSoftInputFromWindow(view.windowToken, 0)
+
+            // 2. Clear focus from the current view (GeckoView)
+            currentFocus?.clearFocus()
+
+            // 3. Give focus to the root layout so GeckoView stops trying to talk to the IME
+            view.clearFocus()
+        } catch (e: Exception) {
+            Log.e("ImeFix", "Failed to clear focus", e)
+        }
+    }
     override fun onUserLeaveHint() {
         Log.i("marcPip", "onUserLeaveHint")
+
+        hideKeyboardAndClearFocus()
         if (isCurrentlyFullscreen) {
             Log.i("marcPip", "isCurrentlyFullscreen $isCurrentlyFullscreen")
 
@@ -432,6 +454,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onPause() {
         super.onPause()
+
+        hideKeyboardAndClearFocus()
+
         if (isCurrentlyFullscreen) isEnteringPip = true
         val viewModel: BrowserViewModel by viewModels()
 
@@ -1802,14 +1827,96 @@ fun BrowserScreen(
                 }
             }
         }
-        DisposableEffect(activeSession) {
-            Log.i("MemoryFix", "DisposableEffect")
+        var isBrowserVisible by remember { mutableStateOf(true) }
+
+        val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+        // Only Android 14 (API 34) and newer have the SurfaceSyncGroup crash
+        val isNewAndroid = Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+
+        DisposableEffect(activeSession, lifecycleOwner) {
+            val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+                // DO NOT fetch the geckoViewRef here! It might be stale during transitions.
+
+                when (event) {
+                    androidx.lifecycle.Lifecycle.Event.ON_RESUME -> {
+                        Log.d("Lifecycle", "ON_RESUME: Waking up")
+
+                        // 1. Tell Compose to bring the view back into the UI tree
+                        isBrowserVisible = true
+
+                        coroutineScope.launch {
+                            // 2. Wait for Compose to actually lay out the new AndroidView
+                            // Give it enough time to recreate the Surface (250ms is usually safe)
+                            delay(250)
+
+                            // 3. NOW fetch the freshly created view!
+                            val currentGeckoView = geckoViewRef.value
+                            val safeGeckoView = currentGeckoView as? SafeGeckoView // Use your custom wrapper if applicable
+
+                            // 4. Wake up the engine logic
+                            activeSession.setActive(true)
+
+                            // 5. Reattach Keyboard to the NEW view
+                            safeGeckoView?.reattachKeyboard()
+
+                            currentGeckoView?.let { gv ->
+                                // THE SILVER BULLET FIX: The Phantom Tap
+                                // We simulate an instantaneous Down/Cancel event. This wakes up the
+                                // Gecko compositor thread and forces it to draw to the new Surface
+                                // without triggering any link clicks on the webpage.
+
+                                val now = android.os.SystemClock.uptimeMillis()
+                                val downEvent = MotionEvent.obtain(now, now, MotionEvent.ACTION_DOWN, 0f, 0f, 0)
+                                // ACTION_CANCEL ensures no "click" is registered by the DOM
+                                val cancelEvent = MotionEvent.obtain(now, now + 10, MotionEvent.ACTION_CANCEL, 0f, 0f, 0)
+
+                                gv.dispatchTouchEvent(downEvent)
+                                gv.dispatchTouchEvent(cancelEvent)
+
+                                downEvent.recycle()
+                                cancelEvent.recycle()
+
+                                // Force Android's View system to recognize the update
+                                gv.requestLayout()
+                                gv.invalidate()
+                            }
+                        }
+                    }
+                    androidx.lifecycle.Lifecycle.Event.ON_PAUSE -> {
+                        val isPip = mainActivity.isPipMode || mainActivity.isEnteringPip
+                        if (!isPip) {
+                            // Fetch the CURRENT view to detach properly
+                            val currentGeckoView = geckoViewRef.value
+                            val safeGeckoView = currentGeckoView as? SafeGeckoView
+
+                            // 1. Cut keyboard connection
+                            safeGeckoView?.detachKeyboard()
+                            keyboardController?.hide()
+
+                            // 2. Sleep session
+                            activeSession.setActive(false)
+
+                            if (isNewAndroid) {
+                                // ANDROID 14+ PATH:
+                                // Remove the view to prevent the SurfaceSyncGroup deadlock crash.
+                                isBrowserVisible = false
+                            }
+                        }
+                    }
+                    else -> {}
+                }
+            }
+
+            lifecycleOwner.lifecycle.addObserver(observer)
             activeSession.setActive(true)
+            isBrowserVisible = true
 
             onDispose {
+                lifecycleOwner.lifecycle.removeObserver(observer)
                 activeSession.setActive(false)
             }
         }
+
         LaunchedEffect(viewModel.jsDialogState.value) {
             if (viewModel.jsDialogState.value != null) {
                 viewModel.jsDialogDisplayState.value = viewModel.jsDialogState.value
@@ -2072,7 +2179,12 @@ fun BrowserScreen(
                 .fillMaxSize()
                 .background(viewModel.backgroundColor.value)
         ) {
-
+            Box(
+                modifier = Modifier
+                    .size(1.dp)
+                    .alpha(0f)
+                    .focusable() // CRITICAL: It must be focusable
+            )
 
             // Adjust Device Corner Radius Screen
             AnimatedVisibility(
@@ -2203,59 +2315,70 @@ fun BrowserScreen(
                                         modifier = Modifier
                                             .fillMaxSize()
 
-                                    ) {
-                                        AndroidView(
-                                            modifier = Modifier.fillMaxSize(),
-                                            factory = { context ->
-                                                // Create the View ONCE.
-                                                // We never need to recreate this View during tab switching.
-                                                GeckoView(context).apply {
-                                                    layoutParams = ViewGroup.LayoutParams(
-                                                        ViewGroup.LayoutParams.MATCH_PARENT,
-                                                        ViewGroup.LayoutParams.MATCH_PARENT
-                                                    )
 
-                                                    setOnTouchListener { _, event ->
-                                                        if (event.action == MotionEvent.ACTION_DOWN) {
-                                                            // The user touched the web content
-                                                            if (uiState.isUrlBarVisible) {
-                                                                viewModel.updateUI {
+                                    ) {
+                                        if(isBrowserVisible) {
+                                            AndroidView(
+                                                modifier = Modifier.fillMaxSize(),
+                                                factory = { context ->
+                                                    // Create the View ONCE.
+                                                    // We never need to recreate this View during tab switching.
+                                                    SafeGeckoView(context).apply {
+                                                        layoutParams = ViewGroup.LayoutParams(
+                                                            ViewGroup.LayoutParams.MATCH_PARENT,
+                                                            ViewGroup.LayoutParams.MATCH_PARENT
+                                                        )
+                                                        isSaveEnabled = false
+
+                                                        setOnTouchListener { _, event ->
+                                                            if (event.action == MotionEvent.ACTION_DOWN) {
+                                                                // The user touched the web content
+                                                                if (uiState.isUrlBarVisible) {
+                                                                    viewModel.updateUI {
+                                                                        it.copy(
+                                                                            isUrlBarVisible = false
+                                                                        )
+                                                                    }
+                                                                }
+                                                                if (uiState.isMediaControlPanelVisible) viewModel.updateUI {
                                                                     it.copy(
-                                                                        isUrlBarVisible = false
+                                                                        isMediaControlPanelVisible = false
                                                                     )
                                                                 }
-                                                            }
-                                                            if (uiState.isMediaControlPanelVisible) viewModel.updateUI {
-                                                                it.copy(
-                                                                    isMediaControlPanelVisible = false
-                                                                )
-                                                            }
 
-                                                            if (viewModel.contextMenuData.value != null) viewModel.contextMenuData.value =
-                                                                null
-                                                            if (viewModel.choiceState.value != null) viewModel.choiceState.value =
-                                                                null
-                                                            if (viewModel.colorState.value != null) {
-                                                                viewModel.colorState.value?.result?.complete(
-                                                                    viewModel.colorState.value?.prompt?.dismiss()
-                                                                )
+                                                                if (viewModel.contextMenuData.value != null) viewModel.contextMenuData.value =
+                                                                    null
+                                                                if (viewModel.choiceState.value != null) viewModel.choiceState.value =
+                                                                    null
+                                                                if (viewModel.colorState.value != null) {
+                                                                    viewModel.colorState.value?.result?.complete(
+                                                                        viewModel.colorState.value?.prompt?.dismiss()
+                                                                    )
 
-                                                                viewModel.colorState.value = null
+                                                                    viewModel.colorState.value =
+                                                                        null
+                                                                }
                                                             }
+                                                            false
                                                         }
-                                                        false
+                                                        geckoViewRef.value = this
                                                     }
-                                                    geckoViewRef.value = this
+                                                },
+                                                update = { geckoView ->
+                                                    // 4. THE SWITCH: Just swap the session!
+                                                    // When 'activeSession' changes, this block runs automatically.
+                                                    // GeckoView handles detaching the old one and attaching the new one.
+                                                    //                                                geckoView.setSession(activeSession)
+
+                                                    if (geckoView.session != activeSession) {
+                                                        geckoView.releaseSession()
+                                                        geckoView.setSession(activeSession)
+                                                    }
+                                                    geckoViewRef.value = geckoView
+
                                                 }
-                                            },
-                                            update = { geckoView ->
-                                                // 4. THE SWITCH: Just swap the session!
-                                                // When 'activeSession' changes, this block runs automatically.
-                                                // GeckoView handles detaching the old one and attaching the new one.
-                                                geckoView.setSession(activeSession)
-                                                geckoViewRef.value = geckoView
-                                            }
-                                        )
+                                            )
+                                        }
                                     }
                                 }
                             }
