@@ -1364,11 +1364,11 @@ fun BrowserScreen(
             }
 
         }
-        LaunchedEffect(bottomPanelPagerState.currentPage) {
-            if (bottomPanelPagerState.currentPage == BottomPanelMode.LOCK.ordinal) {
-                viewModel.updateSettings { it.copy(isFullscreenMode = !settings.isFullscreenMode) }
-            }
-        }
+//        LaunchedEffect(bottomPanelPagerState.currentPage) {
+//            if (bottomPanelPagerState.currentPage == BottomPanelMode.LOCK.ordinal) {
+//                viewModel.updateSettings { it.copy(isFullscreenMode = !settings.isFullscreenMode) }
+//            }
+//        }
         LaunchedEffect(viewModel.resetBottomPanelTrigger.value) {
             if (bottomPanelPagerState.settledPage != BottomPanelMode.SEARCH.ordinal) {
                 bottomPanelPagerState.animateScrollToPage(BottomPanelMode.SEARCH.ordinal)
@@ -1385,7 +1385,8 @@ fun BrowserScreen(
 //
 //                }
 //            }
-            val shouldBounceBack = (bottomPanelPagerState.settledPage == BottomPanelMode.LOCK.ordinal) ||
+            val shouldBounceBack =
+//                (bottomPanelPagerState.settledPage == BottomPanelMode.LOCK.ordinal) ||
                     (bottomPanelPagerState.settledPage == BottomPanelMode.APPS.ordinal && viewModel.apps.isEmpty())
 
             if (shouldBounceBack) {

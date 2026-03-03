@@ -49,6 +49,8 @@ fun OptionsPanel(
                 addAppToPin()
             },
 
+
+
 //                OptionItem(
 //                    if (settings.value.isDesktopMode) R.drawable.ic_mobile else R.drawable.ic_desktop,
 //                    "Desktop layout",
@@ -100,6 +102,13 @@ fun OptionsPanel(
 //                    setIsOptionsPanelVisible(false)
 //                },
 
+            OptionItem(
+                R.drawable.ic_fullscreen ,
+                "fullscreen mode", // Display the number of open tabs
+                settings.value.isFullscreenMode
+            ) {
+                viewModel.updateSettings { it.copy(isFullscreenMode = !it.isFullscreenMode) }
+            },
             OptionItem(
                 R.drawable.ic_screen_rotation_up,
                 "rotate",

@@ -115,7 +115,6 @@ fun BottomPanel(
     optionsPanelHeightPx: Float,
     draggableState: AnchoredDraggableState<RevealState>,
     flingBehavior: FlingBehavior,
-
     bottomPanelPagerState: PagerState,
     onDownload: (String) -> Unit,
 
@@ -1159,7 +1158,7 @@ fun BottomPanel(
                                 }
                             }
 
-                            BottomPanelMode.LOCK.ordinal -> {
+                            BottomPanelMode.PROFILES.ordinal -> {
                                 Box(
                                     modifier = Modifier
                                         .height(
