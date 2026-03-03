@@ -54,13 +54,13 @@ import androidx.compose.runtime.collectAsState
 @Composable
 fun DownloadPanel(
 //    currentRotation: Float,
-    confirmationPopup: (message: String,url: String, onConfirm: () -> Unit, onCancel: () -> Unit) -> Unit,
+    confirmationPopup: (message: String, url: String, onConfirm: () -> Unit, onCancel: () -> Unit) -> Unit,
     isDownloadPanelVisible: Boolean,
     onDownloadRowClicked: (DownloadItem) -> Unit,
     onOpenFolderClicked: () -> Unit,
 ) {
     val viewModel = LocalBrowserViewModel.current
-val settings = viewModel.browserSettings.collectAsState()
+    val settings = viewModel.browserSettings.collectAsState()
     AnimatedVisibility(
         visible = isDownloadPanelVisible,
         enter = expandVertically(
@@ -95,28 +95,7 @@ val settings = viewModel.browserSettings.collectAsState()
                     )
                 )
         ) {
-            if (viewModel.downloads.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = settings.value.padding.dp)
-                        .padding(top = settings.value.padding.dp)
-                        .background(Color.Transparent)
-                        .clip(
-                            RoundedCornerShape(
-                                settings.value.cornerRadiusForLayer(3).dp
-                            )
-                        )
-                        .height(
-                            settings.value.heightForLayer(3).dp
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("no downloads .", color = Color.White)
-                }
-
-
-            } else {
+            if (!viewModel.downloads.isEmpty()) {
                 LazyColumn(
                     modifier = Modifier
                         .heightIn(max = settings.value.maxContainerSizeForLayer(3).dp)
@@ -185,7 +164,7 @@ val settings = viewModel.browserSettings.collectAsState()
                         buttonDescription = "clear download list",
                         painterId = R.drawable.ic_clear_all,
 
-                    )
+                        )
             }
 
         }
@@ -202,7 +181,7 @@ fun DownloadRow(
     onDeleteClicked: () -> Unit
 ) {
     val viewModel = LocalBrowserViewModel.current
-val settings = viewModel.browserSettings.collectAsState()
+    val settings = viewModel.browserSettings.collectAsState()
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
     // 1. The root is now a Box to allow layering.
@@ -287,7 +266,7 @@ val settings = viewModel.browserSettings.collectAsState()
                         ),
                         contentDescription = "Download Icon",
                         // Change the tint based on status for better visual feedback
-                        tint = if(item.status == DownloadStatus.RUNNING) Color(settings.value.highlightColor) else Color.Black,
+                        tint = if (item.status == DownloadStatus.RUNNING) Color(settings.value.highlightColor) else Color.Black,
                         modifier = Modifier
                             .size(24.dp)
                             .padding(4.dp)
