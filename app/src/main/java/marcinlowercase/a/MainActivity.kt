@@ -94,6 +94,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -1830,45 +1831,39 @@ fun BrowserScreen(
         var isBrowserVisible by remember { mutableStateOf(true) }
 
         val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
-        // Only Android 14 (API 34) and newer have the SurfaceSyncGroup crash
         val isNewAndroid = Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE
 
-        DisposableEffect(activeSession, lifecycleOwner) {
-            val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
-                // DO NOT fetch the geckoViewRef here! It might be stale during transitions.
+        // 1. Keep a constantly updated reference to the active session.
+        // This allows the lifecycle observer to use the correct session without restarting!
+        val currentActiveSession by rememberUpdatedState(activeSession)
 
+        // 2. ONLY key on the lifecycleOwner. Tab switches will no longer restart this effect!
+        DisposableEffect(lifecycleOwner) {
+            val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
                 when (event) {
                     androidx.lifecycle.Lifecycle.Event.ON_RESUME -> {
                         Log.d("Lifecycle", "ON_RESUME: Waking up")
-
-                        // 1. Tell Compose to bring the view back into the UI tree
                         isBrowserVisible = true
 
                         coroutineScope.launch {
-                            // 2. Wait for Compose to actually lay out the new AndroidView
-                            // Give it enough time to recreate the Surface (250ms is usually safe)
                             delay(250)
 
-                            // 3. NOW fetch the freshly created view!
                             val currentGeckoView = geckoViewRef.value
-                            val safeGeckoView = currentGeckoView as? SafeGeckoView // Use your custom wrapper if applicable
+                            val safeGeckoView = currentGeckoView as? SafeGeckoView
 
-                            // 4. Wake up the engine logic
-                            activeSession.setActive(true)
-
-                            // 5. Reattach Keyboard to the NEW view
+                            // Use currentActiveSession here!
+                            currentActiveSession.setActive(true)
                             safeGeckoView?.reattachKeyboard()
 
                             currentGeckoView?.let { gv ->
-                                // THE SILVER BULLET FIX: The Phantom Tap
-                                // We simulate an instantaneous Down/Cancel event. This wakes up the
-                                // Gecko compositor thread and forces it to draw to the new Surface
-                                // without triggering any link clicks on the webpage.
-
                                 val now = android.os.SystemClock.uptimeMillis()
-                                val downEvent = MotionEvent.obtain(now, now, MotionEvent.ACTION_DOWN, 0f, 0f, 0)
-                                // ACTION_CANCEL ensures no "click" is registered by the DOM
-                                val cancelEvent = MotionEvent.obtain(now, now + 10, MotionEvent.ACTION_CANCEL, 0f, 0f, 0)
+                                val downEvent = MotionEvent.obtain(now, now, MotionEvent.ACTION_DOWN, 0f, 0f, 0).apply {
+                                    // 3. Mark this tap as synthetic so our touch listener can ignore it
+                                    source = android.view.InputDevice.SOURCE_UNKNOWN
+                                }
+                                val cancelEvent = MotionEvent.obtain(now, now + 10, MotionEvent.ACTION_CANCEL, 0f, 0f, 0).apply {
+                                    source = android.view.InputDevice.SOURCE_UNKNOWN
+                                }
 
                                 gv.dispatchTouchEvent(downEvent)
                                 gv.dispatchTouchEvent(cancelEvent)
@@ -1876,7 +1871,6 @@ fun BrowserScreen(
                                 downEvent.recycle()
                                 cancelEvent.recycle()
 
-                                // Force Android's View system to recognize the update
                                 gv.requestLayout()
                                 gv.invalidate()
                             }
@@ -1885,20 +1879,16 @@ fun BrowserScreen(
                     androidx.lifecycle.Lifecycle.Event.ON_PAUSE -> {
                         val isPip = mainActivity.isPipMode || mainActivity.isEnteringPip
                         if (!isPip) {
-                            // Fetch the CURRENT view to detach properly
                             val currentGeckoView = geckoViewRef.value
                             val safeGeckoView = currentGeckoView as? SafeGeckoView
 
-                            // 1. Cut keyboard connection
                             safeGeckoView?.detachKeyboard()
                             keyboardController?.hide()
 
-                            // 2. Sleep session
-                            activeSession.setActive(false)
+                            // Use currentActiveSession here!
+                            currentActiveSession.setActive(false)
 
                             if (isNewAndroid) {
-                                // ANDROID 14+ PATH:
-                                // Remove the view to prevent the SurfaceSyncGroup deadlock crash.
                                 isBrowserVisible = false
                             }
                         }
@@ -1908,12 +1898,16 @@ fun BrowserScreen(
             }
 
             lifecycleOwner.lifecycle.addObserver(observer)
-            activeSession.setActive(true)
+
+            // Safe to use currentActiveSession for the initial setup
+            currentActiveSession.setActive(true)
             isBrowserVisible = true
 
             onDispose {
                 lifecycleOwner.lifecycle.removeObserver(observer)
-                activeSession.setActive(false)
+                // We do NOT call setActive(false) here. If Compose is just
+                // temporarily disposing this part of the tree, we don't want to kill the engine.
+                // ON_PAUSE will handle actual backgrounding.
             }
         }
 
@@ -2331,6 +2325,11 @@ fun BrowserScreen(
                                                         isSaveEnabled = false
 
                                                         setOnTouchListener { _, event ->
+
+                                                            if (event.source == android.view.InputDevice.SOURCE_UNKNOWN) {
+                                                                return@setOnTouchListener false
+                                                            }
+
                                                             if (event.action == MotionEvent.ACTION_DOWN) {
                                                                 // The user touched the web content
                                                                 if (uiState.isUrlBarVisible) {
