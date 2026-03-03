@@ -2273,17 +2273,7 @@ fun BrowserScreen(
                     ) {
                         // Webview Container
                         key(viewModel.sessionRefreshTrigger.intValue) {
-                            AnimatedVisibility(
-                                visible = viewModel.activeTab!!.errorState == null,
-                                enter = slideInVertically(
-                                    animationSpec = tween(settings.animationSpeedForLayer(0) * 4),
-                                    initialOffsetY = { it }
-                                ),
-                                exit = slideOutVertically(
-                                    animationSpec = tween(settings.animationSpeedForLayer(0) * 4),
-                                    targetOffsetY = { -it }
-                                )
-                            ) {
+                            if(viewModel.activeTab!!.errorState == null) {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -2481,60 +2471,27 @@ fun BrowserScreen(
                         )
 
 
+
                         // 3. The Error Overlay (NEW)
-                        AnimatedContent(
-                            targetState = viewModel.activeTab!!.errorState,
-                            transitionSpec = {
-                                if (targetState != null) {
-                                    // Error Appears: Slide In from Bottom
-                                    slideInVertically(
-                                        animationSpec = tween(
-                                            settings.animationSpeedForLayer(
-                                                0
-                                            ) * 4
-                                        ),
-                                        initialOffsetY = { it }
-                                    ) togetherWith ExitTransition.None
-                                } else {
-                                    (EnterTransition.None togetherWith slideOutVertically(
-                                        animationSpec = tween(
-                                            settings.animationSpeedForLayer(
-                                                0
-                                            ) * 4
-                                        ),
-                                        targetOffsetY = { -it }
-                                    )).using(
-                                        // FIX IS HERE:
-                                        // 1. clip = false: Lets the error screen draw outside the container as it shrinks
-                                        // 2. sizeAnimationSpec: Matches the duration so the container doesn't vanish too fast
-                                        SizeTransform(clip = false) { _, _ ->
-                                            tween(settings.animationSpeedForLayer(0) * 4)
-                                        }
+
+                        val targetState = viewModel.activeTab!!.errorState
+                        if (targetState != null) {
+                            ErrorScreen(
+                                modifier = Modifier
+                                    .padding(webViewPaddingValue),
+                                errorState = targetState, // Safe, no !! needed
+                                onRetry = {
+                                    val urlToReload = targetState.failingUrl
+                                    webViewLoad(activeSession, urlToReload, settings)
+                                },
+                                onHome = {
+                                    webViewLoad(
+                                        activeSession,
+                                        settings.defaultUrl,
+                                        settings
                                     )
                                 }
-                            },
-                            label = "ErrorAnimation"
-                        ) { targetState ->
-                            // CRITICAL: Check 'targetState', NOT 'errorState'
-                            // targetState is the "captured" value for this specific animation frame
-                            if (targetState != null) {
-                                ErrorScreen(
-                                    modifier = Modifier
-                                        .padding(webViewPaddingValue),
-                                    errorState = targetState, // Safe, no !! needed
-                                    onRetry = {
-                                        val urlToReload = targetState.failingUrl
-                                        webViewLoad(activeSession, urlToReload, settings)
-                                    },
-                                    onHome = {
-                                        webViewLoad(
-                                            activeSession,
-                                            settings.defaultUrl,
-                                            settings
-                                        )
-                                    }
-                                )
-                            }
+                            )
                         }
                         BottomPanel(
                             modifier = Modifier
