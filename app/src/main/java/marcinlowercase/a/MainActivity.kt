@@ -372,13 +372,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        if (requestedOrientation != ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) {
-            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-        }
-    }
-
     var isCurrentlyFullscreen by mutableStateOf(false)
     var isEnteringPip by mutableStateOf(false)
 
@@ -402,18 +395,20 @@ class MainActivity : ComponentActivity() {
         Log.i("marcPip", "onUserLeaveHint")
 
         hideKeyboardAndClearFocus()
-        if (isCurrentlyFullscreen) {
-            Log.i("marcPip", "isCurrentlyFullscreen $isCurrentlyFullscreen")
 
-            isEnteringPip = true
+//        if (isCurrentlyFullscreen) {
+//            Log.i("marcPip", "isCurrentlyFullscreen $isCurrentlyFullscreen")
+//
+//            isEnteringPip = true
+//
+//
+//            // Only call enterPip() manually on older Androids.
+//            // Android 12+ handles it automatically via updatePipParams/setAutoEnterEnabled.
+//            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+//                enterPip()
+//            }
+//        }
 
-
-            // Only call enterPip() manually on older Androids.
-            // Android 12+ handles it automatically via updatePipParams/setAutoEnterEnabled.
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-                enterPip()
-            }
-        }
         super.onUserLeaveHint()
     }
 
