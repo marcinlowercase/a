@@ -372,6 +372,13 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (requestedOrientation != ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) {
+            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        }
+    }
+
     var isCurrentlyFullscreen by mutableStateOf(false)
     var isEnteringPip by mutableStateOf(false)
 
