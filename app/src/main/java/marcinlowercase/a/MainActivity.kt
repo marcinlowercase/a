@@ -2900,7 +2900,7 @@ fun BrowserScreen(
                                                 .size(settings.heightForLayer(4).dp),
                                             // Use a contrasting color that works well on the dark scrim.
                                             color = Color.White,
-                                            strokeWidth = settings.padding.dp
+                                            strokeWidth = 3.dp
                                         )
                                     }
                                 }
