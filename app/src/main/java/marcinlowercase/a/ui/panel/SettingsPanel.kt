@@ -479,6 +479,7 @@ fun SettingsPanel(
 
     LaunchedEffect(currentView) {
         if (currentView == SettingPanelView.CORNER_RADIUS) {
+            if (settings.value.isSharpMode) viewModel.updateSettings { it.copy(isSharpMode = false) }
             viewModel.backgroundColor.value = Color.Red
             viewModel.updateUI { it.copy(isSettingCornerRadius = true) }
             viewModel.updateSettings{it.copy(isFullscreenMode = true)}
