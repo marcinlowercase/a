@@ -1112,10 +1112,7 @@ fun BrowserScreen(
     // 1. State to track the single "main" active panel
     var activeMainPanel by remember { mutableStateOf<ActivePanel?>(null) }
 
-    // 2. Observers for MAIN panels: When a main panel opens, it claims focus.
-    LaunchedEffect(uiState.isAppsPanelVisible) {
-        if (uiState.isAppsPanelVisible) activeMainPanel = ActivePanel.APPS
-    }
+
     LaunchedEffect(viewModel.suggestions) {
         if (viewModel.suggestions.isNotEmpty()) activeMainPanel = ActivePanel.SUGGESTIONS
     }
@@ -1155,9 +1152,6 @@ fun BrowserScreen(
     LaunchedEffect(activeMainPanel) {
         val current = activeMainPanel // Capture the current state
 
-        if (current != ActivePanel.APPS && uiState.isAppsPanelVisible) {
-            viewModel.updateUI { it.copy(isAppsPanelVisible = false) }
-        }
         if (current != ActivePanel.DOWNLOADS && uiState.isDownloadPanelVisible) viewModel.updateUI {
             it.copy(
                 isDownloadPanelVisible = false
