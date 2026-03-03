@@ -473,7 +473,7 @@ fun BottomPanel(
                     )
 
 
-                AnimatedVisibility(visible = viewModel.suggestions.isNotEmpty()) {
+                AnimatedVisibility(visible = viewModel.suggestions.isNotEmpty() && textFieldState.text.isNotEmpty()) {
                     LazyColumn(
                         modifier = Modifier
                             .padding(horizontal = settings.value.padding.dp)
