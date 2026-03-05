@@ -166,6 +166,7 @@ import org.mozilla.geckoview.GeckoView
 import org.mozilla.geckoview.StorageController
 import java.io.File
 import java.io.FileOutputStream
+import kotlin.math.ceil
 import kotlin.math.roundToInt
 import kotlin.system.exitProcess
 
@@ -765,7 +766,7 @@ fun BrowserScreen(
     //region OptionsPanel Drag State
     val optionsPanelHeight = (settings.heightForLayer(2) + settings.padding).dp
 
-    val appsPanelHeight = (settings.heightForLayer(3) * settings.maxListHeight).dp + (settings.padding * 3).dp
+    val appsPanelHeight = (settings.heightForLayer(3).dp * settings.maxListHeight) + (settings.padding.dp * 2) + (if ( ceil(settings.maxListHeight).toInt() > 1) settings.padding.dp else 0.dp)
 
     val totalRevealHeight = optionsPanelHeight + settings.padding.dp  + appsPanelHeight
     viewModel.updateUI { it.copy(

@@ -38,6 +38,8 @@ import coil.request.ImageRequest
 import marcinlowercase.a.R
 import marcinlowercase.a.core.data_class.App
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
+import kotlin.math.ceil
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -50,9 +52,7 @@ fun AppsPanel(
     val settings = viewModel.browserSettings.collectAsState()
 
 
-    val maxPanelHeight =
-        (settings.value.heightForLayer(3).dp * settings.value.maxListHeight) + (settings.value.padding.dp * 3)
-
+    val maxPanelHeight = (settings.value.heightForLayer(3).dp * settings.value.maxListHeight) + (settings.value.padding.dp * 2) + (if ( ceil(settings.value.maxListHeight).toInt() > 1) settings.value.padding.dp else 0.dp)
     val profiles = viewModel.profiles
 
     val realPageCount = profiles.size
@@ -188,6 +188,12 @@ fun AppsPanel(
 
                         )
                     }
+                    val minSlots =  ceil(settings.value.maxListHeight).toInt() * 4
+                    val placeholdersNeeded = (minSlots - pageApps.size).coerceAtLeast(0)
+
+                    items(placeholdersNeeded) {
+                        PlaceholderIcon()
+                    }
                 }
 
 
@@ -200,7 +206,23 @@ fun AppsPanel(
 
 
 }
+@Composable
+fun PlaceholderIcon(
+    modifier: Modifier = Modifier,
+) {
+    val viewModel = LocalBrowserViewModel.current
+    val settings = viewModel.browserSettings.collectAsState()
 
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(3).dp))
+            .height(settings.value.heightForLayer(3).dp)
+            // Use same opacity as AppIcon background for consistency, or slightly lower to indicate "empty"
+            .background(Color.Black.copy(settings.value.backSquareIdleOpacity * 0.5f))
+            .fillMaxWidth()
+        // No border, no click listeners
+    )
+}
 @Composable
 fun AppIcon(
     app: App,
