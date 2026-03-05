@@ -100,6 +100,45 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     val activeProfileId = mutableStateOf(profileManager.getActiveProfileId())
     val inspectingProfileId = mutableStateOf("")
 
+
+//    // v1 close all tab when change profile
+//    fun switchProfile(newProfileId: String) {
+//        if (activeProfileId.value == newProfileId) return
+//
+//        if (inspectingAppId.longValue != 0L) inspectingAppId.longValue = 0L
+//
+//        // 1. Freeze current tabs to disk before switching
+//        tabManager.saveTabs(activeProfileId.value, tabs.toList(), _activeTabIndex.value)
+//
+//        // 2. Clear current sessions in GeckoView (Important so old audio stops playing)
+//        tabs.forEach { geckoManager.closeSession(it) }
+//
+//        // 3. Update active profile ID and save to disk
+//        activeProfileId.value = newProfileId
+//        profileManager.saveActiveProfileId(newProfileId)
+//
+//        // 4. Reload all memory lists from the new profile's SharedPreferences
+//        apps.clear()
+//        apps.addAll(appManager.loadApps(newProfileId))
+//
+//        visitedUrlMap.clear()
+//        visitedUrlMap.putAll(visitedUrlManager.loadUrlMap(newProfileId))
+//
+//        siteSettings.clear()
+//        siteSettings.putAll(siteSettingsManager.loadSettings(newProfileId))
+//
+//        // 5. Reload Tabs and set new Active Index
+//        val loadedTabs = tabManager.loadTabs(newProfileId, null)
+//        tabs.clear()
+//        tabs.addAll(loadedTabs)
+//        _activeTabIndex.value = tabManager.getActiveTabIndex(newProfileId).coerceAtLeast(0)
+//
+//        // 6. Force UI to update session
+//        sessionRefreshTrigger.intValue++
+//    }
+
+
+
     fun switchProfile(newProfileId: String) {
         if (activeProfileId.value == newProfileId) return
 
@@ -108,8 +147,18 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         // 1. Freeze current tabs to disk before switching
         tabManager.saveTabs(activeProfileId.value, tabs.toList(), _activeTabIndex.value)
 
-        // 2. Clear current sessions in GeckoView (Important so old audio stops playing)
-        tabs.forEach { geckoManager.closeSession(it) }
+        // 2. INSTEAD OF CLOSING, WE JUST DEACTIVATE THEM
+        // This keeps the GeckoSessions alive in memory (GeckoManager.sessionPool).
+        // When you switch back, the page will instantly appear without reloading!
+        tabs.forEach { tab ->
+            val session = geckoManager.getSession(tab)
+            session.setActive(false)
+
+            // Stop media playing in the background from the old Space so audio doesn't bleed over
+            if (geckoManager.activeMediaGeckoSession == session) {
+                geckoManager.activeGeckoMediaSession?.pause()
+            }
+        }
 
         // 3. Update active profile ID and save to disk
         activeProfileId.value = newProfileId
@@ -131,10 +180,80 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         tabs.addAll(loadedTabs)
         _activeTabIndex.value = tabManager.getActiveTabIndex(newProfileId).coerceAtLeast(0)
 
-        // 6. Force UI to update session
+        // 6. Pre-warm and activate the newly selected tab in the new Space
+        activeTab?.let {
+            geckoManager.getSession(it).setActive(true)
+        }
+
+        // 7. Force UI to update session
         sessionRefreshTrigger.intValue++
     }
 
+//    // keep active tab of each profile alive
+//    fun switchProfile(newProfileId: String) {
+//        if (activeProfileId.value == newProfileId) return
+//
+//        if (inspectingAppId.value != 0L) inspectingAppId.value = 0L
+//
+//        // 1. Identify the Active Tab of the profile we are LEAVING
+//        val currentActiveTabId = activeTab?.id
+//
+//        // 2. Prepare tabs for saving: Update states and Manage RAM
+//        val updatedTabsForSave = tabs.map { tab ->
+//            // CRITICAL: Grab the latest state from the engine before we potentially kill the session.
+//            // If we don't do this, the user might lose their scroll position on background tabs.
+//            val liveState = geckoManager.getSessionStateString(tab.id)
+//            val updatedTab = if (liveState != null) tab.copy(savedState = liveState) else tab
+//
+//            if (tab.id == currentActiveTabId) {
+//                // --- ACTIVE TAB ---
+//                // KEEP ALIVE: Just pause CPU/Timers.
+//                // It stays in RAM so switching back is instant.
+//                geckoManager.getSession(tab).setActive(false)
+//            } else {
+//                // --- BACKGROUND TABS ---
+//                // KILL: Close the session to free up RAM.
+//                // When we return to this profile, these will reload from 'savedState'.
+//                geckoManager.closeSession(tab)
+//            }
+//            updatedTab
+//        }
+//
+//        // 3. Save the tabs (with the fresh states) to disk
+//        tabManager.saveTabs(activeProfileId.value, updatedTabsForSave, _activeTabIndex.value)
+//
+//        // 4. Update Profile ID
+//        activeProfileId.value = newProfileId
+//        profileManager.saveActiveProfileId(newProfileId)
+//
+//        // 5. Reload auxiliary data (Apps, History, Settings)
+//        apps.clear()
+//        apps.addAll(appManager.loadApps(newProfileId))
+//
+//        visitedUrlMap.clear()
+//        visitedUrlMap.putAll(visitedUrlManager.loadUrlMap(newProfileId))
+//
+//        siteSettings.clear()
+//        siteSettings.putAll(siteSettingsManager.loadSettings(newProfileId))
+//
+//        // 6. Reload Tabs for the NEW profile
+//        val loadedTabs = tabManager.loadTabs(newProfileId, null)
+//        tabs.clear()
+//        tabs.addAll(loadedTabs)
+//
+//        // 7. Set new Active Index
+//        _activeTabIndex.value = tabManager.getActiveTabIndex(newProfileId).coerceAtLeast(0)
+//
+//        // 8. Wake up the active tab of the NEW profile
+//        activeTab?.let {
+//            // If this was the "Active Tab" when we last left this profile, it's still in RAM.
+//            // If it was a background tab, it will re-initialize from savedState automatically.
+//            geckoManager.getSession(it).setActive(true)
+//        }
+//
+//        // 9. Force UI to update session
+//        sessionRefreshTrigger.intValue++
+//    }
     fun createNewProfile() {
         val newProfile = Profile(
             id = "profile_${System.currentTimeMillis()}",
