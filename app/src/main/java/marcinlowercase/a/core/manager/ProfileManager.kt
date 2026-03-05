@@ -33,7 +33,7 @@ class ProfileManager(context: Context) {
     }
 
     private fun createDefaultProfile(): List<Profile> {
-        val defaultProfile = Profile(id = "profile_1", isDefault = true)
+        val defaultProfile = Profile(id = "profile_1")
         saveProfiles(listOf(defaultProfile))
         return listOf(defaultProfile)
     }
