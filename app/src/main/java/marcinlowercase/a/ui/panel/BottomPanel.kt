@@ -1629,7 +1629,6 @@ fun BottomPanel(
                                 viewModel.updateUI { it.copy(isSettingsPanelVisible = false) }
                                 viewModel.updateUI { it.copy(isUrlBarVisible = false) }
                             },
-                            confirmationPopup = confirmationPopup
 
                         )
 

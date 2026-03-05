@@ -293,7 +293,7 @@ fun OptionsPanel(
                     CustomIconButton(
                         layer = 2,
                         modifier = Modifier.weight(1f),
-                        onTap = option.onClick,
+                        onTap = { if (!pagerState.isScrollInProgress) option.onClick() },
                         textIcon = option.textIcon,
                         buttonDescription = option.contentDescription,
                         painterId = option.iconRes,

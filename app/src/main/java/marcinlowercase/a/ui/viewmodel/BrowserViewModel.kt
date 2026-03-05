@@ -257,7 +257,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     fun createNewProfile() {
         val newProfile = Profile(
             id = "profile_${System.currentTimeMillis()}",
-            isDefault = false
         )
         profiles.add(newProfile)
         profileManager.saveProfiles(profiles)

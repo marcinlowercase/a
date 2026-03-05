@@ -45,14 +45,16 @@ import kotlin.math.roundToInt
 @Composable
 fun AppsPanel(
     onAppClick: (App) -> Unit = {},
-    confirmationPopup: (message: String, url: String, onConfirm: () -> Unit, onCancel: () -> Unit) -> Unit,
-
-    ) {
+) {
     val viewModel = LocalBrowserViewModel.current
     val settings = viewModel.browserSettings.collectAsState()
 
 
-    val maxPanelHeight = (settings.value.heightForLayer(3).dp * settings.value.maxListHeight) + (settings.value.padding.dp * 2) + (if ( ceil(settings.value.maxListHeight).toInt() > 1) settings.value.padding.dp else 0.dp)
+    val maxPanelHeight =
+        (settings.value.heightForLayer(3).dp * settings.value.maxListHeight) + (settings.value.padding.dp * 2) + (if (ceil(
+                settings.value.maxListHeight
+            ).toInt() > 1
+        ) settings.value.padding.dp else 0.dp)
     val profiles = viewModel.profiles
 
     val realPageCount = profiles.size
@@ -121,15 +123,19 @@ fun AppsPanel(
                         .height(maxPanelHeight)
                         .padding(horizontal = settings.value.padding.dp)
                         .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp))
-                        .background( when {
-                            profiles.size <= 1 && isDeletingProfile.value->  Color.Gray
-                            isDeletingProfile.value -> Color(settings.value.highlightColor)
-                            else -> Color.Transparent
-                        }
+                        .background(
+                            when {
+                                profiles.size <= 1 && isDeletingProfile.value -> Color.Gray
+                                isDeletingProfile.value -> Color(settings.value.highlightColor)
+                                else -> Color.Transparent
+                            }
                         )
                         .clickable {
-                            if (isDeletingProfile.value && profiles.size > 1) viewModel.deleteProfile(pageProfile.id)
-                            if (isDeletingProfile.value && profiles.size <= 1)isDeletingProfile.value = false
+                            if (isDeletingProfile.value && profiles.size > 1) viewModel.deleteProfile(
+                                pageProfile.id
+                            )
+                            if (isDeletingProfile.value && profiles.size <= 1) isDeletingProfile.value =
+                                false
                             else isDeletingProfile.value = true
 
 
@@ -140,7 +146,7 @@ fun AppsPanel(
                 ) {
                     Text(
                         text = when {
-                            profiles.size <= 1 && isDeletingProfile.value->  "cannot delete profile ${profileIndex + 1} . "
+                            profiles.size <= 1 && isDeletingProfile.value -> "cannot delete profile ${profileIndex + 1} . "
                             isDeletingProfile.value -> "delete profile ${profileIndex + 1} ? "
                             else -> "profile ${profileIndex + 1}"
                         },
@@ -166,29 +172,34 @@ fun AppsPanel(
                         AppIcon(
                             app = app,
                             onClick = {
-                                if (viewModel.inspectingAppId.longValue != 0L && viewModel.inspectingAppId.longValue != app.id) {
-                                    viewModel.inspectingAppId.longValue = app.id
-                                } else {
-                                    onAppClick(app)
-
+                                if (!pagerState.isScrollInProgress) {
+                                    if (viewModel.inspectingAppId.longValue != 0L && viewModel.inspectingAppId.longValue != app.id) {
+                                        viewModel.inspectingAppId.longValue = app.id
+                                    } else {
+                                        onAppClick(app)
+                                    }
                                 }
                             },
                             onDoubleClick = {
-                                viewModel.createNewTab(
-                                    viewModel.activeTabIndex.value + 1,
-                                    app.url
-                                )
-                                viewModel.updateUI { it.copy(isSettingsPanelVisible = false) }
-                                viewModel.updateUI { it.copy(isUrlBarVisible = false) }
+                                if (!pagerState.isScrollInProgress) {
+                                    viewModel.createNewTab(
+                                        viewModel.activeTabIndex.value + 1,
+                                        app.url
+                                    )
+                                    viewModel.updateUI { it.copy(isSettingsPanelVisible = false) }
+                                    viewModel.updateUI { it.copy(isUrlBarVisible = false) }
+                                }
                             },
                             onLongClick = {
-                                viewModel.inspectingAppId.longValue =
-                                    if (viewModel.inspectingAppId.longValue != app.id) app.id else 0
+                                if (!pagerState.isScrollInProgress) {
+                                    viewModel.inspectingAppId.longValue =
+                                        if (viewModel.inspectingAppId.longValue != app.id) app.id else 0
+                                }
                             }
 
                         )
                     }
-                    val minSlots =  ceil(settings.value.maxListHeight).toInt() * 4
+                    val minSlots = ceil(settings.value.maxListHeight).toInt() * 4
                     val placeholdersNeeded = (minSlots - pageApps.size).coerceAtLeast(0)
 
                     items(placeholdersNeeded) {
@@ -206,6 +217,7 @@ fun AppsPanel(
 
 
 }
+
 @Composable
 fun PlaceholderIcon(
     modifier: Modifier = Modifier,
@@ -223,6 +235,7 @@ fun PlaceholderIcon(
         // No border, no click listeners
     )
 }
+
 @Composable
 fun AppIcon(
     app: App,
