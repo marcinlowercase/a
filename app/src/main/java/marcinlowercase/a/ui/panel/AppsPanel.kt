@@ -51,7 +51,7 @@ fun AppsPanel(
 
 
     val maxPanelHeight =
-        (settings.value.heightForLayer(3).dp * settings.value.maxListHeight) + (settings.value.padding.dp * 2)
+        (settings.value.heightForLayer(3).dp * settings.value.maxListHeight) + (settings.value.padding.dp * 3)
 
     val profiles = viewModel.profiles
 

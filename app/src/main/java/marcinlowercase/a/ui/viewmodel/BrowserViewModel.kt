@@ -319,7 +319,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             backSquareOffsetX = sharedPrefs.getFloat("back_square_offset_x", -1f),
             backSquareOffsetY = sharedPrefs.getFloat("back_square_offset_y", -1f),
             backSquareIdleOpacity = sharedPrefs.getFloat("back_square_idle_opacity", 0.2f),
-            maxListHeight = sharedPrefs.getFloat("max_list_height", 2.5f),
+            maxListHeight = sharedPrefs.getFloat("max_list_height", 1.5f),
             searchEngine = sharedPrefs.getInt("search_engine", 0),
             isFullscreenMode = sharedPrefs.getBoolean("is_fullscreen_mode", false),
             highlightColor = sharedPrefs.getInt("highlight_color", 0xFFBA160C.toInt()),

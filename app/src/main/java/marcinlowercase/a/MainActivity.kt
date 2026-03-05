@@ -765,7 +765,7 @@ fun BrowserScreen(
     //region OptionsPanel Drag State
     val optionsPanelHeight = (settings.heightForLayer(2) + settings.padding).dp
 
-    val appsPanelHeight = (settings.heightForLayer(3) * settings.maxListHeight).dp + (settings.padding * 2).dp
+    val appsPanelHeight = (settings.heightForLayer(3) * settings.maxListHeight).dp + (settings.padding * 3).dp
 
     val totalRevealHeight = optionsPanelHeight + settings.padding.dp  + appsPanelHeight
     viewModel.updateUI { it.copy(
