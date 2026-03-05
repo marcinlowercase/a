@@ -18,7 +18,6 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.Job
 import marcinlowercase.a.R
 import marcinlowercase.a.core.constant.privacy_policy_url
 import marcinlowercase.a.core.data_class.OptionItem
@@ -31,15 +30,22 @@ import kotlin.math.roundToInt
 @Composable
 fun OptionsPanel(
     onCloseAllTabs: () -> Unit,
-    setIsOptionsPanelVisible: (Boolean) -> Job,
     addAppToPin: () -> Unit,
 ) {
     val viewModel = LocalBrowserViewModel.current
     val uiState = viewModel.uiState.collectAsState()
     val settings = viewModel.browserSettings.collectAsState()
-
     val allOptions =
         listOf(
+
+//            OptionItem(
+//                R.drawable.ic_apps, // You'll need an icon for this
+//                "spaces", // Display the number of open tabs
+//                uiState.value.isAppsPanelVisible,
+//                currentSpaceIndex.toString()
+//            ) {
+//                viewModel.updateUI { it.copy(isAppsPanelVisible = !it.isAppsPanelVisible) }
+//            },
 
             OptionItem(
                 R.drawable.ic_keep, // You'll need an icon for this
@@ -48,7 +54,6 @@ fun OptionsPanel(
             ) {
                 addAppToPin()
             },
-
 
 
 //                OptionItem(
@@ -66,11 +71,12 @@ fun OptionsPanel(
                 viewModel.updateUI {
                     it.copy(
                         isTabsPanelVisible = !it.isTabsPanelVisible,
-                        isTabsPanelLock = !it.isTabsPanelLock
+                        isTabsPanelLock = !it.isTabsPanelLock,
                     )
                 }
-
-                setIsOptionsPanelVisible(false)
+                if(!uiState.value.isAppsPanelVisible) {
+                    viewModel.updateUI { it.copy(isOptionsPanelVisible = false, isAppsPanelVisible = false) }
+                }
 
             },
             OptionItem(
@@ -80,7 +86,7 @@ fun OptionsPanel(
             ) {
                 viewModel.updateSettings{it.copy(isSharpMode = !it.isSharpMode)}
 
-                setIsOptionsPanelVisible(false)
+                viewModel.updateUI { it.copy(isOptionsPanelVisible = false, isAppsPanelVisible = false) }
 
             },
 
@@ -90,7 +96,7 @@ fun OptionsPanel(
                 enabled = viewModel.recentlyClosedTabs.isNotEmpty(), // Only enable if there are tabs to reopen
             ) {
                 viewModel.reopenClosedTab()
-                setIsOptionsPanelVisible(false) // Close the panel after action
+                viewModel.updateUI { it.copy(isOptionsPanelVisible = false, isAppsPanelVisible = false) }
             },
 //                OptionItem(
 //                    R.drawable.ic_mouse_cursor, // You'll need a download icon
@@ -121,8 +127,10 @@ fun OptionsPanel(
                 "find in page",
                 uiState.value.isFindInPageVisible
             ) {
-                viewModel.updateUI { it.copy(isFindInPageVisible = !it.isFindInPageVisible) }
-                setIsOptionsPanelVisible(false)
+                viewModel.updateUI { it.copy(
+                    isFindInPageVisible = !it.isFindInPageVisible,
+                    isOptionsPanelVisible = false, isAppsPanelVisible = false
+                ) }
             },
 
             OptionItem(
@@ -130,10 +138,20 @@ fun OptionsPanel(
                 "download panel",
                 uiState.value.isDownloadPanelVisible
             ) {
-                viewModel.updateUI { it.copy(isDownloadPanelVisible = !it.isDownloadPanelVisible) }
-                setIsOptionsPanelVisible(false)
+                viewModel.updateUI { it.copy(
+                    isDownloadPanelVisible = !it.isDownloadPanelVisible,
+                    isOptionsPanelVisible = false, isAppsPanelVisible = false
+                ) }
             },
 
+            OptionItem(
+                R.drawable.ic_person_add,
+                "new profile",
+                false
+            ) {
+                viewModel.createNewProfile()
+
+            },
             OptionItem(
                 iconRes = R.drawable.ic_lightbulb, // Or a more specific icon like ic_manage_search
                 contentDescription = "suggestions",
@@ -142,7 +160,7 @@ fun OptionsPanel(
                 // When clicked, create a new settings object with the toggled value
 
                 viewModel.updateSettings{it.copy(showSuggestions = !it.showSuggestions)}
-                setIsOptionsPanelVisible(false)
+                viewModel.updateUI { it.copy(isOptionsPanelVisible = false, isAppsPanelVisible = false) }
 
             },
             OptionItem(
@@ -158,8 +176,7 @@ fun OptionsPanel(
                 // This will automatically tell the ViewModel, which will tell GeckoManager!
                 viewModel.updateField(BrowserSettingField.AD_BLOCK_ENABLED, newState)
 
-                // Optional: Close the options panel after clicking, or leave it open
-                setIsOptionsPanelVisible(false)
+                viewModel.updateUI { it.copy(isOptionsPanelVisible = false, isAppsPanelVisible = false) }
             },
             OptionItem(
                 iconRes = R.drawable.ic_close_all_tabs, // Ensure you have this drawable
@@ -167,7 +184,7 @@ fun OptionsPanel(
                 enabled = false // Not a toggle, so never "active"
             ) {
                 onCloseAllTabs() // Call the function from BrowserScreen
-                setIsOptionsPanelVisible(false) // Hide the panel after initiating
+                viewModel.updateUI { it.copy(isOptionsPanelVisible = false, isAppsPanelVisible = false) }
             },
 //            OptionItem(
 //                iconRes = R.drawable.ic_info, // Or any help/guide icon you have
@@ -184,8 +201,10 @@ fun OptionsPanel(
                 "settings",
                 uiState.value.isSettingsPanelVisible,
             ) {
-                viewModel.updateUI { it.copy(isSettingsPanelVisible = !it.isSettingsPanelVisible) }
-                setIsOptionsPanelVisible(false)
+                viewModel.updateUI { it.copy(
+                    isSettingsPanelVisible = !it.isSettingsPanelVisible,
+                    isOptionsPanelVisible = false, isAppsPanelVisible = false
+                ) }
             },
             OptionItem(
                 R.drawable.ic_developer_guide, // You'll need a settings icon
@@ -193,7 +212,7 @@ fun OptionsPanel(
                 false,
             ) {
                 viewModel.createNewTab(viewModel.activeTabIndex.value + 1, privacy_policy_url)
-                setIsOptionsPanelVisible(false)
+                viewModel.updateUI { it.copy(isOptionsPanelVisible = false, isAppsPanelVisible = false) }
             },
 
 
@@ -275,6 +294,7 @@ fun OptionsPanel(
                         layer = 2,
                         modifier = Modifier.weight(1f),
                         onTap = option.onClick,
+                        textIcon = option.textIcon,
                         buttonDescription = option.contentDescription,
                         painterId = option.iconRes,
                         isWhite = option.enabled
@@ -293,12 +313,13 @@ fun OptionsPanel(
 
 @Composable
 fun OptionsPanelWrapper(
-    maxHeight: Float,
     dragOffset: Float,
     content: @Composable () -> Unit
 ) {
+    val viewModel = LocalBrowserViewModel.current
+    val uiState = viewModel.uiState.collectAsState()
     val safeOffset = if (dragOffset.isNaN()) 0f else dragOffset
-    val animatedHeight = -safeOffset.coerceIn(-maxHeight, 0f)
+    val animatedHeight = -safeOffset.coerceIn(-uiState.value.totalRevealHeightPx, 0f)
 
     Layout(
         content = content,

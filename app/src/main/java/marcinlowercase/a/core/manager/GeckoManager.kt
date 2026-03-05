@@ -149,6 +149,10 @@ class GeckoManager(private val context: Context) {
         )
     }
 
+    fun wipeProfileData(profileId: String) {
+        // Tells GeckoView to permanently delete all cookies/data for this specific partition
+        runtime.storageController.clearDataForSessionContext(profileId)
+    }
     private fun setupExtensionPrompts() {
         runtime.webExtensionController.setPromptDelegate(object :
             WebExtensionController.PromptDelegate {
@@ -324,6 +328,7 @@ class GeckoManager(private val context: Context) {
             .userAgentMode(GeckoSessionSettings.USER_AGENT_MODE_MOBILE)
             .suspendMediaWhenInactive(false)
             .allowJavascript(true)
+            .contextId(tab.profileId)
             .build()
 
         val session = GeckoSession(settings)
@@ -585,6 +590,7 @@ class GeckoManager(private val context: Context) {
                     .userAgentMode(GeckoSessionSettings.USER_AGENT_MODE_MOBILE)
                     .suspendMediaWhenInactive(false)
                     .allowJavascript(true)
+                    .contextId(tab.value.profileId)
                     .build()
 
                 val newSession = GeckoSession(settings)
@@ -699,6 +705,8 @@ class GeckoManager(private val context: Context) {
                 session: GeckoSession,
                 state: GeckoSession.SessionState
             ) {
+
+                Log.d("marcState", "onSessionStateChange triggered")
                 // save state to restore every session state change
                 stateCache[eventTabId] = state
 

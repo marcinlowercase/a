@@ -53,6 +53,7 @@ import marcinlowercase.a.core.data_class.JsDateTimeState
 import marcinlowercase.a.core.data_class.JsDialogState
 import marcinlowercase.a.core.data_class.PanelVisibilityState
 import marcinlowercase.a.core.data_class.PollData
+import marcinlowercase.a.core.data_class.Profile
 import marcinlowercase.a.core.data_class.SiteSettings
 import marcinlowercase.a.core.data_class.Suggestion
 import marcinlowercase.a.core.data_class.Tab
@@ -64,6 +65,7 @@ import marcinlowercase.a.core.enum_class.SuggestionSource
 import marcinlowercase.a.core.enum_class.TabState
 import marcinlowercase.a.core.manager.AppManager
 import marcinlowercase.a.core.manager.BrowserDownloadManager
+import marcinlowercase.a.core.manager.ProfileManager
 import marcinlowercase.a.core.manager.SiteSettingsManager
 import marcinlowercase.a.core.manager.TabManager
 import marcinlowercase.a.core.manager.VisitedUrlManager
@@ -86,8 +88,90 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     val siteSettingsManager = SiteSettingsManager(application)
     val visitedUrlManager = VisitedUrlManager(application)
 
+    val profileManager = ProfileManager(application)
+
     //endregion
 
+    // region Profile Logic
+    val profiles = mutableStateListOf<Profile>().apply {
+        addAll(profileManager.loadProfiles())
+    }
+
+    val activeProfileId = mutableStateOf(profileManager.getActiveProfileId())
+    val inspectingProfileId = mutableStateOf("")
+
+    fun switchProfile(newProfileId: String) {
+        if (activeProfileId.value == newProfileId) return
+
+        if (inspectingAppId.value != 0L) inspectingAppId.value = 0L
+
+        // 1. Freeze current tabs to disk before switching
+        tabManager.saveTabs(activeProfileId.value, tabs.toList(), _activeTabIndex.value)
+
+        // 2. Clear current sessions in GeckoView (Important so old audio stops playing)
+        tabs.forEach { geckoManager.closeSession(it) }
+
+        // 3. Update active profile ID and save to disk
+        activeProfileId.value = newProfileId
+        profileManager.saveActiveProfileId(newProfileId)
+
+        // 4. Reload all memory lists from the new profile's SharedPreferences
+        apps.clear()
+        apps.addAll(appManager.loadApps(newProfileId))
+
+        visitedUrlMap.clear()
+        visitedUrlMap.putAll(visitedUrlManager.loadUrlMap(newProfileId))
+
+        siteSettings.clear()
+        siteSettings.putAll(siteSettingsManager.loadSettings(newProfileId))
+
+        // 5. Reload Tabs and set new Active Index
+        val loadedTabs = tabManager.loadTabs(newProfileId, null)
+        tabs.clear()
+        tabs.addAll(loadedTabs)
+        _activeTabIndex.value = tabManager.getActiveTabIndex(newProfileId).coerceAtLeast(0)
+
+        // 6. Force UI to update session
+        sessionRefreshTrigger.intValue++
+    }
+
+    fun createNewProfile() {
+        val newProfile = Profile(
+            id = "profile_${System.currentTimeMillis()}",
+            isDefault = false
+        )
+        profiles.add(newProfile)
+        profileManager.saveProfiles(profiles)
+
+        // Switch to the newly created profile immediately
+        switchProfile(newProfile.id)
+    }
+
+
+    fun swapProfiles(fromIndex: Int, toIndex: Int) {
+        if (fromIndex in profiles.indices && toIndex in profiles.indices) {
+            java.util.Collections.swap(profiles, fromIndex, toIndex)
+            profileManager.saveProfiles(profiles)
+        }
+    }
+    fun deleteProfile(idToDelete: String) {
+        // Prevent deleting if it's the only profile left
+        if (profiles.size <= 1) return
+
+        // 1. Wipe the container data from GeckoView
+        geckoManager.wipeProfileData(idToDelete)
+
+
+        // 2. Remove from list and save
+        profiles.removeAll { it.id == idToDelete }
+        profileManager.saveProfiles(profiles)
+
+        // 3. Switch to another profile if the active one was just deleted
+        if (activeProfileId.value == idToDelete) {
+            switchProfile(profiles.first().id)
+        }
+    }
+    // endregion
     //region Gecko
     fun handleExternalIntent(activity: Activity, url: String) {
         try {
@@ -415,12 +499,12 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     val initializeTabs = { initialUrl: String? ->
         if (!isInitialized) {
             // 1. Load tabs using the intent URL (if provided)
-            val loadedTabs = tabManager.loadTabs(initialUrl)
+            val loadedTabs = tabManager.loadTabs(activeProfileId.value, initialUrl)
             tabs.clear()
             tabs.addAll(loadedTabs)
 
             // 2. Set the active index
-            _activeTabIndex.value = tabManager.getActiveTabIndex().coerceAtLeast(0)
+            _activeTabIndex.value = tabManager.getActiveTabIndex(activeProfileId.value).coerceAtLeast(0)
 
             isInitialized = true
         }
@@ -479,6 +563,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
         // 2. Create the new Tab object using the ID provided by the engine
         val newTab = Tab(
+            profileId = activeProfileId.value,
             id = engineId,
             currentURL = uri,
             state = TabState.ACTIVE
@@ -639,7 +724,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 } else {
                     // LAST TAB CASE
                     tabs.clear()
-                    tabManager.clearAllTabs()
+                    tabManager.clearAllTabs(activeProfileId.value)
 
                     // We trigger the UI callback to finish the Activity
                     onExitApp()
@@ -681,7 +766,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         } else {
             // CASE: Last tab being closed
             tabs.clear()
-            tabManager.clearAllTabs()
+            tabManager.clearAllTabs(activeProfileId.value)
 
             // Trigger UI callback to finish activity
             onExitApp()
@@ -696,6 +781,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
         // 2. Create the new Tab object
         val newTab = Tab(
+            profileId = activeProfileId.value,
             currentURL = url.ifBlank { _browserSettings.value.defaultUrl },
             state = TabState.ACTIVE
         )
@@ -736,7 +822,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         saveJob?.cancel()
         saveJob = viewModelScope.launch(Dispatchers.IO) {
             delay(500) // Wait for rapid events (like redirects) to finish
-            tabManager.saveTabs(tabs.toList(), _activeTabIndex.value)
+            tabManager.saveTabs(activeProfileId.value, tabs.toList(), _activeTabIndex.value)
             Log.d("TabFlow", "Disk Save Complete")
         }
     }
@@ -745,7 +831,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     //region App/Pin Logic
     val apps = mutableStateListOf<App>().apply {
-        addAll(appManager.loadApps())
+        addAll(appManager.loadApps(activeProfileId.value))
     }
     val inspectingAppId = mutableLongStateOf(0L)
 
@@ -757,6 +843,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             iconUrl = iconUrl
         )
         apps.add(newApp)
+        Log.i("marcApp", "pinApp")
+        Log.i("marcApp", "${apps.size}")
         saveApps()
     }
 
@@ -776,7 +864,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private fun saveApps() {
-        appManager.saveApps(apps)
+        appManager.saveApps(activeProfileId.value, apps)
     }
     //endregion
 
@@ -1031,7 +1119,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     //region Site Settings logic
     val siteSettings = mutableStateMapOf<String, SiteSettings>().apply {
-        putAll(siteSettingsManager.loadSettings())
+        putAll(siteSettingsManager.loadSettings(activeProfileId.value))
     }
     val togglePermission = { domain: String?, permission: String, isGranted: Boolean ->
         if (domain != null) {
@@ -1046,16 +1134,16 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
             // Update memory map and save to disk
             siteSettings[domain] = newSettings
-            siteSettingsManager.saveSettings(siteSettings)
+            siteSettingsManager.saveSettings(activeProfileId.value, siteSettings)
         }
     }
 
     val visitedUrlMap = mutableStateMapOf<String, String>().apply {
-        putAll(visitedUrlManager.loadUrlMap())
+        putAll(visitedUrlManager.loadUrlMap(activeProfileId.value))
     }
 
     val addHistory = { url: String, title: String ->
-        visitedUrlManager.addUrl(url, title)
+        visitedUrlManager.addUrl(activeProfileId.value, url, title)
         if (title.isNotBlank()) {
             visitedUrlMap[url] = title
         }
@@ -1063,7 +1151,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     val clearDomainData = { domain: String ->
         siteSettings.remove(domain)
-        siteSettingsManager.saveSettings(siteSettings)
+        siteSettingsManager.saveSettings(activeProfileId.value, siteSettings)
     }
 
     //endregion
@@ -1094,7 +1182,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         // 3. Update memory map and persist to disk
         val newSettings = currentSettings.copy(permissionDecisions = updatedDecisions)
         siteSettings[domain] = newSettings
-        siteSettingsManager.saveSettings(siteSettings)
+        siteSettingsManager.saveSettings(activeProfileId.value, siteSettings)
     }
 
     val toggleSitePermission = { domain: String?, permission: String ->
@@ -1109,7 +1197,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             // Update state map and persist to disk
             val newSettings = currentSettings.copy(permissionDecisions = updatedDecisions)
             siteSettings[domain] = newSettings
-            siteSettingsManager.saveSettings(siteSettings)
+            siteSettingsManager.saveSettings(activeProfileId.value, siteSettings)
         }
     }
 
@@ -1231,7 +1319,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     val removeSuggestionFromHistory = { suggestionToRemove: Suggestion ->
         if (suggestionToRemove.source == SuggestionSource.HISTORY) {
-            visitedUrlManager.removeUrl(suggestionToRemove.url)
+            visitedUrlManager.removeUrl(activeProfileId.value, suggestionToRemove.url)
             visitedUrlMap.remove(suggestionToRemove.url)
             suggestions.remove(suggestionToRemove)
         }

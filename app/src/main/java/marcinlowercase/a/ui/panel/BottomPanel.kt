@@ -3,16 +3,22 @@ package marcinlowercase.a.ui.panel
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.ClipData
+import android.util.Log
 import android.util.Patterns
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.AnchoredDraggableState
 import androidx.compose.foundation.gestures.FlingBehavior
@@ -24,14 +30,18 @@ import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
 import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -44,6 +54,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -55,6 +66,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -87,8 +102,6 @@ import marcinlowercase.a.core.data_class.JsDialogState
 import marcinlowercase.a.core.data_class.PanelVisibilityState
 import marcinlowercase.a.core.data_class.Suggestion
 import marcinlowercase.a.core.data_class.Tab
-import marcinlowercase.a.core.enum_class.BottomPanelMode
-import marcinlowercase.a.core.enum_class.DragDirection
 import marcinlowercase.a.core.enum_class.GestureNavAction
 import marcinlowercase.a.core.enum_class.RevealState
 import marcinlowercase.a.core.enum_class.SearchEngine
@@ -97,6 +110,7 @@ import marcinlowercase.a.core.function.buttonSettingsForLayer
 import marcinlowercase.a.core.function.consumeChangePointerInput
 import marcinlowercase.a.core.function.toDomain
 import marcinlowercase.a.core.function.webViewLoad
+import marcinlowercase.a.ui.component.CustomIconButton
 import marcinlowercase.a.ui.component.LoadingIndicator
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import org.mozilla.geckoview.GeckoResult
@@ -106,13 +120,12 @@ import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import kotlin.math.abs
 
+@OptIn(ExperimentalLayoutApi::class)
 @SuppressLint("FrequentlyChangingValue")
 @Composable
 fun BottomPanel(
-    setIsOptionsPanelVisible: (Boolean) -> Job,
     geckoViewRef: MutableState<GeckoView?>,
     floatingPanelBottomPadding: Dp,
-    optionsPanelHeightPx: Float,
     draggableState: AnchoredDraggableState<RevealState>,
     flingBehavior: FlingBehavior,
     bottomPanelPagerState: PagerState,
@@ -156,113 +169,9 @@ fun BottomPanel(
 ) {
 
 
-
-
     val viewModel = LocalBrowserViewModel.current
     val uiState = viewModel.uiState.collectAsState()
     val settings = viewModel.browserSettings.collectAsState()
-
-//    val ghostPressScale = remember { Animatable(1f) }
-//
-//    var interactionTrigger by remember { mutableLongStateOf(System.currentTimeMillis()) }
-//
-//    // 2. The Auto-Guide Logic
-//    LaunchedEffect(
-//        settings.value.isGuideModeEnabled,
-//        uiState.value.isFocusOnTextField,
-//        interactionTrigger // <--- Adding this key is the magic!
-//    ) {
-//        // Only run if guide is enabled AND user is not typing
-//        if (settings.value.isGuideModeEnabled && !uiState.value.isFocusOnTextField) {
-//
-//            // 3. The Idleness Timer
-//            // This line pauses execution. If the user touches the screen,
-//            // 'interactionTrigger' changes, this coroutine is CANCELLED,
-//            // and a new one starts, effectively resetting the timer to 0.
-//            delay(10000)
-//
-//            // 4. If we reached here, the user hasn't touched the panel for 10 seconds.
-//            // Start the animation loop.
-//            while (uiState.value.isBottomPanelVisible) {
-//                // Safety check: Only animate if in "Search" mode and not currently dragging
-//                if (bottomPanelPagerState.currentPage == BottomPanelMode.SEARCH.ordinal &&
-//                    draggableState.currentValue == RevealState.Hidden &&
-//                    !bottomPanelPagerState.isScrollInProgress) {
-//
-//                    val animSpeed = settings.value.animationSpeed.toInt()
-//
-//                    // --- Animation 1: Swipe Up (Options) ---
-//                    setIsOptionsPanelVisible(true)
-//                    delay(animSpeed.toLong() + 1000)
-//                    setIsOptionsPanelVisible(false)
-//                    delay(animSpeed.toLong() + 500)
-//
-//                    // --- Animation 2: Swipe Left (Apps) ---
-//                    bottomPanelPagerState.animateScrollToPage(
-//                        BottomPanelMode.APPS.ordinal,
-//                        animationSpec = tween(animSpeed)
-//                    )
-//                    delay(1000)
-//                    bottomPanelPagerState.animateScrollToPage(
-//                        BottomPanelMode.SEARCH.ordinal,
-//                        animationSpec = tween(animSpeed)
-//                    )
-//                    delay(1000)
-//
-//                    // --- Animation 4: Ghost Long Press (Nav Panel) ---
-//
-//                    // 1. PRESS DOWN: Shrink slightly to simulate a finger pressing
-//                    launch {
-//                        ghostPressScale.animateTo(
-//                            targetValue = 0.9f,
-//                            animationSpec = tween(200)
-//                        )
-//                    }
-//
-//                    // 2. HOLD: Wait for the standard long-press duration (approx 500-600ms)
-//                    delay(600)
-//
-//                    // 3. TRIGGER: Provide feedback and show the panel
-//                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-//                    viewModel.updateUI { it.copy(isNavPanelVisible = true) }
-//
-//                    // 4. RELEASE: Bounce back to normal size
-//                    launch {
-//                        ghostPressScale.animateTo(
-//                            targetValue = 1f,
-//                            animationSpec = spring(dampingRatio = 0.6f, stiffness = 400f) // Bouncy release
-//                        )
-//                    }
-//
-//                    // 5. WAIT: Let the user see the panel for a moment
-//                    delay(animSpeed.toLong() + 1500)
-//
-//                    // 6. RESET: Hide the panel
-//                    viewModel.updateUI { it.copy(isNavPanelVisible = false) }
-//                    delay(animSpeed.toLong() + 500)
-//
-//                    // ... loop continues ...
-//
-//                    // --- Animation 3: Swipe Right (Lock) ---
-//                    bottomPanelPagerState.animateScrollToPage(
-//                        BottomPanelMode.LOCK.ordinal,
-//                        animationSpec = tween(animSpeed)
-//                    )
-//                    delay(1000)
-//                    bottomPanelPagerState.animateScrollToPage(
-//                        BottomPanelMode.SEARCH.ordinal,
-//                        animationSpec = tween(animSpeed)
-//                    )
-//
-//                    // Wait a bit before repeating the loop (e.g., 3 seconds interval mentioned)
-//                    delay(1000)
-//                } else {
-//                    // If state wasn't right (e.g. user scrolled manually), wait a bit and check again
-//                    delay(1000)
-//                }
-//            }
-//        }
-//    }
 
     AnimatedVisibility(
         modifier = modifier,
@@ -332,13 +241,7 @@ fun BottomPanel(
 
                 DescriptionPanel()
 
-                AppsPanel(
-                    onAppClick = { app ->
-                        webViewLoad(activeSession, app.url, settings.value)
-                        viewModel.updateUI { it.copy(isSettingsPanelVisible = false) }
-                        viewModel.updateUI { it.copy(isUrlBarVisible = false) }
-                    },
-                )
+
                 NavigationPanel(
                     activeSession = activeSession
                 )
@@ -566,639 +469,1179 @@ fun BottomPanel(
                         )
                     )
                 ) {
-                    HorizontalPager(
-                        state = bottomPanelPagerState,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .animateContentSize(),
-                        contentPadding = PaddingValues(0.dp),
-                        pageSpacing = settings.value.padding.dp // Optional spacing
-                    ) { pageIndex ->
-                        LaunchedEffect(pageIndex) {
-                            if (pageIndex != BottomPanelMode.SEARCH.ordinal) {
-                                setIsOptionsPanelVisible(false)
-                            }
-                        }
-                        when (pageIndex) {
-                            // --- LEFT BOX (Page 0) ---
-                            BottomPanelMode.APPS.ordinal -> {
-                                Column(
-                                    modifier = Modifier
-                                        .height(
-                                            settings.value.heightForLayer(1).dp
-                                        )
-                                        .fillMaxWidth()
-                                        .padding(settings.value.padding.dp)
-                                        .clip(
-                                            RoundedCornerShape(
-                                                settings.value.cornerRadiusForLayer(
-                                                    1
-                                                ).dp
-                                            )
-                                        )
-                                        .consumeChangePointerInput(dragDirection = DragDirection.Vertical)
-                                ) {
+                    Box(modifier = Modifier) {
 
-                                    AnimatedVisibility(
-                                        visible = viewModel.inspectingAppId.longValue > 0L,
-                                        enter = fadeIn(
-                                            tween(
-                                                settings.value.animationSpeedForLayer(
-                                                    0
+                        TextField(
+                            modifier = Modifier
+                                .height(
+                                    settings.value.heightForLayer(1).dp
+                                )
+                                .padding(settings.value.padding.dp)
+                                .onSizeChanged { size ->
+                                    setTextFieldHeightPx(size.height)
+                                }
+                                .fillMaxWidth()
+                                .focusRequester(urlBarFocusRequester)
+                                //                            .padding(horizontal = settings.value.padding.dp, vertical = settings.value.padding.dp / 2)
+                                .onFocusChanged { focusState ->
+                                    val resetUrl = viewModel.activeTab!!.currentURL
+                                    viewModel.updateUI { it.copy(isFocusOnUrlTextField = focusState.isFocused) }
+
+                                    if (focusState.isFocused) {
+
+                                        viewModel.updateUI {
+                                            it.copy(
+                                                savedPanelState = PanelVisibilityState(
+                                                    options = draggableState.currentValue == RevealState.Visible,
+                                                    tabs = isTabsPanelVisible,
+                                                    downloads = uiState.value.isDownloadPanelVisible,
+                                                    tabData = isTabDataPanelVisible,
+                                                    nav = uiState.value.isNavPanelVisible
                                                 )
                                             )
-                                        ),
-                                        exit = fadeOut(
-                                            tween(
-                                                settings.value.animationSpeedForLayer(
-                                                    0
+                                        }
+
+                                        viewModel.updateUI {
+                                            it.copy(
+                                                isOptionsPanelVisible = false,
+                                                isTabsPanelVisible = false,
+                                                isDownloadPanelVisible = false,
+                                                isTabDataPanelVisible = false,
+                                                isNavPanelVisible = false,
+                                                isSettingsPanelVisible = false,
+                                                isUrlOverlayBoxVisible = false,
+                                                isAppsPanelVisible = false,
+
                                                 )
+                                        }
+
+
+                                        //                                    textFieldState.edit { selectAll() }
+                                        textFieldState.setTextAndPlaceCursorAtEnd("")
+
+
+                                    } else {
+                                        if (uiState.value.isPinningApp) viewModel.updateUI {
+                                            it.copy(
+                                                isPinningApp = false
                                             )
-                                        ),
-                                    ) {
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .clip(
-                                                    RoundedCornerShape(
-                                                        settings.value.cornerRadiusForLayer(
-                                                            1
-                                                        ).dp
-                                                    )
-                                                )
-                                        ) {
-
-                                            val currentIndex =
-                                                viewModel.apps.indexOfFirst { it.id == viewModel.inspectingAppId.longValue }
-                                            Box(
-                                                modifier = Modifier
-                                                    .buttonSettingsForLayer(
-                                                        2,
-                                                        settings.value,
-                                                        currentIndex > 0
-                                                    )
-                                                    .weight(1f)
-                                                    .clickable {
-                                                        if (currentIndex > 0) {
-                                                            viewModel.swapApps(
-                                                                currentIndex,
-                                                                currentIndex - 1
-                                                            )
-                                                        }
-                                                    },
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Icon(
-                                                    painter = painterResource(id = R.drawable.ic_arrow_downward),
-                                                    contentDescription = "edit pin",
-                                                    tint = Color.Black
-                                                )
-                                            }
-                                            Spacer(modifier = Modifier.width(settings.value.padding.dp))
-
-                                            Box(
-                                                modifier = Modifier
-                                                    .buttonSettingsForLayer(
-                                                        2,
-                                                        settings.value,
-                                                        false
-                                                    )
-                                                    .weight(1f)
-                                                    .clickable {
-                                                        viewModel.removeApp(viewModel.inspectingAppId.longValue)
-                                                        viewModel.inspectingAppId.longValue = 0L
-                                                    },
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Icon(
-                                                    painter = painterResource(id = R.drawable.ic_delete_forever),
-                                                    contentDescription = "delete pin",
-                                                    tint = Color.White
-                                                )
-                                            }
-                                            Spacer(modifier = Modifier.width(settings.value.padding.dp))
-                                            Box(
-                                                modifier = Modifier
-                                                    .buttonSettingsForLayer(
-                                                        2,
-                                                        settings.value,
-                                                        currentIndex < viewModel.apps.lastIndex && currentIndex >= 0
-                                                    )
-                                                    .weight(1f)
-                                                    .clickable {
-
-                                                        if (currentIndex < viewModel.apps.lastIndex) {
-                                                            viewModel.swapApps(
-                                                                currentIndex,
-                                                                currentIndex + 1
-                                                            )
-                                                        }
-                                                    },
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Icon(
-                                                    painter = painterResource(id = R.drawable.ic_arrow_upward),
-                                                    contentDescription = "edit pin",
-                                                    tint = Color.Black
+                                        }
+                                        uiState.value.savedPanelState?.let { savedState ->
+                                            viewModel.updateUI {
+                                                it.copy(
+                                                    isOptionsPanelVisible = savedState.options,
+                                                    isTabsPanelVisible = savedState.tabs,
+                                                    isDownloadPanelVisible = savedState.downloads,
+                                                    isTabDataPanelVisible = false,
+                                                    isNavPanelVisible = savedState.nav,
+                                                    savedPanelState = null,
                                                 )
                                             }
                                         }
-                                    }
+                                        textFieldState.setTextAndPlaceCursorAtEnd(
+                                            resetUrl.toDomain()
+                                        )
 
-                                    AnimatedVisibility(
-                                        visible = viewModel.inspectingAppId.longValue == 0L,
-                                        enter = fadeIn(
-                                            tween(
-                                                settings.value.animationSpeedForLayer(
-                                                    0
-                                                )
-                                            )
-                                        ),
-                                        exit = fadeOut(
-                                            tween(
-                                                settings.value.animationSpeedForLayer(
-                                                    0
-                                                )
-                                            )
-                                        ),
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .height(
-                                                    settings.value.heightForLayer(1).dp
-                                                )
-                                                .fillMaxWidth()
-                                                .clip(
-                                                    RoundedCornerShape(
-                                                        settings.value.cornerRadiusForLayer(
-                                                            1
-                                                        ).dp
-                                                    )
-                                                )
-                                                .clickable {
-                                                    viewModel.resetBottomPanelTrigger.value =
-                                                        !viewModel.resetBottomPanelTrigger.value
-                                                },
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                painter = painterResource(id = R.drawable.ic_arrow_forward),
-                                                contentDescription = "toggle app",
-                                                tint = Color.White
+
+                                        viewModel.updateUI {
+                                            it.copy(
+                                                isUrlOverlayBoxVisible = true
                                             )
                                         }
                                     }
+                                }
+                                //
 
+                                .clip(
+                                    RoundedCornerShape(
+                                        settings.value.cornerRadiusForLayer(2).dp
+                                    )
+                                ),
+                            placeholder = {
+                                when {
+                                    uiState.value.isPinningApp -> Text("pin label")
+                                    else -> Text("search / url")
+                                }
+                            },
+                            state = textFieldState,
+                            textStyle = LocalTextStyle.current.copy(
+                                //                            fontFamily = FontFamily.Monospace,
+                                textAlign = if (uiState.value.isFocusOnUrlTextField) TextAlign.Start else TextAlign.Center
+                            ),
+                            //                        state = rememberTextFieldState("Hello"),
+                            lineLimits = TextFieldLineLimits.SingleLine,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
+                            onKeyboardAction = {
+                                val input = (textFieldState.text as String).trim()
+                                val resetUrl = viewModel.activeTab!!.currentURL
+
+
+                                if (input.isEmpty()) {
+
+                                    when {
+                                        uiState.value.isPinningApp -> {
+                                            viewModel.pinApp(
+                                                title = viewModel.activeTab!!.currentTitle,
+                                                url = resetUrl,
+                                                iconUrl = viewModel.activeTab!!.currentFaviconUrl,
+                                            )
+                                            viewModel.updateUI { it.copy(isPinningApp = false) }
+                                        }
+
+                                        else -> activeSession.reload()
+                                    }
+
+                                    focusManager.clearFocus()
+                                    keyboardController?.hide()
+                                    textFieldState.setTextAndPlaceCursorAtEnd(resetUrl.toDomain())
+
+                                    viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
+                                    return@TextField
                                 }
 
-                            }
 
-                            BottomPanelMode.SEARCH.ordinal -> {
-                                Box(modifier = Modifier) {
 
-                                    TextField(
-                                        modifier = Modifier
-                                            .height(
-                                                settings.value.heightForLayer(1).dp
-                                            )
-                                            .padding(settings.value.padding.dp)
-                                            .onSizeChanged { size ->
-                                                setTextFieldHeightPx(size.height)
+
+                                when {
+                                    uiState.value.isPinningApp -> {
+                                        viewModel.pinApp(
+                                            title = input,
+                                            url = resetUrl,
+                                            iconUrl = viewModel.activeTab!!.currentFaviconUrl,
+                                        )
+                                        viewModel.updateUI { it.copy(isPinningApp = false) }
+                                    }
+
+
+                                    else -> {
+                                        // search
+                                        val isUrl = try {
+                                            Patterns.WEB_URL.matcher(input).matches() ||
+                                                    (input.contains(".") && !input.contains(" "))
+                                                    && !input.endsWith(".")
+                                                    && !input.startsWith(".")
+                                        } catch (_: Exception) {
+                                            false
+                                        }
+                                        val finalUrl = if (isUrl) {
+                                            if (input.startsWith("http://") || input.startsWith(
+                                                    "https://"
+                                                )
+                                            ) {
+                                                input
+                                            } else {
+                                                "https://$input"
                                             }
-                                            .fillMaxWidth()
-                                            .focusRequester(urlBarFocusRequester)
-                                            //                            .padding(horizontal = settings.value.padding.dp, vertical = settings.value.padding.dp / 2)
-                                            .onFocusChanged { focusState ->
-                                                val resetUrl = viewModel.activeTab!!.currentURL
-                                                viewModel.updateUI { it.copy(isFocusOnUrlTextField = focusState.isFocused) }
+                                        } else {
+                                            val encodedQuery =
+                                                URLEncoder.encode(
+                                                    input,
+                                                    StandardCharsets.UTF_8.toString()
+                                                )
+                                            //                                                "https://www.google.com/search?q=$encodedQuery"
+                                            //                                                "https://duckduckgo.com/?q=$encodedQuery"
+                                            //                                                "https://www.bing.com/search?q=$encodedQuery"
+                                            SearchEngine.entries[settings.value.searchEngine].getSearchUrl(
+                                                encodedQuery
+                                            )
+                                        }
 
-                                                if (focusState.isFocused) {
+                                        onNewUrl(finalUrl)
+                                    }
+                                }
 
-                                                    //                                                geckoViewRef.value?.clearFocus()
-                                                    //                                                CoroutineScope(Dispatchers.Main).launch {
-                                                    //                                                    delay(300) // 50ms is usually enough to beat the race condition
-                                                    //                                                    keyboardController?.show()
-                                                    //                                                }
 
-                                                    viewModel.updateUI {
-                                                        it.copy(
-                                                            savedPanelState = PanelVisibilityState(
-                                                                options = draggableState.currentValue == RevealState.Visible,
-                                                                tabs = isTabsPanelVisible,
-                                                                downloads = uiState.value.isDownloadPanelVisible,
-                                                                tabData = isTabDataPanelVisible,
-                                                                nav = uiState.value.isNavPanelVisible
+                                focusManager.clearFocus()
+                                keyboardController?.hide()
+
+                                viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
+                            },
+                            shape = RoundedCornerShape(
+                                settings.value.cornerRadiusForLayer(2).dp
+                            ),
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color.Black,
+                                unfocusedContainerColor = Color.Black,
+                                cursorColor = Color.White,
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+
+                                // 3. This is the key to removing the underline
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent,
+                                disabledIndicatorColor = Color.Transparent,
+                                errorIndicatorColor = Color.Transparent
+                            ),
+                        )
+
+                        if (uiState.value.isUrlOverlayBoxVisible && !uiState.value.isFocusOnUrlTextField) Box(
+                            modifier = Modifier
+                                .background(
+                                    Color.Transparent, shape = RoundedCornerShape(
+                                        settings.value.cornerRadiusForLayer(1).dp
+                                    )
+                                )
+                                .clip(
+                                    RoundedCornerShape(
+                                        settings.value.cornerRadiusForLayer(1).dp
+                                    )
+                                )
+
+                                .matchParentSize()
+                                .pointerInput(
+                                    Unit,
+                                    viewModel.activeTab!!.canGoBack,
+                                    viewModel.activeTab!!.canGoForward,
+
+                                    ) {
+                                    // 1. CAPTURE the CoroutineScope provided by pointerInput
+                                    val coroutineScope =
+                                        CoroutineScope(currentCoroutineContext())
+                                    awaitEachGesture {
+                                        val down =
+                                            awaitFirstDown(requireUnconsumed = false)
+
+                                        // 2. USE the captured scope to launch the long press job
+                                        val longPressJob = coroutineScope.launch {
+                                            delay(viewConfiguration.longPressTimeoutMillis)
+
+                                            // LONG PRESS CONFIRMED
+                                            hapticFeedback.performHapticFeedback(
+                                                HapticFeedbackType.LongPress
+                                            )
+                                            focusManager.clearFocus(true)
+                                            viewModel.updateUI {
+                                                it.copy(
+                                                    isNavPanelVisible = true
+                                                )
+                                            }
+                                            setActiveNavAction(GestureNavAction.NONE)
+
+                                        }
+
+                                        val drag =
+                                            awaitTouchSlopOrCancellation(down.id) { change, _ ->
+                                                if (longPressJob.isActive) {
+                                                    longPressJob.cancel()
+                                                }
+                                                change.consume()
+                                            }
+
+                                        if (longPressJob.isCompleted && !longPressJob.isCancelled) {
+                                            if (drag != null) {
+                                                var horizontalDragAccumulator = 0f
+                                                var verticalDragAccumulator = 0f
+                                                var previousAction =
+                                                    GestureNavAction.REFRESH
+                                                val horizontalDragThreshold =
+                                                    40.dp.toPx()
+
+                                                val verticalCancelThreshold =
+                                                    -40.dp.toPx()
+
+
+                                                drag(drag.id) { change ->
+                                                    change.consume()
+                                                    horizontalDragAccumulator += change.position.x - change.previousPosition.x
+                                                    verticalDragAccumulator += change.position.y - change.previousPosition.y
+
+
+                                                    val newAction = when {
+                                                        verticalDragAccumulator < verticalCancelThreshold -> {
+                                                            when {
+                                                                horizontalDragAccumulator < -horizontalDragThreshold -> GestureNavAction.CLOSE_TAB
+                                                                horizontalDragAccumulator > horizontalDragThreshold -> GestureNavAction.NEW_TAB
+                                                                else -> GestureNavAction.REFRESH
+                                                            }
+                                                        }
+
+                                                        horizontalDragAccumulator < -horizontalDragThreshold -> if (viewModel.activeTab!!.canGoBack
+                                                        ) GestureNavAction.BACK else GestureNavAction.NONE
+
+                                                        horizontalDragAccumulator > horizontalDragThreshold -> if (viewModel.activeTab!!.canGoForward
+                                                        ) GestureNavAction.FORWARD else GestureNavAction.NONE
+
+                                                        else -> GestureNavAction.NONE
+                                                    }
+
+                                                    if (newAction != previousAction) {
+                                                        hapticFeedback.performHapticFeedback(
+                                                            HapticFeedbackType.TextHandleMove
+                                                        )
+                                                        previousAction = newAction
+                                                    }
+                                                    //                                                    activeNavAction = newAction
+                                                    setActiveNavAction(newAction)
+                                                }
+
+                                                navigateWebView()
+                                            }
+                                        } else {
+                                            if (drag != null) {
+
+                                                var horizontalDragAccumulator = 0f
+                                                var verticalDragAccumulator = 0f
+
+                                                drag(drag.id) { change ->
+                                                    horizontalDragAccumulator += change.position.x - change.previousPosition.x
+                                                    verticalDragAccumulator += change.position.y - change.previousPosition.y
+
+//                                                                if (isFocusOnUrlTextField ) change.consume()
+                                                    if (abs(horizontalDragAccumulator) > abs(
+                                                            verticalDragAccumulator
+                                                        )
+                                                    ) {
+                                                        viewModel.updateUI {
+                                                            it.copy(
+                                                                isUrlOverlayBoxVisible = false
                                                             )
-                                                        )
+                                                        }
+
                                                     }
 
-                                                    setIsOptionsPanelVisible(false)
-                                                    viewModel.updateUI { it.copy(isTabsPanelVisible = false) }
-                                                    viewModel.updateUI {
-                                                        it.copy(
-                                                            isDownloadPanelVisible = false
-                                                        )
-                                                    }
 
-                                                    viewModel.updateUI {
-                                                        it.copy(
-                                                            isTabDataPanelVisible = false
-                                                        )
-                                                    }
-                                                    viewModel.updateUI { it.copy(isNavPanelVisible = false) }
-                                                    viewModel.updateUI {
-                                                        it.copy(
-                                                            isSettingsPanelVisible = false
-                                                        )
-                                                    }
+                                                }
 
+
+                                            } else {
+                                                // Gesture is fully over
+                                                if (longPressJob.isActive) {
+                                                    longPressJob.cancel()
+                                                    // This was a tap
+
+                                                    if (urlBarFocusRequester.requestFocus()) {
+                                                        keyboardController?.show()
+                                                    } else {
+                                                        urlBarFocusRequester.requestFocus()
+                                                    }
                                                     viewModel.updateUI {
                                                         it.copy(
                                                             isUrlOverlayBoxVisible = false
                                                         )
                                                     }
-
-                                                    //                                    textFieldState.edit { selectAll() }
-                                                    textFieldState.setTextAndPlaceCursorAtEnd("")
-
-
-                                                } else {
-                                                    if (uiState.value.isPinningApp) viewModel.updateUI {
-                                                        it.copy(
-                                                            isPinningApp = false
-                                                        )
-                                                    }
-                                                    viewModel.updateUI {
-                                                        it.copy(
-                                                            isUrlOverlayBoxVisible = true
-                                                        )
-                                                    }
-
-                                                    uiState.value.savedPanelState?.let { savedState ->
-                                                        if (bottomPanelPagerState.currentPage == BottomPanelMode.SEARCH.ordinal) {
-                                                            setIsOptionsPanelVisible(savedState.options)
-                                                            viewModel.updateUI {
-                                                                it.copy(
-                                                                    isTabsPanelVisible = savedState.tabs
-                                                                )
-                                                            }
-                                                            viewModel.updateUI {
-                                                                it.copy(
-                                                                    isDownloadPanelVisible = savedState.downloads
-                                                                )
-                                                            }
-                                                            viewModel.updateUI {
-                                                                it.copy(
-                                                                    isTabDataPanelVisible = false
-                                                                )
-                                                            }
-                                                            viewModel.updateUI {
-                                                                it.copy(
-                                                                    isNavPanelVisible = savedState.nav
-                                                                )
-                                                            }
-                                                        }
-
-                                                        viewModel.updateUI { it.copy(savedPanelState = null) }
-                                                    }
-                                                    textFieldState.setTextAndPlaceCursorAtEnd(
-                                                        resetUrl.toDomain()
-                                                    )
-
-
-                                                    viewModel.updateUI {
-                                                        it.copy(
-                                                            isUrlOverlayBoxVisible = true
-                                                        )
-                                                    }
                                                 }
                                             }
-                                            //
+                                        }
 
-                                            .clip(
-                                                RoundedCornerShape(
-                                                    settings.value.cornerRadiusForLayer(2).dp
-                                                )
-                                            ),
-                                        placeholder = {
-                                            if (!uiState.value.isPinningApp) Text("search / url") else Text(
-                                                "pin label"
-                                            )
-                                        },
-                                        state = textFieldState,
-                                        textStyle = LocalTextStyle.current.copy(
-                                            //                            fontFamily = FontFamily.Monospace,
-                                            textAlign = if (uiState.value.isFocusOnUrlTextField) TextAlign.Start else TextAlign.Center
-                                        ),
-                                        //                        state = rememberTextFieldState("Hello"),
-                                        lineLimits = TextFieldLineLimits.SingleLine,
-                                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
-                                        onKeyboardAction = {
-                                            val input = (textFieldState.text as String).trim()
-                                            val resetUrl = viewModel.activeTab!!.currentURL
+                                        //                                        // Gesture is fully over
+                                        //                                        if (longPressJob.isActive) {
+                                        //                                            longPressJob.cancel()
+                                        //                                            // This was a tap
+                                        //                                            focusRequester.requestFocus()
+                                        //                                        }
 
-
-                                            if (input.isEmpty()) {
-
-                                                if (uiState.value.isPinningApp) {
-                                                    viewModel.pinApp(
-                                                        title = viewModel.activeTab!!.currentTitle,
-                                                        url = resetUrl,
-                                                        iconUrl = viewModel.activeTab!!.currentFaviconUrl,
-                                                    )
-                                                    viewModel.updateUI { it.copy(isPinningApp = false) }
-                                                } else {
-                                                    activeSession.reload()
-                                                }
-                                                focusManager.clearFocus()
-                                                keyboardController?.hide()
-
-                                                textFieldState.setTextAndPlaceCursorAtEnd(resetUrl.toDomain())
-
-                                                viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
-
-                                                return@TextField
-                                            }
-
-
-                                            val isUrl = try {
-                                                Patterns.WEB_URL.matcher(input).matches() ||
-                                                        (input.contains(".") && !input.contains(" "))
-                                                        && !input.endsWith(".")
-                                                        && !input.startsWith(".")
-                                            } catch (_: Exception) {
-                                                false
-                                            }
-
-                                            if (uiState.value.isPinningApp) {
-                                                viewModel.apps.add(
-                                                    App(
-                                                        id = System.currentTimeMillis(),
-                                                        label = input,
-                                                        iconUrl = viewModel.activeTab!!.currentFaviconUrl,
-                                                        url = resetUrl,
-                                                    )
-                                                )
-                                            } else { // search
-                                                val finalUrl = if (isUrl) {
-                                                    if (input.startsWith("http://") || input.startsWith(
-                                                            "https://"
-                                                        )
-                                                    ) {
-                                                        input
-                                                    } else {
-                                                        "https://$input"
-                                                    }
-                                                } else {
-                                                    val encodedQuery =
-                                                        URLEncoder.encode(
-                                                            input,
-                                                            StandardCharsets.UTF_8.toString()
-                                                        )
-                                                    //                                                "https://www.google.com/search?q=$encodedQuery"
-                                                    //                                                "https://duckduckgo.com/?q=$encodedQuery"
-                                                    //                                                "https://www.bing.com/search?q=$encodedQuery"
-                                                    SearchEngine.entries[settings.value.searchEngine].getSearchUrl(
-                                                        encodedQuery
-                                                    )
-                                                }
-
-                                                onNewUrl(finalUrl)
-                                            }
-
-
-                                            focusManager.clearFocus()
-                                            keyboardController?.hide()
-
-                                            viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
-                                        },
-                                        shape = RoundedCornerShape(
-                                            settings.value.cornerRadiusForLayer(2).dp
-                                        ),
-                                        colors = TextFieldDefaults.colors(
-                                            focusedContainerColor = Color.Black,
-                                            unfocusedContainerColor = Color.Black,
-                                            cursorColor = Color.White,
-                                            focusedTextColor = Color.White,
-                                            unfocusedTextColor = Color.White,
-
-                                            // 3. This is the key to removing the underline
-                                            focusedIndicatorColor = Color.Transparent,
-                                            unfocusedIndicatorColor = Color.Transparent,
-                                            disabledIndicatorColor = Color.Transparent,
-                                            errorIndicatorColor = Color.Transparent
-                                        ),
-                                    )
-
-                                    if (uiState.value.isUrlOverlayBoxVisible && !uiState.value.isFocusOnUrlTextField) Box(
-                                        modifier = Modifier
-                                            .background(
-                                                Color.Transparent, shape = RoundedCornerShape(
-                                                    settings.value.cornerRadiusForLayer(1).dp
-                                                )
-                                            )
-                                            .clip(
-                                                RoundedCornerShape(
-                                                    settings.value.cornerRadiusForLayer(1).dp
-                                                )
-                                            )
-
-                                            .matchParentSize()
-                                            .pointerInput(
-                                                Unit,
-                                                viewModel.activeTab!!.canGoBack,
-                                                viewModel.activeTab!!.canGoForward,
-
-                                                ) {
-                                                // 1. CAPTURE the CoroutineScope provided by pointerInput
-                                                val coroutineScope =
-                                                    CoroutineScope(currentCoroutineContext())
-                                                awaitEachGesture {
-                                                    val down =
-                                                        awaitFirstDown(requireUnconsumed = false)
-
-                                                    // 2. USE the captured scope to launch the long press job
-                                                    val longPressJob = coroutineScope.launch {
-                                                        delay(viewConfiguration.longPressTimeoutMillis)
-
-                                                        // LONG PRESS CONFIRMED
-                                                        hapticFeedback.performHapticFeedback(
-                                                            HapticFeedbackType.LongPress
-                                                        )
-                                                        focusManager.clearFocus(true)
-                                                        viewModel.updateUI {
-                                                            it.copy(
-                                                                isNavPanelVisible = true
-                                                            )
-                                                        }
-                                                        setActiveNavAction(GestureNavAction.NONE)
-
-                                                    }
-
-                                                    val drag =
-                                                        awaitTouchSlopOrCancellation(down.id) { change, _ ->
-                                                            if (longPressJob.isActive) {
-                                                                longPressJob.cancel()
-                                                            }
-                                                            change.consume()
-                                                        }
-
-                                                    if (longPressJob.isCompleted && !longPressJob.isCancelled) {
-                                                        if (drag != null) {
-                                                            var horizontalDragAccumulator = 0f
-                                                            var verticalDragAccumulator = 0f
-                                                            var previousAction =
-                                                                GestureNavAction.REFRESH
-                                                            val horizontalDragThreshold =
-                                                                40.dp.toPx()
-
-                                                            val verticalCancelThreshold =
-                                                                -40.dp.toPx()
-
-
-                                                            drag(drag.id) { change ->
-                                                                change.consume()
-                                                                horizontalDragAccumulator += change.position.x - change.previousPosition.x
-                                                                verticalDragAccumulator += change.position.y - change.previousPosition.y
-
-
-                                                                val newAction = when {
-                                                                    verticalDragAccumulator < verticalCancelThreshold -> {
-                                                                        when {
-                                                                            horizontalDragAccumulator < -horizontalDragThreshold -> GestureNavAction.CLOSE_TAB
-                                                                            horizontalDragAccumulator > horizontalDragThreshold -> GestureNavAction.NEW_TAB
-                                                                            else -> GestureNavAction.REFRESH
-                                                                        }
-                                                                    }
-
-                                                                    horizontalDragAccumulator < -horizontalDragThreshold -> if (viewModel.activeTab!!.canGoBack
-                                                                    ) GestureNavAction.BACK else GestureNavAction.NONE
-
-                                                                    horizontalDragAccumulator > horizontalDragThreshold -> if (viewModel.activeTab!!.canGoForward
-                                                                    ) GestureNavAction.FORWARD else GestureNavAction.NONE
-
-                                                                    else -> GestureNavAction.NONE
-                                                                }
-
-                                                                if (newAction != previousAction) {
-                                                                    hapticFeedback.performHapticFeedback(
-                                                                        HapticFeedbackType.TextHandleMove
-                                                                    )
-                                                                    previousAction = newAction
-                                                                }
-                                                                //                                                    activeNavAction = newAction
-                                                                setActiveNavAction(newAction)
-                                                            }
-
-                                                            navigateWebView()
-                                                        }
-                                                    } else {
-                                                        if (drag != null) {
-
-                                                            var horizontalDragAccumulator = 0f
-                                                            var verticalDragAccumulator = 0f
-
-                                                            drag(drag.id) { change ->
-                                                                horizontalDragAccumulator += change.position.x - change.previousPosition.x
-                                                                verticalDragAccumulator += change.position.y - change.previousPosition.y
-
-//                                                                if (isFocusOnUrlTextField ) change.consume()
-                                                                if (abs(horizontalDragAccumulator) > abs(
-                                                                        verticalDragAccumulator
-                                                                    )
-                                                                ) {
-                                                                    viewModel.updateUI {
-                                                                        it.copy(
-                                                                            isUrlOverlayBoxVisible = false
-                                                                        )
-                                                                    }
-
-                                                                }
-
-
-                                                            }
-
-
-                                                        } else {
-                                                            // Gesture is fully over
-                                                            if (longPressJob.isActive) {
-                                                                longPressJob.cancel()
-                                                                // This was a tap
-
-                                                                if (urlBarFocusRequester.requestFocus()) {
-                                                                    keyboardController?.show()
-                                                                } else {
-                                                                    urlBarFocusRequester.requestFocus()
-                                                                }
-                                                                viewModel.updateUI {
-                                                                    it.copy(
-                                                                        isUrlOverlayBoxVisible = false
-                                                                    )
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-
-                                                    //                                        // Gesture is fully over
-                                                    //                                        if (longPressJob.isActive) {
-                                                    //                                            longPressJob.cancel()
-                                                    //                                            // This was a tap
-                                                    //                                            focusRequester.requestFocus()
-                                                    //                                        }
-
-                                                    // Reset the UI state
-                                                    //                                        isNavPanelVisible = false
-                                                    viewModel.updateUI { it.copy(isNavPanelVisible = false) }
-                                                    //                                        activeNavAction = GestureNavAction.NONE
-                                                    setActiveNavAction(GestureNavAction.NONE)
-                                                }
-                                            }
-                                    ) {
+                                        // Reset the UI state
+                                        //                                        isNavPanelVisible = false
+                                        viewModel.updateUI { it.copy(isNavPanelVisible = false) }
+                                        //                                        activeNavAction = GestureNavAction.NONE
+                                        setActiveNavAction(GestureNavAction.NONE)
                                     }
                                 }
-                            }
-
-                            BottomPanelMode.PROFILES.ordinal -> {
-                                Box(
-                                    modifier = Modifier
-                                        .height(
-                                            settings.value.heightForLayer(1).dp
-                                        )
-                                        .fillMaxWidth()
-                                        .padding(settings.value.padding.dp)
-                                        .clip(
-                                            RoundedCornerShape(
-                                                settings.value.cornerRadiusForLayer(
-                                                    1
-                                                ).dp
-                                            )
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        painter = painterResource(id = if (settings.value.isFullscreenMode) R.drawable.ic_fullscreen else R.drawable.ic_fullscreen_exit),
-                                        contentDescription = "toggle bottom panel lock",
-                                        tint = Color.White
-                                    )
-                                }
-                            }
+                        ) {
                         }
                     }
+
+//                    HorizontalPager(
+//                        state = bottomPanelPagerState,
+//                        modifier = Modifier
+//                            .fillMaxWidth()
+//                            .animateContentSize(),
+//                        contentPadding = PaddingValues(0.dp),
+//                        pageSpacing = settings.value.padding.dp // Optional spacing
+//                    ) { pageIndex ->
+//                        LaunchedEffect(pageIndex) {
+//                            if (pageIndex != BottomPanelMode.SEARCH.ordinal) {
+//                                setIsOptionsPanelVisible(false)
+//                            }
+//                        }
+//                        when (pageIndex) {
+//                            // --- LEFT BOX (Page 0) ---
+//                            BottomPanelMode.APPS.ordinal -> {
+//                                Column(
+//                                    modifier = Modifier
+//                                        .height(
+//                                            settings.value.heightForLayer(1).dp
+//                                        )
+//                                        .fillMaxWidth()
+//                                        .padding(settings.value.padding.dp)
+//                                        .clip(
+//                                            RoundedCornerShape(
+//                                                settings.value.cornerRadiusForLayer(
+//                                                    1
+//                                                ).dp
+//                                            )
+//                                        )
+//                                        .consumeChangePointerInput(dragDirection = DragDirection.Vertical)
+//                                ) {
+//
+//                                    AnimatedVisibility(
+//                                        visible = viewModel.inspectingAppId.longValue > 0L,
+//                                        enter = fadeIn(
+//                                            tween(
+//                                                settings.value.animationSpeedForLayer(
+//                                                    0
+//                                                )
+//                                            )
+//                                        ),
+//                                        exit = fadeOut(
+//                                            tween(
+//                                                settings.value.animationSpeedForLayer(
+//                                                    0
+//                                                )
+//                                            )
+//                                        ),
+//                                    ) {
+//                                        Row(
+//                                            modifier = Modifier
+//                                                .fillMaxWidth()
+//                                                .clip(
+//                                                    RoundedCornerShape(
+//                                                        settings.value.cornerRadiusForLayer(
+//                                                            1
+//                                                        ).dp
+//                                                    )
+//                                                )
+//                                        ) {
+//
+//                                            val currentIndex =
+//                                                viewModel.apps.indexOfFirst { it.id == viewModel.inspectingAppId.longValue }
+//                                            Box(
+//                                                modifier = Modifier
+//                                                    .buttonSettingsForLayer(
+//                                                        2,
+//                                                        settings.value,
+//                                                        currentIndex > 0
+//                                                    )
+//                                                    .weight(1f)
+//                                                    .clickable {
+//                                                        if (currentIndex > 0) {
+//                                                            viewModel.swapApps(
+//                                                                currentIndex,
+//                                                                currentIndex - 1
+//                                                            )
+//                                                        }
+//                                                    },
+//                                                contentAlignment = Alignment.Center
+//                                            ) {
+//                                                Icon(
+//                                                    painter = painterResource(id = R.drawable.ic_arrow_downward),
+//                                                    contentDescription = "edit pin",
+//                                                    tint = Color.Black
+//                                                )
+//                                            }
+//                                            Spacer(modifier = Modifier.width(settings.value.padding.dp))
+//
+//                                            Box(
+//                                                modifier = Modifier
+//                                                    .buttonSettingsForLayer(
+//                                                        2,
+//                                                        settings.value,
+//                                                        false
+//                                                    )
+//                                                    .weight(1f)
+//                                                    .clickable {
+//                                                        viewModel.removeApp(viewModel.inspectingAppId.longValue)
+//                                                        viewModel.inspectingAppId.longValue = 0L
+//                                                    },
+//                                                contentAlignment = Alignment.Center
+//                                            ) {
+//                                                Icon(
+//                                                    painter = painterResource(id = R.drawable.ic_delete_forever),
+//                                                    contentDescription = "delete pin",
+//                                                    tint = Color.White
+//                                                )
+//                                            }
+//                                            Spacer(modifier = Modifier.width(settings.value.padding.dp))
+//                                            Box(
+//                                                modifier = Modifier
+//                                                    .buttonSettingsForLayer(
+//                                                        2,
+//                                                        settings.value,
+//                                                        currentIndex < viewModel.apps.lastIndex && currentIndex >= 0
+//                                                    )
+//                                                    .weight(1f)
+//                                                    .clickable {
+//
+//                                                        if (currentIndex < viewModel.apps.lastIndex) {
+//                                                            viewModel.swapApps(
+//                                                                currentIndex,
+//                                                                currentIndex + 1
+//                                                            )
+//                                                        }
+//                                                    },
+//                                                contentAlignment = Alignment.Center
+//                                            ) {
+//                                                Icon(
+//                                                    painter = painterResource(id = R.drawable.ic_arrow_upward),
+//                                                    contentDescription = "edit pin",
+//                                                    tint = Color.Black
+//                                                )
+//                                            }
+//                                        }
+//                                    }
+//
+//                                    AnimatedVisibility(
+//                                        visible = viewModel.inspectingAppId.longValue == 0L,
+//                                        enter = fadeIn(
+//                                            tween(
+//                                                settings.value.animationSpeedForLayer(
+//                                                    0
+//                                                )
+//                                            )
+//                                        ),
+//                                        exit = fadeOut(
+//                                            tween(
+//                                                settings.value.animationSpeedForLayer(
+//                                                    0
+//                                                )
+//                                            )
+//                                        ),
+//                                    ) {
+//                                        Box(
+//                                            modifier = Modifier
+//                                                .height(
+//                                                    settings.value.heightForLayer(1).dp
+//                                                )
+//                                                .fillMaxWidth()
+//                                                .clip(
+//                                                    RoundedCornerShape(
+//                                                        settings.value.cornerRadiusForLayer(
+//                                                            1
+//                                                        ).dp
+//                                                    )
+//                                                )
+//                                                .clickable {
+//                                                    viewModel.resetBottomPanelTrigger.value =
+//                                                        !viewModel.resetBottomPanelTrigger.value
+//                                                },
+//                                            contentAlignment = Alignment.Center
+//                                        ) {
+//                                            Icon(
+//                                                painter = painterResource(id = R.drawable.ic_arrow_forward),
+//                                                contentDescription = "toggle app",
+//                                                tint = Color.White
+//                                            )
+//                                        }
+//                                    }
+//
+//                                }
+//
+//                            }
+//
+//                            BottomPanelMode.SEARCH.ordinal -> {
+//                                Box(modifier = Modifier) {
+//
+//                                    TextField(
+//                                        modifier = Modifier
+//                                            .height(
+//                                                settings.value.heightForLayer(1).dp
+//                                            )
+//                                            .padding(settings.value.padding.dp)
+//                                            .onSizeChanged { size ->
+//                                                setTextFieldHeightPx(size.height)
+//                                            }
+//                                            .fillMaxWidth()
+//                                            .focusRequester(urlBarFocusRequester)
+//                                            //                            .padding(horizontal = settings.value.padding.dp, vertical = settings.value.padding.dp / 2)
+//                                            .onFocusChanged { focusState ->
+//                                                val resetUrl = viewModel.activeTab!!.currentURL
+//                                                viewModel.updateUI { it.copy(isFocusOnUrlTextField = focusState.isFocused) }
+//
+//                                                if (focusState.isFocused) {
+//
+//                                                    //                                                geckoViewRef.value?.clearFocus()
+//                                                    //                                                CoroutineScope(Dispatchers.Main).launch {
+//                                                    //                                                    delay(300) // 50ms is usually enough to beat the race condition
+//                                                    //                                                    keyboardController?.show()
+//                                                    //                                                }
+//
+//                                                    viewModel.updateUI {
+//                                                        it.copy(
+//                                                            savedPanelState = PanelVisibilityState(
+//                                                                options = draggableState.currentValue == RevealState.Visible,
+//                                                                tabs = isTabsPanelVisible,
+//                                                                downloads = uiState.value.isDownloadPanelVisible,
+//                                                                tabData = isTabDataPanelVisible,
+//                                                                nav = uiState.value.isNavPanelVisible
+//                                                            )
+//                                                        )
+//                                                    }
+//
+//                                                    setIsOptionsPanelVisible(false)
+//                                                    viewModel.updateUI { it.copy(isTabsPanelVisible = false) }
+//                                                    viewModel.updateUI {
+//                                                        it.copy(
+//                                                            isDownloadPanelVisible = false
+//                                                        )
+//                                                    }
+//
+//                                                    viewModel.updateUI {
+//                                                        it.copy(
+//                                                            isTabDataPanelVisible = false
+//                                                        )
+//                                                    }
+//                                                    viewModel.updateUI { it.copy(isNavPanelVisible = false) }
+//                                                    viewModel.updateUI {
+//                                                        it.copy(
+//                                                            isSettingsPanelVisible = false
+//                                                        )
+//                                                    }
+//
+//                                                    viewModel.updateUI {
+//                                                        it.copy(
+//                                                            isUrlOverlayBoxVisible = false
+//                                                        )
+//                                                    }
+//
+//                                                    //                                    textFieldState.edit { selectAll() }
+//                                                    textFieldState.setTextAndPlaceCursorAtEnd("")
+//
+//
+//                                                } else {
+//                                                    if (uiState.value.isPinningApp) viewModel.updateUI {
+//                                                        it.copy(
+//                                                            isPinningApp = false
+//                                                        )
+//                                                    }
+//                                                    viewModel.updateUI {
+//                                                        it.copy(
+//                                                            isUrlOverlayBoxVisible = true
+//                                                        )
+//                                                    }
+//
+//                                                    uiState.value.savedPanelState?.let { savedState ->
+//                                                        if (bottomPanelPagerState.currentPage == BottomPanelMode.SEARCH.ordinal) {
+//                                                            setIsOptionsPanelVisible(savedState.options)
+//                                                            viewModel.updateUI {
+//                                                                it.copy(
+//                                                                    isTabsPanelVisible = savedState.tabs
+//                                                                )
+//                                                            }
+//                                                            viewModel.updateUI {
+//                                                                it.copy(
+//                                                                    isDownloadPanelVisible = savedState.downloads
+//                                                                )
+//                                                            }
+//                                                            viewModel.updateUI {
+//                                                                it.copy(
+//                                                                    isTabDataPanelVisible = false
+//                                                                )
+//                                                            }
+//                                                            viewModel.updateUI {
+//                                                                it.copy(
+//                                                                    isNavPanelVisible = savedState.nav
+//                                                                )
+//                                                            }
+//                                                        }
+//
+//                                                        viewModel.updateUI { it.copy(savedPanelState = null) }
+//                                                    }
+//                                                    textFieldState.setTextAndPlaceCursorAtEnd(
+//                                                        resetUrl.toDomain()
+//                                                    )
+//
+//
+//                                                    viewModel.updateUI {
+//                                                        it.copy(
+//                                                            isUrlOverlayBoxVisible = true
+//                                                        )
+//                                                    }
+//                                                }
+//                                            }
+//                                            //
+//
+//                                            .clip(
+//                                                RoundedCornerShape(
+//                                                    settings.value.cornerRadiusForLayer(2).dp
+//                                                )
+//                                            ),
+//                                        placeholder = {
+//                                            if (!uiState.value.isPinningApp) Text("search / url") else Text(
+//                                                "pin label"
+//                                            )
+//                                        },
+//                                        state = textFieldState,
+//                                        textStyle = LocalTextStyle.current.copy(
+//                                            //                            fontFamily = FontFamily.Monospace,
+//                                            textAlign = if (uiState.value.isFocusOnUrlTextField) TextAlign.Start else TextAlign.Center
+//                                        ),
+//                                        //                        state = rememberTextFieldState("Hello"),
+//                                        lineLimits = TextFieldLineLimits.SingleLine,
+//                                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
+//                                        onKeyboardAction = {
+//                                            val input = (textFieldState.text as String).trim()
+//                                            val resetUrl = viewModel.activeTab!!.currentURL
+//
+//
+//                                            if (input.isEmpty()) {
+//
+//                                                if (uiState.value.isPinningApp) {
+//                                                    Log.i("marcApp", "enter on keyboard")
+//                                                    viewModel.pinApp(
+//                                                        title = viewModel.activeTab!!.currentTitle,
+//                                                        url = resetUrl,
+//                                                        iconUrl = viewModel.activeTab!!.currentFaviconUrl,
+//                                                    )
+//                                                    viewModel.updateUI { it.copy(isPinningApp = false) }
+//                                                } else {
+//                                                    activeSession.reload()
+//                                                }
+//                                                focusManager.clearFocus()
+//                                                keyboardController?.hide()
+//
+//                                                textFieldState.setTextAndPlaceCursorAtEnd(resetUrl.toDomain())
+//
+//                                                viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
+//
+//                                                return@TextField
+//                                            }
+//
+//
+//                                            val isUrl = try {
+//                                                Patterns.WEB_URL.matcher(input).matches() ||
+//                                                        (input.contains(".") && !input.contains(" "))
+//                                                        && !input.endsWith(".")
+//                                                        && !input.startsWith(".")
+//                                            } catch (_: Exception) {
+//                                                false
+//                                            }
+//
+//                                            if (uiState.value.isPinningApp) {
+//
+//                                                viewModel.pinApp(
+//                                                    title = input,
+//                                                    url = resetUrl,
+//                                                    iconUrl = viewModel.activeTab!!.currentFaviconUrl,
+//                                                )
+//                                                viewModel.updateUI { it.copy(isPinningApp = false) }
+//                                            } else { // search
+//                                                val finalUrl = if (isUrl) {
+//                                                    if (input.startsWith("http://") || input.startsWith(
+//                                                            "https://"
+//                                                        )
+//                                                    ) {
+//                                                        input
+//                                                    } else {
+//                                                        "https://$input"
+//                                                    }
+//                                                } else {
+//                                                    val encodedQuery =
+//                                                        URLEncoder.encode(
+//                                                            input,
+//                                                            StandardCharsets.UTF_8.toString()
+//                                                        )
+//                                                    //                                                "https://www.google.com/search?q=$encodedQuery"
+//                                                    //                                                "https://duckduckgo.com/?q=$encodedQuery"
+//                                                    //                                                "https://www.bing.com/search?q=$encodedQuery"
+//                                                    SearchEngine.entries[settings.value.searchEngine].getSearchUrl(
+//                                                        encodedQuery
+//                                                    )
+//                                                }
+//
+//                                                onNewUrl(finalUrl)
+//                                            }
+//
+//
+//                                            focusManager.clearFocus()
+//                                            keyboardController?.hide()
+//
+//                                            viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
+//                                        },
+//                                        shape = RoundedCornerShape(
+//                                            settings.value.cornerRadiusForLayer(2).dp
+//                                        ),
+//                                        colors = TextFieldDefaults.colors(
+//                                            focusedContainerColor = Color.Black,
+//                                            unfocusedContainerColor = Color.Black,
+//                                            cursorColor = Color.White,
+//                                            focusedTextColor = Color.White,
+//                                            unfocusedTextColor = Color.White,
+//
+//                                            // 3. This is the key to removing the underline
+//                                            focusedIndicatorColor = Color.Transparent,
+//                                            unfocusedIndicatorColor = Color.Transparent,
+//                                            disabledIndicatorColor = Color.Transparent,
+//                                            errorIndicatorColor = Color.Transparent
+//                                        ),
+//                                    )
+//
+//                                    if (uiState.value.isUrlOverlayBoxVisible && !uiState.value.isFocusOnUrlTextField) Box(
+//                                        modifier = Modifier
+//                                            .background(
+//                                                Color.Transparent, shape = RoundedCornerShape(
+//                                                    settings.value.cornerRadiusForLayer(1).dp
+//                                                )
+//                                            )
+//                                            .clip(
+//                                                RoundedCornerShape(
+//                                                    settings.value.cornerRadiusForLayer(1).dp
+//                                                )
+//                                            )
+//
+//                                            .matchParentSize()
+//                                            .pointerInput(
+//                                                Unit,
+//                                                viewModel.activeTab!!.canGoBack,
+//                                                viewModel.activeTab!!.canGoForward,
+//
+//                                                ) {
+//                                                // 1. CAPTURE the CoroutineScope provided by pointerInput
+//                                                val coroutineScope =
+//                                                    CoroutineScope(currentCoroutineContext())
+//                                                awaitEachGesture {
+//                                                    val down =
+//                                                        awaitFirstDown(requireUnconsumed = false)
+//
+//                                                    // 2. USE the captured scope to launch the long press job
+//                                                    val longPressJob = coroutineScope.launch {
+//                                                        delay(viewConfiguration.longPressTimeoutMillis)
+//
+//                                                        // LONG PRESS CONFIRMED
+//                                                        hapticFeedback.performHapticFeedback(
+//                                                            HapticFeedbackType.LongPress
+//                                                        )
+//                                                        focusManager.clearFocus(true)
+//                                                        viewModel.updateUI {
+//                                                            it.copy(
+//                                                                isNavPanelVisible = true
+//                                                            )
+//                                                        }
+//                                                        setActiveNavAction(GestureNavAction.NONE)
+//
+//                                                    }
+//
+//                                                    val drag =
+//                                                        awaitTouchSlopOrCancellation(down.id) { change, _ ->
+//                                                            if (longPressJob.isActive) {
+//                                                                longPressJob.cancel()
+//                                                            }
+//                                                            change.consume()
+//                                                        }
+//
+//                                                    if (longPressJob.isCompleted && !longPressJob.isCancelled) {
+//                                                        if (drag != null) {
+//                                                            var horizontalDragAccumulator = 0f
+//                                                            var verticalDragAccumulator = 0f
+//                                                            var previousAction =
+//                                                                GestureNavAction.REFRESH
+//                                                            val horizontalDragThreshold =
+//                                                                40.dp.toPx()
+//
+//                                                            val verticalCancelThreshold =
+//                                                                -40.dp.toPx()
+//
+//
+//                                                            drag(drag.id) { change ->
+//                                                                change.consume()
+//                                                                horizontalDragAccumulator += change.position.x - change.previousPosition.x
+//                                                                verticalDragAccumulator += change.position.y - change.previousPosition.y
+//
+//
+//                                                                val newAction = when {
+//                                                                    verticalDragAccumulator < verticalCancelThreshold -> {
+//                                                                        when {
+//                                                                            horizontalDragAccumulator < -horizontalDragThreshold -> GestureNavAction.CLOSE_TAB
+//                                                                            horizontalDragAccumulator > horizontalDragThreshold -> GestureNavAction.NEW_TAB
+//                                                                            else -> GestureNavAction.REFRESH
+//                                                                        }
+//                                                                    }
+//
+//                                                                    horizontalDragAccumulator < -horizontalDragThreshold -> if (viewModel.activeTab!!.canGoBack
+//                                                                    ) GestureNavAction.BACK else GestureNavAction.NONE
+//
+//                                                                    horizontalDragAccumulator > horizontalDragThreshold -> if (viewModel.activeTab!!.canGoForward
+//                                                                    ) GestureNavAction.FORWARD else GestureNavAction.NONE
+//
+//                                                                    else -> GestureNavAction.NONE
+//                                                                }
+//
+//                                                                if (newAction != previousAction) {
+//                                                                    hapticFeedback.performHapticFeedback(
+//                                                                        HapticFeedbackType.TextHandleMove
+//                                                                    )
+//                                                                    previousAction = newAction
+//                                                                }
+//                                                                //                                                    activeNavAction = newAction
+//                                                                setActiveNavAction(newAction)
+//                                                            }
+//
+//                                                            navigateWebView()
+//                                                        }
+//                                                    } else {
+//                                                        if (drag != null) {
+//
+//                                                            var horizontalDragAccumulator = 0f
+//                                                            var verticalDragAccumulator = 0f
+//
+//                                                            drag(drag.id) { change ->
+//                                                                horizontalDragAccumulator += change.position.x - change.previousPosition.x
+//                                                                verticalDragAccumulator += change.position.y - change.previousPosition.y
+//
+////                                                                if (isFocusOnUrlTextField ) change.consume()
+//                                                                if (abs(horizontalDragAccumulator) > abs(
+//                                                                        verticalDragAccumulator
+//                                                                    )
+//                                                                ) {
+//                                                                    viewModel.updateUI {
+//                                                                        it.copy(
+//                                                                            isUrlOverlayBoxVisible = false
+//                                                                        )
+//                                                                    }
+//
+//                                                                }
+//
+//
+//                                                            }
+//
+//
+//                                                        } else {
+//                                                            // Gesture is fully over
+//                                                            if (longPressJob.isActive) {
+//                                                                longPressJob.cancel()
+//                                                                // This was a tap
+//
+//                                                                if (urlBarFocusRequester.requestFocus()) {
+//                                                                    keyboardController?.show()
+//                                                                } else {
+//                                                                    urlBarFocusRequester.requestFocus()
+//                                                                }
+//                                                                viewModel.updateUI {
+//                                                                    it.copy(
+//                                                                        isUrlOverlayBoxVisible = false
+//                                                                    )
+//                                                                }
+//                                                            }
+//                                                        }
+//                                                    }
+//
+//                                                    //                                        // Gesture is fully over
+//                                                    //                                        if (longPressJob.isActive) {
+//                                                    //                                            longPressJob.cancel()
+//                                                    //                                            // This was a tap
+//                                                    //                                            focusRequester.requestFocus()
+//                                                    //                                        }
+//
+//                                                    // Reset the UI state
+//                                                    //                                        isNavPanelVisible = false
+//                                                    viewModel.updateUI { it.copy(isNavPanelVisible = false) }
+//                                                    //                                        activeNavAction = GestureNavAction.NONE
+//                                                    setActiveNavAction(GestureNavAction.NONE)
+//                                                }
+//                                            }
+//                                    ) {
+//                                    }
+//                                }
+//                            }
+//
+//                            BottomPanelMode.PROFILES.ordinal -> {
+//                                val profileTextState = rememberTextFieldState("")
+//
+//                                // Local states to handle UI animations without touching backend logic yet
+//                                var isCreatingNew by remember { mutableStateOf(false) }
+//                                val profileFocusRequester = remember { FocusRequester() }
+//
+//                                val photoPickerLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+//                                    contract = androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia()
+//                                ) { uri ->
+//                                    // When the user selects a photo, this block runs
+//                                    if (uri != null) {
+//                                        viewModel.updateProfileIcon(viewModel.activeProfileId.value, uri)
+//                                    }
+//                                }
+//
+//                                // Temporarily grab the active profile name to show in the text box when not focused
+//                                LaunchedEffect(viewModel.activeProfileId.value, uiState.value.isFocusOnProfileTextField, isCreatingNew) {
+//                                    if (!uiState.value.isFocusOnProfileTextField && !isCreatingNew) {
+//                                        val currentProfileName = viewModel.profiles.find { it.id == viewModel.activeProfileId.value }?.name ?: "Profile"
+//                                        profileTextState.setTextAndPlaceCursorAtEnd(currentProfileName)
+//                                    }
+//                                }
+//
+//                                val isImeVisible = androidx.compose.foundation.layout.WindowInsets.isImeVisible
+//                                LaunchedEffect(isImeVisible) {
+//                                    if (!isImeVisible) {
+//                                        if (uiState.value.isFocusOnProfileTextField) focusManager.clearFocus()
+//                                        if (isCreatingNew) isCreatingNew = false
+//                                    }
+//                                }
+//
+//                                Column(modifier = Modifier.fillMaxWidth()) {
+//                                    Row(
+//                                        modifier = Modifier
+//                                            .height(settings.value.heightForLayer(1).dp)
+//                                            .fillMaxWidth()
+//                                            .padding(settings.value.padding.dp),
+//                                        verticalAlignment = Alignment.CenterVertically
+//                                    ) {
+//                                        // 1. Text Box
+//                                        TextField(
+//                                            state = profileTextState,
+//                                            // Dynamic weight: 1f (full width) when editing/creating, 2f (2/3 width) when idle
+//                                            modifier = Modifier
+//                                                .weight(if (uiState.value.isFocusOnProfileTextField || isCreatingNew) 1f else 2f)
+//                                                .fillMaxHeight()
+//                                                .focusRequester(profileFocusRequester)
+//                                                .onFocusChanged { focusState ->
+//                                                    viewModel.updateUI { it.copy(isFocusOnProfileTextField = focusState.isFocused) }
+//                                                    if (!focusState.isFocused) {
+//                                                        isCreatingNew = false // Reset state when user taps outside
+//                                                    }
+//                                                }
+//                                                .clip(
+//                                                    RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp)
+//                                                )
+//                                                .border(
+//                                                    width = 1.dp,
+//                                                    color = Color.White,
+//                                                    shape = RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp)
+//                                                ),
+//                                            placeholder = {
+//                                                Text(if (isCreatingNew) "new profile name" else "current profile name")
+//                                            },
+//                                            textStyle = LocalTextStyle.current.copy(
+//                                                textAlign = TextAlign.Start,
+//                                                color = Color.White
+//                                            ),
+//                                            lineLimits = TextFieldLineLimits.SingleLine,
+//                                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+//                                            onKeyboardAction = {
+//                                                val inputName = profileTextState.text.toString().trim()
+//
+//                                                if (inputName.isNotEmpty()) {
+//                                                    if (isCreatingNew) {
+//                                                        viewModel.createNewProfile(inputName)
+//                                                    } else {
+//                                                        viewModel.updateProfileName(viewModel.activeProfileId.value, inputName)
+//                                                    }
+//                                                }
+//
+//                                                focusManager.clearFocus()
+//                                                keyboardController?.hide()
+//                                            },
+//                                            colors = TextFieldDefaults.colors(
+//                                                focusedContainerColor = Color.Black,
+//                                                unfocusedContainerColor = Color.Black,
+//                                                cursorColor = Color.White,
+//                                                focusedTextColor = Color.White,
+//                                                unfocusedTextColor = Color.White,
+//                                                focusedIndicatorColor = Color.Transparent,
+//                                                unfocusedIndicatorColor = Color.Transparent,
+//                                                disabledIndicatorColor = Color.Transparent,
+//                                                errorIndicatorColor = Color.Transparent
+//                                            )
+//                                        )
+//
+//                                        // 2. Plus Button (Animated to shrink/disappear)
+//                                        AnimatedVisibility(
+//                                            visible = !uiState.value.isFocusOnProfileTextField && !isCreatingNew,
+//                                            exit = shrinkHorizontally { it },
+//                                            enter = expandHorizontally { it },
+//                                            modifier = Modifier.weight(1f) // This makes the shrink/expand animation smooth!
+//                                        ) {
+//                                            Row(modifier = Modifier.fillMaxSize()) {
+//                                                Spacer(modifier = Modifier.width(settings.value.padding.dp))
+//                                                CustomIconButton(
+//                                                    modifier = Modifier.fillMaxSize(),
+//                                                    layer = 2,
+//                                                    onTap = {
+//                                                        // Trigger UI state for creating a new profile
+//                                                        isCreatingNew = true
+//                                                        profileTextState.setTextAndPlaceCursorAtEnd("")
+//                                                        profileFocusRequester.requestFocus()
+//                                                        keyboardController?.show()
+//                                                    },
+//                                                    buttonDescription = "new profile",
+//                                                    painterId = R.drawable.ic_add,
+//                                                )
+//                                            }
+//                                        }
+//                                    }
+//
+//                                    // 3. The new Profile Edit Panel (only shows when editing current profile)
+//                                    ProfileEditPanel(
+//                                        isVisible = uiState.value.isFocusOnProfileTextField && !isCreatingNew,
+//                                        onMoveLeftClick = {
+//                                            val currentIndex = viewModel.profiles.indexOfFirst { it.id == viewModel.activeProfileId.value }
+//                                            if (currentIndex > 0) {
+//                                                viewModel.swapProfiles(currentIndex, currentIndex - 1)
+//                                            }
+//                                        },
+//                                        onImageClick = {
+//
+//                                            photoPickerLauncher.launch(
+//                                                androidx.activity.result.PickVisualMediaRequest(
+//                                                    androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly
+//                                                )
+//                                            )
+//
+//                                            focusManager.clearFocus()
+//                                            keyboardController?.hide()
+//                                        },
+//                                        onMoveRightClick = {
+//                                            val currentIndex = viewModel.profiles.indexOfFirst { it.id == viewModel.activeProfileId.value }
+//                                            if (currentIndex < viewModel.profiles.lastIndex && currentIndex >= 0) {
+//                                                viewModel.swapProfiles(currentIndex, currentIndex + 1)
+//                                            }
+//                                        },
+//                                        onDeleteClick = {
+//                                            // Ensure there is more than 1 profile to prevent locking the app
+//                                            if (viewModel.profiles.size > 1) {
+//                                                viewModel.deleteProfile(viewModel.activeProfileId.value)
+//                                                focusManager.clearFocus()
+//                                                keyboardController?.hide()
+////                                                confirmationPopup(
+////                                                    "delete this profile? all data will be lost.",
+////                                                    "",
+////                                                    {
+////                                                        viewModel.deleteProfile(viewModel.activeProfileId.value)
+////                                                        focusManager.clearFocus()
+////                                                        keyboardController?.hide()
+////                                                    },
+////                                                    {}
+////                                                )
+//                                            } else {
+//                                                // Optional: Could show a toast "Cannot delete the only profile" here
+//                                            }
+//                                        },
+//                                    )
+//                                }
+//                            }
+//                        }
+//                    }
                 }
+
                 // SETTING OPTIONS
                 OptionsPanelWrapper(
-                    maxHeight = optionsPanelHeightPx,
                     dragOffset = draggableState.offset
                 ) {
-                    OptionsPanel(
-                        onCloseAllTabs = onCloseAllTabs,
-                        setIsOptionsPanelVisible = setIsOptionsPanelVisible,
-                        addAppToPin = {
-                            viewModel.updateUI { it.copy(isPinningApp = true) }
-                            urlBarFocusRequester.requestFocus()
-                        },
-                    )
+                    Column() {
+                        OptionsPanel(
+                            onCloseAllTabs = onCloseAllTabs,
+                            addAppToPin = {
+                                viewModel.updateUI { it.copy(isPinningApp = true) }
+                                urlBarFocusRequester.requestFocus()
+                            }
+                        )
+
+                        AppsPanel(
+                            onAppClick = { app ->
+                                webViewLoad(activeSession, app.url, settings.value)
+                                viewModel.updateUI { it.copy(isSettingsPanelVisible = false) }
+                                viewModel.updateUI { it.copy(isUrlBarVisible = false) }
+                            },
+                            confirmationPopup = confirmationPopup
+
+                        )
+
+                    }
                 }
+
+                AppsEditPanel()
+
+
+
+
+
                 TextEditPanel(
 //                    currentRotation =  currentRotation,
                     isVisible = uiState.value.isPinningApp || (uiState.value.isFocusOnUrlTextField && textFieldState.text.isBlank()),

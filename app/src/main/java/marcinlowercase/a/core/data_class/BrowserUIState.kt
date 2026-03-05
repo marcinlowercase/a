@@ -1,5 +1,8 @@
 package marcinlowercase.a.core.data_class
 
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+
 data class BrowserUIState(
     // Bottom Bar & General Overlay
     val isUrlBarVisible: Boolean = true,
@@ -18,6 +21,7 @@ data class BrowserUIState(
     val isNavPanelVisible: Boolean = false,
     val isPermissionPanelVisible: Boolean = false,
     val isPromptPanelVisible: Boolean = false,
+    val isOptionsPanelVisible: Boolean = false,
 
     // Tabs
     val isTabsPanelVisible: Boolean = false,
@@ -41,6 +45,7 @@ data class BrowserUIState(
     val isFocusOnUrlTextField: Boolean = false,
     val isFocusOnSettingTextField: Boolean = false,
     val isFocusOnFindTextField: Boolean = false,
+    val isFocusOnProfileTextField: Boolean = false,
     val isPinningApp: Boolean = false,
 
 
@@ -53,8 +58,12 @@ data class BrowserUIState(
     val isLandscapeByButton: Boolean = false,
     val isSettingCornerRadius: Boolean = true,
 
+    val optionsPanelHeightPx: Float = 0f,
+    val appsPanelHeightPx: Float = 0f,
+    val totalRevealHeightPx: Float = 0f,
+
 
     // State Restoration (used when focusing URL bar)
     val savedPanelState: PanelVisibilityState? = null,
 
-)
+    )

@@ -1,117 +1,70 @@
 package marcinlowercase.a.core.manager
 
 import android.content.Context
-import android.util.Log
 import androidx.core.content.edit
 import kotlinx.serialization.json.Json
 import marcinlowercase.a.core.constant.default_url
 import marcinlowercase.a.core.data_class.Tab
 import marcinlowercase.a.core.enum_class.TabState
-import kotlin.collections.forEach
 
 class TabManager(context: Context) {
     private val prefs = context.getSharedPreferences("BrowserTabs", Context.MODE_PRIVATE)
-    private val json = Json { ignoreUnknownKeys = true } // Lenient JSON parser
-
-    private val tabsKey = "tabs_list_json"
-    private val activeTabIndexKey = "active_tab_index"
-
+    private val json = Json { ignoreUnknownKeys = true }
     private val settingsPrefs = context.getSharedPreferences("BrowserPrefs", Context.MODE_PRIVATE)
 
+    private fun getTabsKey(profileId: String) = "tabs_list_json_$profileId"
+    private fun getActiveTabIndexKey(profileId: String) = "active_tab_index_$profileId"
 
-    fun getActiveTabIndex(): Int {
-        return prefs.getInt(activeTabIndexKey, 0)
-    }
+    fun getActiveTabIndex(profileId: String): Int = prefs.getInt(getActiveTabIndexKey(profileId), 0)
 
-    fun saveTabs(tabs: List<Tab> = emptyList(), activeTabIndex: Int) {
-        // Convert the list of tabs into a single JSON string
-        val jsonString = json.encodeToString(tabs)
+    fun saveTabs(profileId: String, tabs: List<Tab> = emptyList(), activeTabIndex: Int) {
         prefs.edit {
-            putString(tabsKey, jsonString)
-            putInt(activeTabIndexKey, activeTabIndex)
+            putString(getTabsKey(profileId), json.encodeToString(tabs))
+            putInt(getActiveTabIndexKey(profileId), activeTabIndex)
         }
-
     }
 
-    // New function to freeze all tabs on exit
-    fun freezeAllTabs() {
-        Log.e("marcPip", "freezeAllTabs")
-
-        val tabs = loadTabs(null) // Load the current state
+    fun freezeAllTabs(profileId: String) {
+        val tabs = loadTabs(profileId, null)
         if (tabs.isNotEmpty()) {
-            val activeIndex = prefs.getInt(activeTabIndexKey, 0)
-
-            // Freeze all tabs
+            val activeIndex = getActiveTabIndex(profileId)
             tabs.forEach { it.state = TabState.FROZEN }
-
-//            Log.e("RestoreSessionState", "${tabs[activeIndex]}")
-            saveTabs(tabs, activeIndex)
+            saveTabs(profileId, tabs, activeIndex)
         }
     }
 
-    fun clearAllTabs() {
+    fun clearAllTabs(profileId: String) {
         prefs.edit {
-            remove(tabsKey)
-            remove(activeTabIndexKey)
+            remove(getTabsKey(profileId))
+            remove(getActiveTabIndexKey(profileId))
             commit()
         }
-
     }
 
-    fun loadTabs(intentUrl: String?): MutableList<Tab> {
-
-        val jsonString = prefs.getString(tabsKey, null)
-
+    fun loadTabs(profileId: String, intentUrl: String?): MutableList<Tab> {
+        val jsonString = prefs.getString(getTabsKey(profileId), null)
         return if (jsonString != null) {
             try {
                 val loadedTabs = json.decodeFromString<MutableList<Tab>>(jsonString)
                 if (intentUrl != null) {
-
-                    val activeTabIndex = (getActiveTabIndex() + 1).coerceIn(0, loadedTabs.size)
-
+                    val activeTabIndex = (getActiveTabIndex(profileId) + 1).coerceIn(0, loadedTabs.size)
                     loadedTabs.forEach { it.state = TabState.BACKGROUND }
-
-                    loadedTabs.add( activeTabIndex,
-                        Tab(
-                            state = TabState.ACTIVE,
-                            currentURL = intentUrl
-                        )
-                    )
-                    prefs.edit {
-                        putInt(activeTabIndexKey, activeTabIndex)
-                    }
-
+                    loadedTabs.add(activeTabIndex, Tab(state = TabState.ACTIVE, currentURL = intentUrl, profileId = profileId))
+                    prefs.edit { putInt(getActiveTabIndexKey(profileId), activeTabIndex) }
                 }
-
-                if (loadedTabs.isEmpty()) {
-                    return createDefaultTabs(intentUrl)
-                }
-//                val activeIndex = prefs.getInt(activeTabIndexKey, 0)
-//                loadedTabs.forEachIndexed { index, tab ->
-////                    tab.state = if (index == activeIndex) TabState.ACTIVE else TabState.FROZEN
-//                    tab.state = if (index == activeIndex) TabState.ACTIVE else TabState.FROZEN
-//                }
-
+                if (loadedTabs.isEmpty()) return createDefaultTabs(profileId, intentUrl)
                 return loadedTabs
-
             } catch (_: Exception) {
-                createDefaultTabs(intentUrl)
+                createDefaultTabs(profileId, intentUrl)
             }
         } else {
-            // If no saved data, create a default tab list
-            createDefaultTabs(intentUrl)
+            createDefaultTabs(profileId, intentUrl)
         }
     }
 
-    private fun createDefaultTabs(intentUrl: String?): MutableList<Tab> {
-        val customUrl = intentUrl
-            ?: (settingsPrefs.getString("default_url", default_url) ?: default_url)
-
-        return mutableListOf(
-            Tab(
-                state = TabState.ACTIVE,
-                currentURL = customUrl,
-            )
-        )
+    private fun createDefaultTabs(profileId: String, intentUrl: String?): MutableList<Tab> {
+        val customUrl = intentUrl ?: settingsPrefs.getString("default_url", default_url) ?: default_url
+        // CRITICAL: We pass the profileId into the new Tab so GeckoView can isolate cookies!
+        return mutableListOf(Tab(state = TabState.ACTIVE, currentURL = customUrl, profileId = profileId))
     }
 }

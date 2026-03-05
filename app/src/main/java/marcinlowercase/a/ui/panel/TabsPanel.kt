@@ -1,5 +1,6 @@
 package marcinlowercase.a.ui.panel
 
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
@@ -209,7 +210,14 @@ fun TabsPanel(
             pageCount = { viewModel.tabs.size + 2 })
 
     // This effect is still useful to sync the pager if a new tab is created
-    LaunchedEffect(viewModel.activeTabIndex.collectAsState().value, viewModel.tabs.size) {
+    LaunchedEffect(viewModel.activeTabIndex.collectAsState().value, viewModel.tabs.size, viewModel.activeProfileId.value) {
+        Log.e("marcLog", "TabsPanel: LaunchedEffect")
+        Log.e("marcLog", "activeTabIndex: ${viewModel.activeTabIndex.value}")
+        if (pagerState.currentPage != viewModel.activeTabIndex.value + 1) {
+            pagerState.animateScrollToPage(viewModel.activeTabIndex.value + 1)
+        }
+    }
+    LaunchedEffect(viewModel.activeProfileId.value) {
         if (pagerState.currentPage != viewModel.activeTabIndex.value + 1) {
             pagerState.animateScrollToPage(viewModel.activeTabIndex.value + 1)
         }
@@ -221,7 +229,7 @@ fun TabsPanel(
             updateInspectingTab(viewModel.tabs[pagerState.currentPage - 1])
 //            inspectingTab.value = viewModel.tabs[pagerState.currentPage - 1]
         else {
-            updateInspectingTab(Tab.createEmpty(0L))
+            updateInspectingTab(Tab.createEmpty(viewModel.activeProfileId.value,0L))
 //            inspectingTab.value = null
         }
     }
