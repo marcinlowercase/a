@@ -60,12 +60,16 @@ fun AppsPanel(
     val currentProfileIdx =
         profiles.indexOfFirst { it.id == viewModel.activeProfileId.value }.coerceAtLeast(0)
 
-    val initialInfinitePage = remember(realPageCount) {
-        (Int.MAX_VALUE / 2) - ((Int.MAX_VALUE / 2) % realPageCount) + currentProfileIdx
+    val initialPage = remember(realPageCount) {
+        if (realPageCount <= 1) {
+            0
+        } else {
+            (Int.MAX_VALUE / 2) - ((Int.MAX_VALUE / 2) % realPageCount) + currentProfileIdx
+        }
     }
     val pagerState = rememberPagerState(
-        initialPage = initialInfinitePage,
-        pageCount = { Int.MAX_VALUE }
+        initialPage = initialPage,
+        pageCount = { if (realPageCount <= 1) 1 else Int.MAX_VALUE }
     )
     // When the user swipes and settles on a new page, trigger the profile switch in the backend
     LaunchedEffect(pagerState.settledPage) {
@@ -90,7 +94,9 @@ fun AppsPanel(
     }
 
     HorizontalPager(
-        state = pagerState
+        state = pagerState,
+        userScrollEnabled = realPageCount > 1
+
     ) { page ->
         val profileIndex = page % realPageCount
         val pageProfile = profiles[profileIndex]
