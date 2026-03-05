@@ -197,11 +197,11 @@ fun TabsPanel(
 
     isTabsPanelVisible: Boolean,
     modifier: Modifier = Modifier,
-    onTabLongPressed: (Tab) -> Unit,
     updateInspectingTab: (Tab) -> Unit,
 ) {
 
     val viewModel = LocalBrowserViewModel.current
+    val uiState = viewModel.uiState.collectAsState()
     if (viewModel.tabs.isEmpty()) return
     val settings = viewModel.browserSettings.collectAsState()
     val pagerState =
@@ -313,7 +313,14 @@ fun TabsPanel(
 
                             },
                             onLongClick = {
-                                onTabLongPressed(tab)
+
+                                if (uiState.value.inspectingTabId == null) viewModel.updateUI {
+                                    it.copy(
+                                        inspectingTabId = tab.id
+                                    )
+                                }
+                                viewModel.updateUI { it.copy(isTabDataPanelVisible = !it.isTabDataPanelVisible) }
+
                             }
                         )
                     }

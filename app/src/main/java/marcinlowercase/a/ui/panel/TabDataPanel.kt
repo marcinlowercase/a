@@ -59,20 +59,8 @@ fun TabDataPanel(
 
     // 1. Local state to hold the tab being displayed.
 
-    var currentView by remember { mutableStateOf(TabDataPanelView.MAIN) }
+    var currentView by remember { mutableStateOf(TabDataPanelView.PERMISSIONS) }
 
-    // Effect to reset the view to MAIN when the panel is hidden
-    LaunchedEffect(isTabDataPanelVisible) {
-        if (!isTabDataPanelVisible) {
-            delay(300) // Wait for exit animation to finish before resetting state
-//            currentView = TabDataPanelView.MAIN
-            currentView = TabDataPanelView.PERMISSIONS
-        }
-    }
-
-    // 2. Effect to update the local state.
-    // This ensures `displayTab` only gets updated with non-null values,
-    // holding onto the last valid tab during the exit animation.
 
     // This AnimatedVisibility controls the entire panel's appearance
     AnimatedVisibility(
@@ -184,78 +172,7 @@ fun TabDataPanel(
                             }
                         }
 
-//                        TabDataPanelView.HISTORY -> {
-//                            val lazyListState = rememberLazyListState()
-//                            if (history.size > 0) {
-//                                LazyColumn(
-//                                    state = lazyListState,
-//                                    modifier = Modifier
-//                                        .heightIn(
-////                                            max = maxLazyColumnHeight
-//                                            max = browserSettings.value.maxContainerSizeForLayer(3).dp
-//                                        )
-//                                        .padding(
-//                                            top = browserSettings.value.padding.dp,
-//                                            start = browserSettings.value.padding.dp,
-//                                            end = browserSettings.value.padding.dp
-//                                        )
-//                                        .clip(
-//                                            RoundedCornerShape(
-//                                                browserSettings.value.cornerRadiusForLayer(3).dp
-//                                            )
-//                                        )
-//                                ) {
-//                                    val history =
-//                                        webViewManager.getWebView(tab).copyBackForwardList()
-//                                    items(history.size) { index ->
-//                                        val item = history.getItemAtIndex(index)
-//                                        HistoryRow(
-//                                            item = item,
-//                                            isLast = index == history.size - 1,
-//                                            isCurrent = index == history.currentIndex,
-//                                            browserSettings = browserSettings,
-//                                            onClick = {
-//                                                onHistoryItemClicked(
-//                                                    tab,
-//                                                    index,
-//                                                    webViewManager
-//                                                )
-//                                            }
-//                                        )
-//                                    }
-//                                }
-//                                LaunchedEffect(
-//                                    webViewManager.getWebView(tab)
-//                                        .copyBackForwardList().currentIndex
-//                                ) {
-//                                    webViewManager.getWebView(tab).copyBackForwardList().let {
-//                                        if (it.currentIndex in 0 until it.size) {
-//                                            lazyListState.animateScrollToItem(index = it.currentIndex)
-//
-//                                        }
-//                                    }
-//                                }
-//                            } else {
-//                                Box(
-//                                    modifier = Modifier
-//                                        .fillMaxWidth()
-//                                        .height(
-//                                            browserSettings.value.heightForLayer(3).dp
-//                                        )
-//                                        .padding(top = browserSettings.value.padding.dp),
-//                                    contentAlignment = Alignment.Center
-//                                ) {
-//                                    Text("This tab is not active", color = Color.Gray)
-//                                }
-//                            }
-//
-//                        }
-
                         TabDataPanelView.PERMISSIONS -> {
-//                            val domain =
-//                                SiteSettingsManager(LocalContext.current).getDomain(
-//                                    webViewManager.getWebView(tab).url ?: browserSettings.value.defaultUrl
-//                                )
                             val domain = viewModel.currentInspectingTab?.currentURL?.toDomain()
                             val settings = viewModel.siteSettings[domain]
 
@@ -318,24 +235,6 @@ fun TabDataPanel(
                         .padding(browserSettings.value.padding.dp),
                     horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
                 ) {
-//                    CustomIconButton(
-//                        layer = 3,
-//                        browserSettings = browserSettings,
-//                        modifier = Modifier.weight(1f),
-//                        onTap = {
-//                            onDismiss()
-////                            if (currentView == TabDataPanelView.MAIN) {
-////                                onDismiss()
-////                            } else {
-////                                currentView = TabDataPanelView.MAIN
-////                            }
-//                        },
-//                        
-//                        buttonDescription = "back",
-//                        painterId = R.drawable.ic_arrow_back,
-//                        isWhite = false
-//                    )
-
 
                     if (viewModel.currentInspectingTab?.state != TabState.FROZEN) {
                         CustomIconButton(
@@ -371,7 +270,16 @@ fun TabDataPanel(
                         painterId = R.drawable.ic_tab_close
                     )
 
-                    // TODO
+                    CustomIconButton(
+//                        currentRotation = currentRotation,
+                        layer = 3,
+                        modifier = Modifier.weight(1f),
+                        onTap = { viewModel.moveInspectedTabToNextProfile() },
+
+                        buttonDescription = "move tab to next profile",
+                        painterId = R.drawable.ic_tab_move
+                    )
+
 //                    IconButton(
 //                        onClick = onAddToHomeScreen,
 //                        modifier = Modifier.buttonSettingsForLayer(

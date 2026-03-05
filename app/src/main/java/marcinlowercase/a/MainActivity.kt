@@ -2565,14 +2565,6 @@ fun BrowserScreen(
                             handlePermissionToggle = handlePermissionToggle,
 
 
-                            onTabLongPressed = { tab ->
-                                viewModel.updateUI { it.copy(isTabDataPanelVisible = !it.isTabDataPanelVisible) }
-                                if (uiState.value.inspectingTabId == null) viewModel.updateUI {
-                                    it.copy(
-                                        inspectingTabId = tab.id
-                                    )
-                                }
-                            },
                             onDownloadRowClicked = handleOpenFile,
                             onOpenFolderClicked = handleOpenDownloadsFolder,
 

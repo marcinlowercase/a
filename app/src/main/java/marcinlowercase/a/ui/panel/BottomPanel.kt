@@ -146,7 +146,6 @@ fun BottomPanel(
     handleCloseInspectedTab: () -> Unit,
     handleClearInspectedTabData: () -> Unit,
     handlePermissionToggle: (domain: String?, permission: String, isGranted: Boolean) -> Unit,
-    onTabLongPressed: (Tab) -> Unit,
 
     onDownloadRowClicked: (DownloadItem) -> Unit,
     onOpenFolderClicked: () -> Unit,
@@ -349,7 +348,6 @@ fun BottomPanel(
                 )
                 TabsPanel(
                     isTabsPanelVisible = isTabsPanelVisible,
-                    onTabLongPressed = onTabLongPressed,
                     updateInspectingTab = updateInspectingTab,
                 )
                 PermissionPanel(

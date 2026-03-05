@@ -265,12 +265,88 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         switchProfile(newProfile.id)
     }
 
+    fun moveInspectedTabToNextProfile() {
+        val tabToMove = currentInspectingTab ?: return
+        val currentProfileIdStr = activeProfileId.value
 
-    fun swapProfiles(fromIndex: Int, toIndex: Int) {
-        if (fromIndex in profiles.indices && toIndex in profiles.indices) {
-            java.util.Collections.swap(profiles, fromIndex, toIndex)
+        // 1. Determine Target Profile
+        val targetProfileId: String
+        if (profiles.size <= 1) {
+            // Case: Only 1 profile exists. Create a new one.
+            val newProfile = Profile(id = "profile_${System.currentTimeMillis()}")
+            profiles.add(newProfile)
             profileManager.saveProfiles(profiles)
+            targetProfileId = newProfile.id
+        } else {
+            // Case: Multiple profiles. Find the next one in the list (circular).
+            val currentIndex = profiles.indexOfFirst { it.id == currentProfileIdStr }
+            val nextIndex = (currentIndex + 1) % profiles.size
+            targetProfileId = profiles[nextIndex].id
         }
+
+        // 2. Add Tab to Target Profile (Disk Operation)
+        val targetTabs = tabManager.loadTabs(targetProfileId, null).toMutableList()
+
+        // Use .copy() to preserve savedState, history, etc., and ensure a fresh ID
+        val newTabForTarget = tabToMove.copy(
+            profileId = targetProfileId,
+            id = System.currentTimeMillis(),
+            state = TabState.ACTIVE
+        )
+
+        // Deactivate whatever was previously active in the target profile
+        for (i in targetTabs.indices) {
+            if (targetTabs[i].state == TabState.ACTIVE) {
+                targetTabs[i] = targetTabs[i].copy(state = TabState.BACKGROUND)
+            }
+        }
+
+        targetTabs.add(newTabForTarget)
+        val newTargetActiveIndex = targetTabs.lastIndex
+
+        // Save Target to Disk
+        tabManager.saveTabs(targetProfileId, targetTabs, newTargetActiveIndex)
+
+        // 3. Remove from Current Profile (Memory Operation)
+        val indexToRemove = tabs.indexOf(tabToMove)
+        if (indexToRemove != -1) {
+            val wasActive = (indexToRemove == _activeTabIndex.value)
+
+            // Close the Gecko Session to free RAM immediately
+            geckoManager.closeSession(tabToMove)
+
+            // Remove from list
+            tabs.removeAt(indexToRemove)
+
+            // Safely adjust Active Index for the current profile to prevent OutOfBounds crashes
+            if (tabs.isEmpty()) {
+                val defaultTab = Tab(
+                    profileId = currentProfileIdStr,
+                    currentURL = default_url,
+                    state = TabState.ACTIVE
+                )
+                tabs.add(defaultTab)
+                _activeTabIndex.value = 0
+            } else {
+                if (wasActive) {
+                    // Moving the active tab: focus the one to its left
+                    val nextActiveIndex = (indexToRemove - 1).coerceAtLeast(0)
+                    _activeTabIndex.value = nextActiveIndex
+                    tabs[nextActiveIndex] = tabs[nextActiveIndex].copy(state = TabState.ACTIVE)
+                } else if (indexToRemove < _activeTabIndex.value) {
+                    // Moving a background tab to the left of the active tab: shift the index down
+                    _activeTabIndex.value -= 1
+                }
+            }
+        }
+
+        // 4. Perform Switch
+        // This wipes memory and reloads the target profile from disk
+        switchProfile(targetProfileId)
+
+        // 5. Cleanup UI
+        // CRITICAL: Point the UI to the newly loaded tab's actual ID (which is now the activeTab)
+        updateUI { it.copy(inspectingTabId = activeTab?.id, isTabDataPanelVisible = false) }
     }
     fun deleteProfile(idToDelete: String) {
         // Prevent deleting if it's the only profile left
