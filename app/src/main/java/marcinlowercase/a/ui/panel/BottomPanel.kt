@@ -128,7 +128,6 @@ fun BottomPanel(
 
     activeSession: GeckoSession,
 
-    isTabsPanelVisible: Boolean,
     navigateWebView: () -> Unit,
     hapticFeedback: HapticFeedback,
     setActiveNavAction: (GestureNavAction) -> Unit,
@@ -323,7 +322,6 @@ fun BottomPanel(
                     onCloseTab = handleCloseInspectedTab,
                 )
                 TabsPanel(
-                    isTabsPanelVisible = isTabsPanelVisible,
                     updateInspectingTab = updateInspectingTab,
                 )
                 PermissionPanel(
@@ -468,7 +466,7 @@ fun BottomPanel(
                                             it.copy(
                                                 savedPanelState = PanelVisibilityState(
                                                     options = draggableState.currentValue == RevealState.Visible,
-                                                    tabs = isTabsPanelVisible,
+                                                    tabs = uiState.value.isTabsPanelVisible,
                                                     downloads = uiState.value.isDownloadPanelVisible,
                                                     tabData = isTabDataPanelVisible,
                                                     nav = uiState.value.isNavPanelVisible

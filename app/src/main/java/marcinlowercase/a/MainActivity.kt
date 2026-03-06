@@ -2566,7 +2566,6 @@ fun BrowserScreen(
                             onOpenFolderClicked = handleOpenDownloadsFolder,
 
 
-                            isTabsPanelVisible = uiState.value.isTabsPanelVisible,
 
                             navigateWebView = {
                                 navigateWebView()

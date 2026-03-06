@@ -195,7 +195,6 @@ fun TabItem(
 @Composable
 fun TabsPanel(
 
-    isTabsPanelVisible: Boolean,
     modifier: Modifier = Modifier,
     updateInspectingTab: (Tab) -> Unit,
 ) {
@@ -214,7 +213,8 @@ fun TabsPanel(
         Log.e("marcLog", "TabsPanel: LaunchedEffect")
         Log.e("marcLog", "activeTabIndex: ${viewModel.activeTabIndex.value}")
         if (pagerState.currentPage != viewModel.activeTabIndex.value + 1) {
-            pagerState.animateScrollToPage(viewModel.activeTabIndex.value + 1)
+            if (uiState.value.isTabsPanelVisible) pagerState.animateScrollToPage(viewModel.activeTabIndex.value + 1)
+            else pagerState.requestScrollToPage(viewModel.activeTabIndex.value + 1)
         }
     }
     LaunchedEffect(viewModel.activeProfileId.value) {
@@ -236,7 +236,7 @@ fun TabsPanel(
 
 
     AnimatedVisibility(
-        visible = isTabsPanelVisible,
+        visible = uiState.value.isTabsPanelVisible,
         enter = expandVertically(
             tween(
                 settings.value.animationSpeedForLayer(1)
