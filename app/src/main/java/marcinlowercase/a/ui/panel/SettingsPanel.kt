@@ -841,7 +841,8 @@ fun SettingsPanel(
 
                                             // Try to parse and update sliders if it's a complete hex code
                                             try {
-                                                val parsedColor = AndroidColor.parseColor(if (filtered.startsWith("#")) filtered else "#$filtered")
+                                                val parsedColor =
+                                                    (if (filtered.startsWith("#")) filtered else "#$filtered").toColorInt()
                                                 val hsv = FloatArray(3)
                                                 AndroidColor.colorToHSV(parsedColor, hsv)
                                                 hue = hsv[0]

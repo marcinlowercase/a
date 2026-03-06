@@ -410,15 +410,15 @@ class MainActivity : ComponentActivity() {
         super.onUserLeaveHint()
     }
 
-    private fun enterPip() {
-        Log.i("marcPip", "enterPip")
-
-        // Use 16:9 as a standard fallback since the delegate is missing
-        val params = android.app.PictureInPictureParams.Builder()
-            .setAspectRatio(android.util.Rational(16, 9))
-            .build()
-        enterPictureInPictureMode(params)
-    }
+//    private fun enterPip() {
+//        Log.i("marcPip", "enterPip")
+//
+//        // Use 16:9 as a standard fallback since the delegate is missing
+//        val params = android.app.PictureInPictureParams.Builder()
+//            .setAspectRatio(android.util.Rational(16, 9))
+//            .build()
+//        enterPictureInPictureMode(params)
+//    }
 
     var isPipMode by mutableStateOf(false)
 
@@ -760,8 +760,6 @@ fun BrowserScreen(
         )
     }
 
-
-    val bottomPanelPagerState = rememberPagerState(initialPage = 1, pageCount = { 3 })
 
     //region OptionsPanel Drag State
     val optionsPanelHeight = (settings.heightForLayer(2) + settings.padding).dp

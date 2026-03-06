@@ -95,7 +95,6 @@ import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.GeckoView
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
-import kotlin.math.abs
 
 @OptIn(ExperimentalLayoutApi::class)
 @SuppressLint("FrequentlyChangingValue")

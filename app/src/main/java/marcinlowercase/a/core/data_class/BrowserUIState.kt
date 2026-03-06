@@ -1,8 +1,5 @@
 package marcinlowercase.a.core.data_class
 
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
-
 data class BrowserUIState(
     // Bottom Bar & General Overlay
     val isUrlBarVisible: Boolean = true,

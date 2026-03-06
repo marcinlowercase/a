@@ -98,8 +98,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     }
 
     val activeProfileId = mutableStateOf(profileManager.getActiveProfileId())
-    val inspectingProfileId = mutableStateOf("")
-
 
 //    // v1 close all tab when change profile
 //    fun switchProfile(newProfileId: String) {
@@ -143,7 +141,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     fun switchProfile(newProfileId: String) {
         if (activeProfileId.value == newProfileId) return
 
-        if (inspectingAppId.value != 0L) inspectingAppId.value = 0L
+        if (inspectingAppId.longValue != 0L) inspectingAppId.longValue = 0L
 
         // 1. Freeze current tabs to disk before switching
         tabManager.saveTabs(activeProfileId.value, tabs.toList(), _activeTabIndex.value)
@@ -433,7 +431,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 }
             } else {
                 // Standard schemes (mailto, tel, market)
-                intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                intent = Intent(Intent.ACTION_VIEW, url.toUri())
             }
 
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -444,7 +442,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             try {
                 activity.startActivity(intent)
                 return // Success! We are done.
-            } catch (e: ActivityNotFoundException) {
+            } catch (_: ActivityNotFoundException) {
                 // App not installed. Now we handle the fallback.
             }
 
@@ -462,7 +460,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                     val pack = intent.`package`
                     if (!pack.isNullOrEmpty()) {
                         val marketIntent =
-                            Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$pack"))
+                            Intent(Intent.ACTION_VIEW, "market://details?id=$pack".toUri())
                         marketIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         try {
                             activity.startActivity(marketIntent)
@@ -715,38 +713,38 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         _uiState.update(mutation)
     }
 
-    /**
-     * Helper to save current panel state before entering "Search Mode" (Focusing URL bar)
-     */
-    fun saveCurrentPanelState() {
-        val current = _uiState.value
-        val snapshot = PanelVisibilityState(
-            options = false, // Assuming options panel isn't part of this main state yet
-            tabs = current.isTabsPanelVisible,
-            downloads = current.isDownloadPanelVisible,
-            tabData = current.isTabDataPanelVisible,
-            nav = current.isNavPanelVisible
-        )
-        updateUI { it.copy(savedPanelState = snapshot) }
-    }
-
-    /**
-     * Helper to restore panel state (e.g. when clicking out of URL bar without searching)
-     */
-    fun restorePanelState() {
-        val saved = _uiState.value.savedPanelState
-        if (saved != null) {
-            updateUI {
-                it.copy(
-                    isTabsPanelVisible = saved.tabs,
-                    isDownloadPanelVisible = saved.downloads,
-                    isTabDataPanelVisible = saved.tabData,
-                    isNavPanelVisible = saved.nav,
-                    savedPanelState = null // Clear after restore
-                )
-            }
-        }
-    }
+//    /**
+//     * Helper to save current panel state before entering "Search Mode" (Focusing URL bar)
+//     */
+//    fun saveCurrentPanelState() {
+//        val current = _uiState.value
+//        val snapshot = PanelVisibilityState(
+//            options = false, // Assuming options panel isn't part of this main state yet
+//            tabs = current.isTabsPanelVisible,
+//            downloads = current.isDownloadPanelVisible,
+//            tabData = current.isTabDataPanelVisible,
+//            nav = current.isNavPanelVisible
+//        )
+//        updateUI { it.copy(savedPanelState = snapshot) }
+//    }
+//
+//    /**
+//     * Helper to restore panel state (e.g. when clicking out of URL bar without searching)
+//     */
+//    fun restorePanelState() {
+//        val saved = _uiState.value.savedPanelState
+//        if (saved != null) {
+//            updateUI {
+//                it.copy(
+//                    isTabsPanelVisible = saved.tabs,
+//                    isDownloadPanelVisible = saved.downloads,
+//                    isTabDataPanelVisible = saved.tabData,
+//                    isNavPanelVisible = saved.nav,
+//                    savedPanelState = null // Clear after restore
+//                )
+//            }
+//        }
+//    }
     //endregion
 
     //region Tab logic
@@ -1386,22 +1384,22 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     val siteSettings = mutableStateMapOf<String, SiteSettings>().apply {
         putAll(siteSettingsManager.loadSettings(activeProfileId.value))
     }
-    val togglePermission = { domain: String?, permission: String, isGranted: Boolean ->
-        if (domain != null) {
-            val currentSettings = siteSettings[domain] ?: SiteSettings(domain = domain)
-
-            // Toggle the boolean
-            val updatedDecisions = currentSettings.permissionDecisions.toMutableMap().apply {
-                this[permission] = !(this[permission] ?: false)
-            }
-
-            val newSettings = currentSettings.copy(permissionDecisions = updatedDecisions)
-
-            // Update memory map and save to disk
-            siteSettings[domain] = newSettings
-            siteSettingsManager.saveSettings(activeProfileId.value, siteSettings)
-        }
-    }
+//    val togglePermission = { domain: String?, permission: String, isGranted: Boolean ->
+//        if (domain != null) {
+//            val currentSettings = siteSettings[domain] ?: SiteSettings(domain = domain)
+//
+//            // Toggle the boolean
+//            val updatedDecisions = currentSettings.permissionDecisions.toMutableMap().apply {
+//                this[permission] = !(this[permission] ?: false)
+//            }
+//
+//            val newSettings = currentSettings.copy(permissionDecisions = updatedDecisions)
+//
+//            // Update memory map and save to disk
+//            siteSettings[domain] = newSettings
+//            siteSettingsManager.saveSettings(activeProfileId.value, siteSettings)
+//        }
+//    }
 
     val visitedUrlMap = mutableStateMapOf<String, String>().apply {
         putAll(visitedUrlManager.loadUrlMap(activeProfileId.value))
