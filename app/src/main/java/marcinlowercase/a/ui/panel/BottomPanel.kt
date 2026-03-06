@@ -672,7 +672,7 @@ fun BottomPanel(
                         if (uiState.value.isUrlOverlayBoxVisible && !uiState.value.isFocusOnUrlTextField) Box(
                             modifier = Modifier
                                 .background(
-                                    Color.Transparent, shape = RoundedCornerShape(
+                                    Color.Cyan, shape = RoundedCornerShape(
                                         settings.value.cornerRadiusForLayer(1).dp
                                     )
                                 )
@@ -782,17 +782,17 @@ fun BottomPanel(
                                                     verticalDragAccumulator += change.position.y - change.previousPosition.y
 
 //                                                                if (isFocusOnUrlTextField ) change.consume()
-                                                    if (abs(horizontalDragAccumulator) > abs(
-                                                            verticalDragAccumulator
-                                                        )
-                                                    ) {
-                                                        viewModel.updateUI {
-                                                            it.copy(
-                                                                isUrlOverlayBoxVisible = false
-                                                            )
-                                                        }
-
-                                                    }
+//                                                    if (abs(horizontalDragAccumulator) > abs(
+//                                                            verticalDragAccumulator
+//                                                        )
+//                                                    ) {
+//                                                        viewModel.updateUI {
+//                                                            it.copy(
+//                                                                isUrlOverlayBoxVisible = false
+//                                                            )
+//                                                        }
+//
+//                                                    }
 
 
                                                 }
