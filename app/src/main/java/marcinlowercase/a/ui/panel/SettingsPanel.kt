@@ -563,7 +563,10 @@ fun SettingsPanel(
                 currentView = SettingPanelView.SINGLE_LINE_HEIGHT
 
             },
-            OptionItem(R.drawable.ic_colors, "min height") {
+            OptionItem(R.drawable.ic_max_list_height, "max list height") {
+                currentView = SettingPanelView.MAX_LIST_HEIGHT
+            },
+            OptionItem(R.drawable.ic_colors, "highlight color") {
                 currentView = SettingPanelView.HIGHLIGHT_COLOR
             },
             OptionItem(R.drawable.ic_animation, "animation speed") {
@@ -580,9 +583,7 @@ fun SettingsPanel(
             OptionItem(R.drawable.ic_opacity, "back square idle opacity") {
                 currentView = SettingPanelView.BACK_SQUARE_OPACITY
             },
-            OptionItem(R.drawable.ic_max_list_height, "max list height") {
-                currentView = SettingPanelView.MAX_LIST_HEIGHT
-            },
+
 
             OptionItem(R.drawable.ic_reset_settings, "reset settings", false) {
 
