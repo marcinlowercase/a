@@ -867,6 +867,18 @@ fun BottomPanel(
                                 viewModel.updateUI { it.copy(isRenamingProfile = true) }
                                 urlBarFocusRequester.requestFocus()
                             },
+                            deleteProfile = {
+                                viewModel.updateUI { it.copy(isOptionsPanelVisible = false, isAppsPanelVisible = false) }
+                                confirmationPopup(
+                                    "delete profile ? ",
+                                    "",
+                                    {
+                                        viewModel.deleteProfile()
+                                    },
+                                    {}
+                                )
+
+                            },
                             draggableState = draggableState
 
                         )

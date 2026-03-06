@@ -1381,7 +1381,7 @@ fun BrowserScreen(
         }
         LaunchedEffect(viewModel.inspectingAppId.longValue) {
             if (viewModel.inspectingAppId.longValue > 0L) textFieldState.setTextAndPlaceCursorAtEnd(viewModel.apps.find { it.id == viewModel.inspectingAppId.longValue }?.label ?: viewModel.activeTab!!.currentURL.toDomain())
-            else if (textFieldState.text != viewModel.activeTab!!.currentURL) textFieldState.setTextAndPlaceCursorAtEnd(viewModel.activeTab!!.currentURL.toDomain() )
+            else if (textFieldState.text != viewModel.activeTab!!.currentURL && !uiState.value.isFocusOnUrlTextField) textFieldState.setTextAndPlaceCursorAtEnd(viewModel.activeTab!!.currentURL.toDomain() )
         }
         LaunchedEffect(viewModel.apps.size) {
             if (viewModel.apps.isEmpty()) {

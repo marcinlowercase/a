@@ -64,6 +64,7 @@ fun AppsPanel(
     addAppToPin: () -> Unit,
     createNewProfile: () -> Unit,
     renameProfile: () -> Unit,
+    deleteProfile: () -> Unit,
     draggableState: AnchoredDraggableState<RevealState>,
 ) {
     val viewModel = LocalBrowserViewModel.current
@@ -77,7 +78,8 @@ fun AppsPanel(
 
     val profiles = viewModel.profiles
     val realPageCount = profiles.size
-    val currentProfileIdx = profiles.indexOfFirst { it.id == viewModel.activeProfileId.value }.coerceAtLeast(0)
+    val currentProfileIdx =
+        profiles.indexOfFirst { it.id == viewModel.activeProfileId.value }.coerceAtLeast(0)
 
     val initialPage = remember(realPageCount) {
         if (realPageCount <= 1) 0 else (Int.MAX_VALUE / 2) - ((Int.MAX_VALUE / 2) % realPageCount) + currentProfileIdx
@@ -107,7 +109,8 @@ fun AppsPanel(
         }
     }
     LaunchedEffect(viewModel.activeProfileId.value, realPageCount) {
-        val targetIndex = profiles.indexOfFirst { it.id == viewModel.activeProfileId.value }.coerceAtLeast(0)
+        val targetIndex =
+            profiles.indexOfFirst { it.id == viewModel.activeProfileId.value }.coerceAtLeast(0)
         val currentIndex = pagerState.currentPage % realPageCount
         if (currentIndex != targetIndex) {
             var diff = targetIndex - currentIndex
@@ -164,7 +167,12 @@ fun AppsPanel(
                             ) {
                                 PlaceholderIcon(
                                     iconRes = R.drawable.ic_arrow_upward,
-                                    onClick = { if (isInteractive()) viewModel.swapApps(index, index - 1) },
+                                    onClick = {
+                                        if (isInteractive()) viewModel.swapApps(
+                                            index,
+                                            index - 1
+                                        )
+                                    },
                                     buttonDescription = "move pin up"
                                 )
                             }
@@ -187,13 +195,22 @@ fun AppsPanel(
                             },
                             onDoubleClick = {
                                 if (isInteractive()) {
-                                    viewModel.createNewTab(viewModel.activeTabIndex.value + 1, app.url)
-                                    viewModel.updateUI { it.copy(isSettingsPanelVisible = false, isUrlBarVisible = false) }
+                                    viewModel.createNewTab(
+                                        viewModel.activeTabIndex.value + 1,
+                                        app.url
+                                    )
+                                    viewModel.updateUI {
+                                        it.copy(
+                                            isSettingsPanelVisible = false,
+                                            isUrlBarVisible = false
+                                        )
+                                    }
                                 }
                             },
                             onLongClick = {
                                 if (isInteractive()) {
-                                    viewModel.inspectingAppId.longValue = if (inspectingId != app.id) app.id else 0L
+                                    viewModel.inspectingAppId.longValue =
+                                        if (inspectingId != app.id) app.id else 0L
                                 }
                             },
                             modifier = Modifier.animateItem()
@@ -211,7 +228,12 @@ fun AppsPanel(
                             ) {
                                 PlaceholderIcon(
                                     iconRes = R.drawable.ic_arrow_downward,
-                                    onClick = { if (isInteractive()) viewModel.swapApps(index, index + 1) },
+                                    onClick = {
+                                        if (isInteractive()) viewModel.swapApps(
+                                            index,
+                                            index + 1
+                                        )
+                                    },
                                     buttonDescription = "move pin down"
                                 )
                             }
@@ -244,10 +266,6 @@ fun AppsPanel(
                 }
 
                 // --- FOOTER / PLACEHOLDERS ---
-                val columns = 4
-                val remainder = visualItemCount % columns
-                val needsGapFiller = remainder == 3
-
 
                 item(
                     span = { GridItemSpan(1) },
@@ -262,7 +280,8 @@ fun AppsPanel(
                     )
                 }
                 visualItemCount++
-
+                val remainder = visualItemCount % 4
+                val needsGapFiller = remainder == 3
                 if (needsGapFiller) {
                     item(
                         span = { GridItemSpan(1) },
@@ -280,7 +299,15 @@ fun AppsPanel(
                     key = "profile_name_${pageProfile.id}",
                     contentType = "profile_header"
                 ) {
-                    PlaceholderIcon(text = pageProfile.name, modifier = Modifier.animateItem(), buttonDescription = "rename profile", onClick = renameProfile)
+                    PlaceholderIcon(
+                        text = pageProfile.name,
+                        modifier = Modifier.animateItem(),
+                        buttonDescription = "rename profile",
+                        onClick = {
+                            if (isInteractive()) {
+                                renameProfile()
+                            }
+                        })
                 }
                 visualItemCount += 2
 
@@ -311,7 +338,7 @@ fun AppsPanel(
                             iconRes = R.drawable.ic_person_off,
                             onClick = {
                                 if (profiles.size > 1 && isInteractive()) {
-                                    viewModel.deleteProfile()
+                                    deleteProfile()
                                 }
                             },
                             modifier = Modifier.animateItem(),
@@ -359,7 +386,7 @@ fun PlaceholderIcon(
                     Modifier.pointerInput(buttonDescription) {
                         coroutineScope {
                             awaitEachGesture {
-                                val down = awaitFirstDown(requireUnconsumed = false)
+                                awaitFirstDown(requireUnconsumed = false)
 
                                 val longPressJob = launch {
                                     delay(viewConfiguration.longPressTimeoutMillis)
@@ -458,7 +485,10 @@ fun AppIcon(
             Image(
                 painter = rememberAsyncImagePainter(
                     model = ImageRequest.Builder(LocalContext.current)
-                        .addHeader("User-Agent", "Mozilla/5.0 (Android 14; Mobile; rv:130.0) Gecko/130.0 Firefox/130.0")
+                        .addHeader(
+                            "User-Agent",
+                            "Mozilla/5.0 (Android 14; Mobile; rv:130.0) Gecko/130.0 Firefox/130.0"
+                        )
                         .data(app.iconUrl)
                         .size(100)
                         .crossfade(true)
