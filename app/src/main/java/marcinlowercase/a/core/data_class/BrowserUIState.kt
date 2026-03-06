@@ -63,6 +63,7 @@ data class BrowserUIState(
     val totalRevealHeightPx: Float = 0f,
 
 
+
     // State Restoration (used when focusing URL bar)
     val savedPanelState: PanelVisibilityState? = null,
 

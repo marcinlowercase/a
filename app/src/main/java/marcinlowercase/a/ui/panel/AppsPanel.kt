@@ -51,7 +51,9 @@ import kotlin.math.ceil
 @Composable
 fun AppsPanel(
     onAppClick: (App) -> Unit = {},
-) {
+    addAppToPin: () -> Unit,
+
+    ) {
     val viewModel = LocalBrowserViewModel.current
     val settings = viewModel.browserSettings.collectAsState()
 
@@ -170,6 +172,7 @@ fun AppsPanel(
                             },
                             onLongClick = {
                                 if (!pagerState.isScrollInProgress) {
+                                    // trigger inspect app
                                     viewModel.inspectingAppId.longValue = if (inspectingId != app.id) app.id else 0L
                                 }
                             },
@@ -206,7 +209,6 @@ fun AppsPanel(
                             ) {
                                 PlaceholderIcon(
                                     iconRes = R.drawable.ic_delete_forever,
-                                    isDestructive = true,
                                     onClick = {
                                         viewModel.removeApp(app.id)
                                         viewModel.inspectingAppId.longValue = 0L
@@ -236,7 +238,7 @@ fun AppsPanel(
                     visualItemCount++
                 }
 
-                // Profile Name
+                // 1. Profile Name (Span 2)
                 item(
                     span = { GridItemSpan(2) },
                     key = "profile_name_${pageProfile.id}", // Stable key
@@ -247,10 +249,61 @@ fun AppsPanel(
                 }
                 visualItemCount += 2
 
-                // Remaining placeholders
+                // 2. Pin Current Active Tab
+                item(
+                    span = { GridItemSpan(1) },
+                    key = "pin_tab_${pageProfile.id}",
+                    contentType = "action_button"
+                ) {
+                    PlaceholderIcon(
+                        iconRes = R.drawable.ic_keep,
+                        onClick = {
+                            addAppToPin()
+                        },
+                        modifier = Modifier.animateItem()
+                    )
+                }
+                visualItemCount++
+
+                // 3. Add New Profile
+                item(
+                    span = { GridItemSpan(1) },
+                    key = "new_profile_${pageProfile.id}",
+                    contentType = "action_button"
+                ) {
+                    PlaceholderIcon(
+                        iconRes = R.drawable.ic_person_add,
+                        onClick = {
+                            viewModel.createNewProfile()
+                        },
+                        modifier = Modifier.animateItem()
+                    )
+                }
+                visualItemCount++
+
+                // 4. Delete Profile
+                if (profiles.size > 1) {
+                    item(
+                        span = { GridItemSpan(1) },
+                        key = "delete_profile_${pageProfile.id}",
+                        contentType = "action_button"
+                    ) {
+                        PlaceholderIcon(
+                            iconRes = R.drawable.ic_person_off,
+                            onClick = {
+                                if (profiles.size > 1) {
+                                    viewModel.deleteProfile(pageProfile.id)
+                                }
+                            },
+                            modifier = Modifier.animateItem()
+                        )
+                    }
+                    visualItemCount++
+                }
+
+                // Fill the remaining empty spots to preserve grid height
                 val remainingPlaceholders = (minSlots - visualItemCount).coerceAtLeast(0)
 
-                // We use `items` with a key factory based on index to ensure stability
                 items(
                     count = remainingPlaceholders,
                     key = { index -> "empty_slot_${pageProfile.id}_$index" },
@@ -269,22 +322,16 @@ fun PlaceholderIcon(
     text: String? = null,
     iconRes: Int? = null,
     onClick: (() -> Unit)? = null,
-    isDestructive: Boolean = false
 ) {
     val viewModel = LocalBrowserViewModel.current
     val settings = viewModel.browserSettings.collectAsState()
 
-    val backgroundColor = if (isDestructive) {
-        Color(settings.value.highlightColor)
-    } else {
-        Color.Black.copy(settings.value.backSquareIdleOpacity * (if (text == null && iconRes == null) 0.5f else 1f))
-    }
 
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(3).dp))
             .height(settings.value.heightForLayer(3).dp)
-            .background(backgroundColor)
+            .background(Color.Black.copy(settings.value.backSquareIdleOpacity * (if (text == null && iconRes == null) 0.5f else 1f)))
             .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
             .padding(
                 start = if (text != null) settings.value.cornerRadiusForLayer(3).dp else 0.dp
@@ -301,7 +348,7 @@ fun PlaceholderIcon(
             Icon(
                 painter = painterResource(id = iconRes),
                 contentDescription = null,
-                tint = if (isDestructive) Color.White else Color.Black,
+                tint = Color.Black,
                 modifier = Modifier.size(24.dp)
             )
         }

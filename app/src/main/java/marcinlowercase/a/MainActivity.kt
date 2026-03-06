@@ -1382,7 +1382,7 @@ fun BrowserScreen(
         LaunchedEffect(viewModel.inspectingAppId.longValue) {
 //            viewModel.descriptionContent.value =
 //                viewModel.apps.find { it.id == viewModel.inspectingAppId.longValue }?.label ?: ""
-            textFieldState.setTextAndPlaceCursorAtEnd(viewModel.apps.find { it.id == viewModel.inspectingAppId.longValue }?.label ?: viewModel.activeTab!!.currentURL.toDomain())
+            if (viewModel.inspectingAppId.longValue > 0L) textFieldState.setTextAndPlaceCursorAtEnd(viewModel.apps.find { it.id == viewModel.inspectingAppId.longValue }?.label ?: viewModel.activeTab!!.currentURL.toDomain())
 
         }
         LaunchedEffect(viewModel.apps.size) {
@@ -2503,7 +2503,6 @@ fun BrowserScreen(
                             draggableState = draggableState,
                             flingBehavior = flingBehavior,
 
-                            bottomPanelPagerState = bottomPanelPagerState,
                             onDownload = { url ->
                                 // Simple generic download for images found via context menu
                                 confirmationPopup(
