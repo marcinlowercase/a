@@ -70,7 +70,7 @@ fun TextEditPanel(
                 isWhite = false,
             )
 
-            if (uiState.value.isPinningApp) {
+            if (uiState.value.isPinningApp || uiState.value.isCreatingProfile || uiState.value.isRenamingProfile) {
                 if (activeWebViewTitle.isNotBlank()) {
                     // Edit Button (ensures keyboard is shown)
                     CustomIconButton(

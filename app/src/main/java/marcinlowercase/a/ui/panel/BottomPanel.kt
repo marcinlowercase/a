@@ -504,6 +504,11 @@ fun BottomPanel(
                                                 isCreatingProfile = false
                                             )
                                         }
+                                        if (uiState.value. isRenamingProfile) viewModel.updateUI {
+                                            it.copy(
+                                                isRenamingProfile = false
+                                            )
+                                        }
                                         uiState.value.savedPanelState?.let { savedState ->
                                             viewModel.updateUI {
                                                 it.copy(
@@ -537,6 +542,7 @@ fun BottomPanel(
                             placeholder = {
                                 when {
                                     uiState.value.isCreatingProfile -> Text("profile label")
+                                    uiState.value.isRenamingProfile -> Text("profile label")
                                     uiState.value.isPinningApp -> Text("pin label")
                                     else -> Text("search / url")
                                 }
@@ -585,6 +591,11 @@ fun BottomPanel(
 
 
                                 when {
+
+                                    uiState.value.isRenamingProfile -> {
+                                        viewModel.renameProfile(input)
+                                        viewModel.updateUI { it.copy(isAppsPanelVisible = true) }
+                                    }
                                     uiState.value.isCreatingProfile -> {
                                         viewModel.createNewProfile(input)
                                         viewModel.updateUI { it.copy(isAppsPanelVisible = true) }
@@ -851,7 +862,12 @@ fun BottomPanel(
                             createNewProfile = {
                                 viewModel.updateUI { it.copy(isCreatingProfile = true) }
                                 urlBarFocusRequester.requestFocus()
-                            }
+                            },
+                            renameProfile = {
+                                viewModel.updateUI { it.copy(isRenamingProfile = true) }
+                                urlBarFocusRequester.requestFocus()
+                            },
+                            draggableState = draggableState
 
                         )
 
@@ -871,9 +887,13 @@ fun BottomPanel(
                     },
                     onEditClick = {
                         textFieldState.setTextAndPlaceCursorAtEnd(
-                            if (uiState.value.isPinningApp) {
-                                viewModel.activeTab!!.currentTitle
-                            } else viewModel.activeTab!!.currentURL
+                            when {
+                                uiState.value.isCreatingProfile -> "profile "
+                                uiState.value.isRenamingProfile -> viewModel.profiles.find { it.id == viewModel.activeProfileId.value }?.name?:""
+                                uiState.value.isPinningApp -> viewModel.activeTab!!.currentTitle
+                                else -> viewModel.activeTab!!.currentURL
+
+                            }
                         )
                         urlBarFocusRequester.requestFocus()
                         keyboardController?.show()

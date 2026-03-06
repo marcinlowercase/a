@@ -273,7 +273,21 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         // Switch to the newly created profile immediately
         switchProfile(newProfile.id)
     }
+    fun renameProfile(newName: String) {
+        val trimmedName = newName.trim()
+        if (trimmedName.isEmpty()) return // Optional: prevent empty names
 
+        val currentId = activeProfileId.value
+        val currentIndex = profiles.indexOfFirst { it.id == currentId }
+
+        if (currentIndex != -1) {
+            // 1. Update the profile in memory (triggers UI recomposition)
+            profiles[currentIndex] = profiles[currentIndex].copy(name = trimmedName)
+
+            // 2. Save the updated list to disk
+            profileManager.saveProfiles(profiles)
+        }
+    }
     fun moveInspectedTabToNextProfile() {
         val tabToMove = currentInspectingTab ?: return
         val currentProfileIdStr = activeProfileId.value

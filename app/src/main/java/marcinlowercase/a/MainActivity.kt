@@ -1380,10 +1380,8 @@ fun BrowserScreen(
                 viewModel.updateSettings { it.copy(isFirstAppLoad = false) }
         }
         LaunchedEffect(viewModel.inspectingAppId.longValue) {
-//            viewModel.descriptionContent.value =
-//                viewModel.apps.find { it.id == viewModel.inspectingAppId.longValue }?.label ?: ""
             if (viewModel.inspectingAppId.longValue > 0L) textFieldState.setTextAndPlaceCursorAtEnd(viewModel.apps.find { it.id == viewModel.inspectingAppId.longValue }?.label ?: viewModel.activeTab!!.currentURL.toDomain())
-
+            else if (textFieldState.text != viewModel.activeTab!!.currentURL) textFieldState.setTextAndPlaceCursorAtEnd(viewModel.activeTab!!.currentURL.toDomain() )
         }
         LaunchedEffect(viewModel.apps.size) {
             if (viewModel.apps.isEmpty()) {

@@ -10,6 +10,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.AnchoredDraggableState
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,14 +38,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import marcinlowercase.a.R
 import marcinlowercase.a.core.data_class.App
+import marcinlowercase.a.core.enum_class.RevealState
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import kotlin.math.ceil
 
@@ -52,7 +63,9 @@ fun AppsPanel(
     onAppClick: (App) -> Unit = {},
     addAppToPin: () -> Unit,
     createNewProfile: () -> Unit,
-    ) {
+    renameProfile: () -> Unit,
+    draggableState: AnchoredDraggableState<RevealState>,
+) {
     val viewModel = LocalBrowserViewModel.current
     val settings = viewModel.browserSettings.collectAsState()
 
@@ -74,6 +87,16 @@ fun AppsPanel(
         initialPage = initialPage,
         pageCount = { if (realPageCount <= 1) 1 else Int.MAX_VALUE }
     )
+
+    // Helper: Only allow clicks if the panel is fully resting in the "Revealed" state
+    // and not currently being swiped/dragged or scrolling.
+    val isInteractive: () -> Boolean = {
+        !draggableState.isAnimationRunning &&
+                !pagerState.isScrollInProgress &&
+                draggableState.currentValue == RevealState.Expanded &&
+                draggableState.targetValue == RevealState.Expanded &&
+                draggableState.settledValue == RevealState.Expanded
+    }
 
     // Pager Logic
     LaunchedEffect(pagerState.settledPage) {
@@ -128,22 +151,21 @@ fun AppsPanel(
                 val inspectingId = viewModel.inspectingAppId.longValue
 
                 // We loop manually to inject items.
-                // CRITICAL: We provide unique keys for every item so animations work.
                 pageApps.forEachIndexed { index, app ->
                     val isInspectingThisApp = (inspectingId == app.id)
 
                     // 1. Move Backward Button
                     if (isInspectingThisApp && index > 0) {
                         item(key = "prev_${app.id}", contentType = "action_button") {
-                            // Wrapper for entry animation
                             AnimatedVisibility(
                                 visible = true,
                                 enter = scaleIn(animationSpec = spring(stiffness = Spring.StiffnessMedium)) + fadeIn(),
-                                modifier = Modifier.animateItem() // Slide layout
+                                modifier = Modifier.animateItem()
                             ) {
                                 PlaceholderIcon(
                                     iconRes = R.drawable.ic_arrow_upward,
-                                    onClick = { viewModel.swapApps(index, index - 1) }
+                                    onClick = { if (isInteractive()) viewModel.swapApps(index, index - 1) },
+                                    buttonDescription = "move pin up"
                                 )
                             }
                         }
@@ -155,7 +177,7 @@ fun AppsPanel(
                         AppIcon(
                             app = app,
                             onClick = {
-                                if (!pagerState.isScrollInProgress) {
+                                if (isInteractive()) {
                                     if (inspectingId != 0L && inspectingId != app.id) {
                                         viewModel.inspectingAppId.longValue = app.id
                                     } else {
@@ -164,18 +186,16 @@ fun AppsPanel(
                                 }
                             },
                             onDoubleClick = {
-                                if (!pagerState.isScrollInProgress) {
+                                if (isInteractive()) {
                                     viewModel.createNewTab(viewModel.activeTabIndex.value + 1, app.url)
                                     viewModel.updateUI { it.copy(isSettingsPanelVisible = false, isUrlBarVisible = false) }
                                 }
                             },
                             onLongClick = {
-                                if (!pagerState.isScrollInProgress) {
-                                    // trigger inspect app
+                                if (isInteractive()) {
                                     viewModel.inspectingAppId.longValue = if (inspectingId != app.id) app.id else 0L
                                 }
                             },
-                            // Add layout animation modifier
                             modifier = Modifier.animateItem()
                         )
                     }
@@ -191,7 +211,8 @@ fun AppsPanel(
                             ) {
                                 PlaceholderIcon(
                                     iconRes = R.drawable.ic_arrow_downward,
-                                    onClick = { viewModel.swapApps(index, index + 1) }
+                                    onClick = { if (isInteractive()) viewModel.swapApps(index, index + 1) },
+                                    buttonDescription = "move pin down"
                                 )
                             }
                         }
@@ -209,9 +230,12 @@ fun AppsPanel(
                                 PlaceholderIcon(
                                     iconRes = R.drawable.ic_delete_forever,
                                     onClick = {
-                                        viewModel.removeApp(app.id)
-                                        viewModel.inspectingAppId.longValue = 0L
-                                    }
+                                        if (isInteractive()) {
+                                            viewModel.removeApp(app.id)
+                                            viewModel.inspectingAppId.longValue = 0L
+                                        }
+                                    },
+                                    buttonDescription = "delete pin"
                                 )
                             }
                         }
@@ -220,16 +244,29 @@ fun AppsPanel(
                 }
 
                 // --- FOOTER / PLACEHOLDERS ---
-
-                val minSlots = ceil(settings.value.maxListHeight).toInt() * 4
                 val columns = 4
                 val remainder = visualItemCount % columns
                 val needsGapFiller = remainder == 3
 
+
+                item(
+                    span = { GridItemSpan(1) },
+                    key = "pin_tab_${pageProfile.id}",
+                    contentType = "action_button"
+                ) {
+                    PlaceholderIcon(
+                        iconRes = R.drawable.ic_keep,
+                        onClick = { if (isInteractive()) addAppToPin() },
+                        modifier = Modifier.animateItem(),
+                        buttonDescription = "pin current tab"
+                    )
+                }
+                visualItemCount++
+
                 if (needsGapFiller) {
                     item(
                         span = { GridItemSpan(1) },
-                        key = "gap_filler_page_${pageProfile.id}", // Stable key
+                        key = "gap_filler_page_${pageProfile.id}",
                         contentType = "placeholder"
                     ) {
                         PlaceholderIcon(modifier = Modifier.animateItem())
@@ -240,30 +277,15 @@ fun AppsPanel(
                 // 1. Profile Name (Span 2)
                 item(
                     span = { GridItemSpan(2) },
-                    key = "profile_name_${pageProfile.id}", // Stable key
+                    key = "profile_name_${pageProfile.id}",
                     contentType = "profile_header"
                 ) {
-                    PlaceholderIcon(text = pageProfile.name, modifier = Modifier.animateItem())
+                    PlaceholderIcon(text = pageProfile.name, modifier = Modifier.animateItem(), buttonDescription = "rename profile", onClick = renameProfile)
                 }
                 visualItemCount += 2
 
-                // 2. Pin Current Active Tab
-                item(
-                    span = { GridItemSpan(1) },
-                    key = "pin_tab_${pageProfile.id}",
-                    contentType = "action_button"
-                ) {
-                    PlaceholderIcon(
-                        iconRes = R.drawable.ic_keep,
-                        onClick = {
-                            addAppToPin()
-                        },
-                        modifier = Modifier.animateItem()
-                    )
-                }
-                visualItemCount++
 
-                // 3. Add New Profile
+
                 item(
                     span = { GridItemSpan(1) },
                     key = "new_profile_${pageProfile.id}",
@@ -271,10 +293,9 @@ fun AppsPanel(
                 ) {
                     PlaceholderIcon(
                         iconRes = R.drawable.ic_person_add,
-                        onClick = {
-                            createNewProfile()
-                        },
-                        modifier = Modifier.animateItem()
+                        onClick = { if (isInteractive()) createNewProfile() },
+                        modifier = Modifier.animateItem(),
+                        buttonDescription = "new profile"
                     )
                 }
                 visualItemCount++
@@ -289,18 +310,20 @@ fun AppsPanel(
                         PlaceholderIcon(
                             iconRes = R.drawable.ic_person_off,
                             onClick = {
-                                if (profiles.size > 1) {
+                                if (profiles.size > 1 && isInteractive()) {
                                     viewModel.deleteProfile()
                                 }
                             },
-                            modifier = Modifier.animateItem()
+                            modifier = Modifier.animateItem(),
+                            buttonDescription = "delete profile"
                         )
                     }
                     visualItemCount++
                 }
-
-                // Fill the remaining empty spots to preserve grid height
-                val remainingPlaceholders = (minSlots - visualItemCount).coerceAtLeast(0)
+                val minRows = ceil(settings.value.maxListHeight).toInt()
+                val currentRows = ceil(visualItemCount / 4f).toInt()
+                val targetRows = maxOf(minRows, currentRows)
+                val remainingPlaceholders = (targetRows * 4) - visualItemCount
 
                 items(
                     count = remainingPlaceholders,
@@ -317,20 +340,66 @@ fun AppsPanel(
 @Composable
 fun PlaceholderIcon(
     modifier: Modifier = Modifier,
+    buttonDescription: String? = null,
     text: String? = null,
     iconRes: Int? = null,
     onClick: (() -> Unit)? = null,
 ) {
     val viewModel = LocalBrowserViewModel.current
     val settings = viewModel.browserSettings.collectAsState()
-
+    val hapticFeedback = LocalHapticFeedback.current
 
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(3).dp))
             .height(settings.value.heightForLayer(3).dp)
             .background(Color.Black.copy(settings.value.backSquareIdleOpacity * (if (text == null && iconRes == null) 0.5f else 1f)))
-            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
+            .then(
+                if (onClick != null && buttonDescription != null)
+                    Modifier.pointerInput(buttonDescription) {
+                        coroutineScope {
+                            awaitEachGesture {
+                                val down = awaitFirstDown(requireUnconsumed = false)
+
+                                val longPressJob = launch {
+                                    delay(viewConfiguration.longPressTimeoutMillis)
+                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    viewModel.descriptionContent.value = buttonDescription
+                                }
+
+                                var isTap = true
+
+                                // Safely wait without consuming the event so the parent Draggable can still claim it
+                                while (true) {
+                                    val event = awaitPointerEvent(PointerEventPass.Main)
+
+                                    // If a parent element consumed the swipe (i.e. swiping to reveal the panel)
+                                    if (event.changes.any { it.isConsumed }) {
+                                        isTap = false
+                                        break
+                                    }
+
+                                    // If all fingers are lifted off the screen
+                                    if (event.changes.all { !it.pressed }) {
+                                        break
+                                    }
+                                }
+
+                                // If the user didn't hold it long enough, it's a click
+                                if (longPressJob.isActive) {
+                                    longPressJob.cancel()
+                                    if (isTap) {
+                                        onClick()
+                                    }
+                                }
+
+                                // Always clear the description on release or cancellation
+                                viewModel.descriptionContent.value = ""
+                            }
+                        }
+                    }
+                else Modifier
+            )
             .padding(
                 start = if (text != null) settings.value.cornerRadiusForLayer(3).dp else 0.dp
             )
