@@ -31,6 +31,7 @@ import kotlin.math.roundToInt
 fun OptionsPanel(
     onCloseAllTabs: () -> Unit,
     addAppToPin: () -> Unit,
+    createNewProfile: () -> Unit,
 ) {
     val viewModel = LocalBrowserViewModel.current
     val uiState = viewModel.uiState.collectAsState()
@@ -149,7 +150,7 @@ fun OptionsPanel(
                 "new profile",
                 false
             ) {
-                viewModel.createNewProfile()
+                createNewProfile()
 
             },
             OptionItem(

@@ -47,6 +47,7 @@ data class BrowserUIState(
     val isFocusOnFindTextField: Boolean = false,
     val isFocusOnProfileTextField: Boolean = false,
     val isPinningApp: Boolean = false,
+    val isCreatingProfile: Boolean = false,
 
 
     // Web Load

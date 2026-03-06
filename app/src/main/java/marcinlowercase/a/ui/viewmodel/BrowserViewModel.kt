@@ -138,7 +138,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 //    }
 
 
-
     fun switchProfile(newProfileId: String) {
         if (activeProfileId.value == newProfileId) return
 
@@ -189,7 +188,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         sessionRefreshTrigger.intValue++
     }
 
-//    // keep active tab of each profile alive
+    //    // keep active tab of each profile alive
 //    fun switchProfile(newProfileId: String) {
 //        if (activeProfileId.value == newProfileId) return
 //
@@ -254,11 +253,21 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 //        // 9. Force UI to update session
 //        sessionRefreshTrigger.intValue++
 //    }
-    fun createNewProfile() {
+    fun createNewProfile(name: String = "new profile") {
+        // Default to: (Active Profile Index) + 1
+        val targetIndex = (profiles.indexOfFirst { it.id == activeProfileId.value }.coerceAtLeast(0) + 1)
+
         val newProfile = Profile(
             id = "profile_${System.currentTimeMillis()}",
+            name = name
         )
-        profiles.add(newProfile)
+
+        // Ensure the index is within valid bounds (0 to current size)
+        val safeIndex = targetIndex.coerceIn(0, profiles.size)
+
+        // Insert at the specific index
+        profiles.add(safeIndex, newProfile)
+
         profileManager.saveProfiles(profiles)
 
         // Switch to the newly created profile immediately
@@ -273,7 +282,10 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         val targetProfileId: String
         if (profiles.size <= 1) {
             // Case: Only 1 profile exists. Create a new one.
-            val newProfile = Profile(id = "profile_${System.currentTimeMillis()}")
+            val newProfile = Profile(
+                id = "profile_${System.currentTimeMillis()}",
+                name = "profile ${profiles.size + 1}"
+            )
             profiles.add(newProfile)
             profileManager.saveProfiles(profiles)
             targetProfileId = newProfile.id
@@ -348,23 +360,33 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         // CRITICAL: Point the UI to the newly loaded tab's actual ID (which is now the activeTab)
         updateUI { it.copy(inspectingTabId = activeTab?.id, isTabDataPanelVisible = false) }
     }
-    fun deleteProfile(idToDelete: String) {
+
+    fun deleteProfile() {
         // Prevent deleting if it's the only profile left
         if (profiles.size <= 1) return
+
+        val idToDelete = activeProfileId.value
+        val currentIndex = profiles.indexOfFirst { it.id == idToDelete }
+
+        if (currentIndex == -1) return // Safety check if not found
+
+        // Determine which profile to switch to BEFORE removing it.
+        // If deleting the very first one (index 0), fallback to index 1.
+        // Otherwise, move to the previous one (index - 1).
+        val targetIndex = if (currentIndex > 0) currentIndex - 1 else 1
+        val profileIdToSwitchTo = profiles[targetIndex].id
 
         // 1. Wipe the container data from GeckoView
         geckoManager.wipeProfileData(idToDelete)
 
-
         // 2. Remove from list and save
-        profiles.removeAll { it.id == idToDelete }
+        profiles.removeAt(currentIndex)
         profileManager.saveProfiles(profiles)
 
-        // 3. Switch to another profile if the active one was just deleted
-        if (activeProfileId.value == idToDelete) {
-            switchProfile(profiles.first().id)
-        }
+        // 3. Switch to the newly determined profile
+        switchProfile(profileIdToSwitchTo)
     }
+
     // endregion
     //region Gecko
     fun handleExternalIntent(activity: Activity, url: String) {
@@ -413,7 +435,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                     // 2. Open Play Store
                     val pack = intent.`package`
                     if (!pack.isNullOrEmpty()) {
-                        val marketIntent = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$pack"))
+                        val marketIntent =
+                            Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$pack"))
                         marketIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         try {
                             activity.startActivity(marketIntent)
@@ -423,14 +446,16 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                     }
                 }
             } else {
-                Toast.makeText(activity, "No app found to open this link", Toast.LENGTH_SHORT).show()
+                Toast.makeText(activity, "No app found to open this link", Toast.LENGTH_SHORT)
+                    .show()
             }
 
         } catch (e: Exception) {
             Log.e("Intent", "Failed to handle intent", e)
         }
     }
-//    fun handleExternalIntent(activity: Activity, url: String) {
+
+    //    fun handleExternalIntent(activity: Activity, url: String) {
 //        try {
 //            val intent: Intent
 //
@@ -571,6 +596,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
                     current.copy(isAdBlockEnabled = isEnabled)
                 }
+
                 BrowserSettingField.GUIDE_MODE -> current.copy(isGuideModeEnabled = value as Boolean)
 
 
@@ -698,7 +724,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             tabs.addAll(loadedTabs)
 
             // 2. Set the active index
-            _activeTabIndex.value = tabManager.getActiveTabIndex(activeProfileId.value).coerceAtLeast(0)
+            _activeTabIndex.value =
+                tabManager.getActiveTabIndex(activeProfileId.value).coerceAtLeast(0)
 
             isInitialized = true
         }

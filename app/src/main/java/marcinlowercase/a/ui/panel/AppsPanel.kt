@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -52,7 +51,7 @@ import kotlin.math.ceil
 fun AppsPanel(
     onAppClick: (App) -> Unit = {},
     addAppToPin: () -> Unit,
-
+    createNewProfile: () -> Unit,
     ) {
     val viewModel = LocalBrowserViewModel.current
     val settings = viewModel.browserSettings.collectAsState()
@@ -244,8 +243,7 @@ fun AppsPanel(
                     key = "profile_name_${pageProfile.id}", // Stable key
                     contentType = "profile_header"
                 ) {
-                    val profileName = "profile ${profileIndex + 1}"
-                    PlaceholderIcon(text = profileName, modifier = Modifier.animateItem())
+                    PlaceholderIcon(text = pageProfile.name, modifier = Modifier.animateItem())
                 }
                 visualItemCount += 2
 
@@ -274,7 +272,7 @@ fun AppsPanel(
                     PlaceholderIcon(
                         iconRes = R.drawable.ic_person_add,
                         onClick = {
-                            viewModel.createNewProfile()
+                            createNewProfile()
                         },
                         modifier = Modifier.animateItem()
                     )
@@ -292,7 +290,7 @@ fun AppsPanel(
                             iconRes = R.drawable.ic_person_off,
                             onClick = {
                                 if (profiles.size > 1) {
-                                    viewModel.deleteProfile(pageProfile.id)
+                                    viewModel.deleteProfile()
                                 }
                             },
                             modifier = Modifier.animateItem()

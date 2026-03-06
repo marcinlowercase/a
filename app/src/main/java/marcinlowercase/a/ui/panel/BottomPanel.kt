@@ -499,6 +499,11 @@ fun BottomPanel(
                                                 isPinningApp = false
                                             )
                                         }
+                                        if (uiState.value.isCreatingProfile) viewModel.updateUI {
+                                            it.copy(
+                                                isCreatingProfile = false
+                                            )
+                                        }
                                         uiState.value.savedPanelState?.let { savedState ->
                                             viewModel.updateUI {
                                                 it.copy(
@@ -531,6 +536,7 @@ fun BottomPanel(
                                 ),
                             placeholder = {
                                 when {
+                                    uiState.value.isCreatingProfile -> Text("profile label")
                                     uiState.value.isPinningApp -> Text("pin label")
                                     else -> Text("search / url")
                                 }
@@ -551,6 +557,10 @@ fun BottomPanel(
                                 if (input.isEmpty()) {
 
                                     when {
+                                        uiState.value.isCreatingProfile -> {
+                                            viewModel.createNewProfile()
+                                            viewModel.updateUI { it.copy(isAppsPanelVisible = true) }
+                                        }
                                         uiState.value.isPinningApp -> {
                                             viewModel.pinApp(
                                                 title = viewModel.activeTab!!.currentTitle,
@@ -575,6 +585,10 @@ fun BottomPanel(
 
 
                                 when {
+                                    uiState.value.isCreatingProfile -> {
+                                        viewModel.createNewProfile(input)
+                                        viewModel.updateUI { it.copy(isAppsPanelVisible = true) }
+                                    }
                                     uiState.value.isPinningApp -> {
                                         viewModel.pinApp(
                                             title = input,
@@ -817,6 +831,10 @@ fun BottomPanel(
                             addAppToPin = {
                                 viewModel.updateUI { it.copy(isPinningApp = true) }
                                 urlBarFocusRequester.requestFocus()
+                            },
+                            createNewProfile = {
+                                viewModel.updateUI { it.copy(isCreatingProfile = true) }
+                                urlBarFocusRequester.requestFocus()
                             }
                         )
 
@@ -828,6 +846,10 @@ fun BottomPanel(
                             },
                             addAppToPin = {
                                 viewModel.updateUI { it.copy(isPinningApp = true) }
+                                urlBarFocusRequester.requestFocus()
+                            },
+                            createNewProfile = {
+                                viewModel.updateUI { it.copy(isCreatingProfile = true) }
                                 urlBarFocusRequester.requestFocus()
                             }
 
