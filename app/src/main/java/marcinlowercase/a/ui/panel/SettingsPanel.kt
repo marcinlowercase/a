@@ -90,6 +90,7 @@ enum class SettingPanelView {
 
 @Composable
 fun SliderSetting(
+    textEnabled: Boolean = true,
     field: BrowserSettingField,
     valueRange: ClosedFloatingPointRange<Float>,
     steps: Int,
@@ -210,6 +211,7 @@ fun SliderSetting(
                 contentAlignment = Alignment.Center // 2. Center the content of the Box
             ) {
                 BasicTextField(
+                    enabled = textEnabled,
                     value = textFieldValueFun(digits),
                     onValueChange = {},
                     modifier = Modifier
@@ -504,6 +506,7 @@ fun SettingsPanel(
     val allSettingsOptions =
         listOf(
 
+            // search engine
 
             OptionItem(
                 // Use an appropriate icon, maybe a shield or block icon
@@ -520,15 +523,6 @@ fun SettingsPanel(
 
                 viewModel.updateUI { it.copy(isOptionsPanelVisible = false, isAppsPanelVisible = false) }
             },
-
-
-            // search engine
-            OptionItem(R.drawable.ic_search, "search engine") {
-                currentView = SettingPanelView.SEARCH_ENGINE
-            },
-            OptionItem(R.drawable.ic_link, "default url") {
-                currentView = SettingPanelView.DEFAULT_URL
-            },
             OptionItem(
                 iconRes = R.drawable.ic_lightbulb, // Or a more specific icon like ic_manage_search
                 contentDescription = "suggestions",
@@ -540,6 +534,14 @@ fun SettingsPanel(
                 viewModel.updateUI { it.copy(isOptionsPanelVisible = false, isAppsPanelVisible = false) }
 
             },
+
+            OptionItem(R.drawable.ic_search, "search engine") {
+                currentView = SettingPanelView.SEARCH_ENGINE
+            },
+            OptionItem(R.drawable.ic_link, "default url") {
+                currentView = SettingPanelView.DEFAULT_URL
+            },
+
             OptionItem(R.drawable.ic_manage_history, "history size") {
                 currentView = SettingPanelView.CLOSED_TAB_HISTORY_SIZE
             },
@@ -1070,6 +1072,7 @@ fun SettingsPanel(
                 }
                 SettingPanelView.SEARCH_ENGINE -> {
                     SliderSetting(
+                        textEnabled = false,
                         onBackClick = {  currentView = SettingPanelView.MAIN },
                         valueRange = 0f..SearchEngine.entries.lastIndex.toFloat(),
                         steps = SearchEngine.entries.lastIndex - 1,
