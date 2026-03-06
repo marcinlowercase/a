@@ -1261,7 +1261,7 @@ fun BrowserScreen(
         LocalBrowserViewModel provides viewModel
     ) {
         //region LaunchedEffect
-        LaunchedEffect(activeTabIndex) {
+        LaunchedEffect(activeTabIndex, viewModel.activeProfileId.value) {
             val currentUrl = viewModel.tabs.getOrNull(activeTabIndex)?.currentURL ?: ""
             if (!uiState.value.isFocusOnUrlTextField) {
                 textFieldState.setTextAndPlaceCursorAtEnd(currentUrl.toDomain())
