@@ -48,13 +48,13 @@ fun OptionsPanel(
 //                viewModel.updateUI { it.copy(isAppsPanelVisible = !it.isAppsPanelVisible) }
 //            },
 
-            OptionItem(
-                R.drawable.ic_keep, // You'll need an icon for this
-                "pin", // Display the number of open tabs
-                uiState.value.isPinningApp
-            ) {
-                addAppToPin()
-            },
+//            OptionItem(
+//                R.drawable.ic_keep, // You'll need an icon for this
+//                "pin", // Display the number of open tabs
+//                uiState.value.isPinningApp
+//            ) {
+//                addAppToPin()
+//            },
 
 
 //                OptionItem(
@@ -145,14 +145,14 @@ fun OptionsPanel(
                 ) }
             },
 
-            OptionItem(
-                R.drawable.ic_person_add,
-                "new profile",
-                false
-            ) {
-                createNewProfile()
-
-            },
+//            OptionItem(
+//                R.drawable.ic_person_add,
+//                "new profile",
+//                false
+//            ) {
+//                createNewProfile()
+//
+//            },
             OptionItem(
                 iconRes = R.drawable.ic_lightbulb, // Or a more specific icon like ic_manage_search
                 contentDescription = "suggestions",
