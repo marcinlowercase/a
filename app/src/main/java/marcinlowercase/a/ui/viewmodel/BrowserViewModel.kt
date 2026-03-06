@@ -8,7 +8,6 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.media.MediaScannerConnection
-import android.net.Uri
 import android.os.Environment
 import android.util.Log
 import android.webkit.URLUtil
@@ -51,7 +50,6 @@ import marcinlowercase.a.core.data_class.JsChoiceState
 import marcinlowercase.a.core.data_class.JsColorState
 import marcinlowercase.a.core.data_class.JsDateTimeState
 import marcinlowercase.a.core.data_class.JsDialogState
-import marcinlowercase.a.core.data_class.PanelVisibilityState
 import marcinlowercase.a.core.data_class.PollData
 import marcinlowercase.a.core.data_class.Profile
 import marcinlowercase.a.core.data_class.SiteSettings
