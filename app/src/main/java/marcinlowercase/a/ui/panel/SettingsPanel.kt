@@ -501,8 +501,50 @@ fun SettingsPanel(
     }
 
     // Placeholder options for the settings panel
-    val allSettingsOptions = remember(settings) {
+    val allSettingsOptions =
         listOf(
+
+
+            OptionItem(
+                // Use an appropriate icon, maybe a shield or block icon
+                iconRes = if (settings.value.isAdBlockEnabled) R.drawable.ic_ublock else R.drawable.ic_remove_moderator,
+                contentDescription = "adblock (uBlock Origin)",
+                enabled = settings.value.isAdBlockEnabled
+            ) {
+                // Toggle the setting
+                val newState = !settings.value.isAdBlockEnabled
+
+                // Use your BrowserSettingsController to update the field.
+                // This will automatically tell the ViewModel, which will tell GeckoManager!
+                viewModel.updateField(BrowserSettingField.AD_BLOCK_ENABLED, newState)
+
+                viewModel.updateUI { it.copy(isOptionsPanelVisible = false, isAppsPanelVisible = false) }
+            },
+
+
+            // search engine
+            OptionItem(R.drawable.ic_search, "search engine") {
+                currentView = SettingPanelView.SEARCH_ENGINE
+            },
+            OptionItem(R.drawable.ic_link, "default url") {
+                currentView = SettingPanelView.DEFAULT_URL
+            },
+            OptionItem(
+                iconRes = R.drawable.ic_lightbulb, // Or a more specific icon like ic_manage_search
+                contentDescription = "suggestions",
+                enabled = settings.value.showSuggestions // The button is "active" when suggestions are on
+            ) {
+                // When clicked, create a new settings object with the toggled value
+
+                viewModel.updateSettings{it.copy(showSuggestions = !it.showSuggestions)}
+                viewModel.updateUI { it.copy(isOptionsPanelVisible = false, isAppsPanelVisible = false) }
+
+            },
+            OptionItem(R.drawable.ic_manage_history, "history size") {
+                currentView = SettingPanelView.CLOSED_TAB_HISTORY_SIZE
+            },
+
+            // appearance
             OptionItem(
                 R.drawable.ic_adjust_corner_radius,
                 "corner radius",
@@ -511,16 +553,10 @@ fun SettingsPanel(
                 currentView = SettingPanelView.CORNER_RADIUS
             },
 
-            OptionItem(R.drawable.ic_link, "default url") {
-                currentView = SettingPanelView.DEFAULT_URL
-            },
-
             OptionItem(R.drawable.ic_padding, "padding") {
                 currentView = SettingPanelView.PADDING
             },
-            OptionItem(R.drawable.ic_search, "search engine") {
-                currentView = SettingPanelView.SEARCH_ENGINE
-            },
+
             OptionItem(R.drawable.ic_expand, "min height") {
                 currentView = SettingPanelView.SINGLE_LINE_HEIGHT
 
@@ -538,9 +574,7 @@ fun SettingsPanel(
             OptionItem(R.drawable.ic_cursor_speed, "cursor speed") {
                 currentView = SettingPanelView.CURSOR_TRACKING_SPEED
             },
-            OptionItem(R.drawable.ic_manage_history, "history size") {
-                currentView = SettingPanelView.CLOSED_TAB_HISTORY_SIZE
-            },
+
             OptionItem(R.drawable.ic_opacity, "back square idle opacity") {
                 currentView = SettingPanelView.BACK_SQUARE_OPACITY
             },
@@ -572,7 +606,7 @@ fun SettingsPanel(
 //                currentView = SettingPanelView.INFO
 //            },
         )
-    }
+
 
     val optionPages = remember(allSettingsOptions) {
         allSettingsOptions.chunked(4)

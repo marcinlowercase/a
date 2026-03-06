@@ -153,32 +153,32 @@ fun OptionsPanel(
 //                createNewProfile()
 //
 //            },
-            OptionItem(
-                iconRes = R.drawable.ic_lightbulb, // Or a more specific icon like ic_manage_search
-                contentDescription = "suggestions",
-                enabled = settings.value.showSuggestions // The button is "active" when suggestions are on
-            ) {
-                // When clicked, create a new settings object with the toggled value
-
-                viewModel.updateSettings{it.copy(showSuggestions = !it.showSuggestions)}
-                viewModel.updateUI { it.copy(isOptionsPanelVisible = false, isAppsPanelVisible = false) }
-
-            },
-            OptionItem(
-                // Use an appropriate icon, maybe a shield or block icon
-                iconRes = if (settings.value.isAdBlockEnabled) R.drawable.ic_ublock else R.drawable.ic_remove_moderator,
-                contentDescription = "adblock (uBlock Origin)",
-                enabled = settings.value.isAdBlockEnabled
-            ) {
-                // Toggle the setting
-                val newState = !settings.value.isAdBlockEnabled
-
-                // Use your BrowserSettingsController to update the field.
-                // This will automatically tell the ViewModel, which will tell GeckoManager!
-                viewModel.updateField(BrowserSettingField.AD_BLOCK_ENABLED, newState)
-
-                viewModel.updateUI { it.copy(isOptionsPanelVisible = false, isAppsPanelVisible = false) }
-            },
+//            OptionItem(
+//                iconRes = R.drawable.ic_lightbulb, // Or a more specific icon like ic_manage_search
+//                contentDescription = "suggestions",
+//                enabled = settings.value.showSuggestions // The button is "active" when suggestions are on
+//            ) {
+//                // When clicked, create a new settings object with the toggled value
+//
+//                viewModel.updateSettings{it.copy(showSuggestions = !it.showSuggestions)}
+//                viewModel.updateUI { it.copy(isOptionsPanelVisible = false, isAppsPanelVisible = false) }
+//
+//            },
+//            OptionItem(
+//                // Use an appropriate icon, maybe a shield or block icon
+//                iconRes = if (settings.value.isAdBlockEnabled) R.drawable.ic_ublock else R.drawable.ic_remove_moderator,
+//                contentDescription = "adblock (uBlock Origin)",
+//                enabled = settings.value.isAdBlockEnabled
+//            ) {
+//                // Toggle the setting
+//                val newState = !settings.value.isAdBlockEnabled
+//
+//                // Use your BrowserSettingsController to update the field.
+//                // This will automatically tell the ViewModel, which will tell GeckoManager!
+//                viewModel.updateField(BrowserSettingField.AD_BLOCK_ENABLED, newState)
+//
+//                viewModel.updateUI { it.copy(isOptionsPanelVisible = false, isAppsPanelVisible = false) }
+//            },
             OptionItem(
                 iconRes = R.drawable.ic_close_all_tabs, // Ensure you have this drawable
                 contentDescription = "close all tabs",
