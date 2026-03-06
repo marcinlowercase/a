@@ -672,7 +672,7 @@ fun BottomPanel(
                         if (uiState.value.isUrlOverlayBoxVisible && !uiState.value.isFocusOnUrlTextField) Box(
                             modifier = Modifier
                                 .background(
-                                    Color.Cyan, shape = RoundedCornerShape(
+                                    Color.Transparent, shape = RoundedCornerShape(
                                         settings.value.cornerRadiusForLayer(1).dp
                                     )
                                 )
