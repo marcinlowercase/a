@@ -427,6 +427,7 @@ fun PlaceholderIcon(
                     }
                 else Modifier
             )
+            .padding(settings.value.padding.dp)
             .padding(
                 start = if (text != null) settings.value.cornerRadiusForLayer(3).dp else 0.dp
             )
