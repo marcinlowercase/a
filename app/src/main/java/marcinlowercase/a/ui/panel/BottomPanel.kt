@@ -836,14 +836,14 @@ fun BottomPanel(
                     Column {
                         OptionsPanel(
                             onCloseAllTabs = onCloseAllTabs,
-                            addAppToPin = {
-                                viewModel.updateUI { it.copy(isPinningApp = true) }
-                                urlBarFocusRequester.requestFocus()
-                            },
-                            createNewProfile = {
-                                viewModel.updateUI { it.copy(isCreatingProfile = true) }
-                                urlBarFocusRequester.requestFocus()
-                            }
+//                            addAppToPin = {
+//                                viewModel.updateUI { it.copy(isPinningApp = true) }
+//                                urlBarFocusRequester.requestFocus()
+//                            },
+//                            createNewProfile = {
+//                                viewModel.updateUI { it.copy(isCreatingProfile = true) }
+//                                urlBarFocusRequester.requestFocus()
+//                            }
                         )
 
                         AppsPanel(

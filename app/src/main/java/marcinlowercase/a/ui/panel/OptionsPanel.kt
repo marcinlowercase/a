@@ -28,8 +28,8 @@ import kotlin.math.roundToInt
 @Composable
 fun OptionsPanel(
     onCloseAllTabs: () -> Unit,
-    addAppToPin: () -> Unit,
-    createNewProfile: () -> Unit,
+//    addAppToPin: () -> Unit,
+//    createNewProfile: () -> Unit,
 ) {
     val viewModel = LocalBrowserViewModel.current
     val uiState = viewModel.uiState.collectAsState()
