@@ -207,14 +207,14 @@ fun OptionsPanel(
                     isOptionsPanelVisible = false, isAppsPanelVisible = false
                 ) }
             },
-            OptionItem(
-                R.drawable.ic_developer_guide, // You'll need a settings icon
-                "privacy policy",
-                false,
-            ) {
-                viewModel.createNewTab(viewModel.activeTabIndex.value + 1, privacy_policy_url)
-                viewModel.updateUI { it.copy(isOptionsPanelVisible = false, isAppsPanelVisible = false) }
-            },
+//            OptionItem(
+//                R.drawable.ic_developer_guide, // You'll need a settings icon
+//                "privacy policy",
+//                false,
+//            ) {
+//                viewModel.createNewTab(viewModel.activeTabIndex.value + 1, privacy_policy_url)
+//                viewModel.updateUI { it.copy(isOptionsPanelVisible = false, isAppsPanelVisible = false) }
+//            },
 
 
 //                OptionItem(R.drawable.ic_bug, "debug", false) {

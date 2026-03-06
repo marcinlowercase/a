@@ -61,6 +61,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.graphics.toColorInt
 import kotlinx.coroutines.delay
 import marcinlowercase.a.R
+import marcinlowercase.a.core.constant.privacy_policy_url
 import marcinlowercase.a.core.data_class.OptionItem
 import marcinlowercase.a.core.enum_class.BrowserSettingField
 import marcinlowercase.a.core.enum_class.SearchEngine
@@ -558,10 +559,18 @@ fun SettingsPanel(
                     {}
                 )
             },
-
-            OptionItem(R.drawable.ic_info, "info", false) {
-                currentView = SettingPanelView.INFO
+            OptionItem(
+                R.drawable.ic_developer_guide, // You'll need a settings icon
+                "privacy policy",
+                false,
+            ) {
+                viewModel.createNewTab(viewModel.activeTabIndex.value + 1, privacy_policy_url)
+                viewModel.updateUI { it.copy(isOptionsPanelVisible = false, isAppsPanelVisible = false) }
             },
+
+//            OptionItem(R.drawable.ic_info, "info", false) {
+//                currentView = SettingPanelView.INFO
+//            },
         )
     }
 
