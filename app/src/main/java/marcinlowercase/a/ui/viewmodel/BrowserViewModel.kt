@@ -116,7 +116,9 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 //        // 3. Update active profile ID and save to disk
 //        activeProfileId.value = newProfileId
 //        profileManager.saveActiveProfileId(newProfileId)
-//
+//// reset settings
+//        _browserSettings.value = loadSettingsFromPrefs(newProfileId)
+//        geckoManager.setAdBlockEnabled(_browserSettings.value.isAdBlockEnabled)
 //        // 4. Reload all memory lists from the new profile's SharedPreferences
 //        apps.clear()
 //        apps.addAll(appManager.loadApps(newProfileId))
@@ -162,6 +164,10 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         // 3. Update active profile ID and save to disk
         activeProfileId.value = newProfileId
         profileManager.saveActiveProfileId(newProfileId)
+
+        // reset settings
+        _browserSettings.value = loadSettingsFromPrefs(newProfileId)
+        geckoManager.setAdBlockEnabled(_browserSettings.value.isAdBlockEnabled)
 
         // 4. Reload all memory lists from the new profile's SharedPreferences
         apps.clear()
@@ -224,7 +230,9 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 //        // 4. Update Profile ID
 //        activeProfileId.value = newProfileId
 //        profileManager.saveActiveProfileId(newProfileId)
-//
+//// reset settings
+//        _browserSettings.value = loadSettingsFromPrefs(newProfileId)
+//        geckoManager.setAdBlockEnabled(_browserSettings.value.isAdBlockEnabled)
 //        // 5. Reload auxiliary data (Apps, History, Settings)
 //        apps.clear()
 //        apps.addAll(appManager.loadApps(newProfileId))
@@ -269,6 +277,10 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         profiles.add(safeIndex, newProfile)
 
         profileManager.saveProfiles(profiles)
+
+        val currentSettings = _browserSettings.value
+        saveSettingsToPrefs(newProfile.id, currentSettings)
+
 
         // Switch to the newly created profile immediately
         switchProfile(newProfile.id)
@@ -529,43 +541,51 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 //    }
     //endregion
     //region Browser Settings
-    private val sharedPrefs = application.getSharedPreferences("BrowserPrefs", Context.MODE_PRIVATE)
-    private val _browserSettings = MutableStateFlow(loadSettingsFromPrefs())
+    private val _browserSettings = MutableStateFlow(loadSettingsFromPrefs(activeProfileId.value))
     val browserSettings = _browserSettings.asStateFlow()
-    private fun loadSettingsFromPrefs(): BrowserSettings {
-        return BrowserSettings(
-            isFirstAppLoad = sharedPrefs.getBoolean("is_first_app_load", true),
-            padding = sharedPrefs.getFloat("padding", 8f),
-            deviceCornerRadius = sharedPrefs.getFloat(
-                "device_corner_radius",
-                pixel_9_corner_radius
-            ),
-            defaultUrl = sharedPrefs.getString("default_url", default_url) ?: default_url,
-            animationSpeed = sharedPrefs.getFloat("animation_speed", 300f),
-            singleLineHeight = sharedPrefs.getFloat("single_line_height", 100f),
-            isSharpMode = sharedPrefs.getBoolean("is_sharp_mode", false),
-            cursorContainerSize = sharedPrefs.getFloat("cursor_container_size", 50f),
-            cursorPointerSize = sharedPrefs.getFloat("cursor_pointer_size", 5f),
-            cursorTrackingSpeed = sharedPrefs.getFloat("cursor_tracking_speed", 1.75f),
-            showSuggestions = sharedPrefs.getBoolean("show_suggestions", false),
-            closedTabHistorySize = sharedPrefs.getFloat("closed_tab_history_size", 2f),
-            backSquareOffsetX = sharedPrefs.getFloat("back_square_offset_x", -1f),
-            backSquareOffsetY = sharedPrefs.getFloat("back_square_offset_y", -1f),
-            backSquareIdleOpacity = sharedPrefs.getFloat("back_square_idle_opacity", 0.2f),
-            maxListHeight = sharedPrefs.getFloat("max_list_height", 1.5f),
-            searchEngine = sharedPrefs.getInt("search_engine", 0),
-            isFullscreenMode = sharedPrefs.getBoolean("is_fullscreen_mode", false),
-            highlightColor = sharedPrefs.getInt("highlight_color", 0xFFBA160C.toInt()),
-            isAdBlockEnabled = sharedPrefs.getBoolean("is_ad_block_enabled", true),
-            isGuideModeEnabled = sharedPrefs.getBoolean("is_guide_mode_enabled", true)
 
+    private fun loadSettingsFromPrefs(profileId: String): BrowserSettings {
+        val context = getApplication<Application>()
+        // 1. Global Preferences (Always shared)
+        val globalPrefs = context.getSharedPreferences("BrowserPrefs", Context.MODE_PRIVATE)
+        // 2. Profile-specific Preferences
+        val profilePrefs = context.getSharedPreferences("BrowserPrefs_$profileId", Context.MODE_PRIVATE)
+
+        // Fallback for migration (if the profile doesn't exist yet, pull from global)
+        // We now check for "default_url" instead of "is_first_app_load" since it moved to global
+        val prefsToUse = if (profilePrefs.contains("default_url")) profilePrefs else globalPrefs
+
+        return BrowserSettings(
+            // --- GLOBAL SETTINGS (Shared across all profiles) ---
+            isFirstAppLoad = globalPrefs.getBoolean("is_first_app_load", true),
+            padding = globalPrefs.getFloat("padding", 8f),
+            deviceCornerRadius = globalPrefs.getFloat("device_corner_radius", pixel_9_corner_radius),
+            singleLineHeight = globalPrefs.getFloat("single_line_height", 100f),
+            maxListHeight = globalPrefs.getFloat("max_list_height", 1.5f),
+
+            // --- PROFILE-SPECIFIC SETTINGS ---
+            defaultUrl = prefsToUse.getString("default_url", default_url) ?: default_url,
+            animationSpeed = prefsToUse.getFloat("animation_speed", 300f),
+            isSharpMode = prefsToUse.getBoolean("is_sharp_mode", false),
+            cursorContainerSize = prefsToUse.getFloat("cursor_container_size", 50f),
+            cursorPointerSize = prefsToUse.getFloat("cursor_pointer_size", 5f),
+            cursorTrackingSpeed = prefsToUse.getFloat("cursor_tracking_speed", 1.75f),
+            showSuggestions = prefsToUse.getBoolean("show_suggestions", false),
+            closedTabHistorySize = prefsToUse.getFloat("closed_tab_history_size", 10f),
+            backSquareOffsetX = prefsToUse.getFloat("back_square_offset_x", -1f),
+            backSquareOffsetY = prefsToUse.getFloat("back_square_offset_y", -1f),
+            backSquareIdleOpacity = prefsToUse.getFloat("back_square_idle_opacity", 0.2f),
+            searchEngine = prefsToUse.getInt("search_engine", 0),
+            isFullscreenMode = prefsToUse.getBoolean("is_fullscreen_mode", false),
+            highlightColor = prefsToUse.getInt("highlight_color", 0xFFBA160C.toInt()),
+            isAdBlockEnabled = prefsToUse.getBoolean("is_ad_block_enabled", true),
+            isGuideModeEnabled = prefsToUse.getBoolean("is_guide_mode_enabled", true)
         )
     }
-
     fun updateSettings(mutation: (BrowserSettings) -> BrowserSettings) {
         _browserSettings.update(mutation)
-        // Persist the resulting value after the update
-        saveSettingsToPrefs(_browserSettings.value)
+        // Persist the resulting value after the update for the CURRENT active profile
+        saveSettingsToPrefs(activeProfileId.value, _browserSettings.value)
     }
 
     fun updateField(field: BrowserSettingField, value: Any) {
@@ -603,7 +623,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                     val isEnabled = value as Boolean
                     geckoManager.setAdBlockEnabled(isEnabled)
 
-                    // Optional: Reload the current tab so the user sees the ads disappear/reappear instantly
                     activeTab?.let { tab ->
                         geckoManager.getSession(tab).reload()
                     }
@@ -612,7 +631,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 }
 
                 BrowserSettingField.GUIDE_MODE -> current.copy(isGuideModeEnabled = value as Boolean)
-
 
                 BrowserSettingField.INFO -> current
             }
@@ -624,28 +642,45 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             it.copy(
                 padding = 8f,
                 deviceCornerRadius = pixel_9_corner_radius,
+                singleLineHeight = 90f,
+                maxListHeight = 1.5f,
                 defaultUrl = default_url,
+                showSuggestions = false,
                 animationSpeed = 300f,
-                singleLineHeight = 100f,
                 isSharpMode = false,
                 cursorContainerSize = 50f,
                 cursorPointerSize = 5f,
                 cursorTrackingSpeed = 1.75f,
                 backSquareIdleOpacity = 0.2f,
                 highlightColor = 0xFFBA160C.toInt(),
+                isAdBlockEnabled = true,
+                isFullscreenMode =false,
+                closedTabHistorySize = 10f,
+                searchEngine = 0,
+
             )
         }
     }
 
-    private fun saveSettingsToPrefs(settings: BrowserSettings) {
-        sharedPrefs.edit().apply {
+    private fun saveSettingsToPrefs(profileId: String, settings: BrowserSettings) {
+        val context = getApplication<Application>()
+        val globalPrefs = context.getSharedPreferences("BrowserPrefs", Context.MODE_PRIVATE)
+        val profilePrefs = context.getSharedPreferences("BrowserPrefs_$profileId", Context.MODE_PRIVATE)
+
+        // --- Save GLOBAL Settings ---
+        globalPrefs.edit().apply {
             putBoolean("is_first_app_load", settings.isFirstAppLoad)
             putFloat("padding", settings.padding)
             putFloat("device_corner_radius", settings.deviceCornerRadius)
+            putFloat("single_line_height", settings.singleLineHeight)
+            putFloat("max_list_height", settings.maxListHeight)
+            apply()
+        }
+
+        // --- Save PROFILE-SPECIFIC Settings ---
+        profilePrefs.edit().apply {
             putString("default_url", settings.defaultUrl)
             putFloat("animation_speed", settings.animationSpeed)
-            putFloat("single_line_height", settings.singleLineHeight)
-//            putInt("desktop_mode_width", settings.desktopModeWidth)
             putBoolean("is_sharp_mode", settings.isSharpMode)
             putFloat("cursor_container_size", settings.cursorContainerSize)
             putFloat("cursor_pointer_size", settings.cursorPointerSize)
@@ -655,24 +690,19 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             putFloat("back_square_offset_x", settings.backSquareOffsetX)
             putFloat("back_square_offset_y", settings.backSquareOffsetY)
             putFloat("back_square_idle_opacity", settings.backSquareIdleOpacity)
-            putFloat("max_list_height", settings.maxListHeight)
             putInt("search_engine", settings.searchEngine)
             putBoolean("is_fullscreen_mode", settings.isFullscreenMode)
             putInt("highlight_color", settings.highlightColor)
             putBoolean("is_ad_block_enabled", settings.isAdBlockEnabled)
             putBoolean("is_guide_mode_enabled", settings.isGuideModeEnabled)
-
-
             apply()
         }
-    }
-
-    //endregion
+    }    //endregion
 
     //region UI State
     private val _uiState = MutableStateFlow(
         BrowserUIState(
-            isSettingsPanelVisible = sharedPrefs.getBoolean("is_first_app_load", true)
+            isSettingsPanelVisible = _browserSettings.value.isFirstAppLoad
         )
     )
     val uiState = _uiState.asStateFlow()
