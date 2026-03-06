@@ -1633,11 +1633,6 @@ fun BottomPanel(
                     }
                 }
 
-                AppsEditPanel()
-
-
-
-
 
                 TextEditPanel(
 //                    currentRotation =  currentRotation,
