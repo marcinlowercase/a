@@ -510,13 +510,15 @@ fun BottomPanel(
                                             viewModel.updateUI {
                                                 it.copy(
                                                     isOptionsPanelVisible = savedState.options,
-                                                    isTabsPanelVisible = savedState.tabs,
                                                     isDownloadPanelVisible = savedState.downloads,
                                                     isTabDataPanelVisible = false,
                                                     isNavPanelVisible = savedState.nav,
                                                     savedPanelState = null,
                                                 )
                                             }
+                                            if (uiState.value.isTabsPanelLock) viewModel.updateUI { it.copy(
+                                                isTabsPanelVisible = savedState.tabs,
+                                                ) }
                                         }
                                         textFieldState.setTextAndPlaceCursorAtEnd(
                                             resetUrl.toDomain()

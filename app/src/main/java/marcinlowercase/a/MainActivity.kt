@@ -1307,6 +1307,46 @@ fun BrowserScreen(
                 )
             }
         }
+        LaunchedEffect(
+            uiState.value.isFocusOnUrlTextField,
+            uiState.value.isTabsPanelVisible,
+            uiState.value.isOptionsPanelVisible,
+            uiState.value.isAppsPanelVisible,
+            uiState.value.isDownloadPanelVisible,
+            uiState.value.isSettingsPanelVisible,
+            uiState.value.isFindInPageVisible,
+            uiState.value.isTabDataPanelVisible
+        ) {
+            // If the user is currently typing in the URL bar...
+            if (uiState.value.isFocusOnUrlTextField) {
+
+                // Check if any panel somehow managed to sneak open
+                val hasInvalidPanelOpen = uiState.value.isTabsPanelVisible ||
+                        uiState.value.isOptionsPanelVisible ||
+                        uiState.value.isAppsPanelVisible ||
+                        uiState.value.isDownloadPanelVisible ||
+                        uiState.value.isSettingsPanelVisible ||
+                        uiState.value.isFindInPageVisible ||
+                        uiState.value.isTabDataPanelVisible
+
+                // If one did, forcefully shut them all down
+                if (hasInvalidPanelOpen) {
+                    viewModel.updateUI {
+                        it.copy(
+                            isTabsPanelVisible = false,
+                            isTabsPanelLock = false,
+                            isOptionsPanelVisible = false,
+                            isAppsPanelVisible = false,
+                            isDownloadPanelVisible = false,
+                            isSettingsPanelVisible = false,
+                            isFindInPageVisible = false,
+                            isTabDataPanelVisible = false
+                        )
+                    }
+                }
+            }
+        }
+
         LaunchedEffect(Unit) {
             newUrlFlow.collect { urlFromIntent ->
                 if (urlFromIntent != null) {
@@ -1923,6 +1963,12 @@ fun BrowserScreen(
                     )
                 }
                 if (uiState.value.isCursorMode) viewModel.updateUI { it.copy(isCursorMode = false) }
+            }
+        }
+        LaunchedEffect(uiState.value.isTabsPanelLock) {
+            if (!uiState.value.isTabsPanelLock) {
+                Log.i("marcPanel","hide tabspanel visible")
+                viewModel.updateUI { it.copy(isTabsPanelVisible = false) }
             }
         }
         LaunchedEffect(viewModel.jsDialogState.value) {
