@@ -56,7 +56,7 @@ fun MediaControlPanel(
     val uiState = viewModel.uiState.collectAsState()
     val settings = viewModel.browserSettings.collectAsState()
     LaunchedEffect(uiState.value.isMediaControlPanelVisible) {
-        Log.d("MediaDisplay", "isMediaControlPanelVisible ${uiState.value.isMediaControlPanelVisible}")
+        //Log.d("MediaDisplay", "isMediaControlPanelVisible ${uiState.value.isMediaControlPanelVisible}")
     }
     val opacity by animateFloatAsState(
         targetValue = if (uiState.value.isMediaControlPanelVisible) 0.7f else 0.0f,
@@ -82,8 +82,8 @@ fun MediaControlPanel(
     }
 
 
-    Log.w("MediaDisplay", "uiState.value.isOnFullscreenVideo${uiState.value.isOnFullscreenVideo}")
-    Log.w("MediaDisplay", "uiState.value.isMediaControlPanelDisplayed${uiState.value.isMediaControlPanelDisplayed}")
+    //Log.w("MediaDisplay", "uiState.value.isOnFullscreenVideo${uiState.value.isOnFullscreenVideo}")
+    //Log.w("MediaDisplay", "uiState.value.isMediaControlPanelDisplayed${uiState.value.isMediaControlPanelDisplayed}")
     if (uiState.value.isOnFullscreenVideo && uiState.value.isMediaControlPanelDisplayed) {
         Column (
             modifier = modifier
@@ -205,7 +205,7 @@ fun MediaControlPanel(
                         detectTapGestures  (
                             onTap = {
                                 if (uiState.value.isMediaControlPanelVisible) {
-                                    Log.i("MediaDisplay", "${viewModel.geckoManager.isActiveMediaSessionPaused}")
+                                    //Log.i("MediaDisplay", "${viewModel.geckoManager.isActiveMediaSessionPaused}")
                                     if (viewModel.geckoManager.isActiveMediaSessionPaused) {
                                         viewModel.geckoManager.sendVideoCommand("play")
                                     } else {
@@ -214,7 +214,7 @@ fun MediaControlPanel(
                                 } else {
                                     viewModel.updateUI { it.copy(isMediaControlPanelVisible = true)}
                                 }
-                                Log.e("marcMGesture", "tap")
+                                //Log.e("marcMGesture", "tap")
 
                             },
                             onDoubleTap = { offset ->
@@ -229,16 +229,16 @@ fun MediaControlPanel(
                                         if (isTopHalf) {
                                             viewModel.geckoManager.sendVideoCommand("prev_5")
                                         } else {
-                                            Log.w("marcMGesture", "next")
+                                            //Log.w("marcMGesture", "next")
                                             viewModel.geckoManager.sendVideoCommand("next_5")
                                         }
                                     }
                                     MediaControlOption.VOLUME -> {
                                         if (isTopHalf) {
-                                            Log.i("mrVol", "decrease step")
+                                            //Log.i("mrVol", "decrease step")
                                             gestureManager.setVolume(-1)
                                         } else {
-                                            Log.i("mrVol", "increase step")
+                                            //Log.i("mrVol", "increase step")
                                             gestureManager.setVolume(1)
                                         }
                                     }
@@ -246,10 +246,10 @@ fun MediaControlPanel(
                                         val stepAmount = 5
 
                                         if (isTopHalf) {
-                                            Log.i("mrBright", "decrease")
+                                            //Log.i("mrBright", "decrease")
                                             gestureManager.setBrightness(-stepAmount)
                                         } else {
-                                            Log.i("mrBright", "increase")
+                                            //Log.i("mrBright", "increase")
                                             gestureManager.setBrightness(stepAmount)
                                         }
                                     }

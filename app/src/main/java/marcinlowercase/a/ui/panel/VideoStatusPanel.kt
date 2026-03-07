@@ -130,9 +130,9 @@ fun VideoStatusPanel(
     }
     var dragAccumulator by remember { mutableFloatStateOf(0f) }
 
-    Log.e("MediaDisplay", "uiState.value.isOnFullscreenVideo${uiState.value.isOnFullscreenVideo}")
-    Log.e("MediaDisplay", "uiState.value.isMediaControlPanelDisplayed${uiState.value.isMediaControlPanelDisplayed}")
-    Log.e("MediaDisplay", "shouldShow$shouldShow")
+    //Log.e("MediaDisplay", "uiState.value.isOnFullscreenVideo${uiState.value.isOnFullscreenVideo}")
+    //Log.e("MediaDisplay", "uiState.value.isMediaControlPanelDisplayed${uiState.value.isMediaControlPanelDisplayed}")
+    //Log.e("MediaDisplay", "shouldShow$shouldShow")
 
     if ((uiState.value.isOnFullscreenVideo && uiState.value.isMediaControlPanelDisplayed) || shouldShow) Column (
         modifier = modifier

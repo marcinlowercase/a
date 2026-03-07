@@ -141,11 +141,12 @@ class GeckoManager(private val context: Context) {
 //            .ensureBuiltIn(uri, FAVICON_ID)
         faviconExtensionFuture?.accept(
             { ext ->
-                Log.i("GeckoExt", "Favicon Fetcher Installed")
+                //Log.i("GeckoExt", "Favicon Fetcher Installed")
                 // SAVE THE REFERENCE
                 faviconExtension = ext
             },
-            { e -> Log.e("GeckoExt", "Favicon Fetcher Failed", e) }
+            { e -> //Log.e("GeckoExt", "Favicon Fetcher Failed", e)
+                 }
         )
     }
 
@@ -165,12 +166,12 @@ class GeckoManager(private val context: Context) {
                 dataCollectionPermissions: Array<String>
             ): GeckoResult<WebExtension.PermissionPromptResponse> {
 
-                Log.i(
-                    "GeckoExt", "Auto-confirming install for: ${
-                        extension.metaData
-                            .name
-                    }"
-                )
+                //Log.i(
+//                    "GeckoExt", "Auto-confirming install for: ${
+//                        extension.metaData
+//                            .name
+//                    }"
+//                )
 
                 // 2. BUILD THE RESPONSE
                 // true = Allow installation
@@ -190,7 +191,7 @@ class GeckoManager(private val context: Context) {
                 origins: Array<String>,
                 dataCollectionPermissions: Array<String>
             ): GeckoResult<AllowOrDeny> {
-                Log.i("GeckoExt", "Auto-confirming update for: ${extension.metaData.name}")
+                //Log.i("GeckoExt", "Auto-confirming update for: ${extension.metaData.name}")
 
                 // AllowOrDeny.ALLOW = 1, DENY = 0
                 // We return the integer value for ALLOW (usually 1) or use AllowOrDeny.ALLOW if available enum
@@ -215,15 +216,15 @@ class GeckoManager(private val context: Context) {
             }
             // Verify it exists
             if (!extensionFile.exists() || extensionFile.length() == 0L) {
-                Log.e("GeckoExt", "CRITICAL: XPI file is empty or missing!")
+                //Log.e("GeckoExt", "CRITICAL: XPI file is empty or missing!")
                 return
             }
-            Log.i(
-                "GeckoExt",
-                "XPI Ready at: ${extensionFile.absolutePath} (${extensionFile.length()} bytes)"
-            )
+//            Log.i(
+//                "GeckoExt",
+//                "XPI Ready at: ${extensionFile.absolutePath} (${extensionFile.length()} bytes)"
+//            )
         } catch (e: Exception) {
-            Log.e("GeckoExt", "Failed to copy asset", e)
+            //Log.e("GeckoExt", "Failed to copy asset", e)
             return
         }
 
@@ -233,15 +234,17 @@ class GeckoManager(private val context: Context) {
                 { extensions ->
                     val existing = extensions?.find { it.id == extId }
                     if (existing != null) {
-                        Log.e("GeckoExt", "existing: ${existing.id}")
-                        Log.i("GeckoExt", "uBlock already installed.")
+                        //Log.e("GeckoExt", "existing: ${existing.id}")
+                        //Log.i("GeckoExt", "uBlock already installed.")
                         configureExtension(existing)
                     } else {
-                        Log.i("GeckoExt", "Installing fresh XPI...")
+                        //Log.i("GeckoExt", "Installing fresh XPI...")
                         installXpi(extensionFile)
                     }
                 },
-                { e -> Log.e("GeckoExt", "List failed", e) }
+                { e ->
+                //Log.e("GeckoExt", "List failed", e)
+                     }
             )
     }
 
@@ -250,18 +253,18 @@ class GeckoManager(private val context: Context) {
         // File.toURI() gives "file:/", Gecko needs "file:///"
         val fileUri = "file://${file.absolutePath}"
 
-        Log.i("GeckoExt", "Sending install command: $fileUri")
+        //Log.i("GeckoExt", "Sending install command: $fileUri")
 
         runtime.webExtensionController
             .install(fileUri)
             .accept(
                 { extension ->
-                    Log.i("GeckoExt", "SUCCESS: Extension ID: ${extension?.id}")
+                    //Log.i("GeckoExt", "SUCCESS: Extension ID: ${extension?.id}")
                     if (extension != null) configureExtension(extension)
                 },
                 { e ->
                     // If this logs, we know WHY it failed
-                    Log.e("GeckoExt", "INSTALL FAILURE", e)
+                    //Log.e("GeckoExt", "INSTALL FAILURE", e)
                 }
             )
     }
@@ -291,13 +294,13 @@ class GeckoManager(private val context: Context) {
             val isManagedByEngine = engineManagedSessionIds.contains(tab.id)
 
             if (isManagedByEngine) {
-                Log.d("GeckoManager", "Skipping manual open for engine-managed session: ${tab.id}")
+                //Log.d("GeckoManager", "Skipping manual open for engine-managed session: ${tab.id}")
 
             } else {
                 try {
                     session.open(runtime)
                 } catch (e: IllegalStateException) {
-                    Log.d("NewTabFlow", "Session already opening or attached: ${e.message}")
+                    //Log.d("NewTabFlow", "Session already opening or attached: ${e.message}")
                 }
             }
         }
@@ -336,7 +339,7 @@ class GeckoManager(private val context: Context) {
 
         // RESTORE STATE
         if (tab.savedState != null) {
-            Log.e("TabFlow", "createand configure, restore")
+            //Log.e("TabFlow", "createand configure, restore")
             val stateToRestore = restoreStateFromString(tab.savedState ?: "")
             if (stateToRestore != null)
                 session.restoreState(stateToRestore)
@@ -494,11 +497,11 @@ class GeckoManager(private val context: Context) {
 
 
     ) {
-        Log.i("NewTabFlow", "setupDelegates")
+        //Log.i("NewTabFlow", "setupDelegates")
         val eventTabId = tab.value.id
 
         if (killedSessionIds.contains(eventTabId)) {
-            Log.i("GeckoManager", "Resurrecting killed session: $eventTabId")
+            //Log.i("GeckoManager", "Resurrecting killed session: $eventTabId")
 
             // ensure session is open (in case the whole session closed)
             if (!session.isOpen) {
@@ -556,10 +559,10 @@ class GeckoManager(private val context: Context) {
                         messageDelegate,
                         "browser"
                     )
-                    Log.i(
-                        "GeckoFavicon",
-                        "Delegate successfully attached to session ${session.isOpen}"
-                    )
+                    //Log.i(
+//                        "GeckoFavicon",
+//                        "Delegate successfully attached to session ${session.isOpen}"
+//                    )
                 }
             }
         }
@@ -573,7 +576,7 @@ class GeckoManager(private val context: Context) {
                 perms: MutableList<GeckoSession.PermissionDelegate.ContentPermission>,
                 userGesture: Boolean
             ) {
-                Log.i("GeckoNav", "onLocationChange")
+                //Log.i("GeckoNav", "onLocationChange")
                 onLocationChangeFun(eventTabId, session, url, perms, userGesture)
             }
 
@@ -581,7 +584,7 @@ class GeckoManager(private val context: Context) {
                 session: GeckoSession,
                 uri: String
             ): GeckoResult<GeckoSession> {
-                Log.d("NewTabFlow", "onNewSession")
+                //Log.d("NewTabFlow", "onNewSession")
                 val newTabId = System.currentTimeMillis()
 
 
@@ -599,7 +602,7 @@ class GeckoManager(private val context: Context) {
                 // the session can still close itself.
                 newSession.contentDelegate = object : GeckoSession.ContentDelegate {
                     override fun onCloseRequest(s: GeckoSession) {
-                        Log.d("NewTabFlow", "onCloseRequest")
+                        //Log.d("NewTabFlow", "onCloseRequest")
 
                         onCloseTabFun(newTabId)
                     }
@@ -632,7 +635,7 @@ class GeckoManager(private val context: Context) {
                 uri: String?,
                 error: WebRequestError
             ): GeckoResult<String> {
-                Log.e("GeckoNav", "Load Error: $uri (${error.category})")
+                //Log.e("GeckoNav", "Load Error: $uri (${error.category})")
                 onLoadErrorFun(session, uri, error)
                 return GeckoResult.fromValue("about:blank")
             }
@@ -645,7 +648,7 @@ class GeckoManager(private val context: Context) {
 
                 // 1. Check if this is a "Special" scheme (mailto, tel, intent, market)
                 if (isExternalScheme(uri)) {
-                    Log.i("GeckoNav", "External scheme detected: $uri")
+                    //Log.i("GeckoNav", "External scheme detected: $uri")
 
                     // Trigger the UI to launch the intent
                     onExternalAppRequest(uri)
@@ -662,7 +665,7 @@ class GeckoManager(private val context: Context) {
         session.progressDelegate = object : GeckoSession.ProgressDelegate {
             // EQUIVALENT TO onPageStarted on WebView
             override fun onPageStart(session: GeckoSession, url: String) {
-                Log.d("GeckoView", "Page Started: $url")
+                //Log.d("GeckoView", "Page Started: $url")
 
                 // ignore javascript injection
                 if (url.startsWith("javascript:")) return
@@ -693,7 +696,7 @@ class GeckoManager(private val context: Context) {
                 }
 
                 onPageStopFun(session, success)
-                Log.d("GeckoView", "Page Finished. Success: $success")
+                //Log.d("GeckoView", "Page Finished. Success: $success")
 
             }
 
@@ -706,7 +709,7 @@ class GeckoManager(private val context: Context) {
                 state: GeckoSession.SessionState
             ) {
 
-                Log.d("marcState", "onSessionStateChange triggered")
+                //Log.d("marcState", "onSessionStateChange triggered")
                 // save state to restore every session state change
                 stateCache[eventTabId] = state
 
@@ -718,7 +721,7 @@ class GeckoManager(private val context: Context) {
 
             override fun onCloseRequest(session: GeckoSession) {
                 // This fires when JS window.close() is called
-                Log.i("GeckoNav", "Website requested to close tab: $eventTabId")
+                //Log.i("GeckoNav", "Website requested to close tab: $eventTabId")
                 onCloseTabFun(eventTabId)
             }
 
@@ -772,7 +775,7 @@ class GeckoManager(private val context: Context) {
                         }
                     }
                 } catch (e: Exception) {
-                    Log.e("GeckoIcons", "Error parsing manifest", e)
+                    //Log.e("GeckoIcons", "Error parsing manifest", e)
                 }
             }
 
@@ -819,7 +822,7 @@ class GeckoManager(private val context: Context) {
             }
 
             override fun onCrash(session: GeckoSession) {
-                Log.e("GeckoManager", "Session $session Crashed: ${session.isOpen}")
+                //Log.e("GeckoManager", "Session $session Crashed: ${session.isOpen}")
                 // TODO handle auto crash session
                 handleSessionDeath(session, eventTabId)
                 onSessionCrash()
@@ -828,7 +831,7 @@ class GeckoManager(private val context: Context) {
 
             override fun onKill(session: GeckoSession) {
                 // TODO handle auto crash session
-                Log.e("GeckoManager", "Session $session Killed by OS")
+                //Log.e("GeckoManager", "Session $session Killed by OS")
                 handleSessionDeath(session, eventTabId)
                 onSessionCrash()
             }
@@ -840,7 +843,7 @@ class GeckoManager(private val context: Context) {
                 session: GeckoSession,
                 realtimeHistory: GeckoSession.HistoryDelegate.HistoryList
             ) {
-                Log.i("GeckoNav","onHistoryStateChange")
+                //Log.i("GeckoNav","onHistoryStateChange")
                 onHistoryStateChangeFun(eventTabId, session, realtimeHistory)
             }
         }
@@ -935,7 +938,7 @@ class GeckoManager(private val context: Context) {
 
                     context.startActivity(chooser)
                 } catch (e: Exception) {
-                    Log.e("GeckoShare", "Failed to start share sheet", e)
+                    //Log.e("GeckoShare", "Failed to start share sheet", e)
                 }
                 return GeckoResult.fromValue(prompt.dismiss())
             }
@@ -997,7 +1000,7 @@ class GeckoManager(private val context: Context) {
 
         session.mediaSessionDelegate = object : MediaSession.Delegate {
             override fun onActivated(session: GeckoSession, mediaSession: MediaSession) {
-                Log.i("marcMedia", "onActivated")
+                //Log.i("marcMedia", "onActivated")
                 activeGeckoMediaSession = mediaSession
                 activeMediaGeckoSession = session
                 isActiveMediaSessionPaused = false
@@ -1021,7 +1024,7 @@ class GeckoManager(private val context: Context) {
                 mediaSession: MediaSession,
                 metadata: MediaSession.Metadata
             ) {
-                Log.i("marcMedia", "Playing: ${metadata.title} by ${metadata.artist}")
+                //Log.i("marcMedia", "Playing: ${metadata.title} by ${metadata.artist}")
 
                 if (metadata.title != null && metadata.title != lastTitle.value) {
                     lastTitle.value = metadata.title.toString()
@@ -1048,7 +1051,7 @@ class GeckoManager(private val context: Context) {
 //            ) {
 //                val isPaused = (features and MediaSession.Feature.PAUSE) == 0L
 //                if (isPaused) mediaSession.pause() else mediaSession.play()
-//                Log.d("marcMedia", "Is Paused: $isPaused")
+//                //Log.d("marcMedia", "Is Paused: $isPaused")
 //                context.startService(Intent(context, MediaPlaybackService::class.java).apply {
 //                    putExtra("IS_PAUSED", isPaused)
 //                })
@@ -1058,7 +1061,7 @@ class GeckoManager(private val context: Context) {
                 activeGeckoMediaSession = mediaSession
 
                 isActiveMediaSessionPaused = true
-                Log.d("marcMedia", "onPause")
+                //Log.d("marcMedia", "onPause")
                 context.startService(Intent(context, MediaPlaybackService::class.java).apply {
                     putExtra("IS_PAUSED", true)
                 })
@@ -1070,7 +1073,7 @@ class GeckoManager(private val context: Context) {
                 activeGeckoMediaSession = mediaSession
 
 
-                Log.d("marcMedia", "onPlay")
+                //Log.d("marcMedia", "onPlay")
                 if (lastPositionSnapshot.doubleValue == INIT) {
                     lastPositionSnapshot.doubleValue = 0.0
                 }

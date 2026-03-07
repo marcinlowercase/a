@@ -221,7 +221,6 @@ class MainActivity : ComponentActivity() {
                         geckoResult.complete(response)
                     }
                 } catch (e: Exception) {
-                    Log.e("FilePicker", "Error processing file", e)
                     withContext(Dispatchers.Main) {
                         geckoResult.complete(prompt.dismiss())
                     }
@@ -250,7 +249,6 @@ class MainActivity : ComponentActivity() {
             }
             Uri.fromFile(tempFile)
         } catch (e: Exception) {
-            Log.e("FilePicker", "Failed to cache file", e)
             null
         }
     }
@@ -328,7 +326,6 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         val viewModel: BrowserViewModel by viewModels()
-        Log.e("marcPip", "onStop")
         if (isInPictureInPictureMode
             || isPipMode || isEnteringPip
         ) return
@@ -384,17 +381,14 @@ class MainActivity : ComponentActivity() {
             // 3. Give focus to the root layout so GeckoView stops trying to talk to the IME
             view.clearFocus()
         } catch (e: Exception) {
-            Log.e("ImeFix", "Failed to clear focus", e)
         }
     }
 
     override fun onUserLeaveHint() {
-        Log.i("marcPip", "onUserLeaveHint")
 
         hideKeyboardAndClearFocus()
 
 //        if (isCurrentlyFullscreen) {
-//            Log.i("marcPip", "isCurrentlyFullscreen $isCurrentlyFullscreen")
 //
 //            isEnteringPip = true
 //
@@ -410,7 +404,6 @@ class MainActivity : ComponentActivity() {
     }
 
 //    private fun enterPip() {
-//        Log.i("marcPip", "enterPip")
 //
 //        // Use 16:9 as a standard fallback since the delegate is missing
 //        val params = android.app.PictureInPictureParams.Builder()
@@ -425,11 +418,9 @@ class MainActivity : ComponentActivity() {
         isInPictureInPictureMode: Boolean,
         newConfig: android.content.res.Configuration
     ) {
-        Log.i("marcPip", "onPictureInPictureModeChanged")
 
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
         isPipMode = isInPictureInPictureMode
-        Log.i("marcPip", "isInPictureInPictureMode $isInPictureInPictureMode")
         if (isInPictureInPictureMode) {
             // Ensure orientation is correct for the small window
             isEnteringPip = false
@@ -452,10 +443,6 @@ class MainActivity : ComponentActivity() {
         if (isCurrentlyFullscreen) isEnteringPip = true
         val viewModel: BrowserViewModel by viewModels()
 
-        Log.e("marcPip", "onPause")
-        Log.d("marcPip", "isInPictureInPictureMode: $isInPictureInPictureMode")
-        Log.d("marcPip", "isEnteringPip: $isEnteringPip")
-        Log.d("marcPip", "isCurrentlyFullscreen: $isCurrentlyFullscreen")
         // If entering PiP, we MUST keep the session active and prevent Gecko from
         // interpreting this as a background event that stops media.
         if (isInPictureInPictureMode || isEnteringPip) {
@@ -465,7 +452,6 @@ class MainActivity : ComponentActivity() {
                 val activeTab = viewModel.tabs[index]
                 // Force the session to remain active
                 viewModel.geckoManager.getSession(activeTab).setActive(true)
-                Log.e("marcPip", "set session to active")
 
             }
         }
@@ -891,7 +877,6 @@ fun BrowserScreen(
 //
 //    }
 //    LaunchedEffect(uiState.value.isOptionsPanelVisible) {
-//        Log.i("marcOptions", "current : ${uiState.value.isOptionsPanelVisible}")
 //        setIsOptionsPanelVisible(uiState.value.isOptionsPanelVisible)
 //    }
 // This effect acts as the "Engine" that moves the panel whenever the ViewModel state changes programmatically
@@ -1427,7 +1412,6 @@ fun BrowserScreen(
         }
 //
         LaunchedEffect(viewModel.screenSize.value) {
-            Log.i("marcPip", "onscreenSize")
             if (viewModel.screenSize.value.width > 0 && !viewModel.isBackSquareInitialized.value && !isPipMode) {
                 val buttonSize = with(density) {
                     settings.heightForLayer(1).dp.toPx()
@@ -1479,23 +1463,17 @@ fun BrowserScreen(
             if (!uiState.value.isAppsPanelVisible) {
                 viewModel.inspectingAppId.longValue = 0L
             } else {
-                Log.e("marcOptions", "flush")
                 activeSession.flushSessionState()
             }
         }
         LaunchedEffect(activeSession) {
-            Log.i("MemoryFix", "change Active Session")
             activeSession.setActive(true)
 
             if (!activeSession.isOpen) {
                 try {
-                    Log.d("InitFlow", "open active session")
                     activeSession.open(viewModel.geckoManager.runtime)
                 } catch (e: Exception) {
-                    Log.w(
-                        "BrowserScreen",
-                        "Session open ignored (likely engine-managed): ${e.message}"
-                    )
+
                 }
             }
             viewModel.geckoManager.setupDelegates(
@@ -1723,10 +1701,6 @@ fun BrowserScreen(
                     val inPip = mainActivity.isPipMode || mainActivity.isEnteringPip
 
                     if (inPip && !isFullscreen) {
-                        Log.i(
-                            "marcPip",
-                            "Ignoring Gecko Fullscreen Exit (Keep UI in Fullscreen for PiP)"
-                        )
 
                     } else {
                         // Normal behavior for all other cases
@@ -1790,12 +1764,9 @@ fun BrowserScreen(
 
                     } else {
                         // When exiting fullscreen, LOCK back to Portrait
-                        Log.i("marcPip", "exit full screen")
 
                         if (inPip) {
-                            Log.i("marcPip", "Ignored Fullscreen Exit - Transitioning to/in PiP")
                         } else {
-                            Log.i("marcPip", "Normal Fullscreen Exit")
                             activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
 
                             if (!settings.isFullscreenMode) {
@@ -1862,7 +1833,6 @@ fun BrowserScreen(
             val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
                 when (event) {
                     androidx.lifecycle.Lifecycle.Event.ON_RESUME -> {
-                        Log.d("Lifecycle", "ON_RESUME: Waking up")
                         isBrowserVisible = true
 
                         coroutineScope.launch {
@@ -1967,7 +1937,6 @@ fun BrowserScreen(
         }
         LaunchedEffect(uiState.value.isTabsPanelLock) {
             if (!uiState.value.isTabsPanelLock) {
-                Log.i("marcPanel","hide tabspanel visible")
                 viewModel.updateUI { it.copy(isTabsPanelVisible = false) }
             }
         }
@@ -2460,12 +2429,6 @@ fun BrowserScreen(
                         val pendingSeekSeconds = remember { mutableDoubleStateOf(0.0) }
                         val interactionTrigger = remember { mutableIntStateOf(0) }
 
-                        LaunchedEffect(pendingSeekSeconds.doubleValue) {
-                            Log.i(
-                                "pendingSeekSeconds",
-                                "pendingSeekSeconds: ${pendingSeekSeconds.doubleValue}"
-                            )
-                        }
                         VideoStatusPanel(
                             modifier = Modifier
                                 .align(
@@ -2861,7 +2824,6 @@ fun BrowserScreen(
                                                         }
                                                     } else {
                                                         // TAP
-                                                        Log.e("CursorMode", "tab")
                                                         if (longPressJob.isActive) {
                                                             longPressJob.cancel()
                                                             coroutineScope.launch {

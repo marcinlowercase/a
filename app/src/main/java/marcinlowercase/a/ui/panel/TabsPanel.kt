@@ -210,8 +210,8 @@ fun TabsPanel(
 
     // This effect is still useful to sync the pager if a new tab is created
     LaunchedEffect(viewModel.activeTabIndex.collectAsState().value, viewModel.tabs.size, viewModel.activeProfileId.value) {
-        Log.e("marcLog", "TabsPanel: LaunchedEffect")
-        Log.e("marcLog", "activeTabIndex: ${viewModel.activeTabIndex.value}")
+        //Log.e("marcLog", "TabsPanel: LaunchedEffect")
+        //Log.e("marcLog", "activeTabIndex: ${viewModel.activeTabIndex.value}")
         if (pagerState.currentPage != viewModel.activeTabIndex.value + 1) {
             if (uiState.value.isTabsPanelVisible) pagerState.animateScrollToPage(viewModel.activeTabIndex.value + 1)
             else pagerState.requestScrollToPage(viewModel.activeTabIndex.value + 1)

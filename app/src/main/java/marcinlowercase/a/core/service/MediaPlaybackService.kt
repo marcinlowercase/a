@@ -52,13 +52,11 @@
 //
 //            setCallback(object : MediaSessionCompat.Callback() {
 //                override fun onPlay() {
-//                    Log.d("marcMedia", "Android Notification: PLAY CLICKED")
 //                    (applicationContext as? CustomApplication)?.geckoManager
 //                        ?.activeGeckoMediaSession?.play()
 //                }
 //
 //                override fun onPause() {
-//                    Log.d("marcMedia", "Android Notification: PAUSE CLICKED")
 //                    (applicationContext as? CustomApplication)?.geckoManager
 //                        ?.activeGeckoMediaSession?.pause()
 //                }

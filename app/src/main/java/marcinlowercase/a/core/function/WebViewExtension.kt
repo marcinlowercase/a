@@ -17,7 +17,6 @@ fun webViewLoad(view: CustomWebView?, url: String, browserSettings: BrowserSetti
 
 
 fun webViewLoad(session: GeckoSession?, url: String, browserSettings: BrowserSettings) {
-    Log.i("WebViewLoad","WebView with url $url")
     session?.load(GeckoSession.Loader()
         .uri(url)
         .flags(GeckoSession.LOAD_FLAGS_NONE)

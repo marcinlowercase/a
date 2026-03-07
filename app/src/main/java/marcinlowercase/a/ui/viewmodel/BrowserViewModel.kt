@@ -424,7 +424,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                     intent.component = null
                     intent.selector = null
                 } catch (e: Exception) {
-                    Log.e("Intent", "Bad intent URI: $url", e)
+                    //Log.e("Intent", "Bad intent URI: $url", e)
                     return
                 }
             } else {
@@ -463,7 +463,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                         try {
                             activity.startActivity(marketIntent)
                         } catch (e: Exception) {
-                            Log.e("Intent", "Play Store not found", e)
+                            //Log.e("Intent", "Play Store not found", e)
                         }
                     }
                 }
@@ -473,7 +473,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             }
 
         } catch (e: Exception) {
-            Log.e("Intent", "Failed to handle intent", e)
+            //Log.e("Intent", "Failed to handle intent", e)
         }
     }
 
@@ -486,7 +486,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 //                try {
 //                    intent = Intent.parseUri(url, Intent.URI_INTENT_SCHEME)
 //                } catch (e: Exception) {
-//                    Log.e("Intent", "Bad intent URI", e)
+//                    //Log.e("Intent", "Bad intent URI", e)
 //                    return
 //                }
 //
@@ -529,10 +529,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 //            activity.startActivity(intent)
 //
 //        } catch (e: ActivityNotFoundException) {
-//            Log.e("Intent", "No app found for $url")
 //            // Optional: Show a Toast "No app found to open this link"
 //        } catch (e: Exception) {
-//            Log.e("Intent", "Failed to launch external app", e)
 //        }
 //    }
     //endregion
@@ -779,7 +777,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
 
     val selectTab = { newIndex: Int ->
-        Log.d("TabFlow", "change to tab index $newIndex")
         val currentIndex = _activeTabIndex.value
 
         if (newIndex != currentIndex && newIndex in tabs.indices) {
@@ -1072,8 +1069,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             if (oldTab != newTab) {
                 tabs[index] = newTab
                 saveTabs()
-
-                Log.e("TabFlow", "Memory Updated: $tabId | URL: ${newTab.currentURL}")
             }
         }
     }
@@ -1084,7 +1079,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         saveJob = viewModelScope.launch(Dispatchers.IO) {
             delay(500) // Wait for rapid events (like redirects) to finish
             tabManager.saveTabs(activeProfileId.value, tabs.toList(), _activeTabIndex.value)
-            Log.d("TabFlow", "Disk Save Complete")
         }
     }
 
@@ -1104,8 +1098,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             iconUrl = iconUrl
         )
         apps.add(newApp)
-        Log.i("marcApp", "pinApp")
-        Log.i("marcApp", "${apps.size}")
         saveApps()
     }
 
@@ -1118,7 +1110,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun swapApps(fromIndex: Int, toIndex: Int) {
-        Log.d("marcApp", "swapApps from $fromIndex to $toIndex")
         if (fromIndex in apps.indices && toIndex in apps.indices) {
             val temp = apps[fromIndex]
             apps[fromIndex] = apps[toIndex]
@@ -1246,7 +1237,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                                 }
                             }
                         } catch (e: Exception) {
-                            Log.e("Download", "Error querying download", e)
+                            //Log.e("Download", "Error querying download", e)
                         }
                     }
                     if (changed) {
@@ -1298,7 +1289,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             downloads.add(0, newDownload)
             downloadTracker.saveDownloads(downloads)
         } catch (e: Exception) {
-            Log.e("Download", "Failed to enqueue", e)
+            //Log.e("Download", "Failed to enqueue", e)
             // Ideally, emit a UI Event here to show a Toast
         }
     }
@@ -1569,7 +1560,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                     }
                 }
             } catch (e: Exception) {
-                Log.e("Suggestions", "Network fetch failed", e)
+                //Log.e("Suggestions", "Network fetch failed", e)
             }
 
             // C. Update UI on Main Thread

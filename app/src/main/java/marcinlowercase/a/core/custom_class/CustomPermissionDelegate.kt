@@ -37,8 +37,6 @@ class CustomPermissionDelegate(
             val decision = siteSettings[perm.uri.toDomain()]?.permissionDecisions?.get(generic_location_permission)
 
             if (decision == false) {
-                Log.e("PermissionRelated", "decision: PROMPT")
-
                 return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY)
 
             }
@@ -74,10 +72,8 @@ class CustomPermissionDelegate(
 //
 //            }
 
-            Log.e("PermissionRelated", "onContentPermissionRequest: ${perm.permission}")
             return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW)
         }
-        Log.d("PermissionRelated", "run supoer")
         return super.onContentPermissionRequest(session, perm)
     }
 
@@ -87,9 +83,6 @@ class CustomPermissionDelegate(
         permissions: Array<out String>?,
         callback: GeckoSession.PermissionDelegate.Callback
     ) {
-        Log.e("PermissionRelated", "onAndroidPermissionsRequest: $permissions")
-        Log.e("PermissionRelated", "onAndroidPermissionsRequest: ${permissions?.joinToString()}")
-
         var requestTitle = "Default title"
         var requestRationale = "Default Rationale"
         var requestAllowIcon = R.drawable.ic_bug
@@ -152,7 +145,6 @@ class CustomPermissionDelegate(
 //
 //        }
 
-        Log.e("PermissionRelated", "Just before send : ${tab.value.currentURL}")
         val customRequest = CustomPermissionRequest(
             origin = tab.value.currentURL,
             title = requestTitle,
@@ -230,7 +222,6 @@ class CustomPermissionDelegate(
 
 //        if ( isRequestingVideo && isRequestingAudio && videoDecision == true && audioDecision == true) {
 //            callback.grant(video?.first(), audio?.first())
-//            Log.i("PermissionRelated", "both grant")
 //
 //            return
 //        }
@@ -250,20 +241,16 @@ class CustomPermissionDelegate(
 
 //            callback.grant(video?.first(), audio?.first())
             videoSource = video?.first()
-            Log.i("PermissionRelated", "videoDecision grant")
 //            isRequestingVideo = false
 
         }
         if (isRequestingAudio && audioDecision == true) {
 //            callback.grant( null, audio?.first())
             audioSource = audio?.first()
-            Log.i("PermissionRelated", "audioDecision grant")
 //            isRequestingAudio = false
 
         }
-        Log.i("PermissionRelated", "isRequestingVideo $isRequestingVideo")
-        Log.i("PermissionRelated", "isRequestingAudio $isRequestingAudio")
-
+     
         if (!isRequestingVideo && !isRequestingAudio) {
             callback.reject()
             return
@@ -315,7 +302,7 @@ class CustomPermissionDelegate(
             originalAudioSources = audio
             cameraPermissionGranted = false // Reset state
 
-            Log.i("PermissionRelated", "onMediaPermissionRequest: BOTH")
+            //Log.i("PermissionRelated", "onMediaPermissionRequest: BOTH")
 
             // Start the flow by asking for the camera first
             askForCameraThenMicrophone(uri, videoDecision, audioDecision)
@@ -370,7 +357,7 @@ class CustomPermissionDelegate(
                 this.cameraPermissionGranted = permissionsMap.any { it.value }
 
                 // Step 2: Now ask for the microphone
-                Log.i("PermissionRelated", "invoke camera, then microphone")
+                //Log.i("PermissionRelated", "invoke camera, then microphone")
                 askForMicrophone(uri, audioDecision)
             },
             isSystemRequest = false,

@@ -457,7 +457,7 @@ fun BottomPanel(
                                 .onFocusChanged { focusState ->
                                     val resetUrl = viewModel.activeTab!!.currentURL
                                     viewModel.updateUI { it.copy(isFocusOnUrlTextField = focusState.isFocused) }
-                                    Log.e("marcTF", "focusState ${focusState.isFocused}")
+                                    //Log.e("marcTF", "focusState ${focusState.isFocused}")
 
                                     if (focusState.isFocused) {
 
@@ -486,7 +486,7 @@ fun BottomPanel(
 
                                                 )
                                         }
-                                        Log.e("marcTF", "set text")
+                                        //Log.e("marcTF", "set text")
                                         textFieldState.setTextAndPlaceCursorAtEnd("")
 
 
