@@ -1118,8 +1118,12 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun swapApps(fromIndex: Int, toIndex: Int) {
+        Log.d("marcApp", "swapApps from $fromIndex to $toIndex")
         if (fromIndex in apps.indices && toIndex in apps.indices) {
-            Collections.swap(apps, fromIndex, toIndex)
+            val temp = apps[fromIndex]
+            apps[fromIndex] = apps[toIndex]
+            apps[toIndex] = temp
+
             saveApps()
         }
     }

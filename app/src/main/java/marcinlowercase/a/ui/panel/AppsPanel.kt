@@ -125,9 +125,10 @@ fun AppsPanel(
     ) { page ->
         val profileIndex = page % realPageCount
         val pageProfile = profiles[profileIndex]
+        val activeApps = viewModel.apps.toList()
 
         val pageApps = if (pageProfile.id == viewModel.activeProfileId.value) {
-            viewModel.apps
+            activeApps
         } else {
             remember(pageProfile.id) { viewModel.appManager.loadApps(pageProfile.id) }
         }
@@ -167,10 +168,12 @@ fun AppsPanel(
                                 PlaceholderIcon(
                                     iconRes = R.drawable.ic_arrow_upward,
                                     onClick = {
-                                        if (isInteractive()) viewModel.swapApps(
-                                            index,
-                                            index - 1
-                                        )
+                                        if (isInteractive()) {
+                                            val currentIndex = viewModel.apps.indexOfFirst { it.id == app.id }
+                                            if (currentIndex > 0) {
+                                                viewModel.swapApps(currentIndex, currentIndex - 1)
+                                            }
+                                        }
                                     },
                                     buttonDescription = "move pin up"
                                 )
@@ -228,10 +231,12 @@ fun AppsPanel(
                                 PlaceholderIcon(
                                     iconRes = R.drawable.ic_arrow_downward,
                                     onClick = {
-                                        if (isInteractive()) viewModel.swapApps(
-                                            index,
-                                            index + 1
-                                        )
+                                        if (isInteractive()) {
+                                            val currentIndex = viewModel.apps.indexOfFirst { it.id == app.id }
+                                            if (currentIndex != -1 && currentIndex < pageApps.size - 1) {
+                                                viewModel.swapApps(currentIndex, currentIndex + 1)
+                                            }
+                                        }
                                     },
                                     buttonDescription = "move pin down"
                                 )
