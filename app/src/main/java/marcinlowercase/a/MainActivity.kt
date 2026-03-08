@@ -2723,6 +2723,7 @@ fun BrowserScreen(
 
                                                     // --- SIMULATE CLICK AT CURSOR POSITION ---
 
+
                                                     activeSession.let { _ ->
                                                         val downTime = System.currentTimeMillis()
                                                         val downEvent = MotionEvent.obtain(
@@ -2838,6 +2839,7 @@ fun BrowserScreen(
                                                     }
                                                 }
                                             }
+                                            // cursor mode
                                             else awaitEachGesture {
                                                 val down = awaitFirstDown(requireUnconsumed = false)
                                                 coroutineScope.launch {
@@ -2857,6 +2859,7 @@ fun BrowserScreen(
                                                     }
                                                 } else {
                                                     // TAP
+
                                                     coroutineScope.launch {
                                                         viewModel.updateUI { it.copy(isUrlBarVisible = true) }
                                                     }

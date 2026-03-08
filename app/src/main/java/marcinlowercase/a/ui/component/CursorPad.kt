@@ -1,5 +1,6 @@
 package marcinlowercase.a.ui.component
 
+import android.util.Log
 import android.view.MotionEvent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -88,10 +89,10 @@ fun CursorPad(
                         cursorPadHeight
                     )
                     .align(Alignment.BottomCenter)
-                    .pointerInput(activeSession) {
+                    .pointerInput(activeSession, uiState.value.isCursorMode) {
                         // This is the correct "main loop". It handles one gesture at a time
                         // and then automatically resets to wait for the next one.
-                        awaitEachGesture {
+                        if (uiState.value.isCursorMode) awaitEachGesture {
                             // 1. Wait for the first finger to touch down.
                             val down = awaitFirstDown(requireUnconsumed = false)
 
@@ -235,6 +236,7 @@ fun CursorPad(
 
                                 viewModel.updateUI { it.copy(isLongPressDrag = false) }
 
+
                                 activeSession.let { _ ->
                                     val upEvent = MotionEvent.obtain(
                                         longPressDownTime,
@@ -340,6 +342,8 @@ fun CursorPad(
 //                                                viewModel.cursorPointerPosition.value.x,
 //                                                viewModel.cursorPointerPosition.value.y
 //                                            )
+
+                                    Log.e("marcCursor", "long press canceled")
 
                                     activeSession.let { _ ->
                                         val downTime = System.currentTimeMillis()
