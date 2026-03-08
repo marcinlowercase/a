@@ -161,6 +161,7 @@ import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import org.mozilla.gecko.util.ThreadUtils.runOnUiThread
 import org.mozilla.geckoview.GeckoResult
 import org.mozilla.geckoview.GeckoSession
+import org.mozilla.geckoview.GeckoSessionSettings
 import org.mozilla.geckoview.GeckoView
 import org.mozilla.geckoview.StorageController
 import java.io.File
@@ -509,7 +510,7 @@ fun BrowserScreen(
 
     val activeSession =
         remember(viewModel.activeTab!!.id, viewModel.sessionRefreshTrigger.intValue) {
-            viewModel.geckoManager.getSession(viewModel.activeTab!!)
+            viewModel.geckoManager.getSession(viewModel.activeTab!! , settings.isDesktopMode)
         }
 
 
@@ -1243,6 +1244,20 @@ fun BrowserScreen(
         LocalBrowserViewModel provides viewModel
     ) {
         //region LaunchedEffect
+        LaunchedEffect(settings.isDesktopMode, activeSession) {
+            val targetMode = if (settings.isDesktopMode) {
+                GeckoSessionSettings.USER_AGENT_MODE_DESKTOP
+            } else {
+                GeckoSessionSettings.USER_AGENT_MODE_MOBILE
+            }
+
+            // If the user agent mode differs from the current setting, update and reload
+            if (activeSession.settings.userAgentMode != targetMode) {
+                activeSession.settings.userAgentMode = targetMode
+                activeSession.reload() // Force reload to fetch the desktop site immediately
+            }
+        }
+
         LaunchedEffect(activeTabIndex, viewModel.activeProfileId.value) {
             val currentUrl = viewModel.tabs.getOrNull(activeTabIndex)?.currentURL ?: ""
             if (!uiState.value.isFocusOnUrlTextField) {

@@ -285,9 +285,9 @@ class GeckoManager(private val context: Context) {
 
     }
 
-    fun getSession(tab: Tab): GeckoSession {
+    fun getSession(tab: Tab, isDesktopMode: Boolean = false): GeckoSession {
         val session = sessionPool.getOrPut(tab.id) {
-            createAndConfigureSession(tab)
+            createAndConfigureSession(tab, isDesktopMode)
         }
 
         if (!session.isOpen) {
@@ -325,11 +325,10 @@ class GeckoManager(private val context: Context) {
     // TODO use for PiP mode later
     private var currentVideoWidth = 16
     private var currentVideoHeight = 9
-    private fun createAndConfigureSession(tab: Tab): GeckoSession {
+    private fun createAndConfigureSession(tab: Tab, isDesktopMode: Boolean): GeckoSession {
         val settings = GeckoSessionSettings.Builder()
             .usePrivateMode(false) // Set based on your Incognito logic
-            .userAgentMode(GeckoSessionSettings.USER_AGENT_MODE_MOBILE)
-            .suspendMediaWhenInactive(false)
+            .userAgentMode(if (isDesktopMode) GeckoSessionSettings.USER_AGENT_MODE_DESKTOP else GeckoSessionSettings.USER_AGENT_MODE_MOBILE)            .suspendMediaWhenInactive(false)
             .allowJavascript(true)
             .contextId(tab.profileId)
             .build()
@@ -590,8 +589,10 @@ class GeckoManager(private val context: Context) {
 
                 val settings = GeckoSessionSettings.Builder()
                     .usePrivateMode(false)
-                    .userAgentMode(GeckoSessionSettings.USER_AGENT_MODE_MOBILE)
-                    .suspendMediaWhenInactive(false)
+                    .userAgentMode(
+                        if (browserSettings.value.isDesktopMode) GeckoSessionSettings.USER_AGENT_MODE_DESKTOP
+                        else GeckoSessionSettings.USER_AGENT_MODE_MOBILE
+                    )                    .suspendMediaWhenInactive(false)
                     .allowJavascript(true)
                     .contextId(tab.value.profileId)
                     .build()

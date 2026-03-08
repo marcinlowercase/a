@@ -573,7 +573,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             isFullscreenMode = prefsToUse.getBoolean("is_fullscreen_mode", false),
             highlightColor = prefsToUse.getInt("highlight_color", 0xFFBA160C.toInt()),
             isAdBlockEnabled = prefsToUse.getBoolean("is_ad_block_enabled", true),
-            isGuideModeEnabled = prefsToUse.getBoolean("is_guide_mode_enabled", true)
+            isGuideModeEnabled = prefsToUse.getBoolean("is_guide_mode_enabled", true),
+            isDesktopMode = prefsToUse.getBoolean("is_desktop_mode", false),
         )
     }
     fun updateSettings(mutation: (BrowserSettings) -> BrowserSettings) {
@@ -689,6 +690,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             putInt("highlight_color", settings.highlightColor)
             putBoolean("is_ad_block_enabled", settings.isAdBlockEnabled)
             putBoolean("is_guide_mode_enabled", settings.isGuideModeEnabled)
+            putBoolean("is_desktop_mode", settings.isDesktopMode)
             apply()
         }
     }    //endregion
