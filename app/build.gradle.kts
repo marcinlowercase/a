@@ -40,13 +40,13 @@ android {
             dimension = "distribution"
             applicationId = "marcinlowercase.a"
             versionNameSuffix = "+1"
+//            manifestPlaceholders["appLabel"] = ".a"
         }
 
         create("playstore") { // The Google Play version
             dimension = "distribution"
             applicationId = "studio.oo1.browser"
-            // You can even add a different app name for the Play Store here
-            // manifestPlaceholders["appLabel"] = "OO1 Browser"
+//             manifestPlaceholders["appLabel"] = "browser"
         }
     }
 
