@@ -13,7 +13,8 @@ object DefaultSettingValues {
     const val CURSOR_POINTER_SIZE = 5f
     const val CURSOR_TRACKING_SPEED = 1.75f
     const val BACK_SQUARE_IDLE_OPACITY = 0.2f
-    val HIGHLIGHT_COLOR = 0xFFBA160C.toInt() // 'val' because toInt() is a function call
+//    const val HIGHLIGHT_COLOR = 0xFFBA160C.toInt()
+    const val HIGHLIGHT_COLOR = 0xFF0010FF.toInt()
     const val IS_AD_BLOCK_ENABLED = true
     const val IS_FULLSCREEN_MODE = false
     const val CLOSED_TAB_HISTORY_SIZE = 10f
