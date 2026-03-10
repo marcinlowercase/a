@@ -1265,7 +1265,19 @@ fun BrowserScreen(
                 activeSession.settings.userAgentMode = targetUserAgent
                 activeSession.settings.viewportMode = targetViewportMode
 
-                activeSession.reload()
+                val currentUrl = viewModel.activeTab!!.currentURL
+                if (currentUrl.isNotBlank() && currentUrl != "about:blank") {
+                    // THE FIX: Use LOAD_FLAGS_REPLACE_HISTORY.
+                    // This replaces the current page in the history stack with itself.
+                    // It preserves the "Back" button history, but forces Gecko to discard the old Zoom level!
+                    val loader = org.mozilla.geckoview.GeckoSession.Loader()
+                        .uri(currentUrl)
+                        .flags(org.mozilla.geckoview.GeckoSession.LOAD_FLAGS_REPLACE_HISTORY)
+
+                    activeSession.load(loader)
+                } else {
+                    activeSession.reload()
+                }
             }
         }
 
