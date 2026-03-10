@@ -1,16 +1,20 @@
 package marcinlowercase.a.core.manager
 
 import android.content.Context
+import android.util.Log
 import androidx.core.content.edit
 import kotlinx.serialization.json.Json
 import marcinlowercase.a.core.constant.DefaultSettingValues
 import marcinlowercase.a.core.data_class.Tab
 import marcinlowercase.a.core.enum_class.TabState
 
-class TabManager(context: Context) {
+// 1. Make context a private property so we can access it inside functions
+class TabManager(private val context: Context) {
     private val prefs = context.getSharedPreferences("BrowserTabs", Context.MODE_PRIVATE)
     private val json = Json { ignoreUnknownKeys = true }
-    private val settingsPrefs = context.getSharedPreferences("BrowserPrefs", Context.MODE_PRIVATE)
+
+    // Global prefs for fallback
+    private val globalPrefs = context.getSharedPreferences("BrowserPrefs", Context.MODE_PRIVATE)
 
     private fun getTabsKey(profileId: String) = "tabs_list_json_$profileId"
     private fun getActiveTabIndexKey(profileId: String) = "active_tab_index_$profileId"
@@ -63,7 +67,17 @@ class TabManager(context: Context) {
     }
 
     private fun createDefaultTabs(profileId: String, intentUrl: String?): MutableList<Tab> {
-        val customUrl = intentUrl ?: settingsPrefs.getString("default_url", DefaultSettingValues.URL) ?: DefaultSettingValues.URL
+        // 2. Fetch the specific SharedPreferences for the active profile
+        val profilePrefs = context.getSharedPreferences("BrowserPrefs_$profileId", Context.MODE_PRIVATE)
+
+        // 3. Check profile prefs first, fallback to global prefs (for older migrations), then the hardcoded default
+        val customUrl = intentUrl
+            ?: profilePrefs.getString("default_url", null)
+            ?: globalPrefs.getString("default_url", DefaultSettingValues.URL)
+            ?: DefaultSettingValues.URL
+
+        Log.i("marcTab", "create default $customUrl")
+
         // CRITICAL: We pass the profileId into the new Tab so GeckoView can isolate cookies!
         return mutableListOf(Tab(state = TabState.ACTIVE, currentURL = customUrl, profileId = profileId))
     }

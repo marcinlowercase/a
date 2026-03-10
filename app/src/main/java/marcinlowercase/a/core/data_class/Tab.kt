@@ -9,7 +9,7 @@ import marcinlowercase.a.core.enum_class.TabState
 data class Tab(
     val id: Long = System.currentTimeMillis(),
     var state: TabState = TabState.BACKGROUND,
-    var currentURL: String = DefaultSettingValues.URL,
+    var currentURL: String,
     var currentTitle: String = "",
     var currentFaviconUrl: String = currentURL,
     var savedState: String? = null,
@@ -25,7 +25,7 @@ data class Tab(
 ) {
     companion object {
         fun createEmpty(profileId: String,id: Long = System.currentTimeMillis()): Tab {
-            return Tab(profileId = profileId, id = id)
+            return Tab(profileId = profileId, id = id, currentURL = DefaultSettingValues.URL)
         }
     }
 }
