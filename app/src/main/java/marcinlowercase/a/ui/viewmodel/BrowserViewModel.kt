@@ -1040,9 +1040,11 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         }
 
         // 2. Create the new Tab object
+        val initialUrl = url.ifBlank { _browserSettings.value.defaultUrl }
+
         val newTab = Tab(
             profileId = activeProfileId.value,
-            currentURL = url.ifBlank { _browserSettings.value.defaultUrl },
+            currentURL = initialUrl.ifBlank { "about:blank" },
             state = TabState.ACTIVE
         )
 

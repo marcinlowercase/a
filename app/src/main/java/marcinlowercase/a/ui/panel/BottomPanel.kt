@@ -373,7 +373,7 @@ fun BottomPanel(
                                         top = settings.value.padding.dp,
                                         bottom = if (viewModel.suggestions.indexOf(suggestion) == 0) settings.value.padding.dp else 0.dp
                                     )
-                                    .heightIn( min = settings.value.heightForLayer(3).dp)
+                                    .heightIn(min = settings.value.heightForLayer(3).dp)
                                     .clip(
                                         RoundedCornerShape(
                                             settings.value.cornerRadiusForLayer(3).dp
@@ -501,7 +501,7 @@ fun BottomPanel(
                                                 isCreatingProfile = false
                                             )
                                         }
-                                        if (uiState.value. isRenamingProfile) viewModel.updateUI {
+                                        if (uiState.value.isRenamingProfile) viewModel.updateUI {
                                             it.copy(
                                                 isRenamingProfile = false
                                             )
@@ -516,9 +516,11 @@ fun BottomPanel(
                                                     savedPanelState = null,
                                                 )
                                             }
-                                            if (uiState.value.isTabsPanelLock) viewModel.updateUI { it.copy(
-                                                isTabsPanelVisible = savedState.tabs,
-                                                ) }
+                                            if (uiState.value.isTabsPanelLock) viewModel.updateUI {
+                                                it.copy(
+                                                    isTabsPanelVisible = savedState.tabs,
+                                                )
+                                            }
                                         }
                                         textFieldState.setTextAndPlaceCursorAtEnd(
                                             resetUrl.toDomain()
@@ -566,6 +568,7 @@ fun BottomPanel(
                                             viewModel.createNewProfile()
                                             viewModel.updateUI { it.copy(isAppsPanelVisible = true) }
                                         }
+
                                         uiState.value.isPinningApp -> {
                                             viewModel.pinApp(
                                                 title = viewModel.activeTab!!.currentTitle,
@@ -579,7 +582,7 @@ fun BottomPanel(
                                     }
 
                                     focusManager.clearFocus()
-                                     keyboardController?.hide()
+                                    keyboardController?.hide()
                                     textFieldState.setTextAndPlaceCursorAtEnd(resetUrl.toDomain())
 
                                     viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
@@ -595,10 +598,12 @@ fun BottomPanel(
                                         viewModel.renameProfile(input)
                                         viewModel.updateUI { it.copy(isAppsPanelVisible = true) }
                                     }
+
                                     uiState.value.isCreatingProfile -> {
                                         viewModel.createNewProfile(input)
                                         viewModel.updateUI { it.copy(isAppsPanelVisible = true) }
                                     }
+
                                     uiState.value.isPinningApp -> {
                                         viewModel.pinApp(
                                             title = input,
@@ -612,7 +617,14 @@ fun BottomPanel(
                                     else -> {
                                         // search
                                         val isUrl = try {
-                                            Patterns.WEB_URL.matcher(input).matches() ||
+                                            input.startsWith("about:", ignoreCase = true) ||
+                                                    input.startsWith(
+                                                        "javascript:",
+                                                        ignoreCase = true
+                                                    ) ||
+                                                    input.startsWith("file:", ignoreCase = true) ||
+                                                    input.startsWith("data:", ignoreCase = true) ||
+                                                    Patterns.WEB_URL.matcher(input).matches() ||
                                                     (input.contains(".") && !input.contains(" "))
                                                     && !input.endsWith(".")
                                                     && !input.startsWith(".")
@@ -620,9 +632,12 @@ fun BottomPanel(
                                             false
                                         }
                                         val finalUrl = if (isUrl) {
-                                            if (input.startsWith("http://") || input.startsWith(
-                                                    "https://"
-                                                )
+                                            if (input.startsWith("http://", ignoreCase = true) ||
+                                                input.startsWith("https://", ignoreCase = true) ||
+                                                input.startsWith("about:", ignoreCase = true) ||
+                                                input.startsWith("javascript:", ignoreCase = true) ||
+                                                input.startsWith("file:", ignoreCase = true) ||
+                                                input.startsWith("data:", ignoreCase = true)
                                             ) {
                                                 input
                                             } else {
@@ -867,7 +882,12 @@ fun BottomPanel(
                                 urlBarFocusRequester.requestFocus()
                             },
                             deleteProfile = {
-                                viewModel.updateUI { it.copy(isOptionsPanelVisible = false, isAppsPanelVisible = false) }
+                                viewModel.updateUI {
+                                    it.copy(
+                                        isOptionsPanelVisible = false,
+                                        isAppsPanelVisible = false
+                                    )
+                                }
                                 confirmationPopup(
                                     "delete profile ? ",
                                     "",
@@ -900,7 +920,9 @@ fun BottomPanel(
                         textFieldState.setTextAndPlaceCursorAtEnd(
                             when {
                                 uiState.value.isCreatingProfile -> "profile "
-                                uiState.value.isRenamingProfile -> viewModel.profiles.find { it.id == viewModel.activeProfileId.value }?.name?:""
+                                uiState.value.isRenamingProfile -> viewModel.profiles.find { it.id == viewModel.activeProfileId.value }?.name
+                                    ?: ""
+
                                 uiState.value.isPinningApp -> viewModel.activeTab!!.currentTitle
                                 else -> viewModel.activeTab!!.currentURL
 

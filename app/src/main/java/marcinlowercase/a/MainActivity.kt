@@ -1281,8 +1281,9 @@ fun BrowserScreen(
             }
         }
 
-        LaunchedEffect(activeTabIndex, viewModel.activeProfileId.value) {
-            val currentUrl = viewModel.tabs.getOrNull(activeTabIndex)?.currentURL ?: ""
+        LaunchedEffect(viewModel.activeTab?.id, viewModel.activeProfileId.value) {
+            val currentUrl = viewModel.activeTab?.currentURL ?: ""
+            Log.i("marcUrl", "current ${currentUrl}")
             if (!uiState.value.isFocusOnUrlTextField) {
                 textFieldState.setTextAndPlaceCursorAtEnd(currentUrl.toDomain())
             }
@@ -1853,7 +1854,9 @@ fun BrowserScreen(
                 // If the session is empty (no navigation history) and not being restored, load the URL.
                 // This covers "New Tab" clicks and "Target Blank" where engine didn't auto-load.
                 if (viewModel.activeTab!!.savedState == null) {
-                    val urlToLoad = viewModel.activeTab!!.currentURL.ifBlank { settings.defaultUrl }
+                    val baseLoad = viewModel.activeTab!!.currentURL.ifBlank { settings.defaultUrl }
+
+                    val urlToLoad = baseLoad.ifBlank { "about:blank" }
                     // Avoid reloading if it's already on that page (prevents loop)
                     // But since historyState is null, we are safe to load.
                     webViewLoad(activeSession, urlToLoad, settings)

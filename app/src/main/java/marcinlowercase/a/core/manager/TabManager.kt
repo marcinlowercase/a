@@ -75,10 +75,9 @@ class TabManager(private val context: Context) {
             ?: profilePrefs.getString("default_url", null)
             ?: globalPrefs.getString("default_url", DefaultSettingValues.URL)
             ?: DefaultSettingValues.URL
-
-        Log.i("marcTab", "create default $customUrl")
+        val actualUrl = if (customUrl.isBlank()) "about:blank" else customUrl
 
         // CRITICAL: We pass the profileId into the new Tab so GeckoView can isolate cookies!
-        return mutableListOf(Tab(state = TabState.ACTIVE, currentURL = customUrl, profileId = profileId))
+        return mutableListOf(Tab(state = TabState.ACTIVE, currentURL = actualUrl, profileId = profileId))
     }
 }

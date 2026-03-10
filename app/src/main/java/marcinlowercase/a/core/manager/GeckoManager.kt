@@ -682,6 +682,8 @@ class GeckoManager(private val context: Context) {
                             document.documentElement.style.setProperty('--single-line-height', '${browserSettings.value.singleLineHeight}px');
                             window.deviceCornerRadius = ${browserSettings.value.deviceCornerRadius};
                             if (typeof window.render === 'function') window.render(${browserSettings.value.deviceCornerRadius});
+                            
+                       
                             console.log("Injection Success! Radius is " + window.deviceCornerRadius);
                             })()
                             """

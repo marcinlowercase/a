@@ -457,7 +457,7 @@ fun TextSetting(
                         val input = textValue.trim()
 
                         if (input.isEmpty()) {
-                            input // Let it be empty if user clears it
+                            "about:blank" // Let it be empty if user clears it
                         } else {
                             val isUrl = try {
                                 android.util.Patterns.WEB_URL.matcher(input).matches() ||
@@ -1073,7 +1073,7 @@ fun SettingsPanel(
                         afterDecimal = false, // We are dealing with whole numbers
                         iconID = R.drawable.ic_history,
                         digitCount = 2 ,
-                         
+
                         field = BrowserSettingField.CLOSED_TAB_HISTORY_SIZE
 
                         )
@@ -1091,7 +1091,7 @@ fun SettingsPanel(
                         iconID = R.drawable.ic_opacity,
                         digitCount = 4,
                         afterDecimal = true,
-                         
+
                         field = BrowserSettingField.BACK_SQUARE_OPACITY
                         )
                 }
@@ -1106,7 +1106,7 @@ fun SettingsPanel(
                         iconID = R.drawable.ic_max_list_height,
                         digitCount = 4,
                         afterDecimal = true,
-                         
+
                         field = BrowserSettingField.MAX_LIST_HEIGHT
                         )
                 }
@@ -1125,7 +1125,7 @@ fun SettingsPanel(
                         iconID = R.drawable.ic_search,
                         digitCount = 4,
                         afterDecimal = true,
-                         
+
                         field = BrowserSettingField.SEARCH_ENGINE
                         )
                 }
