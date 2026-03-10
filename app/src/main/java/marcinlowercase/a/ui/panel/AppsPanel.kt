@@ -47,6 +47,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
@@ -450,6 +451,7 @@ fun PlaceholderIcon(
                 color = Color.Black,
                 maxLines = 1,
                 overflow = TextOverflow.Visible,
+                textAlign = TextAlign.Center,
                 modifier = Modifier
                     .fillMaxSize()
                     .horizontalScroll(rememberScrollState())
