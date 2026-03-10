@@ -135,19 +135,19 @@ fun OptionsPanel(
 //                    )
 //                }
 //            },
-//            OptionItem(
-//                if (settings.value.isDesktopMode) R.drawable.ic_computer else R.drawable.ic_mobile_3,
-//                "desktop mode",
-//                settings.value.isDesktopMode,
-//            ) {
-//                viewModel.updateSettings { it.copy(isDesktopMode = !it.isDesktopMode) }
-//                viewModel.updateUI {
-//                    it.copy(
-//                        isOptionsPanelVisible = false,
-//                        isAppsPanelVisible = false
-//                    )
-//                }
-//            },
+            OptionItem(
+                if (settings.value.isDesktopMode) R.drawable.ic_computer else R.drawable.ic_mobile_3,
+                "desktop mode",
+                settings.value.isDesktopMode,
+            ) {
+                viewModel.updateSettings { it.copy(isDesktopMode = !it.isDesktopMode) }
+                viewModel.updateUI {
+                    it.copy(
+                        isOptionsPanelVisible = false,
+                        isAppsPanelVisible = false
+                    )
+                }
+            },
 //            OptionItem(
 //                R.drawable.ic_keyboard, // Ensure you have an ic_keyboard drawable!
 //                "peripherals mode",
