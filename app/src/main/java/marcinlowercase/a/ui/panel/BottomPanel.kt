@@ -373,7 +373,7 @@ fun BottomPanel(
                                         top = settings.value.padding.dp,
                                         bottom = if (viewModel.suggestions.indexOf(suggestion) == 0) settings.value.padding.dp else 0.dp
                                     )
-                                    .height(settings.value.heightForLayer(3).dp)
+                                    .heightIn( min = settings.value.heightForLayer(3).dp)
                                     .clip(
                                         RoundedCornerShape(
                                             settings.value.cornerRadiusForLayer(3).dp
@@ -444,8 +444,8 @@ fun BottomPanel(
 
                         TextField(
                             modifier = Modifier
-                                .height(
-                                    settings.value.heightForLayer(1).dp
+                                .heightIn(
+                                    min = settings.value.heightForLayer(1).dp
                                 )
                                 .padding(settings.value.padding.dp)
                                 .onSizeChanged { size ->
@@ -579,7 +579,7 @@ fun BottomPanel(
                                     }
 
                                     focusManager.clearFocus()
-                                    keyboardController?.hide()
+                                     keyboardController?.hide()
                                     textFieldState.setTextAndPlaceCursorAtEnd(resetUrl.toDomain())
 
                                     viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }

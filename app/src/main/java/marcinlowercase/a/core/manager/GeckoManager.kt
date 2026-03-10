@@ -73,6 +73,7 @@ class GeckoManager(private val context: Context) {
 
     val runtime: GeckoRuntime by lazy {
         val settings = GeckoRuntimeSettings.Builder()
+            .inputAutoZoomEnabled(false)
             .consoleOutput(true) // Forces console logs ON immediately
             .build()
         GeckoRuntime.create(context, settings)
@@ -325,15 +326,20 @@ class GeckoManager(private val context: Context) {
     // TODO use for PiP mode later
     private var currentVideoWidth = 16
     private var currentVideoHeight = 9
-    private fun createAndConfigureSession(tab: Tab, isDesktopMode: Boolean): GeckoSession {
-        val settings = GeckoSessionSettings.Builder()
-            .usePrivateMode(false) // Set based on your Incognito logic
-            .userAgentMode(if (isDesktopMode) GeckoSessionSettings.USER_AGENT_MODE_DESKTOP else GeckoSessionSettings.USER_AGENT_MODE_MOBILE)            .suspendMediaWhenInactive(false)
-            .allowJavascript(true)
-            .contextId(tab.profileId)
-            .build()
 
-        val session = GeckoSession(settings)
+        private fun getSessionSettings(tab: Tab, isDesktopMode: Boolean): GeckoSessionSettings {
+            return GeckoSessionSettings.Builder()
+                .usePrivateMode(false) // Set based on your Incognito logic
+                .userAgentMode(if (isDesktopMode) GeckoSessionSettings.USER_AGENT_MODE_DESKTOP else GeckoSessionSettings.USER_AGENT_MODE_MOBILE)
+                .viewportMode(if (isDesktopMode) GeckoSessionSettings.VIEWPORT_MODE_DESKTOP else GeckoSessionSettings.VIEWPORT_MODE_MOBILE)
+                .suspendMediaWhenInactive(false)
+                .allowJavascript(true)
+                .contextId(tab.profileId)
+                .build()
+        }
+    private fun createAndConfigureSession(tab: Tab, isDesktopMode: Boolean): GeckoSession {
+
+        val session = GeckoSession(getSessionSettings(tab, isDesktopMode))
 
 
         // RESTORE STATE
@@ -586,18 +592,7 @@ class GeckoManager(private val context: Context) {
                 //Log.d("NewTabFlow", "onNewSession")
                 val newTabId = System.currentTimeMillis()
 
-
-                val settings = GeckoSessionSettings.Builder()
-                    .usePrivateMode(false)
-                    .userAgentMode(
-                        if (browserSettings.value.isDesktopMode) GeckoSessionSettings.USER_AGENT_MODE_DESKTOP
-                        else GeckoSessionSettings.USER_AGENT_MODE_MOBILE
-                    )                    .suspendMediaWhenInactive(false)
-                    .allowJavascript(true)
-                    .contextId(tab.value.profileId)
-                    .build()
-
-                val newSession = GeckoSession(settings)
+                val newSession = GeckoSession(getSessionSettings(tab.value, browserSettings.value.isDesktopMode))
 
                 // This ensures that even if the UI is slow to load the new tab,
                 // the session can still close itself.

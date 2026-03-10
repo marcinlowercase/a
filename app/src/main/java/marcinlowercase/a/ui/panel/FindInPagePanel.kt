@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -89,8 +90,8 @@ fun FindInPagePanel(
                             settings.value.cornerRadiusForLayer(2).dp
                         )
                     )
-                    .height(
-                        settings.value.heightForLayer(2).dp
+                    .heightIn(
+                        min = settings.value.heightForLayer(2).dp
                     )
                     .onFocusChanged { focusState ->
                         viewModel.updateUI { it.copy(isFocusOnFindTextField = focusState.isFocused) }

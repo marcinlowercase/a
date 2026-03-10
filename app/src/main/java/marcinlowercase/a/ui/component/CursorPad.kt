@@ -1,5 +1,6 @@
 package marcinlowercase.a.ui.component
 
+import android.os.SystemClock
 import android.util.Log
 import android.view.MotionEvent
 import androidx.compose.animation.AnimatedVisibility
@@ -24,6 +25,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,6 +45,7 @@ import kotlinx.coroutines.launch
 import marcinlowercase.a.R
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import org.mozilla.geckoview.GeckoSession
+import org.mozilla.geckoview.GeckoView
 import org.mozilla.geckoview.PanZoomController
 import org.mozilla.geckoview.ScreenLength
 import kotlin.math.roundToInt
@@ -55,7 +58,9 @@ fun CursorPad(
     activeSession: GeckoSession,
     webViewPaddingValue: PaddingValues,
     cursorPadHeight: Dp,
-) {
+    geckoViewRef: MutableState<GeckoView?>,
+
+    ) {
     val viewModel = LocalBrowserViewModel.current
     val uiState = viewModel.uiState.collectAsState()
     val settings = viewModel.browserSettings.collectAsState()
@@ -97,14 +102,14 @@ fun CursorPad(
                             val down = awaitFirstDown(requireUnconsumed = false)
 
 
-                            var longPressDownTime = System.currentTimeMillis()
+                            var longPressDownTime = SystemClock.uptimeMillis()
 
 
                             val longPressJob = coroutineScope.launch {
                                 delay(viewConfiguration.longPressTimeoutMillis)
                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
 
-                                longPressDownTime = System.currentTimeMillis()
+                                longPressDownTime = SystemClock.uptimeMillis()
 
                             }
 
@@ -117,7 +122,9 @@ fun CursorPad(
                                 }
                             }
 
-
+                            if (longPressJob.isActive) {
+                                longPressJob.cancel()
+                            }
                             if (longPressJob.isCompleted && !longPressJob.isCancelled) {
 
 
@@ -133,6 +140,7 @@ fun CursorPad(
                                         0
                                     )
                                     activeSession.panZoomController.onTouchEvent(longPressDownEvent)
+                                    longPressDownEvent.recycle()
 
                                 }
                                 if (drag != null) {
@@ -172,8 +180,8 @@ fun CursorPad(
 
                                                 activeSession.let { _ ->
                                                     val moveEvent = MotionEvent.obtain(
-                                                        System.currentTimeMillis(),
-                                                        System.currentTimeMillis(),
+                                                        longPressDownTime, // this the value to define when we triggered the move
+                                                        SystemClock.uptimeMillis(),
                                                         MotionEvent.ACTION_MOVE,
                                                         viewModel.cursorPointerPosition.value.x,
                                                         viewModel.cursorPointerPosition.value.y - webViewPaddingValue.calculateTopPadding()
@@ -184,15 +192,10 @@ fun CursorPad(
                                                     activeSession.panZoomController.onTouchEvent(
                                                         moveEvent
                                                     )
-
-
                                                 }
-
-//                                            viewModel.cursorPointerPosition.value += Offset(
-//                                                changeSpaceX,
-//                                                changeSpaceY
-//                                            )
                                             }
+
+
 
 //                                            2 -> {
 //
@@ -240,7 +243,7 @@ fun CursorPad(
                                 activeSession.let { _ ->
                                     val upEvent = MotionEvent.obtain(
                                         longPressDownTime,
-                                        System.currentTimeMillis(),
+                                        SystemClock.uptimeMillis(),
                                         MotionEvent.ACTION_UP,
                                         viewModel.cursorPointerPosition.value.x,
                                         viewModel.cursorPointerPosition.value.y - webViewPaddingValue.calculateTopPadding()
@@ -254,6 +257,10 @@ fun CursorPad(
                             } else {
 
                                 if (drag != null) {
+
+                                    var horizontalOverscrollAccumulator = 0f
+                                    var hasNavigatedInThisGesture = false
+                                    val navThreshold = with(density) { 70.dp.toPx() }
                                     // This is the high-level function that consumes the rest of the drag gesture.
                                     // It will finish when the user lifts their finger.
                                     drag(drag.id) { change ->
@@ -297,26 +304,64 @@ fun CursorPad(
                                             }
 
                                             2 -> {
+                                                // --- 2 FINGERS: SCROLL & NAVIGATE ---
+                                                val changeDelta = change.position - change.previousPosition
+                                                val dx = changeDelta.x
+                                                val dy = changeDelta.y
 
-                                                val changeDelta =
-                                                    change.position - change.previousPosition
+                                                val scrollSpeedMultiplier = 4.0
+                                                val scrollAmountY = -dy.toDouble() * scrollSpeedMultiplier
+                                                var scrollAmountX = 0.0
 
+                                                // 1. Horizontal scroll vs Navigation Check
+                                                if (dx > 0) {
+                                                    // Fingers moving RIGHT (Pan left, or go Back)
+                                                    if (geckoViewRef.value?.canScrollHorizontally(-1) == true) {
+                                                        scrollAmountX = -dx.toDouble() * scrollSpeedMultiplier
+                                                        horizontalOverscrollAccumulator = 0f // Reset if we are scrolling
+                                                    } else {
+                                                        horizontalOverscrollAccumulator += dx
+                                                    }
+                                                } else
+                                                    if (dx < 0) {
+                                                    // Fingers moving LEFT (Pan right, or go Forward)
+                                                    if (geckoViewRef.value?.canScrollHorizontally(1) == true) {
+                                                        scrollAmountX = -dx.toDouble() * scrollSpeedMultiplier
+                                                        horizontalOverscrollAccumulator = 0f // Reset if we are scrolling
+                                                    } else {
+                                                        horizontalOverscrollAccumulator += dx
+                                                    }
+                                                }
 
-                                                val scrollAmountY = -changeDelta.y.toDouble()
+                                                // 2. Apply Page Scroll
+                                                if (scrollAmountX != 0.0 || scrollAmountY != 0.0) {
+                                                    activeSession.panZoomController.scrollBy(
+                                                        org.mozilla.geckoview.ScreenLength.fromPixels(scrollAmountX),
+                                                        org.mozilla.geckoview.ScreenLength.fromPixels(scrollAmountY),
+                                                        org.mozilla.geckoview.PanZoomController.SCROLL_BEHAVIOR_SMOOTH
+                                                    )
+                                                }
 
-                                                // 3. Execute Scroll
-                                                // SCROLL_METHOD_IMMEDIATE ensures it feels like a trackpad (1:1 movement)
-                                                // SCROLL_METHOD_SMOOTH would add an animation (momentum), which feels laggy for a trackpad.
-                                                activeSession.panZoomController.scrollBy(
-                                                    ScreenLength.fromPixels(0.0),
-                                                    ScreenLength.fromPixels(scrollAmountY * 2),
-                                                    PanZoomController.SCROLL_BEHAVIOR_SMOOTH,
-                                                )
+                                                // 3. Trigger History Navigation (if edge is hit and swiped far enough)
+                                                if (!hasNavigatedInThisGesture) {
+                                                    if (horizontalOverscrollAccumulator > navThreshold) {
+                                                        if (viewModel.activeTab!!.canGoBack) {
+                                                            activeSession.goBack(true)
+                                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                            hasNavigatedInThisGesture = true
+                                                        }
+                                                    } else if (horizontalOverscrollAccumulator < -navThreshold) {
+                                                        if (viewModel.activeTab!!.canGoForward) {
+                                                            activeSession.goForward(true)
+                                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                            hasNavigatedInThisGesture = true
+                                                        }
+                                                    }
+                                                }
 
-
-                                                // 3. Consume the changes to prevent single-finger logic from also running.
                                                 event.changes.forEach { it.consume() }
                                             }
+
 
                                             3 -> {
                                                 val changeDelta =
@@ -346,7 +391,7 @@ fun CursorPad(
                                     Log.e("marcCursor", "long press canceled")
 
                                     activeSession.let { _ ->
-                                        val downTime = System.currentTimeMillis()
+                                        val downTime =  SystemClock.uptimeMillis()
                                         val downEvent = MotionEvent.obtain(
                                             downTime,
                                             downTime,
@@ -358,7 +403,7 @@ fun CursorPad(
                                         )
                                         val upEvent = MotionEvent.obtain(
                                             downTime,
-                                            downTime + 10,
+                                            SystemClock.uptimeMillis(),
                                             MotionEvent.ACTION_UP,
                                             viewModel.cursorPointerPosition.value.x,
                                             viewModel.cursorPointerPosition.value.y - webViewPaddingValue.calculateTopPadding()

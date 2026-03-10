@@ -73,8 +73,13 @@ fun OptionsPanel(
                         isTabsPanelLock = !it.isTabsPanelLock,
                     )
                 }
-                if(!uiState.value.isAppsPanelVisible) {
-                    viewModel.updateUI { it.copy(isOptionsPanelVisible = false, isAppsPanelVisible = false) }
+                if (!uiState.value.isAppsPanelVisible) {
+                    viewModel.updateUI {
+                        it.copy(
+                            isOptionsPanelVisible = false,
+                            isAppsPanelVisible = false
+                        )
+                    }
                 }
 
             },
@@ -83,9 +88,14 @@ fun OptionsPanel(
                 "sharp mode",
                 settings.value.isSharpMode,
             ) {
-                viewModel.updateSettings{it.copy(isSharpMode = !it.isSharpMode)}
+                viewModel.updateSettings { it.copy(isSharpMode = !it.isSharpMode) }
 
-                viewModel.updateUI { it.copy(isOptionsPanelVisible = false, isAppsPanelVisible = false) }
+                viewModel.updateUI {
+                    it.copy(
+                        isOptionsPanelVisible = false,
+                        isAppsPanelVisible = false
+                    )
+                }
 
             },
 
@@ -95,34 +105,61 @@ fun OptionsPanel(
                 enabled = viewModel.recentlyClosedTabs.isNotEmpty(), // Only enable if there are tabs to reopen
             ) {
                 viewModel.reopenClosedTab()
-                viewModel.updateUI { it.copy(isOptionsPanelVisible = false, isAppsPanelVisible = false) }
+                viewModel.updateUI {
+                    it.copy(
+                        isOptionsPanelVisible = false,
+                        isAppsPanelVisible = false
+                    )
+                }
             },
-//                OptionItem(
-//                    R.drawable.ic_mouse_cursor, // You'll need a download icon
-//                    "cursor pad",
-//                    isCursorPadVisible,
-//                ) {
-//
-//                    setIsCursorMode(!isCursorMode)
-//                    setIsOptionsPanelVisible(false)
-//                },
+
 
             OptionItem(
-                R.drawable.ic_fullscreen ,
+                R.drawable.ic_fullscreen,
                 "fullscreen mode", // Display the number of open tabs
                 settings.value.isFullscreenMode
             ) {
                 viewModel.updateSettings { it.copy(isFullscreenMode = !it.isFullscreenMode) }
             },
-
-            OptionItem(
-                if (settings.value.isDesktopMode)R.drawable.ic_computer else R.drawable.ic_mobile_3,
-                "desktop mode",
-                settings.value.isDesktopMode,
-            ) {
-                viewModel.updateSettings { it.copy(isDesktopMode = !it.isDesktopMode) }
-                viewModel.updateUI { it.copy(isOptionsPanelVisible = false, isAppsPanelVisible = false) }
-            },
+//            OptionItem(
+//                R.drawable.ic_trackpad_input, // You'll need a download icon
+//                "cursor pad",
+//                uiState.value.isCursorPadVisible,
+//            ) {
+//
+//                viewModel.updateUI {
+//                    it.copy(
+//                        isCursorMode = !it.isCursorMode,
+//                        isOptionsPanelVisible = false,
+//                        isAppsPanelVisible = false
+//                    )
+//                }
+//            },
+//            OptionItem(
+//                if (settings.value.isDesktopMode) R.drawable.ic_computer else R.drawable.ic_mobile_3,
+//                "desktop mode",
+//                settings.value.isDesktopMode,
+//            ) {
+//                viewModel.updateSettings { it.copy(isDesktopMode = !it.isDesktopMode) }
+//                viewModel.updateUI {
+//                    it.copy(
+//                        isOptionsPanelVisible = false,
+//                        isAppsPanelVisible = false
+//                    )
+//                }
+//            },
+//            OptionItem(
+//                R.drawable.ic_keyboard, // Ensure you have an ic_keyboard drawable!
+//                "peripherals mode",
+//                false,
+//            ) {
+//                viewModel.updateUI {
+//                    it.copy(
+//                        isOptionsPanelVisible = false,
+//                        isAppsPanelVisible = false
+//                    )
+//                }
+//            },
 
             OptionItem(
                 R.drawable.ic_screen_rotation_up,
@@ -136,10 +173,12 @@ fun OptionsPanel(
                 "find in page",
                 uiState.value.isFindInPageVisible
             ) {
-                viewModel.updateUI { it.copy(
-                    isFindInPageVisible = !it.isFindInPageVisible,
-                    isOptionsPanelVisible = false, isAppsPanelVisible = false
-                ) }
+                viewModel.updateUI {
+                    it.copy(
+                        isFindInPageVisible = !it.isFindInPageVisible,
+                        isOptionsPanelVisible = false, isAppsPanelVisible = false
+                    )
+                }
             },
 
             OptionItem(
@@ -147,10 +186,12 @@ fun OptionsPanel(
                 "download panel",
                 uiState.value.isDownloadPanelVisible
             ) {
-                viewModel.updateUI { it.copy(
-                    isDownloadPanelVisible = !it.isDownloadPanelVisible,
-                    isOptionsPanelVisible = false, isAppsPanelVisible = false
-                ) }
+                viewModel.updateUI {
+                    it.copy(
+                        isDownloadPanelVisible = !it.isDownloadPanelVisible,
+                        isOptionsPanelVisible = false, isAppsPanelVisible = false
+                    )
+                }
             },
 
 //            OptionItem(
@@ -193,7 +234,12 @@ fun OptionsPanel(
                 enabled = false // Not a toggle, so never "active"
             ) {
                 onCloseAllTabs() // Call the function from BrowserScreen
-                viewModel.updateUI { it.copy(isOptionsPanelVisible = false, isAppsPanelVisible = false) }
+                viewModel.updateUI {
+                    it.copy(
+                        isOptionsPanelVisible = false,
+                        isAppsPanelVisible = false
+                    )
+                }
             },
 //            OptionItem(
 //                iconRes = R.drawable.ic_info, // Or any help/guide icon you have
@@ -210,10 +256,12 @@ fun OptionsPanel(
                 "settings",
                 uiState.value.isSettingsPanelVisible,
             ) {
-                viewModel.updateUI { it.copy(
-                    isSettingsPanelVisible = !it.isSettingsPanelVisible,
-                    isOptionsPanelVisible = false, isAppsPanelVisible = false
-                ) }
+                viewModel.updateUI {
+                    it.copy(
+                        isSettingsPanelVisible = !it.isSettingsPanelVisible,
+                        isOptionsPanelVisible = false, isAppsPanelVisible = false
+                    )
+                }
             },
 //            OptionItem(
 //                R.drawable.ic_developer_guide, // You'll need a settings icon
@@ -299,6 +347,7 @@ fun OptionsPanel(
 
                 // Create an IconButton for each option on the page
                 pageOptions.forEach { option ->
+
                     CustomIconButton(
                         layer = 2,
                         modifier = Modifier.weight(1f),

@@ -12,6 +12,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.AnchoredDraggableState
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +20,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -26,6 +28,7 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -44,6 +47,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
@@ -65,6 +69,7 @@ fun AppsPanel(
     renameProfile: () -> Unit,
     deleteProfile: () -> Unit,
     draggableState: AnchoredDraggableState<RevealState>,
+
 ) {
     val viewModel = LocalBrowserViewModel.current
     val settings = viewModel.browserSettings.collectAsState()
@@ -211,6 +216,7 @@ fun AppsPanel(
                             },
                             onLongClick = {
                                 if (isInteractive()) {
+
                                     viewModel.inspectingAppId.longValue =
                                         if (inspectingId != app.id) app.id else 0L
                                 }
@@ -383,7 +389,7 @@ fun PlaceholderIcon(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(3).dp))
-            .height(settings.value.heightForLayer(3).dp)
+            .heightIn(min = settings.value.heightForLayer(3).dp)
             .background(Color.Black.copy(settings.value.backSquareIdleOpacity * (if (text == null && iconRes == null) 0.5f else 1f)))
             .then(
                 if (onClick != null && buttonDescription != null)
@@ -432,16 +438,21 @@ fun PlaceholderIcon(
                 else Modifier
             )
             .padding(settings.value.padding.dp)
-            .padding(
-                start = if (text != null) settings.value.cornerRadiusForLayer(3).dp else 0.dp
-            )
+//            .padding(
+//                start = if (text != null) settings.value.cornerRadiusForLayer(3).dp else 0.dp
+//            )
             .fillMaxWidth(),
-        contentAlignment = if (text != null) Alignment.CenterStart else Alignment.Center
+        contentAlignment =  Alignment.Center
     ) {
         if (text != null) {
             Text(
                 text = text,
-                color = Color.Black
+                color = Color.Black,
+                maxLines = 1,
+                overflow = TextOverflow.Visible,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .horizontalScroll(rememberScrollState())
             )
         } else if (iconRes != null) {
             Icon(
@@ -468,7 +479,7 @@ fun AppIcon(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(3).dp))
-            .height(settings.value.heightForLayer(3).dp)
+            .heightIn(min = settings.value.heightForLayer(3).dp)
             .background(Color.Black.copy(settings.value.backSquareIdleOpacity))
             .padding(2.dp)
             .fillMaxWidth()

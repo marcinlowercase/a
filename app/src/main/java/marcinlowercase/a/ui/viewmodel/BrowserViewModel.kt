@@ -35,9 +35,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import marcinlowercase.a.CustomApplication
-import marcinlowercase.a.core.constant.default_url
+import marcinlowercase.a.core.constant.DefaultSettingValues
 import marcinlowercase.a.core.constant.generic_location_permission
-import marcinlowercase.a.core.constant.pixel_9_corner_radius
 import marcinlowercase.a.core.data_class.App
 import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.BrowserUIState
@@ -356,7 +355,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             if (tabs.isEmpty()) {
                 val defaultTab = Tab(
                     profileId = currentProfileIdStr,
-                    currentURL = default_url,
+                    currentURL = DefaultSettingValues.URL,
                     state = TabState.ACTIVE
                 )
                 tabs.add(defaultTab)
@@ -548,33 +547,35 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         // Fallback for migration (if the profile doesn't exist yet, pull from global)
         // We now check for "default_url" instead of "is_first_app_load" since it moved to global
         val prefsToUse = if (profilePrefs.contains("default_url")) profilePrefs else globalPrefs
-
+        val d = DefaultSettingValues
         return BrowserSettings(
             // --- GLOBAL SETTINGS (Shared across all profiles) ---
             isFirstAppLoad = globalPrefs.getBoolean("is_first_app_load", true),
-            padding = globalPrefs.getFloat("padding", 8f),
-            deviceCornerRadius = globalPrefs.getFloat("device_corner_radius", pixel_9_corner_radius),
-            singleLineHeight = globalPrefs.getFloat("single_line_height", 100f),
-            maxListHeight = globalPrefs.getFloat("max_list_height", 1.5f),
+            padding = globalPrefs.getFloat("padding", d.PADDING),
+            deviceCornerRadius = globalPrefs.getFloat("device_corner_radius", d.CORNER_RADIUS),
+            singleLineHeight = globalPrefs.getFloat("single_line_height", d.SINGLE_LINE_HEIGHT),
+            maxListHeight = globalPrefs.getFloat("max_list_height", d.MAX_LIST_HEIGHT),
 
             // --- PROFILE-SPECIFIC SETTINGS ---
-            defaultUrl = prefsToUse.getString("default_url", default_url) ?: default_url,
-            animationSpeed = prefsToUse.getFloat("animation_speed", 300f),
-            isSharpMode = prefsToUse.getBoolean("is_sharp_mode", false),
-            cursorContainerSize = prefsToUse.getFloat("cursor_container_size", 50f),
-            cursorPointerSize = prefsToUse.getFloat("cursor_pointer_size", 5f),
-            cursorTrackingSpeed = prefsToUse.getFloat("cursor_tracking_speed", 1.75f),
-            showSuggestions = prefsToUse.getBoolean("show_suggestions", false),
-            closedTabHistorySize = prefsToUse.getFloat("closed_tab_history_size", 10f),
+            defaultUrl = prefsToUse.getString("default_url", d.URL) ?: d.URL,
+            animationSpeed = prefsToUse.getFloat("animation_speed", d.ANIMATION_SPEED),
+            isSharpMode = prefsToUse.getBoolean("is_sharp_mode", d.IS_SHARP_MODE),
+            cursorContainerSize = prefsToUse.getFloat("cursor_container_size", d.CURSOR_CONTAINER_SIZE),
+            cursorPointerSize = prefsToUse.getFloat("cursor_pointer_size", d.CURSOR_POINTER_SIZE),
+            cursorTrackingSpeed = prefsToUse.getFloat("cursor_tracking_speed", d.CURSOR_TRACKING_SPEED),
+            showSuggestions = prefsToUse.getBoolean("show_suggestions", d.SHOW_SUGGESTIONS),
+            closedTabHistorySize = prefsToUse.getFloat("closed_tab_history_size", d.CLOSED_TAB_HISTORY_SIZE),
+            backSquareIdleOpacity = prefsToUse.getFloat("back_square_idle_opacity", d.BACK_SQUARE_IDLE_OPACITY),
+            searchEngine = prefsToUse.getInt("search_engine", d.SEARCH_ENGINE),
+            isFullscreenMode = prefsToUse.getBoolean("is_fullscreen_mode", d.IS_FULLSCREEN_MODE),
+            highlightColor = prefsToUse.getInt("highlight_color", d.HIGHLIGHT_COLOR),
+            isAdBlockEnabled = prefsToUse.getBoolean("is_ad_block_enabled", d.IS_AD_BLOCK_ENABLED),
+            isDesktopMode = prefsToUse.getBoolean("is_desktop_mode", d.IS_DESKTOP_MODE),
+
+            // Settings that don't have constants yet (or are dynamic)
             backSquareOffsetX = prefsToUse.getFloat("back_square_offset_x", -1f),
             backSquareOffsetY = prefsToUse.getFloat("back_square_offset_y", -1f),
-            backSquareIdleOpacity = prefsToUse.getFloat("back_square_idle_opacity", 0.2f),
-            searchEngine = prefsToUse.getInt("search_engine", 0),
-            isFullscreenMode = prefsToUse.getBoolean("is_fullscreen_mode", false),
-            highlightColor = prefsToUse.getInt("highlight_color", 0xFFBA160C.toInt()),
-            isAdBlockEnabled = prefsToUse.getBoolean("is_ad_block_enabled", true),
-            isGuideModeEnabled = prefsToUse.getBoolean("is_guide_mode_enabled", true),
-            isDesktopMode = prefsToUse.getBoolean("is_desktop_mode", false),
+            isGuideModeEnabled = prefsToUse.getBoolean("is_guide_mode_enabled", true)
         )
     }
     fun updateSettings(mutation: (BrowserSettings) -> BrowserSettings) {
@@ -635,28 +636,27 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     fun resetSettings() {
         updateSettings {
             it.copy(
-                padding = 8f,
-                deviceCornerRadius = pixel_9_corner_radius,
-                singleLineHeight = 90f,
-                maxListHeight = 1.5f,
-                defaultUrl = default_url,
-                showSuggestions = false,
-                animationSpeed = 300f,
-                isSharpMode = false,
-                cursorContainerSize = 50f,
-                cursorPointerSize = 5f,
-                cursorTrackingSpeed = 1.75f,
-                backSquareIdleOpacity = 0.2f,
-                highlightColor = 0xFFBA160C.toInt(),
-                isAdBlockEnabled = true,
-                isFullscreenMode =false,
-                closedTabHistorySize = 10f,
-                searchEngine = 0,
-
+                padding = DefaultSettingValues.PADDING,
+                deviceCornerRadius = DefaultSettingValues.CORNER_RADIUS,
+                singleLineHeight = DefaultSettingValues.SINGLE_LINE_HEIGHT,
+                maxListHeight = DefaultSettingValues.MAX_LIST_HEIGHT,
+                defaultUrl = DefaultSettingValues.URL,
+                showSuggestions = DefaultSettingValues.SHOW_SUGGESTIONS,
+                animationSpeed = DefaultSettingValues.ANIMATION_SPEED,
+                isSharpMode = DefaultSettingValues.IS_SHARP_MODE,
+                isDesktopMode = DefaultSettingValues.IS_DESKTOP_MODE,
+                cursorContainerSize = DefaultSettingValues.CURSOR_CONTAINER_SIZE,
+                cursorPointerSize = DefaultSettingValues.CURSOR_POINTER_SIZE,
+                cursorTrackingSpeed = DefaultSettingValues.CURSOR_TRACKING_SPEED,
+                backSquareIdleOpacity = DefaultSettingValues.BACK_SQUARE_IDLE_OPACITY,
+                highlightColor = DefaultSettingValues.HIGHLIGHT_COLOR,
+                isAdBlockEnabled = DefaultSettingValues.IS_AD_BLOCK_ENABLED,
+                isFullscreenMode = DefaultSettingValues.IS_FULLSCREEN_MODE,
+                closedTabHistorySize = DefaultSettingValues.CLOSED_TAB_HISTORY_SIZE,
+                searchEngine = DefaultSettingValues.SEARCH_ENGINE
             )
         }
     }
-
     private fun saveSettingsToPrefs(profileId: String, settings: BrowserSettings) {
         val context = getApplication<Application>()
         val globalPrefs = context.getSharedPreferences("BrowserPrefs", Context.MODE_PRIVATE)

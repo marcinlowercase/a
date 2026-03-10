@@ -3,7 +3,7 @@ package marcinlowercase.a.core.manager
 import android.content.Context
 import androidx.core.content.edit
 import kotlinx.serialization.json.Json
-import marcinlowercase.a.core.constant.default_url
+import marcinlowercase.a.core.constant.DefaultSettingValues
 import marcinlowercase.a.core.data_class.Tab
 import marcinlowercase.a.core.enum_class.TabState
 
@@ -63,7 +63,7 @@ class TabManager(context: Context) {
     }
 
     private fun createDefaultTabs(profileId: String, intentUrl: String?): MutableList<Tab> {
-        val customUrl = intentUrl ?: settingsPrefs.getString("default_url", default_url) ?: default_url
+        val customUrl = intentUrl ?: settingsPrefs.getString("default_url", DefaultSettingValues.URL) ?: DefaultSettingValues.URL
         // CRITICAL: We pass the profileId into the new Tab so GeckoView can isolate cookies!
         return mutableListOf(Tab(state = TabState.ACTIVE, currentURL = customUrl, profileId = profileId))
     }

@@ -79,6 +79,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableDoubleStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -510,7 +511,7 @@ fun BrowserScreen(
 
     val activeSession =
         remember(viewModel.activeTab!!.id, viewModel.sessionRefreshTrigger.intValue) {
-            viewModel.geckoManager.getSession(viewModel.activeTab!! , settings.isDesktopMode)
+            viewModel.geckoManager.getSession(viewModel.activeTab!!, settings.isDesktopMode)
         }
 
 
@@ -662,7 +663,7 @@ fun BrowserScreen(
     }
     val floatingPanelBottomPadding by animateDpAsState(
         targetValue = if (isKeyboardVisible) (
-                0.dp
+                if (!uiState.value.isFocusOnTextField) settings.padding.dp else 0.dp
                 ) else (floatingPanelBottomPaddingNoKeyboard),
         animationSpec = tween(settings.animationSpeedForLayer(1)),
         label = "Floating Panel Padding Animation"
@@ -1244,17 +1245,27 @@ fun BrowserScreen(
         LocalBrowserViewModel provides viewModel
     ) {
         //region LaunchedEffect
+
+
+
         LaunchedEffect(settings.isDesktopMode, activeSession) {
-            val targetMode = if (settings.isDesktopMode) {
+            val targetUserAgent = if (settings.isDesktopMode) {
                 GeckoSessionSettings.USER_AGENT_MODE_DESKTOP
             } else {
                 GeckoSessionSettings.USER_AGENT_MODE_MOBILE
             }
+            val targetViewportMode = if (settings.isDesktopMode) {
+                GeckoSessionSettings.VIEWPORT_MODE_DESKTOP
+            } else {
+                GeckoSessionSettings.VIEWPORT_MODE_MOBILE
+            }
 
             // If the user agent mode differs from the current setting, update and reload
-            if (activeSession.settings.userAgentMode != targetMode) {
-                activeSession.settings.userAgentMode = targetMode
-                activeSession.reload() // Force reload to fetch the desktop site immediately
+            if (activeSession.settings.userAgentMode != targetUserAgent || activeSession.settings.viewportMode != targetViewportMode) {
+                activeSession.settings.userAgentMode = targetUserAgent
+                activeSession.settings.viewportMode = targetViewportMode
+
+                activeSession.reload()
             }
         }
 
@@ -1393,7 +1404,7 @@ fun BrowserScreen(
 
         }
         LaunchedEffect(uiState.value.isFocusOnTextField, uiState.value.isPromptPanelVisible) {
-            if (!uiState.value.isFocusOnTextField && !uiState.value.isPromptPanelVisible) {
+            if ((!uiState.value.isFocusOnTextField && !uiState.value.isPromptPanelVisible) ) {
                 delay(300)
                 viewModel.isApplyImePaddingToWebView.value = true
             } else {
@@ -1417,8 +1428,11 @@ fun BrowserScreen(
                 viewModel.updateSettings { it.copy(isFirstAppLoad = false) }
         }
         LaunchedEffect(viewModel.inspectingAppId.longValue) {
-            if (viewModel.inspectingAppId.longValue > 0L) textFieldState.setTextAndPlaceCursorAtEnd(viewModel.apps.find { it.id == viewModel.inspectingAppId.longValue }?.label ?: viewModel.activeTab!!.currentURL.toDomain())
-            else if (textFieldState.text != viewModel.activeTab!!.currentURL && !uiState.value.isFocusOnUrlTextField) textFieldState.setTextAndPlaceCursorAtEnd(viewModel.activeTab!!.currentURL.toDomain() )
+            if (viewModel.inspectingAppId.longValue > 0L) viewModel.descriptionContent.value =
+                viewModel.apps.find { it.id == viewModel.inspectingAppId.longValue }?.label ?: "hello"
+            else viewModel.descriptionContent.value = ""
+//            if (viewModel.inspectingAppId.longValue > 0L) textFieldState.setTextAndPlaceCursorAtEnd(viewModel.apps.find { it.id == viewModel.inspectingAppId.longValue }?.label ?: viewModel.activeTab!!.currentURL.toDomain())
+//            else if (textFieldState.text != viewModel.activeTab!!.currentURL && !uiState.value.isFocusOnUrlTextField) textFieldState.setTextAndPlaceCursorAtEnd(viewModel.activeTab!!.currentURL.toDomain() )
         }
         LaunchedEffect(viewModel.apps.size) {
             if (viewModel.apps.isEmpty()) {
@@ -2553,6 +2567,7 @@ fun BrowserScreen(
                             },
                             onSuggestionClick = { suggestion ->
                                 webViewLoad(activeSession, suggestion.url, settings)
+
                                 focusManager.clearFocus()
                                 keyboardController?.hide()
                             },
@@ -2612,6 +2627,7 @@ fun BrowserScreen(
                             activeSession = activeSession,
                             webViewPaddingValue = webViewPaddingValue,
                             cursorPadHeight = cursorPadHeight,
+                            geckoViewRef = geckoViewRef
                         )
 
                         // BackSquare

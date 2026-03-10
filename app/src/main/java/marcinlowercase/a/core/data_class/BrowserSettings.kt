@@ -11,20 +11,16 @@ data class BrowserSettings(
     val singleLineHeight: Float,
     val isAdBlockEnabled: Boolean = true,
     val isDesktopMode: Boolean,
-//    val desktopModeWidth: Int,
     val isSharpMode: Boolean,
-//    val topSharpEdge: Float,
-//    val bottomSharpEdge: Float,
     val cursorContainerSize: Float,
     val cursorPointerSize: Float,
     val cursorTrackingSpeed: Float,
     val showSuggestions: Boolean,
     val closedTabHistorySize: Float,
-
     val backSquareOffsetX: Float = -1f,
     val backSquareOffsetY: Float = 0f,
     val backSquareIdleOpacity: Float = 0.2f,
-    val maxListHeight: Float = 1.5f,
+    val maxListHeight: Float =  2f,
     val searchEngine: Int = 0,
     val isFullscreenMode: Boolean,
     val highlightColor: Int = 0xFFBA160C.toInt(),
@@ -47,18 +43,13 @@ data class BrowserSettings(
         return singleLineHeight - (padding * layer* 2)
     }
 
-//    private fun cornerRadiusForLayer(layer: Int, maxRadius: Float): Float {
-//        if (layer == 0) return maxRadius
-//        return (cornerRadiusForLayer(layer - 1, maxRadius) - padding).coerceAtLeast(0f)
-//    }
-
-    fun animationSpeedForLayer(layer: Int): Int {
-        val adjusted = animationSpeed - 50f * layer
-        return adjusted.coerceAtLeast(0f).roundToInt()
-    }
 
     fun maxContainerSizeForLayer(layer: Int): Float {
         return (heightForLayer(layer) * maxListHeight) + (padding * (maxListHeight.toInt()  + 1))
     }
 
+    fun animationSpeedForLayer(layer: Int): Int {
+        val adjusted = animationSpeed - 50f * layer
+        return adjusted.coerceAtLeast(0f).roundToInt()
+    }
 }

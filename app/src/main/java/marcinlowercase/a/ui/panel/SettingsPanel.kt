@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -337,7 +338,7 @@ fun TextSetting(
     iconID: Int,
     currentSettingOriginalValue: String,
     field: BrowserSettingField,
-    ) {
+) {
 
     val viewModel = LocalBrowserViewModel.current
     val settings = viewModel.browserSettings.collectAsState()
@@ -391,7 +392,7 @@ fun TextSetting(
                 )
             }
 
-            // --- SPACER (as requested) ---
+            // --- SPACER ---
             Spacer(modifier = Modifier.weight(1f))
 
             // Right Icon (same as before)
@@ -423,13 +424,12 @@ fun TextSetting(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = settings.value.padding.dp)
-                .height(
-                    settings.value.heightForLayer(3).dp
+                .heightIn(
+                    min = settings.value.heightForLayer(3).dp
                 )
-                .onFocusChanged{focusState ->
+                .onFocusChanged{ focusState ->
                     viewModel.updateUI { it.copy(isFocusOnSettingTextField = focusState.hasFocus) }
-                }
-            ,
+                },
             shape = RoundedCornerShape(
                 settings.value.cornerRadiusForLayer(3).dp
             ),
@@ -452,7 +452,45 @@ fun TextSetting(
             ),
             keyboardActions = KeyboardActions(
                 onDone = {
-                    viewModel.updateField(field, textValue)
+                    // APPLY URL BAR LOGIC FOR DEFAULT_URL
+                    val finalValue = if (field == BrowserSettingField.DEFAULT_URL) {
+                        val input = textValue.trim()
+
+                        if (input.isEmpty()) {
+                            input // Let it be empty if user clears it
+                        } else {
+                            val isUrl = try {
+                                android.util.Patterns.WEB_URL.matcher(input).matches() ||
+                                        (input.contains(".") && !input.contains(" "))
+                                        && !input.endsWith(".")
+                                        && !input.startsWith(".")
+                            } catch (_: Exception) {
+                                false
+                            }
+
+                            if (isUrl) {
+                                if (input.startsWith("http://") || input.startsWith("https://")) {
+                                    input
+                                } else {
+                                    "https://$input"
+                                }
+                            } else {
+                                val encodedQuery = java.net.URLEncoder.encode(
+                                    input,
+                                    java.nio.charset.StandardCharsets.UTF_8.toString()
+                                )
+                                SearchEngine.entries[settings.value.searchEngine].getSearchUrl(encodedQuery)
+                            }
+                        }
+                    } else {
+                        textValue
+                    }
+
+                    // Update the TextField visually so the user sees the generated web search URL/scheme
+                    textValue = finalValue
+
+                    // Update global settings
+                    viewModel.updateField(field, finalValue)
 
                     keyboardController?.hide()
                     focusManager.clearFocus()
@@ -688,8 +726,8 @@ fun SettingsPanel(
                     SliderSetting(
 
                         onBackClick = onBackClick,
-                        valueRange = 0f..60f,
-                        steps = 5999,
+                        valueRange = 0f..55f,
+                        steps = 5499,
                         textFieldValueFun = { src ->
                             src.take(2) + "." + src.substring(2, 4)
                         },
@@ -718,8 +756,8 @@ fun SettingsPanel(
 
                     SliderSetting(
                         onBackClick = onBackClick,
-                        valueRange = 65f..140f,
-                        steps = 74,
+                        valueRange = 90f..110f,
+                        steps = 19,
                         textFieldValueFun = { src ->
                             src
                         },
@@ -734,8 +772,8 @@ fun SettingsPanel(
 
                     SliderSetting(
                         onBackClick = onBackClick,
-                        valueRange = 3f..11f,
-                        steps = 7,
+                        valueRange = 2f..8f,
+                        steps = 5,
                         textFieldValueFun = { src ->
                             src
                         },
