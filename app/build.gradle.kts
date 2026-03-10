@@ -39,7 +39,7 @@ android {
         create("foss") { // The GitHub / Open Source version
             dimension = "distribution"
             applicationId = "marcinlowercase.a"
-            versionNameSuffix = "+1"
+            versionNameSuffix = ".a"
 //            manifestPlaceholders["appLabel"] = ".a"
         }
 
@@ -103,7 +103,7 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.coil.svg)
     implementation(libs.androidx.compose.material3)
-    implementation(libs.mozilla.geckoview.nightly)
+    implementation(libs.mozilla.geckoview)
     implementation(libs.androidx.compose.runtime)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
