@@ -310,6 +310,7 @@ fun BottomPanel(
                     state = state,
                 )
                 SettingsPanel(
+                    onCloseAllTabs = onCloseAllTabs,
                     confirmationPopup = confirmationPopup,
                 )
                 TabDataPanel(
@@ -853,6 +854,7 @@ fun BottomPanel(
                     Column {
                         OptionsPanel(
                             onCloseAllTabs = onCloseAllTabs,
+                            confirmationPopup = confirmationPopup
 //                            addAppToPin = {
 //                                viewModel.updateUI { it.copy(isPinningApp = true) }
 //                                urlBarFocusRequester.requestFocus()

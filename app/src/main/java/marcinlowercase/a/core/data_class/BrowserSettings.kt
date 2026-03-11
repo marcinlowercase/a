@@ -1,5 +1,6 @@
 package marcinlowercase.a.core.data_class
 
+import marcinlowercase.a.core.constant.DefaultSettingValues
 import kotlin.math.roundToInt
 
 data class BrowserSettings(
@@ -25,6 +26,9 @@ data class BrowserSettings(
     val isFullscreenMode: Boolean,
     val highlightColor: Int = 0xFFBA160C.toInt(),
     val isGuideModeEnabled: Boolean = true,
+    val optionsOrder: String,
+    val settingsOrder: String,
+    val hiddenOptions: String,
 ) {
     fun cornerRadiusForLayer(layer: Int): Float {
         if (layer == 0) return deviceCornerRadius

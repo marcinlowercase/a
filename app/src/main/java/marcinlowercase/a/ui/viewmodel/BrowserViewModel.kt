@@ -54,6 +54,7 @@ import marcinlowercase.a.core.data_class.Profile
 import marcinlowercase.a.core.data_class.SiteSettings
 import marcinlowercase.a.core.data_class.Suggestion
 import marcinlowercase.a.core.data_class.Tab
+import marcinlowercase.a.core.enum_class.BrowserOption
 import marcinlowercase.a.core.enum_class.BrowserSettingField
 import marcinlowercase.a.core.enum_class.DownloadStatus
 import marcinlowercase.a.core.enum_class.GestureNavAction
@@ -571,11 +572,17 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             highlightColor = prefsToUse.getInt("highlight_color", d.HIGHLIGHT_COLOR),
             isAdBlockEnabled = prefsToUse.getBoolean("is_ad_block_enabled", d.IS_AD_BLOCK_ENABLED),
             isDesktopMode = prefsToUse.getBoolean("is_desktop_mode", d.IS_DESKTOP_MODE),
+            optionsOrder = prefsToUse.getString("options_order", d.OPTIONS_ORDER) ?: d.OPTIONS_ORDER,
+            settingsOrder = prefsToUse.getString("settings_order", d.SETTINGS_ORDER) ?: d.SETTINGS_ORDER,
+            hiddenOptions = prefsToUse.getString("hidden_options", d.HIDDEN_OPTIONS) ?: d.HIDDEN_OPTIONS,
 
-            // Settings that don't have constants yet (or are dynamic)
+
+
+
+                    // Settings that don't have constants yet (or are dynamic)
             backSquareOffsetX = prefsToUse.getFloat("back_square_offset_x", -1f),
             backSquareOffsetY = prefsToUse.getFloat("back_square_offset_y", -1f),
-            isGuideModeEnabled = prefsToUse.getBoolean("is_guide_mode_enabled", true)
+            isGuideModeEnabled = prefsToUse.getBoolean("is_guide_mode_enabled", true),
         )
     }
     fun updateSettings(mutation: (BrowserSettings) -> BrowserSettings) {
@@ -629,6 +636,10 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 BrowserSettingField.GUIDE_MODE -> current.copy(isGuideModeEnabled = value as Boolean)
 
                 BrowserSettingField.INFO -> current
+                BrowserSettingField.OPTIONS_ORDER -> current.copy(optionsOrder = value as String)
+                BrowserSettingField.SETTINGS_ORDER -> current.copy(settingsOrder = value as String)
+                BrowserSettingField.HIDDEN_OPTIONS -> current.copy(hiddenOptions = value as String)
+
             }
         }
     }
@@ -653,7 +664,10 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 isAdBlockEnabled = DefaultSettingValues.IS_AD_BLOCK_ENABLED,
                 isFullscreenMode = DefaultSettingValues.IS_FULLSCREEN_MODE,
                 closedTabHistorySize = DefaultSettingValues.CLOSED_TAB_HISTORY_SIZE,
-                searchEngine = DefaultSettingValues.SEARCH_ENGINE
+                searchEngine = DefaultSettingValues.SEARCH_ENGINE,
+                optionsOrder = DefaultSettingValues.OPTIONS_ORDER,
+                settingsOrder = DefaultSettingValues.SETTINGS_ORDER,
+                hiddenOptions = DefaultSettingValues.HIDDEN_OPTIONS
             )
         }
     }
@@ -691,6 +705,9 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             putBoolean("is_ad_block_enabled", settings.isAdBlockEnabled)
             putBoolean("is_guide_mode_enabled", settings.isGuideModeEnabled)
             putBoolean("is_desktop_mode", settings.isDesktopMode)
+            putString("options_order", settings.optionsOrder)
+            putString("settings_order", settings.settingsOrder)
+            putString("hidden_options", settings.hiddenOptions)
             apply()
         }
     }    //endregion
@@ -1632,7 +1649,103 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     //endregion
 
-    //region functions
+    //region Sorting logic
+    val isSortingButtons = mutableStateOf(false)
+    val inspectingOption = mutableStateOf<BrowserOption?>(null)
+    val topVisibleOptionsPanelItem = mutableStateOf<BrowserOption?>(null)
+
+    // --- SORTING LOGIC ---
+    fun canMoveOptionLeft(option: BrowserOption, currentSettings: BrowserSettings): Boolean {
+        val opts = currentSettings.optionsOrder.split(",").filter { it.isNotBlank() }
+        val sets = currentSettings.settingsOrder.split(",").filter { it.isNotBlank() }
+
+        if (opts.contains(option.name)) return opts.indexOf(option.name) > 0
+        if (sets.contains(option.name)) {
+            val idx = sets.indexOf(option.name)
+            if (idx > 0) return true
+            // Can jump from Settings to Options ONLY if it's a Toggle!
+            return option.type == marcinlowercase.a.core.enum_class.OptionType.TOGGLE_ACTION
+        }
+        return false
+    }
+
+    fun canMoveOptionRight(option: BrowserOption, currentSettings: BrowserSettings): Boolean {
+        val opts = currentSettings.optionsOrder.split(",").filter { it.isNotBlank() }
+        val sets = currentSettings.settingsOrder.split(",").filter { it.isNotBlank() }
+
+        if (sets.contains(option.name)) return sets.indexOf(option.name) < sets.lastIndex
+        if (opts.contains(option.name)) {
+            val idx = opts.indexOf(option.name)
+            if (idx < opts.lastIndex) return true
+            // Can jump from Options to Settings ONLY if it's a Toggle!
+            return option.type == marcinlowercase.a.core.enum_class.OptionType.TOGGLE_ACTION
+        }
+        return false
+    }
+
+    fun isOptionHidden(option: BrowserOption, currentSettings: BrowserSettings): Boolean {
+        return currentSettings.hiddenOptions.split(",").contains(option.name)
+    }
+
+    fun moveOptionLeft() {
+        val option = inspectingOption.value ?: return
+        if (!canMoveOptionLeft(option, _browserSettings.value)) return
+
+        val opts = _browserSettings.value.optionsOrder.split(",").filter { it.isNotBlank() }.toMutableList()
+        val sets = _browserSettings.value.settingsOrder.split(",").filter { it.isNotBlank() }.toMutableList()
+
+        if (opts.contains(option.name)) {
+            val idx = opts.indexOf(option.name)
+            java.util.Collections.swap(opts, idx, idx - 1)
+        } else if (sets.contains(option.name)) {
+            val idx = sets.indexOf(option.name)
+            if (idx > 0) {
+                java.util.Collections.swap(sets, idx, idx - 1)
+            } else {
+                sets.removeAt(0)
+                opts.add(option.name)
+            }
+        }
+        updateField(BrowserSettingField.OPTIONS_ORDER, opts.joinToString(","))
+        updateField(BrowserSettingField.SETTINGS_ORDER, sets.joinToString(","))
+    }
+
+    fun moveOptionRight() {
+        val option = inspectingOption.value ?: return
+        if (!canMoveOptionRight(option, _browserSettings.value)) return
+
+        val opts = _browserSettings.value.optionsOrder.split(",").filter { it.isNotBlank() }.toMutableList()
+        val sets = _browserSettings.value.settingsOrder.split(",").filter { it.isNotBlank() }.toMutableList()
+
+        if (sets.contains(option.name)) {
+            val idx = sets.indexOf(option.name)
+            java.util.Collections.swap(sets, idx, idx + 1)
+        } else if (opts.contains(option.name)) {
+            val idx = opts.indexOf(option.name)
+            if (idx < opts.lastIndex) {
+                java.util.Collections.swap(opts, idx, idx + 1)
+            } else {
+                opts.removeAt(opts.lastIndex)
+                sets.add(0, option.name)
+            }
+        }
+        updateField(BrowserSettingField.OPTIONS_ORDER, opts.joinToString(","))
+        updateField(BrowserSettingField.SETTINGS_ORDER, sets.joinToString(","))
+    }
+
+    fun toggleOptionVisibility() {
+        val option = inspectingOption.value ?: return
+        if (option == BrowserOption.SETTINGS ||
+            option == BrowserOption.SORT_BUTTONS) {
+            return
+        }
+        val hidden = _browserSettings.value.hiddenOptions.split(",").filter { it.isNotBlank() }.toMutableSet()
+
+        if (hidden.contains(option.name)) hidden.remove(option.name)
+        else hidden.add(option.name)
+
+        updateField(BrowserSettingField.HIDDEN_OPTIONS, hidden.joinToString(","))
+    }
 
     //endregion
     init {

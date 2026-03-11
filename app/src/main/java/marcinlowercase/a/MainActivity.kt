@@ -1211,7 +1211,7 @@ fun BrowserScreen(
         }
         if (current != ActivePanel.PROMPT && viewModel.jsDialogState.value != null) viewModel.jsDialogState.value =
             null
-        if (current != ActivePanel.SETTINGS && uiState.value.isSettingsPanelVisible) {
+        if (current != ActivePanel.SETTINGS && uiState.value.isSettingsPanelVisible  && !(current == ActivePanel.APPS && viewModel.isSortingButtons.value)) {
             viewModel.updateUI { it.copy(isSettingsPanelVisible = false) }
         }
 
@@ -1241,12 +1241,22 @@ fun BrowserScreen(
     //endregion
 
 
+
     CompositionLocalProvider(
         LocalBrowserViewModel provides viewModel
     ) {
         //region LaunchedEffect
 
 
+        LaunchedEffect(viewModel.activeProfileId.value) {
+            if (viewModel.inspectingOption.value != null ||  viewModel.isSortingButtons.value) {
+                viewModel.isSortingButtons.value = false
+                viewModel.inspectingOption.value = null
+            }
+        }
+        LaunchedEffect(viewModel.isSortingButtons.value) {
+            if (!viewModel.isSortingButtons.value) viewModel.updateUI { it.copy(isAppsPanelVisible = false) }
+        }
 
         LaunchedEffect(settings.isDesktopMode, activeSession) {
             val targetUserAgent = if (settings.isDesktopMode) {
@@ -1504,6 +1514,10 @@ fun BrowserScreen(
         LaunchedEffect(uiState.value.isAppsPanelVisible) {
             if (!uiState.value.isAppsPanelVisible) {
                 viewModel.inspectingAppId.longValue = 0L
+                if (viewModel.inspectingOption.value != null ||  viewModel.isSortingButtons.value) {
+                    viewModel.isSortingButtons.value = false
+                    viewModel.inspectingOption.value = null
+                }
             } else {
                 activeSession.flushSessionState()
             }
@@ -1963,13 +1977,19 @@ fun BrowserScreen(
             if (!uiState.value.isUrlBarVisible) {
 //                setIsOptionsPanelVisible(false)
                 viewModel.updateUI { it.copy(
-                    isOptionsPanelVisible = false,
                     isTabDataPanelVisible = false,
                     isTabsPanelVisible = false,
-                    isSettingsPanelVisible = false,
                     isDownloadPanelVisible = false,
-                    isAppsPanelVisible = false
                 ) }
+                if (!viewModel.isSortingButtons.value) {
+                    viewModel.updateUI {
+                        it.copy(
+                            isOptionsPanelVisible = false,
+                            isAppsPanelVisible = false,
+                            isSettingsPanelVisible = false,
+                            )
+                    }
+                }
             } else {
                 if (uiState.value.isTabsPanelLock ) viewModel.updateUI {
                     it.copy(
@@ -2287,6 +2307,15 @@ fun BrowserScreen(
                 ) {
                     SettingsPanel(
                         confirmationPopup = ::confirmationPopup,
+                        onCloseAllTabs = {
+                            confirmationPopup(
+                                message = "close all tabs and exit ? ",
+                                onConfirm = {
+                                    closeAllTabs()
+                                },
+                                onCancel = {}
+                            )
+                        },
                         targetSetting = SettingPanelView.CORNER_RADIUS,
                     )
                 }

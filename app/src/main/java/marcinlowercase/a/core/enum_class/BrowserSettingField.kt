@@ -15,5 +15,8 @@ enum class BrowserSettingField {
     SINGLE_LINE_HEIGHT,
     HIGHLIGHT_COLOR,
     AD_BLOCK_ENABLED,
-    GUIDE_MODE
+    GUIDE_MODE,
+    OPTIONS_ORDER,
+    SETTINGS_ORDER,
+    HIDDEN_OPTIONS
 }
