@@ -27,8 +27,6 @@ import org.mozilla.geckoview.WebExtension
 import org.mozilla.geckoview.WebExtensionController
 import org.mozilla.geckoview.WebRequestError
 import org.mozilla.geckoview.WebResponse
-import java.io.File
-import java.io.FileOutputStream
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -40,7 +38,6 @@ import org.mozilla.geckoview.GeckoRuntimeSettings
 import kotlin.math.abs
 
 private const val UBLOCK_ID = "uBlock0@raymondhill.net"
-private const val UBLOCK_NAME = "ublock_origin"
 private const val FAVICON_ID = "favicon@marcinlowercase" // Must match manifest.json
 private var faviconExtension: WebExtension? = null
 
@@ -93,13 +90,42 @@ class GeckoManager(private val context: Context) {
     var isAdBlockEnabledTarget = true
 
     init {
-//        runtime.settings.consoleOutputEnabled = true
         setupExtensionPrompts()
-        setupExtension(UBLOCK_NAME, UBLOCK_ID)
         installFaviconFetcher()
-
+        ensureUblockOrigin()
     }
 
+    private fun ensureUblockOrigin() {
+        runtime.webExtensionController.list().accept(
+            { extensions ->
+                val existing = extensions?.find { it.id == UBLOCK_ID }
+                if (existing != null) {
+                    // 1. It's already installed! Just configure its enabled/disabled state.
+                    // (GeckoView automatically handles updating it in the background)
+                    configureExtension(existing)
+                } else {
+                    // 2. Not installed yet. Fetch the absolute latest version from Mozilla Add-ons (AMO).
+                    val latestUblockUrl = "https://addons.mozilla.org/firefox/downloads/latest/ublock-origin/latest.xpi"
+                    installRemoteExtension(latestUblockUrl)
+                }
+            },
+            { e -> Log.e("GeckoExt", "Failed to list extensions", e) }
+        )
+    }
+
+    private fun installRemoteExtension(url: String) {
+        runtime.webExtensionController.install(url).accept(
+            { extension ->
+                if (extension != null) {
+                    Log.i("GeckoExt", "Successfully downloaded and installed: ${extension.metaData.name}")
+                    configureExtension(extension)
+                }
+            },
+            { e ->
+                Log.e("GeckoExt", "Failed to install uBlock from web", e)
+            }
+        )
+    }
     fun setAdBlockEnabled(isEnabled: Boolean) {
         isAdBlockEnabledTarget = isEnabled
         uBlockExtension?.let { ext ->
@@ -146,7 +172,7 @@ class GeckoManager(private val context: Context) {
                 // SAVE THE REFERENCE
                 faviconExtension = ext
             },
-            { e -> //Log.e("GeckoExt", "Favicon Fetcher Failed", e)
+            { _ -> //Log.e("GeckoExt", "Favicon Fetcher Failed", e)
                  }
         )
     }
@@ -203,73 +229,6 @@ class GeckoManager(private val context: Context) {
 
     }
 
-    // use genetic function to add more extension later
-    private fun setupExtension(extName: String, extId: String) {
-        val extensionName = "$extName.xpi"
-        val extensionFile = File(context.filesDir, extensionName)
-
-        // 1. COPY FILE (Force overwrite to ensure clean state)
-        try {
-            context.assets.open("extensions/$extName/$extensionName").use { inputStream ->
-                FileOutputStream(extensionFile).use { outputStream ->
-                    inputStream.copyTo(outputStream)
-                }
-            }
-            // Verify it exists
-            if (!extensionFile.exists() || extensionFile.length() == 0L) {
-                //Log.e("GeckoExt", "CRITICAL: XPI file is empty or missing!")
-                return
-            }
-//            Log.i(
-//                "GeckoExt",
-//                "XPI Ready at: ${extensionFile.absolutePath} (${extensionFile.length()} bytes)"
-//            )
-        } catch (e: Exception) {
-            //Log.e("GeckoExt", "Failed to copy asset", e)
-            return
-        }
-
-        // 2. CHECK IF INSTALLED
-        runtime.webExtensionController.list()
-            .accept(
-                { extensions ->
-                    val existing = extensions?.find { it.id == extId }
-                    if (existing != null) {
-                        //Log.e("GeckoExt", "existing: ${existing.id}")
-                        //Log.i("GeckoExt", "uBlock already installed.")
-                        configureExtension(existing)
-                    } else {
-                        //Log.i("GeckoExt", "Installing fresh XPI...")
-                        installXpi(extensionFile)
-                    }
-                },
-                { e ->
-                //Log.e("GeckoExt", "List failed", e)
-                     }
-            )
-    }
-
-    private fun installXpi(file: File) {
-        // 3. FORCE CORRECT URI (Triple Slash)
-        // File.toURI() gives "file:/", Gecko needs "file:///"
-        val fileUri = "file://${file.absolutePath}"
-
-        //Log.i("GeckoExt", "Sending install command: $fileUri")
-
-        runtime.webExtensionController
-            .install(fileUri)
-            .accept(
-                { extension ->
-                    //Log.i("GeckoExt", "SUCCESS: Extension ID: ${extension?.id}")
-                    if (extension != null) configureExtension(extension)
-                },
-                { e ->
-                    // If this logs, we know WHY it failed
-                    //Log.e("GeckoExt", "INSTALL FAILURE", e)
-                }
-            )
-    }
-
     private fun configureExtension(extension: WebExtension) {
 
         if (extension.id == UBLOCK_ID) {
@@ -300,7 +259,7 @@ class GeckoManager(private val context: Context) {
             } else {
                 try {
                     session.open(runtime)
-                } catch (e: IllegalStateException) {
+                } catch (_: IllegalStateException) {
                     //Log.d("NewTabFlow", "Session already opening or attached: ${e.message}")
                 }
             }
@@ -323,10 +282,6 @@ class GeckoManager(private val context: Context) {
         engineManagedSessionIds.remove(tab.id)
     }
 
-    // TODO use for PiP mode later
-    private var currentVideoWidth = 16
-    private var currentVideoHeight = 9
-
         private fun getSessionSettings(tab: Tab, isDesktopMode: Boolean): GeckoSessionSettings {
             return GeckoSessionSettings.Builder()
                 .usePrivateMode(false) // Set based on your Incognito logic
@@ -344,7 +299,6 @@ class GeckoManager(private val context: Context) {
 
         // RESTORE STATE
         if (tab.savedState != null) {
-            //Log.e("TabFlow", "createand configure, restore")
             val stateToRestore = restoreStateFromString(tab.savedState ?: "")
             if (stateToRestore != null)
                 session.restoreState(stateToRestore)
@@ -446,21 +400,17 @@ class GeckoManager(private val context: Context) {
     private fun isExternalScheme(uri: String): Boolean {
         val lowerUri = uri.lowercase()
         // These are standard web schemes. Everything else should likely be handled by an external app.
-        if (lowerUri.startsWith("http://") ||
-            lowerUri.startsWith("https://") ||
-            lowerUri.startsWith("file://") ||
-            lowerUri.startsWith("about:") ||
-            lowerUri.startsWith("resource://") ||
-            lowerUri.startsWith("javascript:") ||
-            lowerUri.startsWith("blob:") ||
-            lowerUri.startsWith("data:") ||
-            lowerUri.startsWith("moz-extension://") || // <-- THE FIX: Allow uBlock Origin's block pages!
-            lowerUri.startsWith("chrome-extension://") ||
-            lowerUri.startsWith("extension://")
-        ) {
-            return false
-        }
-        return true
+        return !(lowerUri.startsWith("http://") ||
+                lowerUri.startsWith("https://") ||
+                lowerUri.startsWith("file://") ||
+                lowerUri.startsWith("about:") ||
+                lowerUri.startsWith("resource://") ||
+                lowerUri.startsWith("javascript:") ||
+                lowerUri.startsWith("blob:") ||
+                lowerUri.startsWith("data:") ||
+                lowerUri.startsWith("moz-extension://") || // <-- THE FIX: Allow uBlock Origin's block pages!
+                lowerUri.startsWith("chrome-extension://") ||
+                lowerUri.startsWith("extension://")) // <-- THE FIX: Allow uBlock Origin's block pages!
     }
     fun setupDelegates(
         session: GeckoSession,
@@ -676,8 +626,6 @@ class GeckoManager(private val context: Context) {
                 request: GeckoSession.NavigationDelegate.LoadRequest
             ): GeckoResult<AllowOrDeny> {
                 val uri = request.uri
-                Log.i("marcW", "onLoadRequest url ${uri}")
-                Log.i("marcW", "onLoadRequest isExternalScheme ${isExternalScheme(uri)}")
 
                 // 1. Check if this is a "Special" scheme (mailto, tel, intent, market)
                 if (isExternalScheme(uri)) {
@@ -698,8 +646,6 @@ class GeckoManager(private val context: Context) {
         session.progressDelegate = object : GeckoSession.ProgressDelegate {
             // EQUIVALENT TO onPageStarted on WebView
             override fun onPageStart(session: GeckoSession, url: String) {
-                Log.d("marcW", "Page Started: $url")
-
                 // ignore javascript injection
                 if (url.startsWith("javascript:")) return
 
@@ -710,7 +656,6 @@ class GeckoManager(private val context: Context) {
             // EQUIVALENT TO onPageFinished
             override fun onPageStop(session: GeckoSession, success: Boolean) {
 
-                Log.d("marcW", "Page Stopped: $success")
 
                 if (success) {
                     // inject js for design value
@@ -811,7 +756,7 @@ class GeckoManager(private val context: Context) {
                             onFaviconChanged(eventTabId, fullUrl)
                         }
                     }
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     //Log.e("GeckoIcons", "Error parsing manifest", e)
                 }
             }
@@ -974,7 +919,7 @@ class GeckoManager(private val context: Context) {
                     chooser.addFlags(Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
 
                     context.startActivity(chooser)
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     //Log.e("GeckoShare", "Failed to start share sheet", e)
                 }
                 return GeckoResult.fromValue(prompt.dismiss())
