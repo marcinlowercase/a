@@ -134,7 +134,7 @@ fun VideoStatusPanel(
     //Log.e("MediaDisplay", "uiState.value.isMediaControlPanelDisplayed${uiState.value.isMediaControlPanelDisplayed}")
     //Log.e("MediaDisplay", "shouldShow$shouldShow")
 
-    if ((uiState.value.isOnFullscreenVideo && uiState.value.isMediaControlPanelDisplayed) || shouldShow) Column (
+    if ( settings.value.isEnabledMediaControl && ((uiState.value.isOnFullscreenVideo && uiState.value.isMediaControlPanelDisplayed) || shouldShow)) Column (
         modifier = modifier
             .padding(settings.value.padding.dp)
             .widthIn(min = settings.value.heightForLayer(1).dp)

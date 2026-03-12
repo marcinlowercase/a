@@ -84,7 +84,7 @@ fun MediaControlPanel(
 
     //Log.w("MediaDisplay", "uiState.value.isOnFullscreenVideo${uiState.value.isOnFullscreenVideo}")
     //Log.w("MediaDisplay", "uiState.value.isMediaControlPanelDisplayed${uiState.value.isMediaControlPanelDisplayed}")
-    if (uiState.value.isOnFullscreenVideo && uiState.value.isMediaControlPanelDisplayed) {
+    if ( settings.value.isEnabledMediaControl && (uiState.value.isOnFullscreenVideo && uiState.value.isMediaControlPanelDisplayed)) {
         Column (
             modifier = modifier
                 .padding(settings.value.padding.dp)

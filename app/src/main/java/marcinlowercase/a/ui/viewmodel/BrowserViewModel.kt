@@ -549,6 +549,25 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         // We now check for "default_url" instead of "is_first_app_load" since it moved to global
         val prefsToUse = if (profilePrefs.contains("default_url")) profilePrefs else globalPrefs
         val d = DefaultSettingValues
+
+        val rawOptionsOrder = prefsToUse.getString("options_order", d.OPTIONS_ORDER) ?: d.OPTIONS_ORDER
+        val rawSettingsOrder = prefsToUse.getString("settings_order", d.SETTINGS_ORDER) ?: d.SETTINGS_ORDER
+
+        val allSavedTokens = (rawOptionsOrder.split(",") + rawSettingsOrder.split(","))
+            .filter { it.isNotBlank() }
+            .toSet()
+
+        val missingTokens = BrowserOption.entries
+            .map { it.name }
+            .filter { it !in allSavedTokens }
+
+        val finalSettingsOrder = if (missingTokens.isNotEmpty()) {
+            val updated = rawSettingsOrder.split(",").filter { it.isNotBlank() }.toMutableList()
+            updated.addAll(missingTokens)
+            updated.joinToString(",")
+        } else {
+            rawSettingsOrder
+        }
         return BrowserSettings(
             // --- GLOBAL SETTINGS (Shared across all profiles) ---
             isFirstAppLoad = globalPrefs.getBoolean("is_first_app_load", true),
@@ -572,9 +591,10 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             highlightColor = prefsToUse.getInt("highlight_color", d.HIGHLIGHT_COLOR),
             isAdBlockEnabled = prefsToUse.getBoolean("is_ad_block_enabled", d.IS_AD_BLOCK_ENABLED),
             isDesktopMode = prefsToUse.getBoolean("is_desktop_mode", d.IS_DESKTOP_MODE),
-            optionsOrder = prefsToUse.getString("options_order", d.OPTIONS_ORDER) ?: d.OPTIONS_ORDER,
-            settingsOrder = prefsToUse.getString("settings_order", d.SETTINGS_ORDER) ?: d.SETTINGS_ORDER,
+            optionsOrder = rawOptionsOrder,
+            settingsOrder = finalSettingsOrder,
             hiddenOptions = prefsToUse.getString("hidden_options", d.HIDDEN_OPTIONS) ?: d.HIDDEN_OPTIONS,
+            isEnabledMediaControl = prefsToUse.getBoolean("is_enabled_media_control", true),
 
 
 
@@ -705,6 +725,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             putBoolean("is_ad_block_enabled", settings.isAdBlockEnabled)
             putBoolean("is_guide_mode_enabled", settings.isGuideModeEnabled)
             putBoolean("is_desktop_mode", settings.isDesktopMode)
+            putBoolean("is_enabled_media_control", settings.isEnabledMediaControl)
             putString("options_order", settings.optionsOrder)
             putString("settings_order", settings.settingsOrder)
             putString("hidden_options", settings.hiddenOptions)

@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -32,17 +31,13 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,9 +51,6 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.onKeyEvent
-import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -66,7 +58,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.toColorInt
@@ -359,7 +350,21 @@ fun rememberBrowserOptionsRegistry(
                     isAppsPanelVisible = false
                 )
             }
+            },
+            BrowserOption.MEDIA_CONTROL to OptionItem(
+                id = BrowserOption.MEDIA_CONTROL,
+                iconRes = R.drawable.ic_video_settings,
+                contentDescription = "media control",
+                enabled = settings.value.isEnabledMediaControl
+            ) {
+                viewModel.updateSettings { it.copy(isEnabledMediaControl = !it.isEnabledMediaControl) }; viewModel.updateUI {
+                it.copy(
+                    isOptionsPanelVisible = false,
+                    isAppsPanelVisible = false
+                )
             }
+            },
+
         )
     }
 }
@@ -379,7 +384,7 @@ fun OptionsPanel(
         .mapNotNull {
             try {
                 BrowserOption.valueOf(it)
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 null
             }
         }
@@ -558,7 +563,7 @@ fun SettingsPanel(
         .mapNotNull {
             try {
                 BrowserOption.valueOf(it)
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 null
             }
         }

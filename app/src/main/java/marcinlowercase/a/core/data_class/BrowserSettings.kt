@@ -29,6 +29,8 @@ data class BrowserSettings(
     val optionsOrder: String,
     val settingsOrder: String,
     val hiddenOptions: String,
+
+    val isEnabledMediaControl: Boolean,
 ) {
     fun cornerRadiusForLayer(layer: Int): Float {
         if (layer == 0) return deviceCornerRadius
