@@ -1856,6 +1856,7 @@ fun BrowserScreen(
                 },
 
                 onExternalAppRequest = { url ->
+                    Log.i("marcW", "onExternalAppRequest url : $url")
                     viewModel.handleExternalIntent(activity, url)
                 }
             )

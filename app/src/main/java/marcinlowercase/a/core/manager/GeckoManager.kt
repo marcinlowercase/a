@@ -444,15 +444,19 @@ class GeckoManager(private val context: Context) {
         lastSnapshotTime.longValue = System.currentTimeMillis()
     }
     private fun isExternalScheme(uri: String): Boolean {
+        val lowerUri = uri.lowercase()
         // These are standard web schemes. Everything else should likely be handled by an external app.
-        if (uri.startsWith("http://") ||
-            uri.startsWith("https://") ||
-            uri.startsWith("file://") ||
-            uri.startsWith("about:") ||
-            uri.startsWith("resource://") ||
-            uri.startsWith("javascript:") ||
-            uri.startsWith("blob:") ||
-            uri.startsWith("data:")
+        if (lowerUri.startsWith("http://") ||
+            lowerUri.startsWith("https://") ||
+            lowerUri.startsWith("file://") ||
+            lowerUri.startsWith("about:") ||
+            lowerUri.startsWith("resource://") ||
+            lowerUri.startsWith("javascript:") ||
+            lowerUri.startsWith("blob:") ||
+            lowerUri.startsWith("data:") ||
+            lowerUri.startsWith("moz-extension://") || // <-- THE FIX: Allow uBlock Origin's block pages!
+            lowerUri.startsWith("chrome-extension://") ||
+            lowerUri.startsWith("extension://")
         ) {
             return false
         }
@@ -573,7 +577,37 @@ class GeckoManager(private val context: Context) {
         }
 
         ensureDelegateAttached()
+        runtime.webExtensionController.list().accept(
+            { extensions ->
+                extensions?.forEach { ext ->
+                    session.webExtensionController.setTabDelegate(
+                        ext,
+                        object : WebExtension.SessionTabDelegate {
+                            // Triggered when uBlock intercepts a tracking link and redirects
+                            // to its "Strict Blocking" moz-extension:// warning page.
+                            override fun onUpdateTab(
+                                extension: WebExtension,
+                                sess: GeckoSession,
+                                details: WebExtension.UpdateTabDetails
+                            ): GeckoResult<AllowOrDeny> {
+                                // Returning ALLOW tells GeckoView to automatically load the requested URL
+                                return GeckoResult.fromValue(AllowOrDeny.ALLOW)
+                            }
 
+                            // Optional: Triggered if an extension tries to close the current tab
+                            override fun onCloseTab(
+                                source: WebExtension?,
+                                sess: GeckoSession
+                            ): GeckoResult<AllowOrDeny> {
+                                onCloseTabFun(eventTabId)
+                                return GeckoResult.fromValue(AllowOrDeny.ALLOW)
+                            }
+                        }
+                    )
+                }
+            },
+            { e -> Log.e("GeckoManager", "Failed to list extensions", e) }
+        )
         session.navigationDelegate = object : GeckoSession.NavigationDelegate {
             override fun onLocationChange(
                 session: GeckoSession,
@@ -630,10 +664,11 @@ class GeckoManager(private val context: Context) {
                 session: GeckoSession,
                 uri: String?,
                 error: WebRequestError
-            ): GeckoResult<String> {
-                //Log.e("GeckoNav", "Load Error: $uri (${error.category})")
+            ): GeckoResult<String>? {
                 onLoadErrorFun(session, uri, error)
-                return GeckoResult.fromValue("about:blank")
+//                return GeckoResult.fromValue("about:blank")
+                return null
+
             }
 
             override fun onLoadRequest(
@@ -641,6 +676,8 @@ class GeckoManager(private val context: Context) {
                 request: GeckoSession.NavigationDelegate.LoadRequest
             ): GeckoResult<AllowOrDeny> {
                 val uri = request.uri
+                Log.i("marcW", "onLoadRequest url ${uri}")
+                Log.i("marcW", "onLoadRequest isExternalScheme ${isExternalScheme(uri)}")
 
                 // 1. Check if this is a "Special" scheme (mailto, tel, intent, market)
                 if (isExternalScheme(uri)) {
@@ -661,7 +698,7 @@ class GeckoManager(private val context: Context) {
         session.progressDelegate = object : GeckoSession.ProgressDelegate {
             // EQUIVALENT TO onPageStarted on WebView
             override fun onPageStart(session: GeckoSession, url: String) {
-                //Log.d("GeckoView", "Page Started: $url")
+                Log.d("marcW", "Page Started: $url")
 
                 // ignore javascript injection
                 if (url.startsWith("javascript:")) return
@@ -672,6 +709,8 @@ class GeckoManager(private val context: Context) {
 
             // EQUIVALENT TO onPageFinished
             override fun onPageStop(session: GeckoSession, success: Boolean) {
+
+                Log.d("marcW", "Page Stopped: $success")
 
                 if (success) {
                     // inject js for design value
