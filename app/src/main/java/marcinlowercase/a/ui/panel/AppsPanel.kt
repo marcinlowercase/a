@@ -174,10 +174,10 @@ fun AppsPanel(
                                 modifier = Modifier.animateItem(), // Smoothly slides when appearing/disappearing
                                 iconRes = R.drawable.ic_arrow_back,
                                 onClick = { viewModel.moveOptionLeft() },
-                                buttonDescription = "Move Left"
+                                buttonDescription = "move button left"
                             )
                         }
-                        visualItemCount++ // <-- STRICTLY INSIDE THE IF BLOCK
+                        visualItemCount++
                     }
 
                     // 2. Hide / Show
@@ -187,10 +187,10 @@ fun AppsPanel(
                                 modifier = Modifier.animateItem(),
                                 iconRes = if (isHidden) R.drawable.ic_visibility_off else R.drawable.ic_visibility,
                                 onClick = { viewModel.toggleOptionVisibility() },
-                                buttonDescription = if (isHidden) "Show Button" else "Hide Button"
+                                buttonDescription = if (isHidden) "show button" else "hide button"
                             )
                         }
-                        visualItemCount++ // <-- STRICTLY INSIDE THE IF BLOCK
+                        visualItemCount++
                     }
 
                     // 3. Move Right
@@ -200,10 +200,10 @@ fun AppsPanel(
                                 modifier = Modifier.animateItem(),
                                 iconRes = R.drawable.ic_arrow_forward,
                                 onClick = { viewModel.moveOptionRight() },
-                                buttonDescription = "Move Right"
+                                buttonDescription = "move button right"
                             )
                         }
-                        visualItemCount++ // <-- STRICTLY INSIDE THE IF BLOCK
+                        visualItemCount++
                     }
 
                     // 4. Done Button (Always visible when sorting)
@@ -216,7 +216,7 @@ fun AppsPanel(
                                 viewModel.inspectingOption.value = null
                                 viewModel.updateUI { it.copy(isAppsPanelVisible = false) }
                             },
-                            buttonDescription = "Done Sorting"
+                            buttonDescription = "done sorting"
                         )
                     }
                     visualItemCount++
@@ -363,10 +363,6 @@ fun AppsPanel(
                         )
                     }
                     visualItemCount++
-
-
-
-
                 }
 
                 val remainder = visualItemCount % 4

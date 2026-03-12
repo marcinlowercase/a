@@ -1563,7 +1563,6 @@ fun BrowserScreen(
                 onLocationChangeFun = { eventTabId, _, url, _, _ ->
                     if (eventTabId == viewModel.activeTab!!.id
                         && url != null
-                        && url != "about:blank"
                         && !url.startsWith("javascript:")
                     ) {
                         if (!uiState.value.isFocusOnUrlTextField) {
@@ -1657,7 +1656,7 @@ fun BrowserScreen(
                             viewModel.pendingPermissionRequest.value = null
                         }
                     }
-                    if (eventTabId == viewModel.activeTab!!.id && url != "about:blank") {
+                    if (eventTabId == viewModel.activeTab!!.id) {
                         viewModel.updateUI { it.copy(isLoading = true) }
                         if (viewModel.activeTab!!.errorState != null) {
                             viewModel.updateTabById(eventTabId) { it.copy(errorState = null) }
