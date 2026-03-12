@@ -594,7 +594,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             optionsOrder = rawOptionsOrder,
             settingsOrder = finalSettingsOrder,
             hiddenOptions = prefsToUse.getString("hidden_options", d.HIDDEN_OPTIONS) ?: d.HIDDEN_OPTIONS,
-            isEnabledMediaControl = prefsToUse.getBoolean("is_enabled_media_control", true),
+            isEnabledMediaControl = prefsToUse.getBoolean("is_enabled_media_control", d.IS_ENABLED_MEDIA_CONTROLE),
 
 
 
@@ -666,28 +666,30 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     fun resetSettings() {
         updateSettings {
+            val d = DefaultSettingValues
             it.copy(
-                padding = DefaultSettingValues.PADDING,
-                deviceCornerRadius = DefaultSettingValues.CORNER_RADIUS,
-                singleLineHeight = DefaultSettingValues.SINGLE_LINE_HEIGHT,
-                maxListHeight = DefaultSettingValues.MAX_LIST_HEIGHT,
-                defaultUrl = DefaultSettingValues.URL,
-                showSuggestions = DefaultSettingValues.SHOW_SUGGESTIONS,
-                animationSpeed = DefaultSettingValues.ANIMATION_SPEED,
-                isSharpMode = DefaultSettingValues.IS_SHARP_MODE,
-                isDesktopMode = DefaultSettingValues.IS_DESKTOP_MODE,
-                cursorContainerSize = DefaultSettingValues.CURSOR_CONTAINER_SIZE,
-                cursorPointerSize = DefaultSettingValues.CURSOR_POINTER_SIZE,
-                cursorTrackingSpeed = DefaultSettingValues.CURSOR_TRACKING_SPEED,
-                backSquareIdleOpacity = DefaultSettingValues.BACK_SQUARE_IDLE_OPACITY,
-                highlightColor = DefaultSettingValues.HIGHLIGHT_COLOR,
-                isAdBlockEnabled = DefaultSettingValues.IS_AD_BLOCK_ENABLED,
-                isFullscreenMode = DefaultSettingValues.IS_FULLSCREEN_MODE,
-                closedTabHistorySize = DefaultSettingValues.CLOSED_TAB_HISTORY_SIZE,
-                searchEngine = DefaultSettingValues.SEARCH_ENGINE,
-                optionsOrder = DefaultSettingValues.OPTIONS_ORDER,
-                settingsOrder = DefaultSettingValues.SETTINGS_ORDER,
-                hiddenOptions = DefaultSettingValues.HIDDEN_OPTIONS
+                padding = d.PADDING,
+                deviceCornerRadius = d.CORNER_RADIUS,
+                singleLineHeight = d.SINGLE_LINE_HEIGHT,
+                maxListHeight = d.MAX_LIST_HEIGHT,
+                defaultUrl = d.URL,
+                showSuggestions = d.SHOW_SUGGESTIONS,
+                animationSpeed = d.ANIMATION_SPEED,
+                isSharpMode = d.IS_SHARP_MODE,
+                isDesktopMode = d.IS_DESKTOP_MODE,
+                cursorContainerSize = d.CURSOR_CONTAINER_SIZE,
+                cursorPointerSize = d.CURSOR_POINTER_SIZE,
+                cursorTrackingSpeed = d.CURSOR_TRACKING_SPEED,
+                backSquareIdleOpacity = d.BACK_SQUARE_IDLE_OPACITY,
+                highlightColor = d.HIGHLIGHT_COLOR,
+                isAdBlockEnabled = d.IS_AD_BLOCK_ENABLED,
+                isFullscreenMode = d.IS_FULLSCREEN_MODE,
+                closedTabHistorySize = d.CLOSED_TAB_HISTORY_SIZE,
+                searchEngine = d.SEARCH_ENGINE,
+                optionsOrder = d.OPTIONS_ORDER,
+                settingsOrder = d.SETTINGS_ORDER,
+                hiddenOptions = d.HIDDEN_OPTIONS,
+                isEnabledMediaControl = d.IS_ENABLED_MEDIA_CONTROLE,
             )
         }
     }
