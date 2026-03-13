@@ -594,7 +594,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             optionsOrder = rawOptionsOrder,
             settingsOrder = finalSettingsOrder,
             hiddenOptions = prefsToUse.getString("hidden_options", d.HIDDEN_OPTIONS) ?: d.HIDDEN_OPTIONS,
-            isEnabledMediaControl = prefsToUse.getBoolean("is_enabled_media_control", d.IS_ENABLED_MEDIA_CONTROLE),
+            isEnabledMediaControl = prefsToUse.getBoolean("is_enabled_media_control", d.IS_ENABLED_MEDIA_CONTROL),
+            isEnabledOutSync = prefsToUse.getBoolean("is_enabled_out_sync", d.IS_ENABLED_OUT_SYNC),
 
 
 
@@ -689,7 +690,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 optionsOrder = d.OPTIONS_ORDER,
                 settingsOrder = d.SETTINGS_ORDER,
                 hiddenOptions = d.HIDDEN_OPTIONS,
-                isEnabledMediaControl = d.IS_ENABLED_MEDIA_CONTROLE,
+                isEnabledMediaControl = d.IS_ENABLED_MEDIA_CONTROL,
+                isEnabledOutSync = d.IS_ENABLED_OUT_SYNC
             )
         }
     }
@@ -728,6 +730,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             putBoolean("is_guide_mode_enabled", settings.isGuideModeEnabled)
             putBoolean("is_desktop_mode", settings.isDesktopMode)
             putBoolean("is_enabled_media_control", settings.isEnabledMediaControl)
+            putBoolean("is_enabled_out_sync", settings.isEnabledOutSync)
             putString("options_order", settings.optionsOrder)
             putString("settings_order", settings.settingsOrder)
             putString("hidden_options", settings.hiddenOptions)

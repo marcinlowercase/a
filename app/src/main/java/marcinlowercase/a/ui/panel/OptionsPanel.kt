@@ -78,7 +78,7 @@ enum class SettingPanelView {
     MAIN, CORNER_RADIUS, PADDING, ANIMATION_SPEED, CURSOR_CONTAINER_SIZE,
     CURSOR_TRACKING_SPEED, BACK_SQUARE_OPACITY, DEFAULT_URL, INFO,
     CLOSED_TAB_HISTORY_SIZE, MAX_LIST_HEIGHT, SEARCH_ENGINE,
-    SINGLE_LINE_HEIGHT, HIGHLIGHT_COLOR,
+    SINGLE_LINE_HEIGHT, HIGHLIGHT_COLOR
 }
 
 // --- MASTER REGISTRY OF ALL BUTTONS ---
@@ -364,8 +364,22 @@ fun rememberBrowserOptionsRegistry(
                 )
             }
             },
+            BrowserOption.OUT_SYNC to OptionItem(
+                id = BrowserOption.OUT_SYNC,
+                iconRes = R.drawable.ic_room_preferences,
+                contentDescription = "out sync",
+                enabled = settings.value.isEnabledOutSync
+            ) {
+                viewModel.updateSettings { it.copy(isEnabledOutSync = !it.isEnabledOutSync) }; viewModel.updateUI {
+                it.copy(
+                    isOptionsPanelVisible = false,
+                    isAppsPanelVisible = false
+                )
+            }
+            },
 
-        )
+
+            )
     }
 }
 

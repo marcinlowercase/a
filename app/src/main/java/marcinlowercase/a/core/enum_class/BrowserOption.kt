@@ -39,5 +39,6 @@ enum class BrowserOption(val type: OptionType) {
     CLOSE_ALL_TABS(OptionType.TOGGLE_ACTION),
     ADBLOCK(OptionType.TOGGLE_ACTION),
     SUGGESTIONS(OptionType.TOGGLE_ACTION),
-    MEDIA_CONTROL(OptionType.TOGGLE_ACTION)
+    MEDIA_CONTROL(OptionType.TOGGLE_ACTION),
+    OUT_SYNC(OptionType.TOGGLE_ACTION)
 }

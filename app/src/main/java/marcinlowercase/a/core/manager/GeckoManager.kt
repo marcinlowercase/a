@@ -659,7 +659,7 @@ class GeckoManager(private val context: Context) {
 
                 Log.d("marcW", "highlightColor ${browserSettings.value.highlightColor.toHexString()}")
 
-                if (success) {
+                if (browserSettings.value.isEnabledOutSync && success) {
                     // inject js for design value
                     val js = """
                             javascript:(function(){
