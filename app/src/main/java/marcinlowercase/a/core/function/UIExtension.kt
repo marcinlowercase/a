@@ -191,3 +191,17 @@ fun String.toDomain(): String = try {
     this
 }
 
+fun formatArgbToCss(argb: String): String {
+    // Remove the '#' if the user accidentally included it
+    val cleanHex = argb.removePrefix("#")
+
+    return if (cleanHex.length == 8) {
+        val alpha = cleanHex.substring(0, 2)
+        val rgb = cleanHex.substring(2, 8)
+        "#$rgb$alpha"
+    } else {
+        // Fallback for 6-digit hex or invalid strings
+        "#$cleanHex"
+    }
+}
+

@@ -34,6 +34,7 @@ import androidx.compose.runtime.setValue
 import marcinlowercase.a.core.data_class.JsChoiceState
 import marcinlowercase.a.core.data_class.JsColorState
 import marcinlowercase.a.core.data_class.JsDateTimeState
+import marcinlowercase.a.core.function.formatArgbToCss
 import org.mozilla.geckoview.GeckoRuntimeSettings
 import kotlin.math.abs
 
@@ -656,6 +657,7 @@ class GeckoManager(private val context: Context) {
             // EQUIVALENT TO onPageFinished
             override fun onPageStop(session: GeckoSession, success: Boolean) {
 
+                Log.d("marcW", "highlightColor ${browserSettings.value.highlightColor.toHexString()}")
 
                 if (success) {
                     // inject js for design value
@@ -664,6 +666,7 @@ class GeckoManager(private val context: Context) {
                             document.documentElement.style.setProperty('--device-corner-radius', '${browserSettings.value.deviceCornerRadius}px');
                             document.documentElement.style.setProperty('--padding', '${browserSettings.value.padding}px');
                             document.documentElement.style.setProperty('--single-line-height', '${browserSettings.value.singleLineHeight}px');
+                            document.documentElement.style.setProperty('--highlight-color', '${formatArgbToCss(browserSettings.value.highlightColor.toHexString())}');
                             window.deviceCornerRadius = ${browserSettings.value.deviceCornerRadius};
                             if (typeof window.render === 'function') window.render(${browserSettings.value.deviceCornerRadius});
                             
