@@ -843,37 +843,33 @@ fun SettingsPanel(
                 )
 
                 SettingPanelView.HIGHLIGHT_COLOR -> {
+                    // 1. Minimum Brightness to ensure visibility against a BLACK background
+                    val MIN_BRIGHTNESS = 0.35f
+
                     val initialHsv = remember(settings.value.highlightColor) {
-                        val hsv = FloatArray(3); AndroidColor.colorToHSV(
-                        settings.value.highlightColor,
+                        val hsv = FloatArray(3)
+                        AndroidColor.colorToHSV(settings.value.highlightColor, hsv)
+                        // Sanitize initial color based on the new logic
+                        val safeMaxV = (0.60f + hsv[1]).coerceAtMost(1f)
+                        hsv[2] = hsv[2].coerceIn(MIN_BRIGHTNESS, safeMaxV)
                         hsv
-                    ); hsv
                     }
                     var hue by remember { mutableFloatStateOf(initialHsv[0]) }
                     var saturation by remember { mutableFloatStateOf(initialHsv[1]) }
                     var value by remember { mutableFloatStateOf(initialHsv[2]) }
+
                     val selectedColorInt = remember(hue, saturation, value) {
-                        AndroidColor.HSVToColor(
-                            floatArrayOf(
-                                hue,
-                                saturation,
-                                value
-                            )
-                        )
+                        AndroidColor.HSVToColor(floatArrayOf(hue, saturation, value))
                     }
                     var hexText by remember {
-                        mutableStateOf(
-                            String.format(
-                                "#%06X",
-                                0xFFFFFF and selectedColorInt
-                            )
-                        )
+                        mutableStateOf(String.format("#%06X", 0xFFFFFF and selectedColorInt))
                     }
 
+                    // 2. Only auto-update the text when NOT typing (allows sliders to update text instantly)
                     LaunchedEffect(selectedColorInt) {
-                        val currentHex = String.format("#%06X", 0xFFFFFF and selectedColorInt)
-                        if (hexText.uppercase() != currentHex.uppercase() && hexText.length >= 7) hexText =
-                            currentHex
+                        if (!uiState.value.isFocusOnSettingTextField) {
+                            hexText = String.format("#%06X", 0xFFFFFF and selectedColorInt)
+                        }
                         viewModel.updateSettings { it.copy(highlightColor = selectedColorInt) }
                     }
 
@@ -893,11 +889,7 @@ fun SettingsPanel(
                             IconButton(
                                 onClick = onBackClick,
                                 modifier = Modifier
-                                    .clip(
-                                        RoundedCornerShape(
-                                            settings.value.cornerRadiusForLayer(3).dp
-                                        )
-                                    )
+                                    .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(3).dp))
                                     .fillMaxHeight()
                                     .background(Color.White)
                                     .defaultMinSize(minWidth = settings.value.heightForLayer(3).dp)
@@ -916,25 +908,26 @@ fun SettingsPanel(
                                     .background(Color(selectedColorInt)),
                                 contentAlignment = Alignment.Center
                             ) {
-                                val textColor =
-                                    if (isColorDark(selectedColorInt)) Color.White else Color.Black
+                                val textColor = if (isColorDark(selectedColorInt)) Color.White else Color.Black
                                 val keyboardController = LocalSoftwareKeyboardController.current
                                 val focusManager = LocalFocusManager.current
                                 BasicTextField(
                                     value = hexText,
                                     onValueChange = { newText ->
-                                        val filtered =
-                                            newText.filter { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' || it == '#' }
+                                        val filtered = newText.filter { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' || it == '#' }
                                         if (filtered.length <= 7) {
                                             hexText = filtered
                                             try {
-                                                val parsedColor =
-                                                    (if (filtered.startsWith("#")) filtered else "#$filtered").toColorInt()
+                                                val parsedColor = (if (filtered.startsWith("#")) filtered else "#$filtered").toColorInt()
                                                 val hsv = FloatArray(3)
                                                 AndroidColor.colorToHSV(parsedColor, hsv)
-                                                hue = hsv[0]; saturation = hsv[1]; value = hsv[2]
-                                            } catch (_: Exception) {
-                                            }
+                                                hue = hsv[0]
+                                                saturation = hsv[1]
+
+                                                // 3. New Math: Allows Pure Red/Green/Blue to have 1.0f Brightness
+                                                val safeMaxV = (0.60f + saturation).coerceAtMost(1f)
+                                                value = hsv[2].coerceIn(MIN_BRIGHTNESS, safeMaxV)
+                                            } catch (_: Exception) { }
                                         }
                                     },
                                     modifier = Modifier
@@ -942,7 +935,13 @@ fun SettingsPanel(
                                         .onFocusChanged { focusState ->
                                             viewModel.updateUI {
                                                 it.copy(isFocusOnSettingTextField = focusState.hasFocus)
-                                            }; if (focusState.hasFocus) hexText = ""
+                                            }
+                                            if (focusState.hasFocus) {
+                                                hexText = "" // Clear text so user can easily type
+                                            } else {
+                                                // 4. THE FIX: The moment focus is lost, force text to match the real clamped color
+                                                hexText = String.format("#%06X", 0xFFFFFF and selectedColorInt)
+                                            }
                                         },
                                     cursorBrush = SolidColor(Color.Transparent),
                                     textStyle = TextStyle(
@@ -952,18 +951,9 @@ fun SettingsPanel(
                                     ),
                                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                                     keyboardActions = KeyboardActions(onDone = {
-                                        val finalFormat =
-                                            if (hexText.startsWith("#")) hexText else "#$hexText"
-                                        try {
-                                            finalFormat.toColorInt(); hexText =
-                                                finalFormat.uppercase()
-                                        } catch (_: Exception) {
-                                            hexText = String.format(
-                                                "#%06X",
-                                                0xFFFFFF and selectedColorInt
-                                            )
-                                        }
-                                        focusManager.clearFocus(); keyboardController?.hide()
+                                        // Clearing focus will trigger onFocusChanged(false), auto-formatting the text for us!
+                                        focusManager.clearFocus()
+                                        keyboardController?.hide()
                                     }),
                                     singleLine = true
                                 )
@@ -971,17 +961,13 @@ fun SettingsPanel(
                             IconButton(
                                 onClick = { },
                                 modifier = Modifier
-                                    .clip(
-                                        RoundedCornerShape(
-                                            settings.value.cornerRadiusForLayer(3).dp
-                                        )
-                                    )
+                                    .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(3).dp))
                                     .fillMaxHeight()
                                     .defaultMinSize(minWidth = settings.value.heightForLayer(3).dp)
                             ) {
                                 Icon(
                                     painter = painterResource(id = R.drawable.ic_colors),
-                                    contentDescription = "Back to Settings",
+                                    contentDescription = "Highlight Color",
                                     tint = Color.White
                                 )
                             }
@@ -994,15 +980,7 @@ fun SettingsPanel(
                             Column {
                                 val rainbowBrush = remember {
                                     Brush.horizontalGradient(
-                                        listOf(
-                                            Color.Red,
-                                            Color.Yellow,
-                                            Color.Green,
-                                            Color.Cyan,
-                                            Color.Blue,
-                                            Color.Magenta,
-                                            Color.Red
-                                        )
+                                        listOf(Color.Red, Color.Yellow, Color.Green, Color.Cyan, Color.Blue, Color.Magenta, Color.Red)
                                     )
                                 }
                                 Box(contentAlignment = Alignment.Center) {
@@ -1024,19 +1002,35 @@ fun SettingsPanel(
                                         )
                                     )
                                 }
+
                                 Slider(
                                     value = saturation,
-                                    onValueChange = { saturation = it },
+                                    onValueChange = { newSat ->
+                                        saturation = newSat
+                                        // Smart Link: Pulls Brightness down if user drags Saturation towards white
+                                        val safeMaxV = (0.60f + newSat).coerceAtMost(1f)
+                                        if (value > safeMaxV) {
+                                            value = safeMaxV
+                                        }
+                                    },
                                     valueRange = 0f..1f,
                                     colors = SliderDefaults.colors(
                                         thumbColor = Color.White,
                                         activeTrackColor = Color(selectedColorInt).copy(alpha = 1f)
                                     )
                                 )
+
                                 Slider(
                                     value = value,
-                                    onValueChange = { value = it },
-                                    valueRange = 0f..1f,
+                                    onValueChange = { newV ->
+                                        value = newV
+                                        // Smart Link: Pushes Saturation up if user drags Brightness towards white
+                                        val safeMinS = (newV - 0.60f).coerceAtLeast(0f)
+                                        if (saturation < safeMinS) {
+                                            saturation = safeMinS
+                                        }
+                                    },
+                                    valueRange = MIN_BRIGHTNESS..1f, // Brightness is allowed back up to 100%
                                     colors = SliderDefaults.colors(
                                         thumbColor = Color.White,
                                         activeTrackColor = Color.White.copy(alpha = value)
@@ -1045,8 +1039,7 @@ fun SettingsPanel(
                             }
                         }
                     }
-                }
-            }
+                }            }
         }
     }
 }
