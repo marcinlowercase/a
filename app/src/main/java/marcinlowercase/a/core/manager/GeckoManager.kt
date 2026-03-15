@@ -281,6 +281,10 @@ class GeckoManager(private val context: Context) {
                 }
             }
         }
+
+        // If the session was requested, it is actively alive. Remove from killed list.
+        killedSessionIds.remove(tab.id)
+
         return session
     }
 
@@ -314,12 +318,19 @@ class GeckoManager(private val context: Context) {
         val session = GeckoSession(getSessionSettings(tab, isDesktopMode))
 
 
-        // RESTORE STATE
-        if (tab.savedState != null) {
+        // RESTORE STATE - Only do this ONCE upon session creation
+        val cachedState = stateCache[tab.id]
+        if (cachedState != null) {
+            Log.d("marcRestore", "restore state from cache in createAndConfigureSession")
+            session.restoreState(cachedState)
+        } else if (tab.savedState != null) {
             val stateToRestore = restoreStateFromString(tab.savedState ?: "")
-            if (stateToRestore != null)
+            if (stateToRestore != null) {
+                Log.d("marcRestore", "restore state from string in createAndConfigureSession")
                 session.restoreState(stateToRestore)
+            }
         }
+
         return session
     }
 
@@ -477,31 +488,33 @@ class GeckoManager(private val context: Context) {
         //Log.i("NewTabFlow", "setupDelegates")
         val eventTabId = tab.value.id
 
-        if (killedSessionIds.contains(eventTabId)) {
-            //Log.i("GeckoManager", "Resurrecting killed session: $eventTabId")
-
-            // ensure session is open (in case the whole session closed)
-            if (!session.isOpen) {
-                session.open(runtime)
-            }
-
-            // try to restore exact state from our memory cache first
-            val cachedState = stateCache[eventTabId]
-            if (cachedState != null) {
-                session.restoreState(cachedState)
-            } else if (tab.value.savedState != null) {
-                restoreStateFromString(tab.value.savedState!!)?.let {
-                    session.restoreState(it)
-                }
-            }
-            val fallbackUrl = tab.value.currentURL.takeIf { it.isNotBlank() && it != "about:blank" }
-                ?: browserSettings.value.defaultUrl.takeIf { it.isNotBlank() }
-                ?: "about:blank"
-            session.loadUri(fallbackUrl)
-
-            // remove from the kill list so we don't restore loop
-            killedSessionIds.remove(eventTabId)
-        }
+//        if (killedSessionIds.contains(eventTabId)) {
+//            //Log.i("GeckoManager", "Resurrecting killed session: $eventTabId")
+//
+//            // ensure session is open (in case the whole session closed)
+//            if (!session.isOpen) {
+//                session.open(runtime)
+//            }
+//
+//            // try to restore exact state from our memory cache first
+//            val cachedState = stateCache[eventTabId]
+//            if (cachedState != null) {
+//                Log.d("marcRestore", "restore state from setup Delegate: cache")
+//                session.restoreState(cachedState)
+//            } else if (tab.value.savedState != null) {
+//                restoreStateFromString(tab.value.savedState!!)?.let {
+//                    Log.d("marcRestore", "restore state from setup Delegate: tab saved state")
+//                    session.restoreState(it)
+//                }
+//            }
+//            val fallbackUrl = tab.value.currentURL.takeIf { it.isNotBlank() && it != "about:blank" }
+//                ?: browserSettings.value.defaultUrl.takeIf { it.isNotBlank() }
+//                ?: "about:blank"
+//            session.loadUri(fallbackUrl)
+//
+//            // remove from the kill list so we don't restore loop
+//            killedSessionIds.remove(eventTabId)
+//        }
 
         // message delegate to get favicon message from the web
 
