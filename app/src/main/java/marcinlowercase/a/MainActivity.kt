@@ -1615,11 +1615,11 @@ fun BrowserScreen(
 //                        }
 //                    }
                 },
-                onSessionStateChangeFun = { _, _ ->
+                onSessionStateChangeFun = { eventTabId, _, _ ->
                     val stateToSave =
-                        viewModel.geckoManager.getSessionStateString(viewModel.activeTab!!.id)
+                        viewModel.geckoManager.getSessionStateString(eventTabId)
                     if (stateToSave != null) {
-                        viewModel.updateTabById(viewModel.activeTab!!.id) { it.copy(savedState = stateToSave) }
+                        viewModel.updateTabById(eventTabId) { it.copy(savedState = stateToSave) }
                         viewModel.tabManager.saveTabs(viewModel.activeProfileId.value, viewModel.tabs, activeTabIndex)
                     }
                 },

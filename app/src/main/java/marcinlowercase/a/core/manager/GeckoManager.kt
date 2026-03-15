@@ -448,6 +448,7 @@ class GeckoManager(private val context: Context) {
             realtimeHistory: GeckoSession.HistoryDelegate.HistoryList
         ) -> Unit,
         onSessionStateChangeFun: (
+            eventTabId: Long,
             session: GeckoSession,
             state: GeckoSession.SessionState
         ) -> Unit,
@@ -492,12 +493,11 @@ class GeckoManager(private val context: Context) {
                 restoreStateFromString(tab.value.savedState!!)?.let {
                     session.restoreState(it)
                 }
-            } else {
-                val fallbackUrl = tab.value.currentURL.takeIf { it.isNotBlank() && it != "about:blank" }
-                    ?: browserSettings.value.defaultUrl.takeIf { it.isNotBlank() }
-                    ?: "about:blank"
-                session.loadUri(fallbackUrl)
             }
+            val fallbackUrl = tab.value.currentURL.takeIf { it.isNotBlank() && it != "about:blank" }
+                ?: browserSettings.value.defaultUrl.takeIf { it.isNotBlank() }
+                ?: "about:blank"
+            session.loadUri(fallbackUrl)
 
             // remove from the kill list so we don't restore loop
             killedSessionIds.remove(eventTabId)
@@ -680,7 +680,7 @@ class GeckoManager(private val context: Context) {
                 if (browserSettings.value.isEnabledOutSync && success) {
                     // inject js for design value
                     val js = """
-                            javascript:(function(){
+                            javascript:void((function(){
                             document.documentElement.style.setProperty('--device-corner-radius', '${browserSettings.value.deviceCornerRadius}px');
                             document.documentElement.style.setProperty('--padding', '${browserSettings.value.padding}px');
                             document.documentElement.style.setProperty('--single-line-height', '${browserSettings.value.singleLineHeight}px');
@@ -690,11 +690,10 @@ class GeckoManager(private val context: Context) {
                             
                        
                             console.log("Injection Success! Radius is " + window.deviceCornerRadius);
-                            })()
+                            })());
                             """
                         .trimIndent()
                         .replace("\n", " ")
-
                     session.loadUri(js)
                 }
 
@@ -716,7 +715,7 @@ class GeckoManager(private val context: Context) {
                 // save state to restore every session state change
                 stateCache[eventTabId] = state
 
-                onSessionStateChangeFun(session, state)
+                onSessionStateChangeFun(eventTabId, session, state)
             }
         }
 
