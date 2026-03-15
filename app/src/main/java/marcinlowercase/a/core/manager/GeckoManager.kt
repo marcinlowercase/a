@@ -477,8 +477,10 @@ class GeckoManager(private val context: Context) {
                     session.restoreState(it)
                 }
             } else {
-                // fallback: If no cache, just reload the URL
-                session.reload()
+                val fallbackUrl = tab.value.currentURL.takeIf { it.isNotBlank() && it != "about:blank" }
+                    ?: browserSettings.value.defaultUrl.takeIf { it.isNotBlank() }
+                    ?: "about:blank"
+                session.loadUri(fallbackUrl)
             }
 
             // remove from the kill list so we don't restore loop

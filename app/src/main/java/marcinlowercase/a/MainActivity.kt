@@ -1864,14 +1864,13 @@ fun BrowserScreen(
                 webViewLoad(activeSession, initialIntentUrl, settings)
                 viewModel.updateUI { it.copy(initialLoadDone = true) }
             } else {
-                // If the session is empty (no navigation history) and not being restored, load the URL.
-                // This covers "New Tab" clicks and "Target Blank" where engine didn't auto-load.
-                if (viewModel.activeTab!!.savedState == null) {
+                val stateToRestore = viewModel.activeTab!!.savedState?.let {
+                    viewModel.geckoManager.restoreStateFromString(it)
+                }
+                if (stateToRestore == null) {
                     val baseLoad = viewModel.activeTab!!.currentURL.ifBlank { settings.defaultUrl }
 
                     val urlToLoad = baseLoad.ifBlank { "about:blank" }
-                    // Avoid reloading if it's already on that page (prevents loop)
-                    // But since historyState is null, we are safe to load.
                     webViewLoad(activeSession, urlToLoad, settings)
                 }
             }
