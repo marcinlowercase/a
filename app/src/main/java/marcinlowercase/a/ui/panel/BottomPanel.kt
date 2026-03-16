@@ -942,8 +942,7 @@ fun BottomPanel(
                                     ?: ""
 
                                 uiState.value.isPinningApp -> viewModel.activeTab!!.currentTitle
-                                else -> viewModel.activeTab!!.currentURL
-
+                                else -> viewModel.activeTab!!.errorState?.failingUrl ?: viewModel.activeTab!!.currentURL
                             }
                         )
                         urlBarFocusRequester.requestFocus()
