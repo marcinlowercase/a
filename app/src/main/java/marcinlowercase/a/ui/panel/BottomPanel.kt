@@ -957,9 +957,13 @@ fun BottomPanel(
                         focusManager.clearFocus()
                     },
                     onAddToHomeScreen = {
+                        val input = (textFieldState.text as CharSequence).toString().trim()
+                        // 2. If the user cleared the text, fallback to the website's title
+                        val finalTitle = input.ifEmpty { viewModel.activeTab!!.currentTitle }
+
                         viewModel.generateAndInstallWebApk(
                             context = context,
-                            title = viewModel.activeTab!!.currentTitle,
+                            title = finalTitle,
                             url = viewModel.activeTab!!.currentURL,
                             iconUrl = viewModel.activeTab!!.currentFaviconUrl
                         )

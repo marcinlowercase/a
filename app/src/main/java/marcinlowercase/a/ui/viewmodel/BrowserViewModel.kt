@@ -1227,16 +1227,14 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     ): Boolean {
         return withContext(Dispatchers.IO) {
             try {
-                // 1. Prepare working files
                 val unsignedApk = File(context.cacheDir, "unsigned_${System.currentTimeMillis()}.apk")
 
-                // Fetch the Icon Bitmap via Coil
                 var iconBitmap: Bitmap? = null
                 if (iconUrl.isNotBlank()) {
                     val loader = ImageLoader(context)
                     val request = ImageRequest.Builder(context)
                         .data(iconUrl)
-                        .size(192) // Standard WebAPK icon size
+                        .size(192)
                         .build()
                     val result = loader.execute(request)
                     if (result is SuccessResult) {
@@ -1244,15 +1242,17 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                     }
                 }
 
-                // 2. Repackage the APK
-// 2. Repackage the APK
+                // --- CRITICAL FIX: Generate the random package ID here so both files get the SAME ID ---
+                val targetPackage = "com.webapk.app0000"
+                val randomId = (1000..9999).random()
+                val replacementPackage = "com.webapk.app$randomId"
+
                 java.util.zip.ZipInputStream(context.assets.open("template.apk")).use { zis ->
                     java.util.zip.ZipOutputStream(java.io.FileOutputStream(unsignedApk)).use { zos ->
                         var entry = zis.nextEntry
                         while (entry != null) {
                             val name = entry.name
 
-                            // Skip old signatures
                             if (name.startsWith("META-INF/")) {
                                 entry = zis.nextEntry
                                 continue
@@ -1261,7 +1261,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                             var bytesToWrite: ByteArray? = null
 
                             when (name) {
-                                // A. Replace the App Icon
                                 "res/mipmap-xxhdpi-v4/ic_launcher.png",
                                 "res/mipmap-xxhdpi/ic_launcher.png",
                                 "res/drawable-xxhdpi/ic_launcher.png" -> {
@@ -1272,49 +1271,43 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                                     }
                                 }
 
-                                // B. Inject the Web URL and Host Package configuration
                                 "assets/config.json" -> {
                                     val hostPackage = context.packageName
                                     val configJson = """{"url": "$url", "host": "$hostPackage"}"""
                                     bytesToWrite = configJson.toByteArray(Charsets.UTF_8)
                                 }
 
-                                // C. Binary Patch the App Title in resources.arsc
                                 "resources.arsc" -> {
                                     val bytes = zis.readBytes()
                                     val targetTitle = "___PWA_APP_NAME___"
                                     val replacementTitle = title.take(18).padEnd(18, ' ')
 
+                                    // 1. Patch the Title
                                     var patched = replaceBytes(bytes, targetTitle.toByteArray(Charsets.UTF_16LE), replacementTitle.toByteArray(Charsets.UTF_16LE))
                                     patched = replaceBytes(patched, targetTitle.toByteArray(Charsets.UTF_8), replacementTitle.toByteArray(Charsets.UTF_8))
+
+                                    // 2. Patch the Package Name inside resources.arsc too!
+                                    patched = replaceBytes(patched, targetPackage.toByteArray(Charsets.UTF_16LE), replacementPackage.toByteArray(Charsets.UTF_16LE))
+                                    patched = replaceBytes(patched, targetPackage.toByteArray(Charsets.UTF_8), replacementPackage.toByteArray(Charsets.UTF_8))
+
                                     bytesToWrite = patched
                                 }
 
-                                // D. Binary Patch the Package Name in AndroidManifest.xml
                                 "AndroidManifest.xml" -> {
                                     val bytes = zis.readBytes()
-                                    // Notice: In your logs, your shell package was actually com.webapk.app0000.test
-                                    // If you created it as .test, we look for com.webapk.app0000
-                                    val targetPackage = "com.webapk.app0000"
-                                    val randomId = (1000..9999).random()
-                                    val replacementPackage = "com.webapk.app$randomId"
 
                                     var patched = replaceBytes(bytes, targetPackage.toByteArray(Charsets.UTF_16LE), replacementPackage.toByteArray(Charsets.UTF_16LE))
                                     patched = replaceBytes(patched, targetPackage.toByteArray(Charsets.UTF_8), replacementPackage.toByteArray(Charsets.UTF_8))
+
                                     bytesToWrite = patched
                                 }
                             }
 
-                            // If we didn't modify it, just read the original bytes
                             if (bytesToWrite == null) {
                                 bytesToWrite = zis.readBytes()
                             }
 
                             val newEntry = java.util.zip.ZipEntry(name)
-
-                            // !!! CRITICAL FIX !!!
-                            // Android requires resources.arsc and icons to be STORED (0% compression).
-                            // If we compress them, Android fails to install the APK.
                             if (entry.method == java.util.zip.ZipEntry.STORED) {
                                 newEntry.method = java.util.zip.ZipEntry.STORED
                                 newEntry.size = bytesToWrite.size.toLong()
@@ -1333,7 +1326,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                         }
                     }
                 }
-                // 3. Cryptographically Sign the APK using apksig (V2 Signature)
+
                 val signerConfig = com.android.apksig.ApkSigner.SignerConfig.Builder(
                     "PWA_KEY",
                     getPrivateKeyFromAssets(context),
@@ -1348,8 +1341,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                     .build()
 
                 apkSigner.sign()
-
-                // 4. Cleanup temp unsigned file
                 unsignedApk.delete()
 
                 return@withContext true
@@ -1363,8 +1354,12 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     // Helper: Binary Search and Replace Array
     private fun replaceBytes(source: ByteArray, target: ByteArray, replacement: ByteArray): ByteArray {
         if (target.size != replacement.size) throw IllegalArgumentException("Target and replacement must be identical length to preserve binary offsets")
+        if (target.isEmpty()) return source
+
         val result = source.clone()
-        for (i in 0..result.size - target.size) {
+        var i = 0
+
+        while (i <= result.size - target.size) {
             var match = true
             for (j in target.indices) {
                 if (result[i + j] != target[j]) {
@@ -1373,8 +1368,12 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 }
             }
             if (match) {
+                // Replace the bytes
                 System.arraycopy(replacement, 0, result, i, replacement.size)
-                break // Replace first occurrence
+                // Skip ahead by the target size so we don't accidentally re-scan modified bytes
+                i += target.size
+            } else {
+                i++
             }
         }
         return result
