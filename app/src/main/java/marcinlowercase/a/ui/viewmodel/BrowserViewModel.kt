@@ -1245,76 +1245,94 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 }
 
                 // 2. Repackage the APK
+// 2. Repackage the APK
                 java.util.zip.ZipInputStream(context.assets.open("template.apk")).use { zis ->
                     java.util.zip.ZipOutputStream(java.io.FileOutputStream(unsignedApk)).use { zos ->
                         var entry = zis.nextEntry
                         while (entry != null) {
                             val name = entry.name
 
-                            // !!! CRITICAL FIX: Skip old signatures to prevent ApkSigner crash !!!
+                            // Skip old signatures
                             if (name.startsWith("META-INF/")) {
                                 entry = zis.nextEntry
                                 continue
                             }
 
-                            val newEntry = java.util.zip.ZipEntry(name)
-                            zos.putNextEntry(newEntry)
+                            var bytesToWrite: ByteArray? = null
 
                             when (name) {
                                 // A. Replace the App Icon
                                 "res/mipmap-xxhdpi-v4/ic_launcher.png",
-                                "res/mipmap-xxhdpi/ic_launcher.png" -> {
+                                "res/mipmap-xxhdpi/ic_launcher.png",
+                                "res/drawable-xxhdpi/ic_launcher.png" -> {
                                     if (iconBitmap != null) {
-                                        iconBitmap.compress(Bitmap.CompressFormat.PNG, 100, zos)
-                                    } else {
-                                        zis.copyTo(zos)
+                                        val stream = java.io.ByteArrayOutputStream()
+                                        iconBitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+                                        bytesToWrite = stream.toByteArray()
                                     }
                                 }
 
-                                // B. Inject the Web URL configuration
+                                // B. Inject the Web URL and Host Package configuration
                                 "assets/config.json" -> {
-                                    val configJson = """{"url": "$url"}"""
-                                    zos.write(configJson.toByteArray(Charsets.UTF_8))
+                                    val hostPackage = context.packageName
+                                    val configJson = """{"url": "$url", "host": "$hostPackage"}"""
+                                    bytesToWrite = configJson.toByteArray(Charsets.UTF_8)
                                 }
 
                                 // C. Binary Patch the App Title in resources.arsc
                                 "resources.arsc" -> {
                                     val bytes = zis.readBytes()
-                                    val targetTitle = "___PWA_APP_NAME___" // Must be exactly 18 chars in your template's strings.xml
+                                    val targetTitle = "___PWA_APP_NAME___"
                                     val replacementTitle = title.take(18).padEnd(18, ' ')
 
-                                    // Try patching UTF-16LE first
-                                    var patchedBytes = replaceBytes(bytes, targetTitle.toByteArray(Charsets.UTF_16LE), replacementTitle.toByteArray(Charsets.UTF_16LE))
-                                    // Try patching UTF-8 as fallback (Modern Android Studio default)
-                                    patchedBytes = replaceBytes(patchedBytes, targetTitle.toByteArray(Charsets.UTF_8), replacementTitle.toByteArray(Charsets.UTF_8))
-
-                                    zos.write(patchedBytes)
+                                    var patched = replaceBytes(bytes, targetTitle.toByteArray(Charsets.UTF_16LE), replacementTitle.toByteArray(Charsets.UTF_16LE))
+                                    patched = replaceBytes(patched, targetTitle.toByteArray(Charsets.UTF_8), replacementTitle.toByteArray(Charsets.UTF_8))
+                                    bytesToWrite = patched
                                 }
 
                                 // D. Binary Patch the Package Name in AndroidManifest.xml
                                 "AndroidManifest.xml" -> {
                                     val bytes = zis.readBytes()
+                                    // Notice: In your logs, your shell package was actually com.webapk.app0000.test
+                                    // If you created it as .test, we look for com.webapk.app0000
                                     val targetPackage = "com.webapk.app0000"
                                     val randomId = (1000..9999).random()
                                     val replacementPackage = "com.webapk.app$randomId"
 
-                                    // Try patching UTF-16LE first
-                                    var patchedBytes = replaceBytes(bytes, targetPackage.toByteArray(Charsets.UTF_16LE), replacementPackage.toByteArray(Charsets.UTF_16LE))
-                                    // Try patching UTF-8 as fallback
-                                    patchedBytes = replaceBytes(patchedBytes, targetPackage.toByteArray(Charsets.UTF_8), replacementPackage.toByteArray(Charsets.UTF_8))
-
-                                    zos.write(patchedBytes)
+                                    var patched = replaceBytes(bytes, targetPackage.toByteArray(Charsets.UTF_16LE), replacementPackage.toByteArray(Charsets.UTF_16LE))
+                                    patched = replaceBytes(patched, targetPackage.toByteArray(Charsets.UTF_8), replacementPackage.toByteArray(Charsets.UTF_8))
+                                    bytesToWrite = patched
                                 }
-
-                                // Default: Copy unchanged
-                                else -> zis.copyTo(zos)
                             }
+
+                            // If we didn't modify it, just read the original bytes
+                            if (bytesToWrite == null) {
+                                bytesToWrite = zis.readBytes()
+                            }
+
+                            val newEntry = java.util.zip.ZipEntry(name)
+
+                            // !!! CRITICAL FIX !!!
+                            // Android requires resources.arsc and icons to be STORED (0% compression).
+                            // If we compress them, Android fails to install the APK.
+                            if (entry.method == java.util.zip.ZipEntry.STORED) {
+                                newEntry.method = java.util.zip.ZipEntry.STORED
+                                newEntry.size = bytesToWrite.size.toLong()
+                                val crc = java.util.zip.CRC32()
+                                crc.update(bytesToWrite)
+                                newEntry.crc = crc.value
+                            } else {
+                                newEntry.method = java.util.zip.ZipEntry.DEFLATED
+                            }
+
+                            zos.putNextEntry(newEntry)
+                            zos.write(bytesToWrite)
                             zos.closeEntry()
+
                             entry = zis.nextEntry
                         }
                     }
                 }
-
                 // 3. Cryptographically Sign the APK using apksig (V2 Signature)
                 val signerConfig = com.android.apksig.ApkSigner.SignerConfig.Builder(
                     "PWA_KEY",
@@ -1364,7 +1382,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     // Helpers for Keystore
     private fun getPrivateKeyFromAssets(context: Context): java.security.PrivateKey {
-        val keystore = java.security.KeyStore.getInstance("JKS")
+        // CHANGED: Use modern PKCS12 format instead of deprecated JKS
+        val keystore = java.security.KeyStore.getInstance("PKCS12")
         context.assets.open("dummy.keystore").use {
             keystore.load(it, "password123".toCharArray())
         }
@@ -1372,7 +1391,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private fun getCertificatesFromAssets(context: Context): List<java.security.cert.X509Certificate> {
-        val keystore = java.security.KeyStore.getInstance("JKS")
+        // CHANGED: Use modern PKCS12 format instead of deprecated JKS
+        val keystore = java.security.KeyStore.getInstance("PKCS12")
         context.assets.open("dummy.keystore").use {
             keystore.load(it, "password123".toCharArray())
         }
