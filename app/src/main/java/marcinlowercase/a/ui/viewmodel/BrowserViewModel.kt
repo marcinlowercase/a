@@ -1281,19 +1281,41 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                                 "resources.arsc" -> {
                                     val bytes = zis.readBytes()
                                     val targetTitle = "___PWA_APP_NAME___"
-                                    val replacementTitle = title.take(18).padEnd(18, ' ')
 
-                                    // 1. Patch the Title
-                                    var patched = replaceBytes(bytes, targetTitle.toByteArray(Charsets.UTF_16LE), replacementTitle.toByteArray(Charsets.UTF_16LE))
-                                    patched = replaceBytes(patched, targetTitle.toByteArray(Charsets.UTF_8), replacementTitle.toByteArray(Charsets.UTF_8))
+                                    // --- THE ULTIMATE CENTERING FIX ---
+                                    // Instead of spaces, we pad with \u0000 (Null Bytes).
+                                    // Null bytes have 0 physical width, forcing perfect centering on ALL Android versions!
 
-                                    // 2. Patch the Package Name inside resources.arsc too!
+                                    // Safely extract characters so they don't overflow the 18-byte limit (Emojis take up to 4 bytes)
+                                    var cleanTitle = ""
+                                    var utf8Size = 0
+                                    for (char in title) {
+                                        val charSize = char.toString().toByteArray(Charsets.UTF_8).size
+                                        if (utf8Size + charSize > 18) break
+                                        cleanTitle += char
+                                        utf8Size += charSize
+                                    }
+
+                                    // 1. Prepare 18 bytes for UTF-8 (Filled with \u0000 by default)
+                                    val replace8Bytes = ByteArray(18) { 0 }
+                                    val title8Bytes = cleanTitle.toByteArray(Charsets.UTF_8)
+                                    System.arraycopy(title8Bytes, 0, replace8Bytes, 0, title8Bytes.size)
+
+                                    // 2. Prepare 36 bytes for UTF-16LE (Filled with \u0000 by default)
+                                    val replace16Bytes = ByteArray(36) { 0 }
+                                    val title16Bytes = cleanTitle.toByteArray(Charsets.UTF_16LE)
+                                    System.arraycopy(title16Bytes, 0, replace16Bytes, 0, title16Bytes.size)
+
+                                    // 3. Patch the Title
+                                    var patched = replaceBytes(bytes, targetTitle.toByteArray(Charsets.UTF_16LE), replace16Bytes)
+                                    patched = replaceBytes(patched, targetTitle.toByteArray(Charsets.UTF_8), replace8Bytes)
+
+                                    // 4. Patch the Package Name inside resources.arsc too!
                                     patched = replaceBytes(patched, targetPackage.toByteArray(Charsets.UTF_16LE), replacementPackage.toByteArray(Charsets.UTF_16LE))
                                     patched = replaceBytes(patched, targetPackage.toByteArray(Charsets.UTF_8), replacementPackage.toByteArray(Charsets.UTF_8))
 
                                     bytesToWrite = patched
                                 }
-
                                 "AndroidManifest.xml" -> {
                                     val bytes = zis.readBytes()
 
@@ -1381,25 +1403,24 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     }
 
     // Helpers for Keystore
+    // Helpers for Keystore
+    // Helpers for Cryptography (No Keystore Needed!)
     private fun getPrivateKeyFromAssets(context: Context): java.security.PrivateKey {
-        // CHANGED: Use modern PKCS12 format instead of deprecated JKS
-        val keystore = java.security.KeyStore.getInstance("PKCS12")
-        context.assets.open("dummy.keystore").use {
-            keystore.load(it, "password123".toCharArray())
-        }
-        return keystore.getKey("pwakey", "password123".toCharArray()) as java.security.PrivateKey
+        // Read the raw unencrypted PKCS#8 private key
+        val keyBytes = context.assets.open("key.pk8").readBytes()
+        val keySpec = java.security.spec.PKCS8EncodedKeySpec(keyBytes)
+        val keyFactory = java.security.KeyFactory.getInstance("RSA")
+        return keyFactory.generatePrivate(keySpec)
     }
 
     private fun getCertificatesFromAssets(context: Context): List<java.security.cert.X509Certificate> {
-        // CHANGED: Use modern PKCS12 format instead of deprecated JKS
-        val keystore = java.security.KeyStore.getInstance("PKCS12")
-        context.assets.open("dummy.keystore").use {
-            keystore.load(it, "password123".toCharArray())
+        // Read the raw X.509 certificate
+        val certFactory = java.security.cert.CertificateFactory.getInstance("X.509")
+        val cert = context.assets.open("cert.der").use {
+            certFactory.generateCertificate(it) as java.security.cert.X509Certificate
         }
-        val cert = keystore.getCertificate("pwakey") as java.security.cert.X509Certificate
         return listOf(cert)
     }
-
     private fun installApkWithIntent(context: Context, apkFile: File) {
         try {
             // Using FileProvider. Ensure your provider authorities match exactly what's in your AndroidManifest.xml
