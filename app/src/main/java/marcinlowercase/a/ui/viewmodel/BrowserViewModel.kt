@@ -23,6 +23,8 @@ import android.app.DownloadManager
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.drawable.BitmapDrawable
 import android.media.MediaScannerConnection
 import android.os.Environment
 import android.util.Log
@@ -38,9 +40,15 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.IntSize
+import androidx.core.content.pm.ShortcutInfoCompat
+import androidx.core.content.pm.ShortcutManagerCompat
+import androidx.core.graphics.drawable.IconCompat
 import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import coil.ImageLoader
+import coil.request.ImageRequest
+import coil.request.SuccessResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -51,6 +59,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import marcinlowercase.a.CustomApplication
+import marcinlowercase.a.MainActivity
 import marcinlowercase.a.core.constant.DefaultSettingValues
 import marcinlowercase.a.core.constant.generic_location_permission
 import marcinlowercase.a.core.data_class.App
@@ -105,6 +114,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     val profileManager = ProfileManager(application)
 
     //endregion
+
+
 
     // region Profile Logic
     val profiles = mutableStateListOf<Profile>().apply {
@@ -1148,7 +1159,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     }
     val inspectingAppId = mutableLongStateOf(0L)
 
-    fun pinApp(title: String, url: String, iconUrl: String) {
+    fun pinApp(context: Context, title: String, url: String, iconUrl: String) {
         val newApp = App(
             id = System.currentTimeMillis(),
             label = title,
@@ -1180,6 +1191,217 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     private fun saveApps() {
         appManager.saveApps(activeProfileId.value, apps)
     }
+
+
+    fun generateAndInstallWebApk(context: Context, title: String, url: String, iconUrl: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Preparing WebAPK...", Toast.LENGTH_SHORT).show()
+                }
+
+                // Step 1: Generate or Download the APK
+                val apkFile = File(context.cacheDir, "webapk_${System.currentTimeMillis()}.apk")
+
+                // Run the generation process
+                val isGenerated = mockGenerateWebApkLocallyOrRemotely(context, title, url, iconUrl, apkFile)
+
+                // NOW check if it generated successfully
+                withContext(Dispatchers.Main) {
+                    if (isGenerated && apkFile.exists()) {
+                        Toast.makeText(context, "WebAPK Ready! Starting Installer...", Toast.LENGTH_SHORT).show()
+                        installApkWithIntent(context, apkFile)
+                    } else {
+                        Toast.makeText(context, "Failed to generate WebAPK. Check Logcat for 'WebAPK'.", Toast.LENGTH_LONG).show()
+                    }
+                }
+
+            } catch (e: Exception) {
+                Log.e("WebAPK", "Error generating WebAPK", e)
+            }
+        }
+    }
+
+    private suspend fun mockGenerateWebApkLocallyOrRemotely(
+        context: Context, title: String, url: String, iconUrl: String, outFile: File
+    ): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                // 1. Prepare working files
+                val unsignedApk = File(context.cacheDir, "unsigned_${System.currentTimeMillis()}.apk")
+
+                // Fetch the Icon Bitmap via Coil
+                var iconBitmap: Bitmap? = null
+                if (iconUrl.isNotBlank()) {
+                    val loader = ImageLoader(context)
+                    val request = ImageRequest.Builder(context)
+                        .data(iconUrl)
+                        .size(192) // Standard WebAPK icon size
+                        .build()
+                    val result = loader.execute(request)
+                    if (result is SuccessResult) {
+                        iconBitmap = (result.drawable as? BitmapDrawable)?.bitmap
+                    }
+                }
+
+                // 2. Repackage the APK
+                java.util.zip.ZipInputStream(context.assets.open("template.apk")).use { zis ->
+                    java.util.zip.ZipOutputStream(java.io.FileOutputStream(unsignedApk)).use { zos ->
+                        var entry = zis.nextEntry
+                        while (entry != null) {
+                            val name = entry.name
+
+                            // !!! CRITICAL FIX: Skip old signatures to prevent ApkSigner crash !!!
+                            if (name.startsWith("META-INF/")) {
+                                entry = zis.nextEntry
+                                continue
+                            }
+
+                            val newEntry = java.util.zip.ZipEntry(name)
+                            zos.putNextEntry(newEntry)
+
+                            when (name) {
+                                // A. Replace the App Icon
+                                "res/mipmap-xxhdpi-v4/ic_launcher.png",
+                                "res/mipmap-xxhdpi/ic_launcher.png" -> {
+                                    if (iconBitmap != null) {
+                                        iconBitmap.compress(Bitmap.CompressFormat.PNG, 100, zos)
+                                    } else {
+                                        zis.copyTo(zos)
+                                    }
+                                }
+
+                                // B. Inject the Web URL configuration
+                                "assets/config.json" -> {
+                                    val configJson = """{"url": "$url"}"""
+                                    zos.write(configJson.toByteArray(Charsets.UTF_8))
+                                }
+
+                                // C. Binary Patch the App Title in resources.arsc
+                                "resources.arsc" -> {
+                                    val bytes = zis.readBytes()
+                                    val targetTitle = "___PWA_APP_NAME___" // Must be exactly 18 chars in your template's strings.xml
+                                    val replacementTitle = title.take(18).padEnd(18, ' ')
+
+                                    // Try patching UTF-16LE first
+                                    var patchedBytes = replaceBytes(bytes, targetTitle.toByteArray(Charsets.UTF_16LE), replacementTitle.toByteArray(Charsets.UTF_16LE))
+                                    // Try patching UTF-8 as fallback (Modern Android Studio default)
+                                    patchedBytes = replaceBytes(patchedBytes, targetTitle.toByteArray(Charsets.UTF_8), replacementTitle.toByteArray(Charsets.UTF_8))
+
+                                    zos.write(patchedBytes)
+                                }
+
+                                // D. Binary Patch the Package Name in AndroidManifest.xml
+                                "AndroidManifest.xml" -> {
+                                    val bytes = zis.readBytes()
+                                    val targetPackage = "com.webapk.app0000"
+                                    val randomId = (1000..9999).random()
+                                    val replacementPackage = "com.webapk.app$randomId"
+
+                                    // Try patching UTF-16LE first
+                                    var patchedBytes = replaceBytes(bytes, targetPackage.toByteArray(Charsets.UTF_16LE), replacementPackage.toByteArray(Charsets.UTF_16LE))
+                                    // Try patching UTF-8 as fallback
+                                    patchedBytes = replaceBytes(patchedBytes, targetPackage.toByteArray(Charsets.UTF_8), replacementPackage.toByteArray(Charsets.UTF_8))
+
+                                    zos.write(patchedBytes)
+                                }
+
+                                // Default: Copy unchanged
+                                else -> zis.copyTo(zos)
+                            }
+                            zos.closeEntry()
+                            entry = zis.nextEntry
+                        }
+                    }
+                }
+
+                // 3. Cryptographically Sign the APK using apksig (V2 Signature)
+                val signerConfig = com.android.apksig.ApkSigner.SignerConfig.Builder(
+                    "PWA_KEY",
+                    getPrivateKeyFromAssets(context),
+                    getCertificatesFromAssets(context)
+                ).build()
+
+                val apkSigner = com.android.apksig.ApkSigner.Builder(listOf(signerConfig))
+                    .setInputApk(unsignedApk)
+                    .setOutputApk(outFile)
+                    .setV1SigningEnabled(true)
+                    .setV2SigningEnabled(true)
+                    .build()
+
+                apkSigner.sign()
+
+                // 4. Cleanup temp unsigned file
+                unsignedApk.delete()
+
+                return@withContext true
+            } catch (e: Exception) {
+                Log.e("WebAPK", "Failed to build local WebAPK", e)
+                return@withContext false
+            }
+        }
+    }
+
+    // Helper: Binary Search and Replace Array
+    private fun replaceBytes(source: ByteArray, target: ByteArray, replacement: ByteArray): ByteArray {
+        if (target.size != replacement.size) throw IllegalArgumentException("Target and replacement must be identical length to preserve binary offsets")
+        val result = source.clone()
+        for (i in 0..result.size - target.size) {
+            var match = true
+            for (j in target.indices) {
+                if (result[i + j] != target[j]) {
+                    match = false
+                    break
+                }
+            }
+            if (match) {
+                System.arraycopy(replacement, 0, result, i, replacement.size)
+                break // Replace first occurrence
+            }
+        }
+        return result
+    }
+
+    // Helpers for Keystore
+    private fun getPrivateKeyFromAssets(context: Context): java.security.PrivateKey {
+        val keystore = java.security.KeyStore.getInstance("JKS")
+        context.assets.open("dummy.keystore").use {
+            keystore.load(it, "password123".toCharArray())
+        }
+        return keystore.getKey("pwakey", "password123".toCharArray()) as java.security.PrivateKey
+    }
+
+    private fun getCertificatesFromAssets(context: Context): List<java.security.cert.X509Certificate> {
+        val keystore = java.security.KeyStore.getInstance("JKS")
+        context.assets.open("dummy.keystore").use {
+            keystore.load(it, "password123".toCharArray())
+        }
+        val cert = keystore.getCertificate("pwakey") as java.security.cert.X509Certificate
+        return listOf(cert)
+    }
+
+    private fun installApkWithIntent(context: Context, apkFile: File) {
+        try {
+            // Using FileProvider. Ensure your provider authorities match exactly what's in your AndroidManifest.xml
+            val uri = androidx.core.content.FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                apkFile
+            )
+
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            Log.e("WebAPK", "Failed to start install intent", e)
+            Toast.makeText(context, "Failed to start APK installer.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     //endregion
 
     //region Download Logic

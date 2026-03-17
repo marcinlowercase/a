@@ -50,6 +50,7 @@ import androidx.compose.runtime.setValue
 import marcinlowercase.a.core.data_class.JsChoiceState
 import marcinlowercase.a.core.data_class.JsColorState
 import marcinlowercase.a.core.data_class.JsDateTimeState
+import marcinlowercase.a.core.data_class.WebAppManifest
 import marcinlowercase.a.core.function.formatArgbToCss
 import org.mozilla.geckoview.GeckoRuntimeSettings
 import kotlin.math.abs
@@ -754,13 +755,14 @@ class GeckoManager(private val context: Context) {
             // FavIcon from Manifest
             override fun onWebAppManifest(session: GeckoSession, manifest: JSONObject) {
                 try {
+
                     if (manifest.has("icons")) {
                         val icons = manifest.getJSONArray("icons")
                         if (icons.length() > 0) {
                             val iconObj = icons.getJSONObject(0)
                             val iconPath = iconObj.getString("src")
 
-                            val fullUrl = if (iconPath.startsWith("http")) {
+                            val iconUrl = if (iconPath.startsWith("http")) {
                                 iconPath
                             } else {
                                 java.net.URI(
@@ -769,9 +771,11 @@ class GeckoManager(private val context: Context) {
                                 iconPath
                             }
                             // pass the favicon url out
-                            onFaviconChanged(eventTabId, fullUrl)
+                            onFaviconChanged(eventTabId, iconUrl)
                         }
                     }
+
+
                 } catch (_: Exception) {
                     //Log.e("GeckoIcons", "Error parsing manifest", e)
                 }

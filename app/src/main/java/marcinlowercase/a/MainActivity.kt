@@ -355,6 +355,16 @@ class MainActivity : ComponentActivity() {
     private fun handleIntent(intent: Intent?) {
         if (intent?.action == Intent.ACTION_VIEW) {
             intent.dataString?.let { urlFromIntent ->
+
+                // Check if this intent came from our PWA Home Screen shortcut
+                val isPwa = intent.getBooleanExtra("is_pwa", false)
+
+                if (isPwa) {
+                    // TODO: In the future, you can use this flag to tell the ViewModel
+                    // to launch in "Standalone Mode" (completely hiding the URL bar and tabs)
+                    Log.i("PWA", "Launched as a Progressive Web App!")
+                }
+
                 // Instead of creating the tab here, we just emit the URL.
                 // The Composable will react to this emission.
                 newUrlFromIntent.update { urlFromIntent }

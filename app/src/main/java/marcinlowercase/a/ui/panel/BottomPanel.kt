@@ -81,6 +81,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.SoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
@@ -157,6 +158,7 @@ fun BottomPanel(
     setTextFieldHeightPx: (Int) -> Unit = {},
 ) {
 
+    val context = LocalContext.current
 
     val viewModel = LocalBrowserViewModel.current
     val uiState = viewModel.uiState.collectAsState()
@@ -202,7 +204,7 @@ fun BottomPanel(
                     )
 //                    .pointerInput(Unit) {
 //                        awaitEachGesture {
-//                            // Wait for the first touch down event
+//                            // Wait for the first touch-down event
 //                            awaitFirstDown(requireUnconsumed = false)
 //
 //                            // Update the trigger. This causes the LaunchedEffect above to RESTART.
@@ -256,7 +258,7 @@ fun BottomPanel(
                                 // Update UI to show 0/0 results
                                 viewModel.findInPageResult.value = 0 to 0
                             } else {
-                                // 0 means no special flags (case insensitive, forward direction)
+                                // 0 means no special flags (case-insensitive, forward direction)
                                 session.finder.find(newText, 0).then { result ->
                                     // result is of type GeckoSession.FinderResult?
                                     if (result != null) {
@@ -588,6 +590,7 @@ fun BottomPanel(
 
                                         uiState.value.isPinningApp -> {
                                             viewModel.pinApp(
+                                                context = context,
                                                 title = viewModel.activeTab!!.currentTitle,
                                                 url = resetUrl,
                                                 iconUrl = viewModel.activeTab!!.currentFaviconUrl,
@@ -623,6 +626,7 @@ fun BottomPanel(
 
                                     uiState.value.isPinningApp -> {
                                         viewModel.pinApp(
+                                            context = context,
                                             title = input,
                                             url = resetUrl,
                                             iconUrl = viewModel.activeTab!!.currentFaviconUrl,
@@ -951,6 +955,17 @@ fun BottomPanel(
                     onDismiss = {
                         viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
                         focusManager.clearFocus()
+                    },
+                    onAddToHomeScreen = {
+                        viewModel.generateAndInstallWebApk(
+                            context = context,
+                            title = viewModel.activeTab!!.currentTitle,
+                            url = viewModel.activeTab!!.currentURL,
+                            iconUrl = viewModel.activeTab!!.currentFaviconUrl
+                        )
+                        viewModel.updateUI { it.copy(isPinningApp = false) }
+                        focusManager.clearFocus()
+                        keyboardController?.hide()
                     },
                     activeWebViewTitle = viewModel.activeTab!!.currentTitle,
                 )

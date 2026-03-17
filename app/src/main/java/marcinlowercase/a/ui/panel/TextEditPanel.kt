@@ -44,7 +44,9 @@ fun TextEditPanel(
     onEditClick: () -> Unit,
     onDismiss: () -> Unit,
     activeWebViewTitle: String,
-) {
+    onAddToHomeScreen: () -> Unit,
+
+    ) {
     val viewModel = LocalBrowserViewModel.current
     val uiState = viewModel.uiState.collectAsState()
     val settings = viewModel.browserSettings.collectAsState()
@@ -87,6 +89,16 @@ fun TextEditPanel(
             )
 
             if (uiState.value.isPinningApp || uiState.value.isCreatingProfile || uiState.value.isRenamingProfile) {
+                if (uiState.value.isPinningApp) {
+                    CustomIconButton(
+                        layer = 3,
+                        modifier = Modifier.weight(1f),
+                        onTap = onAddToHomeScreen,
+                        buttonDescription = "add to home screen as webapk",
+                        painterId = R.drawable.ic_browser_updated,
+                    )
+                }
+
                 if (activeWebViewTitle.isNotBlank()) {
                     // Edit Button (ensures keyboard is shown)
                     CustomIconButton(
