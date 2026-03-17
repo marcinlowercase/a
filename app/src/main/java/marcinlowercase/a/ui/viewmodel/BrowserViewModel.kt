@@ -1273,7 +1273,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
                                 "assets/config.json" -> {
                                     val hostPackage = context.packageName
-                                    val configJson = """{"url": "$url", "host": "$hostPackage"}"""
+                                    val pId = activeProfileId.value // Get the currently active profile
+                                    val configJson = """{"url": "$url", "host": "$hostPackage", "profileId": "$pId"}"""
                                     bytesToWrite = configJson.toByteArray(Charsets.UTF_8)
                                 }
 

@@ -312,6 +312,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        handleIntent(intent, isColdStart = true)
 
         lifecycleScope.launch(Dispatchers.IO) {
             cacheDir.listFiles()?.forEach { it.delete() }
@@ -352,29 +353,41 @@ class MainActivity : ComponentActivity() {
 
 
     //region Intent
-    private fun handleIntent(intent: Intent?) {
+    //region Intent
+    private fun handleIntent(intent: Intent?, isColdStart: Boolean = false) {
         if (intent?.action == Intent.ACTION_VIEW) {
             intent.dataString?.let { urlFromIntent ->
 
                 // Check if this intent came from our PWA Home Screen shortcut
                 val isPwa = intent.getBooleanExtra("is_pwa", false)
+                val targetProfileId = intent.getStringExtra("profileId")
 
                 if (isPwa) {
-                    // TODO: In the future, you can use this flag to tell the ViewModel
-                    // to launch in "Standalone Mode" (completely hiding the URL bar and tabs)
-                    Log.i("PWA", "Launched as a Progressive Web App!")
+                    Log.i("PWA", "Launched as a Progressive Web App in Profile: $targetProfileId")
+
+                    // If the PWA is tied to a specific profile, switch to it instantly!
+                    if (!targetProfileId.isNullOrEmpty()) {
+                        val viewModel: BrowserViewModel by viewModels()
+                        if (viewModel.activeProfileId.value != targetProfileId) {
+                            Log.i("PWA", "Switch from profile ${viewModel.activeProfileId.value} to $targetProfileId")
+                            viewModel.switchProfile(targetProfileId)
+                        }
+                    }
                 }
 
-                // Instead of creating the tab here, we just emit the URL.
-                // The Composable will react to this emission.
-                newUrlFromIntent.update { urlFromIntent }
+                // On HOT START (app already running), emit URL to tell UI to open a new tab.
+                // On COLD START (app closed), DO NOT emit. BrowserScreen handles the first tab natively via initialIntentUrl.
+                if (!isColdStart) {
+                    newUrlFromIntent.update { urlFromIntent }
+                }
             }
         }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        handleIntent(intent)
+        // Hot start!
+        handleIntent(intent, isColdStart = false)
     }
     //endregion
 
