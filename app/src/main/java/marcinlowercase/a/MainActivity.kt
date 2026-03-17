@@ -1577,20 +1577,26 @@ fun BrowserScreen(
                     viewModel.updateUI { it.copy(isLoading = (int < 100)) }
                 },
                 onLocationChangeFun = { eventTabId, _, url, _, _ ->
+
+
                     if (eventTabId == viewModel.activeTab!!.id
                         && url != null
                         && !url.startsWith("javascript:")
                     ) {
-                        if (!uiState.value.isFocusOnUrlTextField) {
-                            textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
-                        }
-                        viewModel.updateTabById(eventTabId) { tab ->
-                            val cachedIcon = tab.faviconCache[url] ?: ""
+                        val isGhostBlank = url == "about:blank" && viewModel.activeTab!!.currentURL != "about:blank" && viewModel.activeTab!!.currentURL.isNotBlank()
 
-                            tab.copy(
-                                currentURL = url,
-                                currentFaviconUrl = cachedIcon
-                            )
+                        if (!isGhostBlank) {
+                            if (!uiState.value.isFocusOnUrlTextField) {
+                                textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
+                            }
+                            viewModel.updateTabById(eventTabId) { tab ->
+                                val cachedIcon = tab.faviconCache[url] ?: ""
+
+                                tab.copy(
+                                    currentURL = url,
+                                    currentFaviconUrl = cachedIcon
+                                )
+                            }
                         }
                     }
                 },
@@ -1598,23 +1604,7 @@ fun BrowserScreen(
                 onNewSessionFunWithId = { id, uri ->
                     viewModel.handleNewSession(id, uri)
                 },
-                onHistoryStateChangeFun = { _, _, _ ->
-
-//
-//                    val url = realtimeHistory[realtimeHistory.lastIndex].uri
-//
-//                    // fe:  change  tab A -> B, the textbox changed to A.url
-////                if (session == activeSession) {
-//                    if (eventTabId == viewModel.activeTab!!.id && url.isNotBlank() && url != "about:blank") {
-//                        if (!uiState.value.isFocusOnUrlTextField) {
-//                            textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
-//                        }
-//                        viewModel.updateTabById(eventTabId) { tab ->
-//                            val cachedIcon = tab.faviconCache[url] ?: ""
-//                            tab.copy(currentURL = url, currentFaviconUrl = cachedIcon)
-//                        }
-//                    }
-                },
+                onHistoryStateChangeFun = { _, _, _ -> },
                 onSessionStateChangeFun = { eventTabId, _, _ ->
                     val stateToSave =
                         viewModel.geckoManager.getSessionStateString(eventTabId)
@@ -1673,14 +1663,17 @@ fun BrowserScreen(
                         }
                     }
                     if (eventTabId == viewModel.activeTab!!.id) {
-                        viewModel.updateUI { it.copy(isLoading = true) }
-                        if (viewModel.activeTab!!.errorState != null) {
-                            viewModel.updateTabById(eventTabId) { it.copy(errorState = null) }
-                        }
+                        val isGhostBlank = url == "about:blank" && viewModel.activeTab!!.currentURL != "about:blank" && viewModel.activeTab!!.currentURL.isNotBlank()
+                        if (!isGhostBlank) {
+                            viewModel.updateUI { it.copy(isLoading = true) }
+                            if (viewModel.activeTab!!.errorState != null) {
+                                viewModel.updateTabById(eventTabId) { it.copy(errorState = null) }
+                            }
 
-                        if (!uiState.value.isFocusOnUrlTextField) textFieldState.setTextAndPlaceCursorAtEnd(
-                            url.toDomain()
-                        )
+                            if (!uiState.value.isFocusOnUrlTextField) textFieldState.setTextAndPlaceCursorAtEnd(
+                                url.toDomain()
+                            )
+                        }
 
                     }
 
@@ -1887,6 +1880,7 @@ fun BrowserScreen(
                     val baseLoad = viewModel.activeTab!!.currentURL.ifBlank { settings.defaultUrl }
 
                     val urlToLoad = baseLoad.ifBlank { "about:blank" }
+                    Log.d("marcBlank", "load blank from lanched effect, $urlToLoad")
                     webViewLoad(activeSession, urlToLoad, settings)
                 }
             }

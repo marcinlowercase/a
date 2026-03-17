@@ -314,6 +314,7 @@ fun TabsPanel(
 
                         val tab = viewModel.tabs[tabIndex]
 
+                        Log.d("marcBlank", "tabs display ${tab.currentURL}")
                         val title = if (tab.currentURL == "about:blank") {
                             "blank page"
                         } else {

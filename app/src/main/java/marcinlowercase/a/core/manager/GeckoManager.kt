@@ -288,6 +288,15 @@ class GeckoManager(private val context: Context) {
         return session
     }
 
+    fun pauseSessionIfExists(tabId: Long) {
+        val session = sessionPool[tabId]
+        if (session != null) {
+            session.setActive(false)
+            if (activeMediaGeckoSession == session) {
+                activeGeckoMediaSession?.pause()
+            }
+        }
+    }
 
     fun closeSession(tab: Tab) {
         val sessionToClose = sessionPool.remove(tab.id)
@@ -488,33 +497,7 @@ class GeckoManager(private val context: Context) {
         //Log.i("NewTabFlow", "setupDelegates")
         val eventTabId = tab.value.id
 
-//        if (killedSessionIds.contains(eventTabId)) {
-//            //Log.i("GeckoManager", "Resurrecting killed session: $eventTabId")
 //
-//            // ensure session is open (in case the whole session closed)
-//            if (!session.isOpen) {
-//                session.open(runtime)
-//            }
-//
-//            // try to restore exact state from our memory cache first
-//            val cachedState = stateCache[eventTabId]
-//            if (cachedState != null) {
-//                Log.d("marcRestore", "restore state from setup Delegate: cache")
-//                session.restoreState(cachedState)
-//            } else if (tab.value.savedState != null) {
-//                restoreStateFromString(tab.value.savedState!!)?.let {
-//                    Log.d("marcRestore", "restore state from setup Delegate: tab saved state")
-//                    session.restoreState(it)
-//                }
-//            }
-//            val fallbackUrl = tab.value.currentURL.takeIf { it.isNotBlank() && it != "about:blank" }
-//                ?: browserSettings.value.defaultUrl.takeIf { it.isNotBlank() }
-//                ?: "about:blank"
-//            session.loadUri(fallbackUrl)
-//
-//            // remove from the kill list so we don't restore loop
-//            killedSessionIds.remove(eventTabId)
-//        }
 
         // message delegate to get favicon message from the web
 

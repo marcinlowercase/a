@@ -164,13 +164,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         // This keeps the GeckoSessions alive in memory (GeckoManager.sessionPool).
         // When you switch back, the page will instantly appear without reloading!
         tabs.forEach { tab ->
-            val session = geckoManager.getSession(tab)
-            session.setActive(false)
-
-            // Stop media playing in the background from the old Space so audio doesn't bleed over
-            if (geckoManager.activeMediaGeckoSession == session) {
-                geckoManager.activeGeckoMediaSession?.pause()
-            }
+            geckoManager.pauseSessionIfExists(tab.id)
         }
 
         // 3. Update active profile ID and save to disk
@@ -197,10 +191,10 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         tabs.addAll(loadedTabs)
         _activeTabIndex.value = tabManager.getActiveTabIndex(newProfileId).coerceAtLeast(0)
 
-        // 6. Pre-warm and activate the newly selected tab in the new Space
-        activeTab?.let {
-            geckoManager.getSession(it).setActive(true)
-        }
+//        // 6. Pre-warm and activate the newly selected tab in the new Space
+//        activeTab?.let {
+//            geckoManager.getSession(it).setActive(true)
+//        }
 
         // 7. Force UI to update session
         sessionRefreshTrigger.intValue++
@@ -849,9 +843,9 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             val oldTab = tabs[currentIndex]
             val newTab = tabs[newIndex]
 
-            geckoManager.getSession(oldTab).setActive(false)
+            geckoManager.pauseSessionIfExists(oldTab.id)
 
-            geckoManager.getSession(newTab).setActive(true)
+//            geckoManager.getSession(newTab).setActive(true)
 
 
             // 2. Deactivate current tab
@@ -1101,6 +1095,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         // 2. Create the new Tab object
         val initialUrl = url.ifBlank { _browserSettings.value.defaultUrl }
 
+        Log.d("marcBlank", "load blank from createNewTab, $initialUrl")
         val newTab = Tab(
             profileId = activeProfileId.value,
             currentURL = initialUrl.ifBlank { "about:blank" },
