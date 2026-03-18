@@ -1372,11 +1372,12 @@ fun BrowserScreen(
             uiState.value.isFocusOnSettingTextField,
             uiState.value.isFocusOnUrlTextField,
             uiState.value.isFocusOnFindTextField,
-            uiState.value.isFocusOnProfileTextField
+            uiState.value.isFocusOnProfileTextField,
+            uiState.value.isFocusOnIconUrlTextField,
         ) {
             viewModel.updateUI {
                 it.copy(
-                    isFocusOnTextField = uiState.value.isFocusOnFindTextField || uiState.value.isFocusOnUrlTextField || uiState.value.isFocusOnSettingTextField || uiState.value.isFocusOnProfileTextField
+                    isFocusOnTextField = uiState.value.isFocusOnFindTextField || uiState.value.isFocusOnUrlTextField || uiState.value.isFocusOnSettingTextField || uiState.value.isFocusOnProfileTextField || uiState.value.isFocusOnIconUrlTextField
                 )
             }
         }

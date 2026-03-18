@@ -39,7 +39,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.dp
 import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
@@ -97,6 +100,9 @@ import java.net.URLDecoder
 import java.net.URLEncoder
 import java.util.Collections
 import java.util.regex.Pattern
+import androidx.core.graphics.scale
+import marcinlowercase.a.R
+import androidx.core.graphics.createBitmap
 
 val LocalBrowserViewModel = staticCompositionLocalOf<BrowserViewModel> {
     error("No BrowserViewModel provided! Check your root Composable.")
@@ -1225,24 +1231,79 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     private suspend fun mockGenerateWebApkLocallyOrRemotely(
         context: Context, title: String, url: String, iconUrl: String, outFile: File
     ): Boolean {
+
+        Log.i("WebAPK", "iconURl: ${iconUrl}")
         return withContext(Dispatchers.IO) {
             try {
                 val unsignedApk = File(context.cacheDir, "unsigned_${System.currentTimeMillis()}.apk")
 
+                // 1. Try to load the Favicon using Coil
+
+                // 1. Try to load the Favicon using your GLOBAL Custom ImageLoader
                 var iconBitmap: Bitmap? = null
-                if (iconUrl.isNotBlank()) {
-                    val loader = ImageLoader(context)
-                    val request = ImageRequest.Builder(context)
-                        .data(iconUrl)
-                        .size(192)
-                        .build()
-                    val result = loader.execute(request)
-                    if (result is SuccessResult) {
-                        iconBitmap = (result.drawable as? BitmapDrawable)?.bitmap
+                try {
+                    if (iconUrl.isNotBlank()) {
+                        val loader = coil.Coil.imageLoader(context)
+
+                        val request = ImageRequest.Builder(context)
+                            .addHeader(
+                                "User-Agent",
+                                "Mozilla/5.0 (Android 14; Mobile; rv:130.0) Gecko/130.0 Firefox/130.0"
+                            )
+                            .data(iconUrl)
+                            .size(192)
+                            .allowHardware(false) //
+                            .build()
+
+                        val result = loader.execute(request)
+
+                        if (result is SuccessResult) {
+                            val drawable = result.drawable
+                            if (drawable is BitmapDrawable) {
+                                iconBitmap = drawable.bitmap
+                            } else {
+                                // Because it's an SVG, Coil might return a PictureDrawable!
+                                // We must draw it onto a native Bitmap Canvas.
+                                val width = drawable.intrinsicWidth.takeIf { it > 0 } ?: 192
+                                val height = drawable.intrinsicHeight.takeIf { it > 0 } ?: 192
+                                val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                                val canvas = android.graphics.Canvas(bitmap)
+                                drawable.setBounds(0, 0, canvas.width, canvas.height)
+                                drawable.draw(canvas)
+                                iconBitmap = bitmap
+                            }
+                        }
                     }
+                } catch (e: Exception) {
+                    Log.e("WebAPK", "Failed to load Favicon", e)
                 }
 
-                // --- CRITICAL FIX: Generate the random package ID here so both files get the SAME ID ---
+                Log.d("WebAPK", "favicon ${iconBitmap.toString()}")
+
+                // 2. FALLBACK: If Coil fails (e.g. because it's an .ico file),
+                // dynamically generate a beautiful Monogram letter icon!
+                if (iconBitmap == null) {
+                    val size = 192
+                    val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+                    val canvas = android.graphics.Canvas(bitmap)
+                    val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+
+                    // Draw a sleek dark grey background
+                    paint.color = android.graphics.Color.parseColor("#252526")
+                    canvas.drawRect(0f, 0f, size.toFloat(), size.toFloat(), paint)
+
+                    // Draw the first letter of the App Title
+                    paint.color = android.graphics.Color.WHITE
+                    paint.textSize = 100f
+                    paint.textAlign = android.graphics.Paint.Align.CENTER
+
+                    val letter = if (title.isNotBlank()) title.take(1).uppercase() else "W"
+                    val textY = (size / 2f) - ((paint.descent() + paint.ascent()) / 2f)
+                    canvas.drawText(letter, size / 2f, textY, paint)
+
+                    iconBitmap = bitmap
+                }
+
                 val targetPackage = "com.webapk.app0000"
                 val randomId = (1000..9999).random()
                 val replacementPackage = "com.webapk.app$randomId"
@@ -1253,76 +1314,114 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                         while (entry != null) {
                             val name = entry.name
 
+                            Log.w("WebAPK", "name : $name")
                             if (name.startsWith("META-INF/")) {
                                 entry = zis.nextEntry
                                 continue
                             }
 
+
+
                             var bytesToWrite: ByteArray? = null
 
-                            when (name) {
-                                "res/mipmap-xxhdpi-v4/ic_launcher.png",
-                                "res/mipmap-xxhdpi/ic_launcher.png",
-                                "res/drawable-xxhdpi/ic_launcher.png" -> {
-                                    if (iconBitmap != null) {
-                                        val stream = java.io.ByteArrayOutputStream()
-                                        iconBitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
-                                        bytesToWrite = stream.toByteArray()
+                            // --- ICON FIX 2: Replace ALL remaining PNG/WebP files ---
+                            if (name.contains("ic_launcher")) {
+                                if (name.endsWith(".xml")) {
+                                    // 1. SILENTLY DROP ANY XML ICONS.
+                                    entry = zis.nextEntry
+                                    continue
+                                } else if (name.endsWith(".png") || name.endsWith(".webp") || name.endsWith(".jpg")) {
+                                    // 2. OVERWRITE EVERY SINGLE RASTER ICON WITH OUR FAVICON
+                                    val stream = java.io.ByteArrayOutputStream()
+
+                                    // PREVENT STRETCHING: Draw the loaded image onto a perfect 192x192 square Canvas
+                                    val original = iconBitmap!!
+                                    val targetSize = 192
+                                    val scaled = if (original.width == targetSize && original.height == targetSize) {
+                                        original
+                                    } else {
+                                        val square = Bitmap.createBitmap(targetSize, targetSize, Bitmap.Config.ARGB_8888)
+                                        val canvas = android.graphics.Canvas(square)
+
+                                        // Calculate the scale to maintain aspect ratio
+                                        val scale = minOf(targetSize.toFloat() / original.width, targetSize.toFloat() / original.height)
+                                        val drawW = (original.width * scale).toInt()
+                                        val drawH = (original.height * scale).toInt()
+
+                                        // Center the scaled image
+                                        val left = (targetSize - drawW) / 2
+                                        val top = (targetSize - drawH) / 2
+
+                                        val srcRect = android.graphics.Rect(0, 0, original.width, original.height)
+                                        val destRect = android.graphics.Rect(left, top, left + drawW, top + drawH)
+
+                                        val paint = android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG)
+                                        canvas.drawBitmap(original, srcRect, destRect, paint)
+                                        square
                                     }
-                                }
 
-                                "assets/config.json" -> {
-                                    val hostPackage = context.packageName
-                                    val pId = activeProfileId.value // Get the currently active profile
-                                    val configJson = """{"url": "$url", "host": "$hostPackage", "profileId": "$pId"}"""
-                                    bytesToWrite = configJson.toByteArray(Charsets.UTF_8)
-                                }
-
-                                "resources.arsc" -> {
-                                    val bytes = zis.readBytes()
-                                    val targetTitle = "___PWA_APP_NAME___"
-
-                                    // --- THE ULTIMATE CENTERING FIX ---
-                                    // Instead of spaces, we pad with \u0000 (Null Bytes).
-                                    // Null bytes have 0 physical width, forcing perfect centering on ALL Android versions!
-
-                                    // Safely extract characters so they don't overflow the 18-byte limit (Emojis take up to 4 bytes)
-                                    var cleanTitle = ""
-                                    var utf8Size = 0
-                                    for (char in title) {
-                                        val charSize = char.toString().toByteArray(Charsets.UTF_8).size
-                                        if (utf8Size + charSize > 18) break
-                                        cleanTitle += char
-                                        utf8Size += charSize
+                                    // Match the compression to the file extension Android Studio secretly generated
+                                    if (name.endsWith(".webp")) {
+                                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                                            scaled.compress(Bitmap.CompressFormat.WEBP_LOSSLESS, 100, stream)
+                                        } else {
+                                            @Suppress("DEPRECATION")
+                                            scaled.compress(Bitmap.CompressFormat.WEBP, 100, stream)
+                                        }
+                                    } else {
+                                        scaled.compress(Bitmap.CompressFormat.PNG, 100, stream)
                                     }
 
-                                    // 1. Prepare 18 bytes for UTF-8 (Filled with \u0000 by default)
-                                    val replace8Bytes = ByteArray(18) { 0 }
-                                    val title8Bytes = cleanTitle.toByteArray(Charsets.UTF_8)
-                                    System.arraycopy(title8Bytes, 0, replace8Bytes, 0, title8Bytes.size)
-
-                                    // 2. Prepare 36 bytes for UTF-16LE (Filled with \u0000 by default)
-                                    val replace16Bytes = ByteArray(36) { 0 }
-                                    val title16Bytes = cleanTitle.toByteArray(Charsets.UTF_16LE)
-                                    System.arraycopy(title16Bytes, 0, replace16Bytes, 0, title16Bytes.size)
-
-                                    // 3. Patch the Title
-                                    var patched = replaceBytes(bytes, targetTitle.toByteArray(Charsets.UTF_16LE), replace16Bytes)
-                                    patched = replaceBytes(patched, targetTitle.toByteArray(Charsets.UTF_8), replace8Bytes)
-
-                                    // 4. Patch the Package Name inside resources.arsc too!
-                                    patched = replaceBytes(patched, targetPackage.toByteArray(Charsets.UTF_16LE), replacementPackage.toByteArray(Charsets.UTF_16LE))
-                                    patched = replaceBytes(patched, targetPackage.toByteArray(Charsets.UTF_8), replacementPackage.toByteArray(Charsets.UTF_8))
-
-                                    bytesToWrite = patched
+                                    bytesToWrite = stream.toByteArray()
                                 }
-                                "AndroidManifest.xml" -> {
-                                    val bytes = zis.readBytes()
+                            }
 
-                                    var patched = replaceBytes(bytes, targetPackage.toByteArray(Charsets.UTF_16LE), replacementPackage.toByteArray(Charsets.UTF_16LE))
-                                    patched = replaceBytes(patched, targetPackage.toByteArray(Charsets.UTF_8), replacementPackage.toByteArray(Charsets.UTF_8))
+                            // If the file wasn't an icon, process normally
+                            if (bytesToWrite == null) {
+                                when (name) {
+                                    "assets/config.json" -> {
+                                        val hostPackage = context.packageName
+                                        val pId = activeProfileId.value
+                                        val configJson = """{"url": "$url", "host": "$hostPackage", "profileId": "$pId"}"""
+                                        bytesToWrite = configJson.toByteArray(Charsets.UTF_8)
+                                    }
 
-                                    bytesToWrite = patched
+                                    "resources.arsc" -> {
+                                        val bytes = zis.readBytes()
+                                        val targetTitle = "___PWA_APP_NAME___"
+
+                                        var cleanTitle = ""
+                                        var utf8Size = 0
+                                        for (char in title) {
+                                            val charSize = char.toString().toByteArray(Charsets.UTF_8).size
+                                            if (utf8Size + charSize > 18) break
+                                            cleanTitle += char
+                                            utf8Size += charSize
+                                        }
+
+                                        val replace8Bytes = ByteArray(18) { 0 }
+                                        val title8Bytes = cleanTitle.toByteArray(Charsets.UTF_8)
+                                        System.arraycopy(title8Bytes, 0, replace8Bytes, 0, title8Bytes.size)
+
+                                        val replace16Bytes = ByteArray(36) { 0 }
+                                        val title16Bytes = cleanTitle.toByteArray(Charsets.UTF_16LE)
+                                        System.arraycopy(title16Bytes, 0, replace16Bytes, 0, title16Bytes.size)
+
+                                        var patched = replaceBytes(bytes, targetTitle.toByteArray(Charsets.UTF_16LE), replace16Bytes)
+                                        patched = replaceBytes(patched, targetTitle.toByteArray(Charsets.UTF_8), replace8Bytes)
+
+                                        patched = replaceBytes(patched, targetPackage.toByteArray(Charsets.UTF_16LE), replacementPackage.toByteArray(Charsets.UTF_16LE))
+                                        patched = replaceBytes(patched, targetPackage.toByteArray(Charsets.UTF_8), replacementPackage.toByteArray(Charsets.UTF_8))
+
+                                        bytesToWrite = patched
+                                    }
+
+                                    "AndroidManifest.xml" -> {
+                                        val bytes = zis.readBytes()
+                                        var patched = replaceBytes(bytes, targetPackage.toByteArray(Charsets.UTF_16LE), replacementPackage.toByteArray(Charsets.UTF_16LE))
+                                        patched = replaceBytes(patched, targetPackage.toByteArray(Charsets.UTF_8), replacementPackage.toByteArray(Charsets.UTF_8))
+                                        bytesToWrite = patched
+                                    }
                                 }
                             }
 
@@ -1373,7 +1472,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             }
         }
     }
-
     // Helper: Binary Search and Replace Array
     private fun replaceBytes(source: ByteArray, target: ByteArray, replacement: ByteArray): ByteArray {
         if (target.size != replacement.size) throw IllegalArgumentException("Target and replacement must be identical length to preserve binary offsets")

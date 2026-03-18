@@ -24,8 +24,10 @@ import android.util.Patterns
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
@@ -58,6 +60,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -66,6 +69,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
@@ -182,10 +186,19 @@ fun BottomPanel(
     ) {
         val clipboard = LocalClipboard.current
 
+        val customIconUrlState = rememberTextFieldState("")
+        val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
+
+        // Automatically clear the custom URL text box when the user finishes pinning or cancels
+        LaunchedEffect(uiState.value.isPinningApp) {
+            if (!uiState.value.isPinningApp) {
+                customIconUrlState.setTextAndPlaceCursorAtEnd("")
+            }
+        }
+
         Box(
             modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
+        ) {            Column(
                 modifier = Modifier
                     .padding(settings.value.padding.dp)
                     .windowInsetsPadding(WindowInsets.ime)
@@ -460,251 +473,339 @@ fun BottomPanel(
                     )
                 ) {
                     Box(modifier = Modifier) {
-
-                        TextField(
-                            modifier = Modifier
-                                .heightIn(
-                                    min = settings.value.heightForLayer(1).dp
-                                )
-                                .padding(settings.value.padding.dp)
-                                .onSizeChanged { size ->
-                                    setTextFieldHeightPx(size.height)
-                                }
-                                .fillMaxWidth()
-                                .focusRequester(urlBarFocusRequester)
-
-                                .onFocusChanged { focusState ->
-                                    val resetUrl = viewModel.activeTab!!.currentURL
-                                    viewModel.updateUI { it.copy(isFocusOnUrlTextField = focusState.isFocused) }
-                                    //Log.e("marcTF", "focusState ${focusState.isFocused}")
-
-                                    if (focusState.isFocused) {
-
-                                        viewModel.updateUI {
-                                            it.copy(
-                                                savedPanelState = PanelVisibilityState(
-                                                    options = draggableState.currentValue == RevealState.Visible,
-                                                    tabs = uiState.value.isTabsPanelVisible,
-                                                    downloads = uiState.value.isDownloadPanelVisible,
-                                                    tabData = isTabDataPanelVisible,
-                                                    nav = uiState.value.isNavPanelVisible
-                                                )
-                                            )
-                                        }
-
-                                        viewModel.updateUI {
-                                            it.copy(
-                                                isOptionsPanelVisible = false,
-                                                isTabsPanelVisible = false,
-                                                isDownloadPanelVisible = false,
-                                                isTabDataPanelVisible = false,
-                                                isNavPanelVisible = false,
-                                                isSettingsPanelVisible = false,
-                                                isUrlOverlayBoxVisible = false,
-                                                isAppsPanelVisible = false,
-
-                                                )
-                                        }
-                                        //Log.e("marcTF", "set text")
-                                        textFieldState.setTextAndPlaceCursorAtEnd("")
-
-
-                                    } else {
-                                        if (uiState.value.isPinningApp) viewModel.updateUI {
-                                            it.copy(
-                                                isPinningApp = false
-                                            )
-                                        }
-                                        if (uiState.value.isCreatingProfile) viewModel.updateUI {
-                                            it.copy(
-                                                isCreatingProfile = false
-                                            )
-                                        }
-                                        if (uiState.value.isRenamingProfile) viewModel.updateUI {
-                                            it.copy(
-                                                isRenamingProfile = false
-                                            )
-                                        }
-                                        uiState.value.savedPanelState?.let { savedState ->
-                                            viewModel.updateUI {
-                                                it.copy(
-                                                    isOptionsPanelVisible = savedState.options,
-                                                    isDownloadPanelVisible = savedState.downloads,
-                                                    isTabDataPanelVisible = false,
-                                                    isNavPanelVisible = savedState.nav,
-                                                    savedPanelState = null,
-                                                )
-                                            }
-                                            if (uiState.value.isTabsPanelLock) viewModel.updateUI {
-                                                it.copy(
-                                                    isTabsPanelVisible = savedState.tabs,
-                                                )
-                                            }
-                                        }
-                                        textFieldState.setTextAndPlaceCursorAtEnd(
-                                            resetUrl.toDomain()
-                                        )
-
-
-                                        viewModel.updateUI {
-                                            it.copy(
-                                                isUrlOverlayBoxVisible = true
-                                            )
-                                        }
-                                    }
-                                }
-
-                                .clip(
-                                    RoundedCornerShape(
-                                        settings.value.cornerRadiusForLayer(2).dp
+                        Column(
+                            modifier = Modifier.onSizeChanged { size ->
+                                setTextFieldHeightPx(size.height)
+                            }
+                        ) {
+                            AnimatedVisibility(
+                                visible = uiState.value.isPinningApp,
+                                enter = expandVertically(
+                                    tween(
+                                        settings.value.animationSpeedForLayer(1)
+                                    )
+                                ) + fadeIn(
+                                    tween(
+                                        settings.value.animationSpeedForLayer(1)
                                     )
                                 ),
-                            placeholder = {
-                                when {
-                                    uiState.value.isCreatingProfile -> Text("profile label")
-                                    uiState.value.isRenamingProfile -> Text("profile label")
-                                    uiState.value.isPinningApp -> Text("pin label")
-                                    else -> Text("search / url")
-                                }
-                            },
-                            state = textFieldState,
-                            textStyle = LocalTextStyle.current.copy(
-                                //                            fontFamily = FontFamily.Monospace,
-                                textAlign = if (uiState.value.isFocusOnUrlTextField) TextAlign.Start else TextAlign.Center
-                            ),
-                            //                        state = rememberTextFieldState("Hello"),
-                            lineLimits = TextFieldLineLimits.SingleLine,
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
-                            onKeyboardAction = {
-                                val input = (textFieldState.text as String).trim()
-                                val resetUrl = viewModel.activeTab!!.currentURL
+                                exit = shrinkVertically(
+                                    tween(
+                                        settings.value.animationSpeedForLayer(1)
+                                    )
+                                ) + fadeOut(
+                                    tween(
+                                        settings.value.animationSpeedForLayer(1)
+                                    )
+                                )
+
+                            )  {
+                                TextField(
+                                    modifier = Modifier
+                                        .heightIn(min = settings.value.heightForLayer(1).dp)
+                                        .padding(
+                                            start = settings.value.padding.dp,
+                                            end = settings.value.padding.dp,
+                                            top = settings.value.padding.dp,
+                                            bottom = 0.dp
+                                        )
+                                        .fillMaxWidth()
+                                        .onFocusChanged { focusState ->
+                                            viewModel.updateUI {
+                                                it.copy(isFocusOnIconUrlTextField = focusState.isFocused)
+                                            }
+                                            if (!focusState.isFocused) {
+                                                val resetUrl = viewModel.activeTab!!.currentURL
+                                                coroutineScope.launch {
+                                                    delay(150)
+                                                    val currentState = viewModel.uiState.value
+                                                    // If focus was completely lost (e.g. user tapped the webview)
+                                                    if (!currentState.isFocusOnIconUrlTextField && !currentState.isFocusOnUrlTextField) {
+
+                                                        if (currentState.isPinningApp) viewModel.updateUI { it.copy(isPinningApp = false) }
+                                                        if (currentState.isCreatingProfile) viewModel.updateUI { it.copy(isCreatingProfile = false) }
+                                                        if (currentState.isRenamingProfile) viewModel.updateUI { it.copy(isRenamingProfile = false) }
+
+                                                        // Restore the panels to how they were before we started pinning
+                                                        currentState.savedPanelState?.let { savedState ->
+                                                            viewModel.updateUI {
+                                                                it.copy(
+                                                                    isOptionsPanelVisible = savedState.options,
+                                                                    isDownloadPanelVisible = savedState.downloads,
+                                                                    isTabDataPanelVisible = false,
+                                                                    isNavPanelVisible = savedState.nav,
+                                                                    savedPanelState = null,
+                                                                )
+                                                            }
+                                                            if (currentState.isTabsPanelLock) viewModel.updateUI {
+                                                                it.copy(isTabsPanelVisible = savedState.tabs)
+                                                            }
+                                                        }
+
+                                                        // Reset the URL bar text back to the domain
+                                                        textFieldState.setTextAndPlaceCursorAtEnd(resetUrl.toDomain())
+                                                        viewModel.updateUI { it.copy(isUrlOverlayBoxVisible = true) }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ,
+                                    state = customIconUrlState,
+                                    placeholder = {
+                                        Text("custom icon url", color = Color.Gray)
+                                    },
+                                    textStyle = LocalTextStyle.current.copy(
+                                        textAlign = TextAlign.Start
+                                    ),
+                                    lineLimits = TextFieldLineLimits.SingleLine,
+                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                                    shape = RoundedCornerShape(
+                                        settings.value.cornerRadiusForLayer(2).dp
+                                    ),
+                                    colors = TextFieldDefaults.colors(
+                                        focusedContainerColor = Color.Black,
+                                        unfocusedContainerColor = Color.Black,
+                                        cursorColor = Color.White,
+                                        focusedTextColor = Color.White,
+                                        unfocusedTextColor = Color.White,
+                                        focusedIndicatorColor = Color.Transparent,
+                                        unfocusedIndicatorColor = Color.Transparent,
+                                        disabledIndicatorColor = Color.Transparent,
+                                        errorIndicatorColor = Color.Transparent
+                                    )
+                                )
+                            }
+                            TextField(
+                                modifier = Modifier
+                                    .heightIn(
+                                        min = settings.value.heightForLayer(1).dp
+                                    )
+                                    .padding(settings.value.padding.dp)
+                                    .onSizeChanged { size ->
+                                        setTextFieldHeightPx(size.height)
+                                    }
+                                    .fillMaxWidth()
+                                    .focusRequester(urlBarFocusRequester)
+
+                                    .onFocusChanged { focusState ->
+                                        val resetUrl = viewModel.activeTab!!.currentURL
+                                        viewModel.updateUI { it.copy(isFocusOnUrlTextField = focusState.isFocused) }
+
+                                        if (focusState.isFocused) {
+
+                                            viewModel.updateUI {
+                                                it.copy(
+                                                    savedPanelState = PanelVisibilityState(
+                                                        options = draggableState.currentValue == RevealState.Visible,
+                                                        tabs = uiState.value.isTabsPanelVisible,
+                                                        downloads = uiState.value.isDownloadPanelVisible,
+                                                        tabData = isTabDataPanelVisible,
+                                                        nav = uiState.value.isNavPanelVisible
+                                                    )
+                                                )
+                                            }
+
+                                            viewModel.updateUI {
+                                                it.copy(
+                                                    isOptionsPanelVisible = false,
+                                                    isTabsPanelVisible = false,
+                                                    isDownloadPanelVisible = false,
+                                                    isTabDataPanelVisible = false,
+                                                    isNavPanelVisible = false,
+                                                    isSettingsPanelVisible = false,
+                                                    isUrlOverlayBoxVisible = false,
+                                                    isAppsPanelVisible = false,
+                                                )
+                                            }
+                                            textFieldState.setTextAndPlaceCursorAtEnd("")
+
+                                        } else {
+                                            // THE FIX: Wait a tiny fraction of a second before tearing down the UI.
+                                            // This gives Compose enough time to shift focus to the Icon TextField!
+                                            coroutineScope.launch {
+                                                delay(150)
+                                                val currentState = viewModel.uiState.value
+                                                if (!currentState.isFocusOnIconUrlTextField && !currentState.isFocusOnUrlTextField) {
+                                                    if (currentState.isPinningApp) viewModel.updateUI { it.copy(isPinningApp = false) }
+                                                    if (currentState.isCreatingProfile) viewModel.updateUI { it.copy(isCreatingProfile = false) }
+                                                    if (currentState.isRenamingProfile) viewModel.updateUI { it.copy(isRenamingProfile = false) }
+
+                                                    currentState.savedPanelState?.let { savedState ->
+                                                        viewModel.updateUI {
+                                                            it.copy(
+                                                                isOptionsPanelVisible = savedState.options,
+                                                                isDownloadPanelVisible = savedState.downloads,
+                                                                isTabDataPanelVisible = false,
+                                                                isNavPanelVisible = savedState.nav,
+                                                                savedPanelState = null,
+                                                            )
+                                                        }
+                                                        if (currentState.isTabsPanelLock) viewModel.updateUI {
+                                                            it.copy(isTabsPanelVisible = savedState.tabs)
+                                                        }
+                                                    }
+                                                    textFieldState.setTextAndPlaceCursorAtEnd(resetUrl.toDomain())
+                                                    viewModel.updateUI { it.copy(isUrlOverlayBoxVisible = true) }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    .clip(
+                                        RoundedCornerShape(
+                                            settings.value.cornerRadiusForLayer(2).dp
+                                        )
+                                    ),
+                                placeholder = {
+                                    when {
+                                        uiState.value.isCreatingProfile -> Text("profile label")
+                                        uiState.value.isRenamingProfile -> Text("profile label")
+                                        uiState.value.isPinningApp -> Text("pin label")
+                                        else -> Text("search / url")
+                                    }
+                                },
+                                state = textFieldState,
+                                textStyle = LocalTextStyle.current.copy(
+                                    //                            fontFamily = FontFamily.Monospace,
+                                    textAlign = if (uiState.value.isFocusOnUrlTextField) TextAlign.Start else TextAlign.Center
+                                ),
+                                //                        state = rememberTextFieldState("Hello"),
+                                lineLimits = TextFieldLineLimits.SingleLine,
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
+                                onKeyboardAction = {
+                                    val input = (textFieldState.text as String).trim()
+                                    val resetUrl = viewModel.activeTab!!.currentURL
 
 
-                                if (input.isEmpty()) {
+                                    if (input.isEmpty()) {
+
+                                        when {
+                                            uiState.value.isCreatingProfile -> {
+                                                viewModel.createNewProfile()
+                                                viewModel.updateUI { it.copy(isAppsPanelVisible = true) }
+                                            }
+
+                                            uiState.value.isPinningApp -> {
+                                                viewModel.pinApp(
+                                                    context = context,
+                                                    title = viewModel.activeTab!!.currentTitle,
+                                                    url = resetUrl,
+                                                    iconUrl = viewModel.activeTab!!.currentFaviconUrl,
+                                                )
+                                                viewModel.updateUI { it.copy(isPinningApp = false) }
+                                            }
+
+                                            else -> activeSession.reload()
+                                        }
+
+                                        focusManager.clearFocus()
+                                        keyboardController?.hide()
+                                        textFieldState.setTextAndPlaceCursorAtEnd(resetUrl.toDomain())
+
+                                        viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
+                                        return@TextField
+                                    }
+
+
+
 
                                     when {
+
+                                        uiState.value.isRenamingProfile -> {
+                                            viewModel.renameProfile(input)
+                                            viewModel.updateUI { it.copy(isAppsPanelVisible = true) }
+                                        }
+
                                         uiState.value.isCreatingProfile -> {
-                                            viewModel.createNewProfile()
+                                            viewModel.createNewProfile(input)
                                             viewModel.updateUI { it.copy(isAppsPanelVisible = true) }
                                         }
 
                                         uiState.value.isPinningApp -> {
+
+                                            val customIconInput = (customIconUrlState.text as CharSequence).toString().trim()
+                                            val finalIconUrl = customIconInput.ifEmpty { viewModel.activeTab!!.currentFaviconUrl }
+
                                             viewModel.pinApp(
                                                 context = context,
-                                                title = viewModel.activeTab!!.currentTitle,
+                                                title = input,
                                                 url = resetUrl,
-                                                iconUrl = viewModel.activeTab!!.currentFaviconUrl,
+                                                iconUrl = finalIconUrl,
                                             )
                                             viewModel.updateUI { it.copy(isPinningApp = false) }
                                         }
 
-                                        else -> activeSession.reload()
+
+                                        else -> {
+                                            // search
+                                            val isUrl = try {
+                                                input.startsWith("about:", ignoreCase = true) ||
+                                                        input.startsWith(
+                                                            "javascript:",
+                                                            ignoreCase = true
+                                                        ) ||
+                                                        input.startsWith("file:", ignoreCase = true) ||
+                                                        input.startsWith("data:", ignoreCase = true) ||
+                                                        Patterns.WEB_URL.matcher(input).matches() ||
+                                                        (input.contains(".") && !input.contains(" "))
+                                                        && !input.endsWith(".")
+                                                        && !input.startsWith(".")
+                                            } catch (_: Exception) {
+                                                false
+                                            }
+                                            val finalUrl = if (isUrl) {
+                                                if (input.startsWith("http://", ignoreCase = true) ||
+                                                    input.startsWith("https://", ignoreCase = true) ||
+                                                    input.startsWith("about:", ignoreCase = true) ||
+                                                    input.startsWith("javascript:", ignoreCase = true) ||
+                                                    input.startsWith("file:", ignoreCase = true) ||
+                                                    input.startsWith("data:", ignoreCase = true)
+                                                ) {
+                                                    input
+                                                } else {
+                                                    "https://$input"
+                                                }
+                                            } else {
+                                                val encodedQuery =
+                                                    URLEncoder.encode(
+                                                        input,
+                                                        StandardCharsets.UTF_8.toString()
+                                                    )
+                                                //                                                "https://www.google.com/search?q=$encodedQuery"
+                                                //                                                "https://duckduckgo.com/?q=$encodedQuery"
+                                                //                                                "https://www.bing.com/search?q=$encodedQuery"
+                                                SearchEngine.entries[settings.value.searchEngine].getSearchUrl(
+                                                    encodedQuery
+                                                )
+                                            }
+
+                                            onNewUrl(finalUrl)
+                                        }
                                     }
+
 
                                     focusManager.clearFocus()
                                     keyboardController?.hide()
-                                    textFieldState.setTextAndPlaceCursorAtEnd(resetUrl.toDomain())
 
                                     viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
-                                    return@TextField
-                                }
+                                },
+                                shape = RoundedCornerShape(
+                                    settings.value.cornerRadiusForLayer(2).dp
+                                ),
+                                colors = TextFieldDefaults.colors(
+                                    focusedContainerColor = Color.Black,
+                                    unfocusedContainerColor = Color.Black,
+                                    cursorColor = Color.White,
+                                    focusedTextColor = Color.White,
+                                    unfocusedTextColor = Color.White,
 
-
-
-
-                                when {
-
-                                    uiState.value.isRenamingProfile -> {
-                                        viewModel.renameProfile(input)
-                                        viewModel.updateUI { it.copy(isAppsPanelVisible = true) }
-                                    }
-
-                                    uiState.value.isCreatingProfile -> {
-                                        viewModel.createNewProfile(input)
-                                        viewModel.updateUI { it.copy(isAppsPanelVisible = true) }
-                                    }
-
-                                    uiState.value.isPinningApp -> {
-                                        viewModel.pinApp(
-                                            context = context,
-                                            title = input,
-                                            url = resetUrl,
-                                            iconUrl = viewModel.activeTab!!.currentFaviconUrl,
-                                        )
-                                        viewModel.updateUI { it.copy(isPinningApp = false) }
-                                    }
-
-
-                                    else -> {
-                                        // search
-                                        val isUrl = try {
-                                            input.startsWith("about:", ignoreCase = true) ||
-                                                    input.startsWith(
-                                                        "javascript:",
-                                                        ignoreCase = true
-                                                    ) ||
-                                                    input.startsWith("file:", ignoreCase = true) ||
-                                                    input.startsWith("data:", ignoreCase = true) ||
-                                                    Patterns.WEB_URL.matcher(input).matches() ||
-                                                    (input.contains(".") && !input.contains(" "))
-                                                    && !input.endsWith(".")
-                                                    && !input.startsWith(".")
-                                        } catch (_: Exception) {
-                                            false
-                                        }
-                                        val finalUrl = if (isUrl) {
-                                            if (input.startsWith("http://", ignoreCase = true) ||
-                                                input.startsWith("https://", ignoreCase = true) ||
-                                                input.startsWith("about:", ignoreCase = true) ||
-                                                input.startsWith("javascript:", ignoreCase = true) ||
-                                                input.startsWith("file:", ignoreCase = true) ||
-                                                input.startsWith("data:", ignoreCase = true)
-                                            ) {
-                                                input
-                                            } else {
-                                                "https://$input"
-                                            }
-                                        } else {
-                                            val encodedQuery =
-                                                URLEncoder.encode(
-                                                    input,
-                                                    StandardCharsets.UTF_8.toString()
-                                                )
-                                            //                                                "https://www.google.com/search?q=$encodedQuery"
-                                            //                                                "https://duckduckgo.com/?q=$encodedQuery"
-                                            //                                                "https://www.bing.com/search?q=$encodedQuery"
-                                            SearchEngine.entries[settings.value.searchEngine].getSearchUrl(
-                                                encodedQuery
-                                            )
-                                        }
-
-                                        onNewUrl(finalUrl)
-                                    }
-                                }
-
-
-                                focusManager.clearFocus()
-                                keyboardController?.hide()
-
-                                viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
-                            },
-                            shape = RoundedCornerShape(
-                                settings.value.cornerRadiusForLayer(2).dp
-                            ),
-                            colors = TextFieldDefaults.colors(
-                                focusedContainerColor = Color.Black,
-                                unfocusedContainerColor = Color.Black,
-                                cursorColor = Color.White,
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White,
-
-                                // 3. This is the key to removing the underline
-                                focusedIndicatorColor = Color.Transparent,
-                                unfocusedIndicatorColor = Color.Transparent,
-                                disabledIndicatorColor = Color.Transparent,
-                                errorIndicatorColor = Color.Transparent
-                            ),
-                        )
+                                    // 3. This is the key to removing the underline
+                                    focusedIndicatorColor = Color.Transparent,
+                                    unfocusedIndicatorColor = Color.Transparent,
+                                    disabledIndicatorColor = Color.Transparent,
+                                    errorIndicatorColor = Color.Transparent
+                                ),
+                            )
+                        }
 
                         if (uiState.value.isUrlOverlayBoxVisible && !uiState.value.isFocusOnUrlTextField) Box(
                             modifier = Modifier
@@ -960,12 +1061,13 @@ fun BottomPanel(
                         val input = (textFieldState.text as CharSequence).toString().trim()
                         // 2. If the user cleared the text, fallback to the website's title
                         val finalTitle = input.ifEmpty { viewModel.activeTab!!.currentTitle }
-
+                        val customIconInput = (customIconUrlState.text as CharSequence).toString().trim()
+                        val finalIconUrl = customIconInput.ifEmpty { viewModel.activeTab!!.currentFaviconUrl }
                         viewModel.generateAndInstallWebApk(
                             context = context,
                             title = finalTitle,
                             url = viewModel.activeTab!!.currentURL,
-                            iconUrl = viewModel.activeTab!!.currentFaviconUrl
+                            iconUrl = finalIconUrl
                         )
                         viewModel.updateUI { it.copy(isPinningApp = false) }
                         focusManager.clearFocus()
