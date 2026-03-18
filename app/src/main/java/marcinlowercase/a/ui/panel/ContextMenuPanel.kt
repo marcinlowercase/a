@@ -327,12 +327,12 @@ fun ContextMenuPanel(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(bottom = settings.value.padding.dp)
+                            .padding(horizontal = settings.value.cornerRadiusForLayer(1).dp)
                             .clip(
                                 RoundedCornerShape(
                                     settings.value.cornerRadiusForLayer(2).dp
                                 )
                             )
-                            .padding(settings.value.padding.dp * 2)
 //                            .clickable(onClick = {
 //                                val clip = ClipData.newPlainText("Link", urlSrc)
 //                                clipboard.nativeClipboard.setPrimaryClip(clip)

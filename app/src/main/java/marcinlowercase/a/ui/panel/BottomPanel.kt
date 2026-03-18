@@ -563,11 +563,11 @@ fun BottomPanel(
                                         settings.value.cornerRadiusForLayer(2).dp
                                     ),
                                     colors = TextFieldDefaults.colors(
-                                        focusedContainerColor = Color.Black,
-                                        unfocusedContainerColor = Color.Black,
-                                        cursorColor = Color.White,
-                                        focusedTextColor = Color.White,
-                                        unfocusedTextColor = Color.White,
+                                        focusedContainerColor = Color.White,
+                                        unfocusedContainerColor = Color.White,
+                                        cursorColor = Color.Black,
+                                        focusedTextColor = Color.Black,
+                                        unfocusedTextColor = Color.Black,
                                         focusedIndicatorColor = Color.Transparent,
                                         unfocusedIndicatorColor = Color.Transparent,
                                         disabledIndicatorColor = Color.Transparent,
@@ -593,31 +593,33 @@ fun BottomPanel(
 
                                         if (focusState.isFocused) {
 
-                                            viewModel.updateUI {
-                                                it.copy(
-                                                    savedPanelState = PanelVisibilityState(
-                                                        options = draggableState.currentValue == RevealState.Visible,
-                                                        tabs = uiState.value.isTabsPanelVisible,
-                                                        downloads = uiState.value.isDownloadPanelVisible,
-                                                        tabData = isTabDataPanelVisible,
-                                                        nav = uiState.value.isNavPanelVisible
+                                            if (!uiState.value.isPinningApp) {
+                                                viewModel.updateUI {
+                                                    it.copy(
+                                                        savedPanelState = PanelVisibilityState(
+                                                            options = draggableState.currentValue == RevealState.Visible,
+                                                            tabs = uiState.value.isTabsPanelVisible,
+                                                            downloads = uiState.value.isDownloadPanelVisible,
+                                                            tabData = isTabDataPanelVisible,
+                                                            nav = uiState.value.isNavPanelVisible
+                                                        )
                                                     )
-                                                )
-                                            }
+                                                }
 
-                                            viewModel.updateUI {
-                                                it.copy(
-                                                    isOptionsPanelVisible = false,
-                                                    isTabsPanelVisible = false,
-                                                    isDownloadPanelVisible = false,
-                                                    isTabDataPanelVisible = false,
-                                                    isNavPanelVisible = false,
-                                                    isSettingsPanelVisible = false,
-                                                    isUrlOverlayBoxVisible = false,
-                                                    isAppsPanelVisible = false,
-                                                )
+                                                viewModel.updateUI {
+                                                    it.copy(
+                                                        isOptionsPanelVisible = false,
+                                                        isTabsPanelVisible = false,
+                                                        isDownloadPanelVisible = false,
+                                                        isTabDataPanelVisible = false,
+                                                        isNavPanelVisible = false,
+                                                        isSettingsPanelVisible = false,
+                                                        isUrlOverlayBoxVisible = false,
+                                                        isAppsPanelVisible = false,
+                                                    )
+                                                }
+                                                textFieldState.setTextAndPlaceCursorAtEnd("")
                                             }
-                                            textFieldState.setTextAndPlaceCursorAtEnd("")
 
                                         } else {
                                             // THE FIX: Wait a tiny fraction of a second before tearing down the UI.
@@ -666,7 +668,7 @@ fun BottomPanel(
                                 state = textFieldState,
                                 textStyle = LocalTextStyle.current.copy(
                                     //                            fontFamily = FontFamily.Monospace,
-                                    textAlign = if (uiState.value.isFocusOnUrlTextField) TextAlign.Start else TextAlign.Center
+                                    textAlign = if (uiState.value.isFocusOnUrlTextField || uiState.value.isFocusOnIconUrlTextField) TextAlign.Start else TextAlign.Center
                                 ),
                                 //                        state = rememberTextFieldState("Hello"),
                                 lineLimits = TextFieldLineLimits.SingleLine,
