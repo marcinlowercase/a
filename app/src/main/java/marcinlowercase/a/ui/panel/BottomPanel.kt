@@ -515,6 +515,18 @@ fun BottomPanel(
                                                 it.copy(isFocusOnIconUrlTextField = focusState.isFocused)
                                             }
                                             if (!focusState.isFocused) {
+
+                                                val input = (customIconUrlState.text as CharSequence).toString().trim()
+                                                if (input.isNotEmpty()) {
+                                                    // Check if it's a valid web URL OR a raw base64 image data string
+                                                    val isValid = Patterns.WEB_URL.matcher(input).matches() ||
+                                                            input.startsWith("data:image", ignoreCase = true)
+
+                                                    if (!isValid) {
+                                                        // It's invalid text! Wipe it blank.
+                                                        customIconUrlState.setTextAndPlaceCursorAtEnd("")
+                                                    }
+                                                }
                                                 val resetUrl = viewModel.activeTab!!.currentURL
                                                 coroutineScope.launch {
                                                     delay(150)
