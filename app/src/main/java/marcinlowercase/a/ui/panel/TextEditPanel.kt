@@ -94,7 +94,7 @@ fun TextEditPanel(
                         layer = 3,
                         modifier = Modifier.weight(1f),
                         onTap = onAddToHomeScreen,
-                        buttonDescription = "add to home screen as webapk",
+                        buttonDescription = "install web app",
                         painterId = R.drawable.ic_browser_updated,
                     )
                 }
