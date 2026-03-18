@@ -312,7 +312,22 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        val isPwa = intent?.getBooleanExtra("is_pwa", false) == true
+        if (!isTaskRoot && !isPwa) {
+            // We are trapped inside another app's task!
+            // Clone the intent, add the NEW_TASK flag, and fire it to our Main Browser task!
+            val bounceIntent = Intent(intent).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            }
+            startActivity(bounceIntent)
+
+            // Immediately kill this ghost window so it disappears from Google Keep
+            finish()
+            return
+        }
+
         handleIntent(intent, isColdStart = true)
+
 
         lifecycleScope.launch(Dispatchers.IO) {
             cacheDir.listFiles()?.forEach { it.delete() }
@@ -333,7 +348,7 @@ class MainActivity : ComponentActivity() {
                         innerPadding = innerPadding,
                         modifier = Modifier,
                         newUrlFlow = newUrlFromIntent,
-                        initialIntentUrl = intent?.dataString,
+                        initialIntentUrl = if (viewModel.isStandaloneMode.value) null else intent?.dataString,
                         viewModel = viewModel
                     )
                 }
@@ -355,6 +370,7 @@ class MainActivity : ComponentActivity() {
     //region Intent
     //region Intent
 //region Intent
+//region Intent
     private fun handleIntent(intent: Intent?, isColdStart: Boolean = false) {
         val viewModel: BrowserViewModel by viewModels()
 
@@ -370,20 +386,21 @@ class MainActivity : ComponentActivity() {
                 if (isPwa) {
                     Log.i("PWA", "Launched as a Progressive Web App in Profile: $targetProfileId")
 
-                    if (!targetProfileId.isNullOrEmpty() && viewModel.activeProfileId.value != targetProfileId) {
-                        viewModel.switchProfile(targetProfileId)
-                    }
-                }
 
-                if (!isColdStart) {
-                    newUrlFromIntent.update { urlFromIntent }
+                    // ALWAYS spawn the PWA tab SYNCHRONOUSLY!
+                    // This guarantees pwaTab is populated instantly, avoiding NPEs and tab-mixing on Hot Starts.
+                    viewModel.launchPwaTab(urlFromIntent)
+                } else {
+                    // Normal Browser Mode: Rely on TabManager for cold starts, Flow for hot starts
+                    if (!isColdStart) {
+                        newUrlFromIntent.update { urlFromIntent }
+                    }
                 }
             }
         } else {
             viewModel.isStandaloneMode.value = false
         }
-    }
-    override fun onNewIntent(intent: Intent) {
+    }    override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         // Hot start!
         handleIntent(intent, isColdStart = false)
@@ -983,8 +1000,6 @@ fun BrowserScreen(
         }
     }
     val closeAllTabs = {
-
-
         viewModel.tabs.clear()
 
         // clear the persisted list in SharedPreferences
@@ -994,7 +1009,6 @@ fun BrowserScreen(
         activity.finishAndRemoveTask()
         exitProcess(0)
     }
-
     val handleClearInspectedTabData = {
         confirmationPopup(
             message = "clear site data ?",
@@ -1421,22 +1435,15 @@ fun BrowserScreen(
         }
 
         LaunchedEffect(Unit) {
-            newUrlFlow.collect { urlFromIntent ->
-                if (urlFromIntent != null) {
+            newUrlFlow.collect { url ->
+                if (url != null) {
+                    // Normal Browser Mode: Always open a new tab safely
+                    val insertIndex = (activeTabIndex + 1).coerceAtMost(viewModel.tabs.size)
+                    viewModel.createNewTab(insertIndex, url)
 
-                    // 1. Calculate the index: Current Active + 1
-                    // If list is empty, index is 0.
-                    val currentActive = activeTabIndex
-                    val nextIndex = if (viewModel.tabs.isEmpty()) 0 else currentActive + 1
-
-                    // 2. Perform creation
-                    viewModel.createNewTab(nextIndex, urlFromIntent)
-
-                    // 3. Reset the flow so we don't re-open it on configuration change
-                    context.newUrlFromIntent.value = null
+                    context.newUrlFromIntent.update { null }
                 }
             }
-
         }
         LaunchedEffect(uiState.value.isLandscapeByButton, uiState.value.isOnFullscreenVideo) {
             viewModel.updateUI { it.copy(isLandscape = uiState.value.isLandscapeByButton || uiState.value.isOnFullscreenVideo) }
@@ -1576,9 +1583,9 @@ fun BrowserScreen(
 //                tab = viewModel.activeTab!!,
                 tab = object : MutableState<Tab> { // Bridge for the old delegate code
                     override var value: Tab
-                        get() = viewModel.tabs.getOrElse(activeTabIndex) { Tab.createEmpty(viewModel.activeProfileId.value) }
+                        // CRITICAL FIX: Dynamically fetch activeTab so Gecko uses pwaTab instead of Tab 2!
+                        get() = viewModel.activeTab ?: Tab.createEmpty(viewModel.activeProfileId.value)
                         set(newTab) {
-//                            viewModel.tabs[activeTabIndex] = newTab
                             viewModel.updateTabById(newTab.id) { newTab }
                         }
 
@@ -1705,23 +1712,17 @@ fun BrowserScreen(
                     viewModel.updateUI { it.copy(isLoading = false) }
                 },
                 onFaviconChanged = { tabId, faviconUrl ->
-                    // Find the index of the tab that fired this event.
-                    val tabIndex = viewModel.tabs.indexOfFirst { it.id == tabId }
-                    if (tabIndex == -1) return@setupDelegates
-
-                    val targetTab = viewModel.tabs[tabIndex]
-
-                    // Check if an update is even needed to prevent unnecessary recompositions.
                     if (faviconUrl.isNotBlank()) {
-                        val newCache = targetTab.faviconCache.toMutableMap().apply {
-                            put(targetTab.currentURL, faviconUrl)
+                        // CRITICAL FIX: Use updateTabById so it cleanly routes to the PWA tab if needed!
+                        viewModel.updateTabById(tabId) { targetTab ->
+                            val newCache = targetTab.faviconCache.toMutableMap().apply {
+                                put(targetTab.currentURL, faviconUrl)
+                            }
+                            targetTab.copy(
+                                currentFaviconUrl = faviconUrl,
+                                faviconCache = newCache
+                            )
                         }
-
-                        // Update the tab with the new Icon AND the new Cache
-                        viewModel.tabs[tabIndex] = targetTab.copy(
-                            currentFaviconUrl = faviconUrl,
-                            faviconCache = newCache
-                        )
                         saveTrigger++
                     }
                 },
@@ -2206,16 +2207,10 @@ fun BrowserScreen(
             newUrlFlow.collect { url ->
                 if (url != null) {
                     if (viewModel.isStandaloneMode.value) {
-                        // PWA Mode: Check if a tab with this domain already exists to prevent tab spam!
-                        val existingIndex = viewModel.tabs.indexOfFirst { it.currentURL.startsWith(url) || url.startsWith(it.currentURL) }
-                        if (existingIndex != -1) {
-                            viewModel.selectTab(existingIndex)
-                        } else {
-                            val insertIndex = (activeTabIndex + 1).coerceAtMost(viewModel.tabs.size)
-                            viewModel.createNewTab(insertIndex, url)
-                        }
+                        // PWA Mode: Launch in total isolation!
+                        viewModel.launchPwaTab(url)
                     } else {
-                        // Normal Browser Mode: Always open a new tab
+                        // Normal Browser Mode: Append to the normal tabs list
                         val insertIndex = (activeTabIndex + 1).coerceAtMost(viewModel.tabs.size)
                         viewModel.createNewTab(insertIndex, url)
                     }
@@ -2254,22 +2249,23 @@ fun BrowserScreen(
 
                 !viewModel.activeTab!!.canGoBack -> {
                     if (viewModel.isStandaloneMode.value) {
-                        // In PWA Standalone Mode, just close the app silently
-                        activity.finishAndRemoveTask()
+                        activity.moveTaskToBack(true)
+
                     } else {
                         // In Normal Browser Mode, ask the user
-                        confirmationPopup(
-                            message = "reach the beginning of tab history ,\nclose tab ? ",
-                            onConfirm = {
-                                viewModel.closeActiveTab {
-                                    activity.finishAndRemoveTask()
-                                    exitProcess(0)
-                                }
-                            },
-                        )
+//                        confirmationPopup(
+//                            message = "reach the beginning of tab history ,\nclose tab ? ",
+//                            onConfirm = {
+//                                viewModel.closeActiveTab {
+//                                    activity.finishAndRemoveTask()
+//                                    exitProcess(0)
+//                                }
+//                            },
+//                        )
+                        activity.moveTaskToBack(true)
+
                     }
                 }
-
                 else -> {
                     // not back to home screen
                 }

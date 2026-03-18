@@ -170,7 +170,7 @@ fun BottomPanel(
 
     AnimatedVisibility(
         modifier = modifier,
-        visible = uiState.value.isBottomPanelVisible && !viewModel.isStandaloneMode.value,
+        visible = uiState.value.isBottomPanelVisible,
         enter = slideInVertically(
             animationSpec = tween(
                 settings.value.animationSpeedForLayer(0)
@@ -460,7 +460,7 @@ fun BottomPanel(
                             // The long press on the UrlBar will activate the gesture
 
                         },
-                    visible = uiState.value.isUrlBarVisible,
+                    visible = uiState.value.isUrlBarVisible  && !viewModel.isStandaloneMode.value,
                     enter = fadeIn(
                         tween(
                             settings.value.animationSpeedForLayer(1)

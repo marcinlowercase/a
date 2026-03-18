@@ -43,7 +43,7 @@ fun LoadingIndicator(
 
     // Animate the appearance and disappearance of the overlay.
     AnimatedVisibility(
-        visible = uiState.value.isLoading,
+        visible = uiState.value.isLoading && !viewModel.isStandaloneMode.value,
         modifier = modifier,
         enter = expandVertically(tween(settings.value.animationSpeedForLayer(1))),
         exit = shrinkVertically(tween(settings.value.animationSpeedForLayer(1))) +

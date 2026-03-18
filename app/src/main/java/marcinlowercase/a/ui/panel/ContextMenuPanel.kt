@@ -132,10 +132,12 @@ fun ContextMenuPanel(
 
                 targetUrl = data.linkUrl?: ""
 
-                actions.add(Triple(R.drawable.ic_add, "open link in new tab") {
-                    viewModel.createNewTab(viewModel.activeTabIndex.value + 1, targetUrl)
-                    viewModel.contextMenuData.value = null
-                })
+                if(!viewModel.isStandaloneMode.value){
+                    actions.add(Triple(R.drawable.ic_add, "open link in new tab") {
+                        viewModel.createNewTab(viewModel.activeTabIndex.value + 1, targetUrl)
+                        viewModel.contextMenuData.value = null
+                    })
+                }
                 actions.add(Triple(R.drawable.ic_content_copy, "copy link") {
                     val clip = ClipData.newPlainText("Link", targetUrl)
                     clipboard.nativeClipboard.setPrimaryClip(clip)
@@ -149,7 +151,7 @@ fun ContextMenuPanel(
                     isOnlyOneUrl = false
 
                     targetUrl = data.linkUrl
-                    actions.add(Triple(R.drawable.ic_add, "open link in new tab") {
+                    if(!viewModel.isStandaloneMode.value) actions.add(Triple(R.drawable.ic_add, "open link in new tab") {
                         viewModel.createNewTab(viewModel.activeTabIndex.value + 1, targetUrl)
                         viewModel.contextMenuData.value = null
                     })
@@ -167,7 +169,7 @@ fun ContextMenuPanel(
                         viewModel.contextMenuData.value = null
                     })
                     secondTargetUrl = data.srcUrl
-                    secondActions.add(Triple(R.drawable.ic_add, "open media in new tab") {
+                    if(!viewModel.isStandaloneMode.value) secondActions.add(Triple(R.drawable.ic_add, "open media in new tab") {
                         viewModel.createNewTab(viewModel.activeTabIndex.value + 1, secondTargetUrl)
                         viewModel.contextMenuData.value = null
                     })
@@ -200,7 +202,7 @@ fun ContextMenuPanel(
                 } else {
                     // only media
                     targetUrl = data.srcUrl
-                    actions.add(Triple(R.drawable.ic_add, "open media in new tab") {
+                    if(!viewModel.isStandaloneMode.value) actions.add(Triple(R.drawable.ic_add, "open media in new tab") {
                         viewModel.createNewTab(viewModel.activeTabIndex.value + 1, targetUrl)
                         viewModel.contextMenuData.value = null
                     })
@@ -356,7 +358,8 @@ fun ContextMenuPanel(
                             color = Color.White,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier
+                                .weight(1f)
                                 .horizontalScroll(rememberScrollState())
                         )
                     }

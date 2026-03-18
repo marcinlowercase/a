@@ -211,151 +211,92 @@ fun TabItem(
 
 @Composable
 fun TabsPanel(
-
     modifier: Modifier = Modifier,
     updateInspectingTab: (Tab) -> Unit,
 ) {
-
     val viewModel = LocalBrowserViewModel.current
     val uiState = viewModel.uiState.collectAsState()
-    if (viewModel.tabs.isEmpty()) return
     val settings = viewModel.browserSettings.collectAsState()
-    val pagerState =
-        rememberPagerState(
-            initialPage = viewModel.activeTabIndex.collectAsState().value + 1,
-            pageCount = { viewModel.tabs.size + 2 })
 
-    // This effect is still useful to sync the pager if a new tab is created
-    LaunchedEffect(viewModel.activeTabIndex.collectAsState().value, viewModel.tabs.size, viewModel.activeProfileId.value) {
-        //Log.e("marcLog", "TabsPanel: LaunchedEffect")
-        //Log.e("marcLog", "activeTabIndex: ${viewModel.activeTabIndex.value}")
-        if (pagerState.currentPage != viewModel.activeTabIndex.value + 1) {
-            if (uiState.value.isTabsPanelVisible) pagerState.animateScrollToPage(viewModel.activeTabIndex.value + 1)
-            else pagerState.requestScrollToPage(viewModel.activeTabIndex.value + 1)
-        }
-    }
-    LaunchedEffect(viewModel.activeProfileId.value) {
-        if (pagerState.currentPage != viewModel.activeTabIndex.value + 1) {
-            pagerState.animateScrollToPage(viewModel.activeTabIndex.value + 1)
-        }
+    // 1. Filter out Standalone tabs and keep track of their ORIGINAL indices
+    val visibleTabs = viewModel.tabs.mapIndexedNotNull { index, tab ->
+        if (!tab.isStandalone) index to tab else null
     }
 
+    val activeTabIndex = viewModel.activeTabIndex.collectAsState().value
+    val activeVisibleIndex = visibleTabs.indexOfFirst { it.first == activeTabIndex }.coerceAtLeast(0)
+
+    val pagerState = rememberPagerState(
+        initialPage = activeVisibleIndex + 1,
+        pageCount = { visibleTabs.size + 2 }
+    )
+
+    LaunchedEffect(activeTabIndex, visibleTabs.size, viewModel.activeProfileId.value) {
+        val newActiveVisibleIndex = visibleTabs.indexOfFirst { it.first == activeTabIndex }.coerceAtLeast(0)
+        if (pagerState.currentPage != newActiveVisibleIndex + 1) {
+            if (uiState.value.isTabsPanelVisible) pagerState.animateScrollToPage(newActiveVisibleIndex + 1)
+            else pagerState.requestScrollToPage(newActiveVisibleIndex + 1)
+        }
+    }
 
     LaunchedEffect(pagerState.currentPage) {
-        if (pagerState.currentPage in 1..viewModel.tabs.size)
-            updateInspectingTab(viewModel.tabs[pagerState.currentPage - 1])
-//            inspectingTab.value = viewModel.tabs[pagerState.currentPage - 1]
-        else {
-            updateInspectingTab(Tab.createEmpty(viewModel.activeProfileId.value,0L))
-//            inspectingTab.value = null
+        if (pagerState.currentPage in 1..visibleTabs.size) {
+            updateInspectingTab(visibleTabs[pagerState.currentPage - 1].second)
+        } else {
+            updateInspectingTab(Tab.createEmpty(viewModel.activeProfileId.value, 0L))
         }
     }
-
 
     AnimatedVisibility(
         visible = uiState.value.isTabsPanelVisible,
-        enter = expandVertically(
-            tween(
-                settings.value.animationSpeedForLayer(1)
-            )
-        ) + fadeIn(
-            tween(
-                settings.value.animationSpeedForLayer(1)
-            )
-        ),
-        exit = shrinkVertically(
-            tween(
-                settings.value.animationSpeedForLayer(1)
-            )
-        ) + fadeOut(
-            tween(
-                settings.value.animationSpeedForLayer(1)
-            )
-        )
-
+        enter = expandVertically(tween(settings.value.animationSpeedForLayer(1))) + fadeIn(tween(settings.value.animationSpeedForLayer(1))),
+        exit = shrinkVertically(tween(settings.value.animationSpeedForLayer(1))) + fadeOut(tween(settings.value.animationSpeedForLayer(1)))
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = settings.value.padding.dp)
                 .padding(horizontal = settings.value.padding.dp)
-
-                .clip(
-                    RoundedCornerShape(
-                        settings.value.cornerRadiusForLayer(2).dp
-                    )
-                )
+                .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp))
         ) {
             HorizontalPager(
                 state = pagerState,
-                modifier = modifier
-                    .fillMaxWidth(),
-                // We use a smaller content padding so the active tab is larger
+                modifier = modifier.fillMaxWidth(),
                 contentPadding = PaddingValues(horizontal = settings.value.padding.dp * 4),
                 pageSpacing = settings.value.padding.dp / 2
             ) { pageIndex ->
 
                 when (pageIndex) {
                     0 -> {
-                        // This is the FIRST page: New Tab button on the left
-                        NewTabButton(
-                            onClick = {
-                                viewModel.createNewTab(
-                                    0,
-                                    ""
-                                )
-                            } // Request new tab at index 0
-                        )
+                        NewTabButton(onClick = { viewModel.createNewTab(0, "") })
                     }
 
-                    in 1..viewModel.tabs.size -> {
-                        // This is a regular tab page. Map pageIndex back to tabIndex.
-                        val tabIndex = pageIndex - 1
+                    in 1..visibleTabs.size -> {
+                        // We extract the real global index and the tab object
+                        val (realIndex, tab) = visibleTabs[pageIndex - 1]
 
-                        val tab = viewModel.tabs[tabIndex]
-
-                        Log.d("marcBlank", "tabs display ${tab.currentURL}")
                         val title = if (tab.currentURL == "about:blank") {
                             "blank page"
                         } else {
                             tab.currentTitle.ifBlank { tab.currentURL.toDomain() }
                         }
                         val faviconUrl = tab.currentFaviconUrl.ifBlank {
-                            getFaviconUrlFromGoogleServer(
-                                tab.currentURL
-                            )
+                            getFaviconUrlFromGoogleServer(tab.currentURL)
                         }
                         TabItem(
                             faviconUrl = faviconUrl,
                             title = title,
                             isActive = pagerState.currentPage == pageIndex,
-                            onClick = {
-                                viewModel.selectTab(tabIndex)
-
-                            },
+                            onClick = { viewModel.selectTab(realIndex) },
                             onLongClick = {
-
-                                if (uiState.value.inspectingTabId == null) viewModel.updateUI {
-                                    it.copy(
-                                        inspectingTabId = tab.id
-                                    )
-                                }
+                                if (uiState.value.inspectingTabId == null) viewModel.updateUI { it.copy(inspectingTabId = tab.id) }
                                 viewModel.updateUI { it.copy(isTabDataPanelVisible = !it.isTabDataPanelVisible) }
-
                             }
                         )
                     }
 
                     else -> {
-                        // This is the LAST page: New Tab button on the right
-                        NewTabButton(
-                            onClick = {
-                                viewModel.createNewTab(
-                                    viewModel.tabs.size,
-                                    ""
-                                )
-                            } // Request new tab at the end
-                        )
+                        NewTabButton(onClick = { viewModel.createNewTab(viewModel.tabs.size, "") })
                     }
                 }
             }

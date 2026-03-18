@@ -122,7 +122,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     //endregion
 
 
-
     // region Profile Logic
     val profiles = mutableStateListOf<Profile>().apply {
         addAll(profileManager.loadProfiles())
@@ -130,6 +129,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     val activeProfileId = mutableStateOf(profileManager.getActiveProfileId())
     val isStandaloneMode = mutableStateOf(false)
+    val pwaTab = mutableStateOf<Tab?>(null)
 //    // v1 close all tab when change profile
 //    fun switchProfile(newProfileId: String) {
 //        if (activeProfileId.value == newProfileId) return
@@ -286,7 +286,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 //    }
     fun createNewProfile(name: String = "new profile") {
         // Default to: (Active Profile Index) + 1
-        val targetIndex = (profiles.indexOfFirst { it.id == activeProfileId.value }.coerceAtLeast(0) + 1)
+        val targetIndex =
+            (profiles.indexOfFirst { it.id == activeProfileId.value }.coerceAtLeast(0) + 1)
 
         val newProfile = Profile(
             id = "profile_${System.currentTimeMillis()}",
@@ -308,6 +309,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         // Switch to the newly created profile immediately
         switchProfile(newProfile.id)
     }
+
     fun renameProfile(newName: String) {
         val trimmedName = newName.trim()
         if (trimmedName.isEmpty()) return // Optional: prevent empty names
@@ -323,6 +325,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             profileManager.saveProfiles(profiles)
         }
     }
+
     fun moveInspectedTabToNextProfile() {
         val tabToMove = currentInspectingTab ?: return
         val currentProfileIdStr = activeProfileId.value
@@ -570,15 +573,18 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         // 1. Global Preferences (Always shared)
         val globalPrefs = context.getSharedPreferences("BrowserPrefs", Context.MODE_PRIVATE)
         // 2. Profile-specific Preferences
-        val profilePrefs = context.getSharedPreferences("BrowserPrefs_$profileId", Context.MODE_PRIVATE)
+        val profilePrefs =
+            context.getSharedPreferences("BrowserPrefs_$profileId", Context.MODE_PRIVATE)
 
         // Fallback for migration (if the profile doesn't exist yet, pull from global)
         // We now check for "default_url" instead of "is_first_app_load" since it moved to global
         val prefsToUse = if (profilePrefs.contains("default_url")) profilePrefs else globalPrefs
         val d = DefaultSettingValues
 
-        val rawOptionsOrder = prefsToUse.getString("options_order", d.OPTIONS_ORDER) ?: d.OPTIONS_ORDER
-        val rawSettingsOrder = prefsToUse.getString("settings_order", d.SETTINGS_ORDER) ?: d.SETTINGS_ORDER
+        val rawOptionsOrder =
+            prefsToUse.getString("options_order", d.OPTIONS_ORDER) ?: d.OPTIONS_ORDER
+        val rawSettingsOrder =
+            prefsToUse.getString("settings_order", d.SETTINGS_ORDER) ?: d.SETTINGS_ORDER
 
         val allSavedTokens = (rawOptionsOrder.split(",") + rawSettingsOrder.split(","))
             .filter { it.isNotBlank() }
@@ -607,12 +613,24 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             defaultUrl = prefsToUse.getString("default_url", d.URL) ?: d.URL,
             animationSpeed = prefsToUse.getFloat("animation_speed", d.ANIMATION_SPEED),
             isSharpMode = prefsToUse.getBoolean("is_sharp_mode", d.IS_SHARP_MODE),
-            cursorContainerSize = prefsToUse.getFloat("cursor_container_size", d.CURSOR_CONTAINER_SIZE),
+            cursorContainerSize = prefsToUse.getFloat(
+                "cursor_container_size",
+                d.CURSOR_CONTAINER_SIZE
+            ),
             cursorPointerSize = prefsToUse.getFloat("cursor_pointer_size", d.CURSOR_POINTER_SIZE),
-            cursorTrackingSpeed = prefsToUse.getFloat("cursor_tracking_speed", d.CURSOR_TRACKING_SPEED),
+            cursorTrackingSpeed = prefsToUse.getFloat(
+                "cursor_tracking_speed",
+                d.CURSOR_TRACKING_SPEED
+            ),
             showSuggestions = prefsToUse.getBoolean("show_suggestions", d.SHOW_SUGGESTIONS),
-            closedTabHistorySize = prefsToUse.getFloat("closed_tab_history_size", d.CLOSED_TAB_HISTORY_SIZE),
-            backSquareIdleOpacity = prefsToUse.getFloat("back_square_idle_opacity", d.BACK_SQUARE_IDLE_OPACITY),
+            closedTabHistorySize = prefsToUse.getFloat(
+                "closed_tab_history_size",
+                d.CLOSED_TAB_HISTORY_SIZE
+            ),
+            backSquareIdleOpacity = prefsToUse.getFloat(
+                "back_square_idle_opacity",
+                d.BACK_SQUARE_IDLE_OPACITY
+            ),
             searchEngine = prefsToUse.getInt("search_engine", d.SEARCH_ENGINE),
             isFullscreenMode = prefsToUse.getBoolean("is_fullscreen_mode", d.IS_FULLSCREEN_MODE),
             highlightColor = prefsToUse.getInt("highlight_color", d.HIGHLIGHT_COLOR),
@@ -620,19 +638,22 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             isDesktopMode = prefsToUse.getBoolean("is_desktop_mode", d.IS_DESKTOP_MODE),
             optionsOrder = rawOptionsOrder,
             settingsOrder = finalSettingsOrder,
-            hiddenOptions = prefsToUse.getString("hidden_options", d.HIDDEN_OPTIONS) ?: d.HIDDEN_OPTIONS,
-            isEnabledMediaControl = prefsToUse.getBoolean("is_enabled_media_control", d.IS_ENABLED_MEDIA_CONTROL),
+            hiddenOptions = prefsToUse.getString("hidden_options", d.HIDDEN_OPTIONS)
+                ?: d.HIDDEN_OPTIONS,
+            isEnabledMediaControl = prefsToUse.getBoolean(
+                "is_enabled_media_control",
+                d.IS_ENABLED_MEDIA_CONTROL
+            ),
             isEnabledOutSync = prefsToUse.getBoolean("is_enabled_out_sync", d.IS_ENABLED_OUT_SYNC),
 
 
-
-
-                    // Settings that don't have constants yet (or are dynamic)
+            // Settings that don't have constants yet (or are dynamic)
             backSquareOffsetX = prefsToUse.getFloat("back_square_offset_x", -1f),
             backSquareOffsetY = prefsToUse.getFloat("back_square_offset_y", -1f),
             isGuideModeEnabled = prefsToUse.getBoolean("is_guide_mode_enabled", true),
         )
     }
+
     fun updateSettings(mutation: (BrowserSettings) -> BrowserSettings) {
         _browserSettings.update(mutation)
         // Persist the resulting value after the update for the CURRENT active profile
@@ -722,10 +743,12 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             )
         }
     }
+
     private fun saveSettingsToPrefs(profileId: String, settings: BrowserSettings) {
         val context = getApplication<Application>()
         val globalPrefs = context.getSharedPreferences("BrowserPrefs", Context.MODE_PRIVATE)
-        val profilePrefs = context.getSharedPreferences("BrowserPrefs_$profileId", Context.MODE_PRIVATE)
+        val profilePrefs =
+            context.getSharedPreferences("BrowserPrefs_$profileId", Context.MODE_PRIVATE)
 
         // --- Save GLOBAL Settings ---
         globalPrefs.edit().apply {
@@ -823,8 +846,10 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     private val _activeTabIndex = MutableStateFlow(0)
     val activeTabIndex = _activeTabIndex.asStateFlow()
 
+    //    val activeTab: Tab?
+//        get() = tabs.getOrNull(_activeTabIndex.value)
     val activeTab: Tab?
-        get() = tabs.getOrNull(_activeTabIndex.value)
+        get() = if (isStandaloneMode.value) pwaTab.value else tabs.getOrNull(_activeTabIndex.value)
     private var isInitialized = false
     val initializeTabs = { initialUrl: String? ->
         if (!isInitialized) {
@@ -1102,7 +1127,12 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             onExitApp()
         }
     }
-    val createNewTab = { insertAtIndex: Int, url: String ->
+
+    fun createNewTab(insertAtIndex: Int, url: String, isStandalone: Boolean = false) {
+        Log.w("PWA", "createNewTab index: $insertAtIndex")
+        Log.w("PWA", "createNewTab url: $url")
+        Log.w("PWA", "createNewTab isStandalone: $isStandalone")
+
         // 1. Deactivate current active tab
         val currentIndex = _activeTabIndex.value
         if (currentIndex in tabs.indices) {
@@ -1116,7 +1146,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         val newTab = Tab(
             profileId = activeProfileId.value,
             currentURL = initialUrl.ifBlank { "about:blank" },
-            state = TabState.ACTIVE
+            state = TabState.ACTIVE,
+            isStandalone = isStandalone // <-- Set the standalone flag
         )
 
         // 3. Insert into the list at the desired index
@@ -1126,7 +1157,11 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         // 4. Ensure Gecko creates a session for this new tab
         geckoManager.getSession(newTab)
 
+        if (isStandalone) {
+            Log.d("PWA", "create standalone app at index $targetIndex")
+        }
         // 5. Update the inspection state to follow the new tab
+
         updateUI { it.copy(inspectingTabId = newTab.id) }
 
         // 6. Update the active index
@@ -1134,25 +1169,50 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
         // 7. Persist changes to disk
         saveTabs()
-    }
-    val updateTabById = { tabId: Long, transform: (Tab) -> Tab ->
-        val index = tabs.indexOfFirst { it.id == tabId }
-        if (index != -1) {
-            val oldTab = tabs[index]
-            val newTab = transform(oldTab)
 
-            if (oldTab != newTab) {
-                tabs[index] = newTab
-                saveTabs()
+    }
+
+    val updateTabById = { tabId: Long, transform: (Tab) -> Tab ->
+        // If we are in a PWA, apply the updates directly to the isolated PWA Tab!
+        if (isStandaloneMode.value && pwaTab.value?.id == tabId) {
+            pwaTab.value = transform(pwaTab.value!!)
+        } else {
+            // Normal Browser Tab update
+            val index = tabs.indexOfFirst { it.id == tabId }
+            if (index != -1) {
+                val oldTab = tabs[index]
+                val newTab = transform(oldTab)
+
+                if (oldTab != newTab) {
+                    tabs[index] = newTab
+                    saveTabs()
+                }
             }
         }
     }
     private var saveJob: Job? = null
+    fun launchPwaTab(url: String) {
+        val currentPwa = pwaTab.value
+        // Prevent reloading if we already spun up this PWA
+        if (currentPwa != null && (currentPwa.currentURL.startsWith(url) || url.startsWith(currentPwa.currentURL))) {
+            return
+        }
 
+        val newTab = Tab(
+            profileId = activeProfileId.value,
+            currentURL = url,
+            state = TabState.ACTIVE,
+            isStandalone = true
+        )
+
+        geckoManager.getSession(newTab) // Boot the engine
+        pwaTab.value = newTab // Set it as the active standalone app
+    }
     val saveTabs = {
         saveJob?.cancel()
         saveJob = viewModelScope.launch(Dispatchers.IO) {
             delay(500) // Wait for rapid events (like redirects) to finish
+            // Clean, regular save. PWA tabs don't exist in this list anymore!
             tabManager.saveTabs(activeProfileId.value, tabs.toList(), _activeTabIndex.value)
         }
     }
@@ -1210,15 +1270,24 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 val apkFile = File(context.cacheDir, "webapk_${System.currentTimeMillis()}.apk")
 
                 // Run the generation process
-                val isGenerated = mockGenerateWebApkLocallyOrRemotely(context, title, url, iconUrl, apkFile)
+                val isGenerated =
+                    mockGenerateWebApkLocallyOrRemotely(context, title, url, iconUrl, apkFile)
 
                 // NOW check if it generated successfully
                 withContext(Dispatchers.Main) {
                     if (isGenerated && apkFile.exists()) {
-                        Toast.makeText(context, "WebAPK Ready! Starting Installer...", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                            context,
+                            "WebAPK Ready! Starting Installer...",
+                            Toast.LENGTH_SHORT
+                        ).show()
                         installApkWithIntent(context, apkFile)
                     } else {
-                        Toast.makeText(context, "Failed to generate WebAPK. Check Logcat for 'WebAPK'.", Toast.LENGTH_LONG).show()
+                        Toast.makeText(
+                            context,
+                            "Failed to generate WebAPK. Check Logcat for 'WebAPK'.",
+                            Toast.LENGTH_LONG
+                        ).show()
                     }
                 }
 
@@ -1235,7 +1304,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         Log.i("WebAPK", "iconURl: ${iconUrl}")
         return withContext(Dispatchers.IO) {
             try {
-                val unsignedApk = File(context.cacheDir, "unsigned_${System.currentTimeMillis()}.apk")
+                val unsignedApk =
+                    File(context.cacheDir, "unsigned_${System.currentTimeMillis()}.apk")
 
                 // 1. Try to load the Favicon using Coil
 
@@ -1266,7 +1336,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                                 // We must draw it onto a native Bitmap Canvas.
                                 val width = drawable.intrinsicWidth.takeIf { it > 0 } ?: 192
                                 val height = drawable.intrinsicHeight.takeIf { it > 0 } ?: 192
-                                val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                                val bitmap =
+                                    Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
                                 val canvas = android.graphics.Canvas(bitmap)
                                 drawable.setBounds(0, 0, canvas.width, canvas.height)
                                 drawable.draw(canvas)
@@ -1309,144 +1380,219 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 val replacementPackage = "com.webapk.app$randomId"
 
                 java.util.zip.ZipInputStream(context.assets.open("template.apk")).use { zis ->
-                    java.util.zip.ZipOutputStream(java.io.FileOutputStream(unsignedApk)).use { zos ->
-                        var entry = zis.nextEntry
-                        while (entry != null) {
-                            val name = entry.name
+                    java.util.zip.ZipOutputStream(java.io.FileOutputStream(unsignedApk))
+                        .use { zos ->
+                            var entry = zis.nextEntry
+                            while (entry != null) {
+                                val name = entry.name
 
-                            Log.w("WebAPK", "name : $name")
-                            if (name.startsWith("META-INF/")) {
-                                entry = zis.nextEntry
-                                continue
-                            }
-
-
-
-                            var bytesToWrite: ByteArray? = null
-
-                            // --- ICON FIX 2: Replace ALL remaining PNG/WebP files ---
-                            if (name.contains("ic_launcher")) {
-                                if (name.endsWith(".xml")) {
-                                    // 1. SILENTLY DROP ANY XML ICONS.
+                                Log.w("WebAPK", "name : $name")
+                                if (name.startsWith("META-INF/")) {
                                     entry = zis.nextEntry
                                     continue
-                                } else if (name.endsWith(".png") || name.endsWith(".webp") || name.endsWith(".jpg")) {
-                                    // 2. OVERWRITE EVERY SINGLE RASTER ICON WITH OUR FAVICON
-                                    val stream = java.io.ByteArrayOutputStream()
+                                }
 
-                                    // PREVENT STRETCHING: Draw the loaded image onto a perfect 192x192 square Canvas
-                                    val original = iconBitmap!!
-                                    val targetSize = 192
-                                    val scaled = if (original.width == targetSize && original.height == targetSize) {
-                                        original
-                                    } else {
-                                        val square = Bitmap.createBitmap(targetSize, targetSize, Bitmap.Config.ARGB_8888)
-                                        val canvas = android.graphics.Canvas(square)
 
-                                        // Calculate the scale to maintain aspect ratio
-                                        val scale = minOf(targetSize.toFloat() / original.width, targetSize.toFloat() / original.height)
-                                        val drawW = (original.width * scale).toInt()
-                                        val drawH = (original.height * scale).toInt()
+                                var bytesToWrite: ByteArray? = null
 
-                                        // Center the scaled image
-                                        val left = (targetSize - drawW) / 2
-                                        val top = (targetSize - drawH) / 2
+                                // --- ICON FIX 2: Replace ALL remaining PNG/WebP files ---
+                                if (name.contains("ic_launcher")) {
+                                    if (name.endsWith(".xml")) {
+                                        // 1. SILENTLY DROP ANY XML ICONS.
+                                        entry = zis.nextEntry
+                                        continue
+                                    } else if (name.endsWith(".png") || name.endsWith(".webp") || name.endsWith(
+                                            ".jpg"
+                                        )
+                                    ) {
+                                        // 2. OVERWRITE EVERY SINGLE RASTER ICON WITH OUR FAVICON
+                                        val stream = java.io.ByteArrayOutputStream()
 
-                                        val srcRect = android.graphics.Rect(0, 0, original.width, original.height)
-                                        val destRect = android.graphics.Rect(left, top, left + drawW, top + drawH)
+                                        // PREVENT STRETCHING: Draw the loaded image onto a perfect 192x192 square Canvas
+                                        val original = iconBitmap!!
+                                        val targetSize = 192
+                                        val scaled =
+                                            if (original.width == targetSize && original.height == targetSize) {
+                                                original
+                                            } else {
+                                                val square = Bitmap.createBitmap(
+                                                    targetSize,
+                                                    targetSize,
+                                                    Bitmap.Config.ARGB_8888
+                                                )
+                                                val canvas = android.graphics.Canvas(square)
 
-                                        val paint = android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG)
-                                        canvas.drawBitmap(original, srcRect, destRect, paint)
-                                        square
-                                    }
+                                                // Calculate the scale to maintain aspect ratio
+                                                val scale = minOf(
+                                                    targetSize.toFloat() / original.width,
+                                                    targetSize.toFloat() / original.height
+                                                )
+                                                val drawW = (original.width * scale).toInt()
+                                                val drawH = (original.height * scale).toInt()
 
-                                    // Match the compression to the file extension Android Studio secretly generated
-                                    if (name.endsWith(".webp")) {
-                                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-                                            scaled.compress(Bitmap.CompressFormat.WEBP_LOSSLESS, 100, stream)
+                                                // Center the scaled image
+                                                val left = (targetSize - drawW) / 2
+                                                val top = (targetSize - drawH) / 2
+
+                                                val srcRect = android.graphics.Rect(
+                                                    0,
+                                                    0,
+                                                    original.width,
+                                                    original.height
+                                                )
+                                                val destRect = android.graphics.Rect(
+                                                    left,
+                                                    top,
+                                                    left + drawW,
+                                                    top + drawH
+                                                )
+
+                                                val paint =
+                                                    android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG)
+                                                canvas.drawBitmap(
+                                                    original,
+                                                    srcRect,
+                                                    destRect,
+                                                    paint
+                                                )
+                                                square
+                                            }
+
+                                        // Match the compression to the file extension Android Studio secretly generated
+                                        if (name.endsWith(".webp")) {
+                                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                                                scaled.compress(
+                                                    Bitmap.CompressFormat.WEBP_LOSSLESS,
+                                                    100,
+                                                    stream
+                                                )
+                                            } else {
+                                                @Suppress("DEPRECATION")
+                                                scaled.compress(
+                                                    Bitmap.CompressFormat.WEBP,
+                                                    100,
+                                                    stream
+                                                )
+                                            }
                                         } else {
-                                            @Suppress("DEPRECATION")
-                                            scaled.compress(Bitmap.CompressFormat.WEBP, 100, stream)
-                                        }
-                                    } else {
-                                        scaled.compress(Bitmap.CompressFormat.PNG, 100, stream)
-                                    }
-
-                                    bytesToWrite = stream.toByteArray()
-                                }
-                            }
-
-                            // If the file wasn't an icon, process normally
-                            if (bytesToWrite == null) {
-                                when (name) {
-                                    "assets/config.json" -> {
-                                        val hostPackage = context.packageName
-                                        val pId = activeProfileId.value
-                                        val escapedTitle = title.replace("\"", "\\\"")
-                                        val configJson = """{"url": "$url", "host": "$hostPackage", "profileId": "$pId", "name": "$escapedTitle", "iconUrl": "$iconUrl"}"""
-                                        bytesToWrite = configJson.toByteArray(Charsets.UTF_8)
-                                    }
-                                    "resources.arsc" -> {
-                                        val bytes = zis.readBytes()
-                                        val targetTitle = "___PWA_APP_NAME___"
-
-                                        var cleanTitle = ""
-                                        var utf8Size = 0
-                                        for (char in title) {
-                                            val charSize = char.toString().toByteArray(Charsets.UTF_8).size
-                                            if (utf8Size + charSize > 18) break
-                                            cleanTitle += char
-                                            utf8Size += charSize
+                                            scaled.compress(Bitmap.CompressFormat.PNG, 100, stream)
                                         }
 
-                                        val replace8Bytes = ByteArray(18) { 0 }
-                                        val title8Bytes = cleanTitle.toByteArray(Charsets.UTF_8)
-                                        System.arraycopy(title8Bytes, 0, replace8Bytes, 0, title8Bytes.size)
-
-                                        val replace16Bytes = ByteArray(36) { 0 }
-                                        val title16Bytes = cleanTitle.toByteArray(Charsets.UTF_16LE)
-                                        System.arraycopy(title16Bytes, 0, replace16Bytes, 0, title16Bytes.size)
-
-                                        var patched = replaceBytes(bytes, targetTitle.toByteArray(Charsets.UTF_16LE), replace16Bytes)
-                                        patched = replaceBytes(patched, targetTitle.toByteArray(Charsets.UTF_8), replace8Bytes)
-
-                                        patched = replaceBytes(patched, targetPackage.toByteArray(Charsets.UTF_16LE), replacementPackage.toByteArray(Charsets.UTF_16LE))
-                                        patched = replaceBytes(patched, targetPackage.toByteArray(Charsets.UTF_8), replacementPackage.toByteArray(Charsets.UTF_8))
-
-                                        bytesToWrite = patched
-                                    }
-
-                                    "AndroidManifest.xml" -> {
-                                        val bytes = zis.readBytes()
-                                        var patched = replaceBytes(bytes, targetPackage.toByteArray(Charsets.UTF_16LE), replacementPackage.toByteArray(Charsets.UTF_16LE))
-                                        patched = replaceBytes(patched, targetPackage.toByteArray(Charsets.UTF_8), replacementPackage.toByteArray(Charsets.UTF_8))
-                                        bytesToWrite = patched
+                                        bytesToWrite = stream.toByteArray()
                                     }
                                 }
+
+                                // If the file wasn't an icon, process normally
+                                if (bytesToWrite == null) {
+                                    when (name) {
+                                        "assets/config.json" -> {
+                                            val hostPackage = context.packageName
+                                            val pId = activeProfileId.value
+                                            val escapedTitle = title.replace("\"", "\\\"")
+                                            val configJson =
+                                                """{"url": "$url", "host": "$hostPackage", "profileId": "$pId", "name": "$escapedTitle", "iconUrl": "$iconUrl"}"""
+                                            bytesToWrite = configJson.toByteArray(Charsets.UTF_8)
+                                        }
+
+                                        "resources.arsc" -> {
+                                            val bytes = zis.readBytes()
+                                            val targetTitle = "___PWA_APP_NAME___"
+
+                                            var cleanTitle = ""
+                                            var utf8Size = 0
+                                            for (char in title) {
+                                                val charSize =
+                                                    char.toString().toByteArray(Charsets.UTF_8).size
+                                                if (utf8Size + charSize > 18) break
+                                                cleanTitle += char
+                                                utf8Size += charSize
+                                            }
+
+                                            val replace8Bytes = ByteArray(18) { 0 }
+                                            val title8Bytes = cleanTitle.toByteArray(Charsets.UTF_8)
+                                            System.arraycopy(
+                                                title8Bytes,
+                                                0,
+                                                replace8Bytes,
+                                                0,
+                                                title8Bytes.size
+                                            )
+
+                                            val replace16Bytes = ByteArray(36) { 0 }
+                                            val title16Bytes =
+                                                cleanTitle.toByteArray(Charsets.UTF_16LE)
+                                            System.arraycopy(
+                                                title16Bytes,
+                                                0,
+                                                replace16Bytes,
+                                                0,
+                                                title16Bytes.size
+                                            )
+
+                                            var patched = replaceBytes(
+                                                bytes,
+                                                targetTitle.toByteArray(Charsets.UTF_16LE),
+                                                replace16Bytes
+                                            )
+                                            patched = replaceBytes(
+                                                patched,
+                                                targetTitle.toByteArray(Charsets.UTF_8),
+                                                replace8Bytes
+                                            )
+
+                                            patched = replaceBytes(
+                                                patched,
+                                                targetPackage.toByteArray(Charsets.UTF_16LE),
+                                                replacementPackage.toByteArray(Charsets.UTF_16LE)
+                                            )
+                                            patched = replaceBytes(
+                                                patched,
+                                                targetPackage.toByteArray(Charsets.UTF_8),
+                                                replacementPackage.toByteArray(Charsets.UTF_8)
+                                            )
+
+                                            bytesToWrite = patched
+                                        }
+
+                                        "AndroidManifest.xml" -> {
+                                            val bytes = zis.readBytes()
+                                            var patched = replaceBytes(
+                                                bytes,
+                                                targetPackage.toByteArray(Charsets.UTF_16LE),
+                                                replacementPackage.toByteArray(Charsets.UTF_16LE)
+                                            )
+                                            patched = replaceBytes(
+                                                patched,
+                                                targetPackage.toByteArray(Charsets.UTF_8),
+                                                replacementPackage.toByteArray(Charsets.UTF_8)
+                                            )
+                                            bytesToWrite = patched
+                                        }
+                                    }
+                                }
+
+                                if (bytesToWrite == null) {
+                                    bytesToWrite = zis.readBytes()
+                                }
+
+                                val newEntry = java.util.zip.ZipEntry(name)
+                                if (entry.method == java.util.zip.ZipEntry.STORED) {
+                                    newEntry.method = java.util.zip.ZipEntry.STORED
+                                    newEntry.size = bytesToWrite.size.toLong()
+                                    val crc = java.util.zip.CRC32()
+                                    crc.update(bytesToWrite)
+                                    newEntry.crc = crc.value
+                                } else {
+                                    newEntry.method = java.util.zip.ZipEntry.DEFLATED
+                                }
+
+                                zos.putNextEntry(newEntry)
+                                zos.write(bytesToWrite)
+                                zos.closeEntry()
+
+                                entry = zis.nextEntry
                             }
-
-                            if (bytesToWrite == null) {
-                                bytesToWrite = zis.readBytes()
-                            }
-
-                            val newEntry = java.util.zip.ZipEntry(name)
-                            if (entry.method == java.util.zip.ZipEntry.STORED) {
-                                newEntry.method = java.util.zip.ZipEntry.STORED
-                                newEntry.size = bytesToWrite.size.toLong()
-                                val crc = java.util.zip.CRC32()
-                                crc.update(bytesToWrite)
-                                newEntry.crc = crc.value
-                            } else {
-                                newEntry.method = java.util.zip.ZipEntry.DEFLATED
-                            }
-
-                            zos.putNextEntry(newEntry)
-                            zos.write(bytesToWrite)
-                            zos.closeEntry()
-
-                            entry = zis.nextEntry
                         }
-                    }
                 }
 
                 val signerConfig = com.android.apksig.ApkSigner.SignerConfig.Builder(
@@ -1472,8 +1618,13 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             }
         }
     }
+
     // Helper: Binary Search and Replace Array
-    private fun replaceBytes(source: ByteArray, target: ByteArray, replacement: ByteArray): ByteArray {
+    private fun replaceBytes(
+        source: ByteArray,
+        target: ByteArray,
+        replacement: ByteArray
+    ): ByteArray {
         if (target.size != replacement.size) throw IllegalArgumentException("Target and replacement must be identical length to preserve binary offsets")
         if (target.isEmpty()) return source
 
@@ -1519,6 +1670,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         }
         return listOf(cert)
     }
+
     private fun installApkWithIntent(context: Context, apkFile: File) {
         try {
             // Using FileProvider. Ensure your provider authorities match exactly what's in your AndroidManifest.xml
@@ -2089,16 +2241,18 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         val option = inspectingOption.value ?: return
         if (!canMoveOptionLeft(option, _browserSettings.value)) return
 
-        val opts = _browserSettings.value.optionsOrder.split(",").filter { it.isNotBlank() }.toMutableList()
-        val sets = _browserSettings.value.settingsOrder.split(",").filter { it.isNotBlank() }.toMutableList()
+        val opts = _browserSettings.value.optionsOrder.split(",").filter { it.isNotBlank() }
+            .toMutableList()
+        val sets = _browserSettings.value.settingsOrder.split(",").filter { it.isNotBlank() }
+            .toMutableList()
 
         if (opts.contains(option.name)) {
             val idx = opts.indexOf(option.name)
-            java.util.Collections.swap(opts, idx, idx - 1)
+            Collections.swap(opts, idx, idx - 1)
         } else if (sets.contains(option.name)) {
             val idx = sets.indexOf(option.name)
             if (idx > 0) {
-                java.util.Collections.swap(sets, idx, idx - 1)
+                Collections.swap(sets, idx, idx - 1)
             } else {
                 sets.removeAt(0)
                 opts.add(option.name)
@@ -2112,16 +2266,18 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         val option = inspectingOption.value ?: return
         if (!canMoveOptionRight(option, _browserSettings.value)) return
 
-        val opts = _browserSettings.value.optionsOrder.split(",").filter { it.isNotBlank() }.toMutableList()
-        val sets = _browserSettings.value.settingsOrder.split(",").filter { it.isNotBlank() }.toMutableList()
+        val opts = _browserSettings.value.optionsOrder.split(",").filter { it.isNotBlank() }
+            .toMutableList()
+        val sets = _browserSettings.value.settingsOrder.split(",").filter { it.isNotBlank() }
+            .toMutableList()
 
         if (sets.contains(option.name)) {
             val idx = sets.indexOf(option.name)
-            java.util.Collections.swap(sets, idx, idx + 1)
+            Collections.swap(sets, idx, idx + 1)
         } else if (opts.contains(option.name)) {
             val idx = opts.indexOf(option.name)
             if (idx < opts.lastIndex) {
-                java.util.Collections.swap(opts, idx, idx + 1)
+                Collections.swap(opts, idx, idx + 1)
             } else {
                 opts.removeAt(opts.lastIndex)
                 sets.add(0, option.name)
@@ -2134,10 +2290,12 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     fun toggleOptionVisibility() {
         val option = inspectingOption.value ?: return
         if (option == BrowserOption.SETTINGS ||
-            option == BrowserOption.SORT_BUTTONS) {
+            option == BrowserOption.SORT_BUTTONS
+        ) {
             return
         }
-        val hidden = _browserSettings.value.hiddenOptions.split(",").filter { it.isNotBlank() }.toMutableSet()
+        val hidden = _browserSettings.value.hiddenOptions.split(",").filter { it.isNotBlank() }
+            .toMutableSet()
 
         if (hidden.contains(option.name)) hidden.remove(option.name)
         else hidden.add(option.name)
