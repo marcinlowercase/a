@@ -659,7 +659,7 @@ fun BottomPanel(
                                     when {
                                         uiState.value.isCreatingProfile -> Text("profile label")
                                         uiState.value.isRenamingProfile -> Text("profile label")
-                                        uiState.value.isPinningApp -> Text("pin label")
+                                        uiState.value.isPinningApp -> Text("app label")
                                         else -> Text("search / url")
                                     }
                                 },
