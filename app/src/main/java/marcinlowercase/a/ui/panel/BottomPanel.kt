@@ -170,7 +170,7 @@ fun BottomPanel(
 
     AnimatedVisibility(
         modifier = modifier,
-        visible = uiState.value.isBottomPanelVisible,
+        visible = uiState.value.isBottomPanelVisible && !viewModel.isStandaloneMode.value,
         enter = slideInVertically(
             animationSpec = tween(
                 settings.value.animationSpeedForLayer(0)

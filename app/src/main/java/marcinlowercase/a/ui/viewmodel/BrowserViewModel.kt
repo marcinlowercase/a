@@ -129,7 +129,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     }
 
     val activeProfileId = mutableStateOf(profileManager.getActiveProfileId())
-
+    val isStandaloneMode = mutableStateOf(false)
 //    // v1 close all tab when change profile
 //    fun switchProfile(newProfileId: String) {
 //        if (activeProfileId.value == newProfileId) return
@@ -1382,10 +1382,10 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                                     "assets/config.json" -> {
                                         val hostPackage = context.packageName
                                         val pId = activeProfileId.value
-                                        val configJson = """{"url": "$url", "host": "$hostPackage", "profileId": "$pId"}"""
+                                        val escapedTitle = title.replace("\"", "\\\"")
+                                        val configJson = """{"url": "$url", "host": "$hostPackage", "profileId": "$pId", "name": "$escapedTitle", "iconUrl": "$iconUrl"}"""
                                         bytesToWrite = configJson.toByteArray(Charsets.UTF_8)
                                     }
-
                                     "resources.arsc" -> {
                                         val bytes = zis.readBytes()
                                         val targetTitle = "___PWA_APP_NAME___"

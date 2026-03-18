@@ -49,7 +49,7 @@
             android:windowSoftInputMode="adjustResize"
             android:supportsPictureInPicture="true"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode|smallestScreenSize"
-            android:launchMode="singleTask"
+            android:launchMode="singleTop"
             tools:ignore="DiscouragedApi,LockedOrientationActivity">
 
             <intent-filter>

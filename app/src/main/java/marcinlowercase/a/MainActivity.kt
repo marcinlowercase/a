@@ -354,36 +354,35 @@ class MainActivity : ComponentActivity() {
 
     //region Intent
     //region Intent
+//region Intent
     private fun handleIntent(intent: Intent?, isColdStart: Boolean = false) {
+        val viewModel: BrowserViewModel by viewModels()
+
         if (intent?.action == Intent.ACTION_VIEW) {
             intent.dataString?.let { urlFromIntent ->
 
-                // Check if this intent came from our PWA Home Screen shortcut
                 val isPwa = intent.getBooleanExtra("is_pwa", false)
                 val targetProfileId = intent.getStringExtra("profileId")
+
+                // Activate Standalone Mode if launched from the WebAPK
+                viewModel.isStandaloneMode.value = isPwa
 
                 if (isPwa) {
                     Log.i("PWA", "Launched as a Progressive Web App in Profile: $targetProfileId")
 
-                    // If the PWA is tied to a specific profile, switch to it instantly!
-                    if (!targetProfileId.isNullOrEmpty()) {
-                        val viewModel: BrowserViewModel by viewModels()
-                        if (viewModel.activeProfileId.value != targetProfileId) {
-                            Log.i("PWA", "Switch from profile ${viewModel.activeProfileId.value} to $targetProfileId")
-                            viewModel.switchProfile(targetProfileId)
-                        }
+                    if (!targetProfileId.isNullOrEmpty() && viewModel.activeProfileId.value != targetProfileId) {
+                        viewModel.switchProfile(targetProfileId)
                     }
                 }
 
-                // On HOT START (app already running), emit URL to tell UI to open a new tab.
-                // On COLD START (app closed), DO NOT emit. BrowserScreen handles the first tab natively via initialIntentUrl.
                 if (!isColdStart) {
                     newUrlFromIntent.update { urlFromIntent }
                 }
             }
+        } else {
+            viewModel.isStandaloneMode.value = false
         }
     }
-
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         // Hot start!
@@ -2206,13 +2205,20 @@ fun BrowserScreen(
         LaunchedEffect(Unit) {
             newUrlFlow.collect { url ->
                 if (url != null) {
-
-                    // When a new URL arrives, create a new tab for it.
-                    // We'll insert it right after the current active tab.
-                    val insertIndex = (activeTabIndex + 1).coerceAtMost(viewModel.tabs.size)
-                    viewModel.createNewTab(insertIndex, url)
-
-                    // IMPORTANT: Consume the event by setting the flow back to null
+                    if (viewModel.isStandaloneMode.value) {
+                        // PWA Mode: Check if a tab with this domain already exists to prevent tab spam!
+                        val existingIndex = viewModel.tabs.indexOfFirst { it.currentURL.startsWith(url) || url.startsWith(it.currentURL) }
+                        if (existingIndex != -1) {
+                            viewModel.selectTab(existingIndex)
+                        } else {
+                            val insertIndex = (activeTabIndex + 1).coerceAtMost(viewModel.tabs.size)
+                            viewModel.createNewTab(insertIndex, url)
+                        }
+                    } else {
+                        // Normal Browser Mode: Always open a new tab
+                        val insertIndex = (activeTabIndex + 1).coerceAtMost(viewModel.tabs.size)
+                        viewModel.createNewTab(insertIndex, url)
+                    }
                     context.newUrlFromIntent.update { null }
                 }
             }
@@ -2247,16 +2253,21 @@ fun BrowserScreen(
                 }
 
                 !viewModel.activeTab!!.canGoBack -> {
-                    confirmationPopup(
-                        message = "reach the beginning of tab history ,\nclose tab ? ",
-                        onConfirm = {
-                            viewModel.closeActiveTab {
-                                activity.finishAndRemoveTask()
-                                exitProcess(0)
-                            }
-                        },
-                    )
-
+                    if (viewModel.isStandaloneMode.value) {
+                        // In PWA Standalone Mode, just close the app silently
+                        activity.finishAndRemoveTask()
+                    } else {
+                        // In Normal Browser Mode, ask the user
+                        confirmationPopup(
+                            message = "reach the beginning of tab history ,\nclose tab ? ",
+                            onConfirm = {
+                                viewModel.closeActiveTab {
+                                    activity.finishAndRemoveTask()
+                                    exitProcess(0)
+                                }
+                            },
+                        )
+                    }
                 }
 
                 else -> {
@@ -2708,8 +2719,7 @@ fun BrowserScreen(
 
                         // BackSquare
                         AnimatedVisibility(
-                            visible = !uiState.value.isBottomPanelVisible && !uiState.value.isLandscape && !uiState.value.isOtherPanelVisible,
-                            modifier = Modifier
+                            visible = !uiState.value.isBottomPanelVisible && !uiState.value.isLandscape && !uiState.value.isOtherPanelVisible && !viewModel.isStandaloneMode.value,                            modifier = Modifier
                                 .fillMaxSize()
                                 .padding(webViewPaddingValue)
                                 .onSizeChanged {
