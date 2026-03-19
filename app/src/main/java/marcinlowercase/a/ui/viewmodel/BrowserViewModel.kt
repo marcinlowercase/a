@@ -770,7 +770,12 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             )
         }
     }
-
+    fun refreshSettings() {
+        // Force the ViewModel to re-read the disk.
+        // This ensures the PWA instantly adopts any changes made in the Main Browser!
+        _browserSettings.value = loadSettingsFromPrefs(activeProfileId.value)
+        geckoManager.setAdBlockEnabled(_browserSettings.value.isAdBlockEnabled)
+    }
     private fun saveSettingsToPrefs(profileId: String, settings: BrowserSettings) {
         val context = getApplication<Application>()
         val globalPrefs = context.getSharedPreferences("BrowserPrefs", Context.MODE_PRIVATE)

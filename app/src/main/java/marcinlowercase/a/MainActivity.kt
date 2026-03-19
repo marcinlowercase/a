@@ -386,12 +386,6 @@ class MainActivity : ComponentActivity() {
                 if (isPwa) {
                     Log.i("PWA", "Launched as a Progressive Web App in Profile: $targetProfileId")
 
-                    // CRITICAL FIX: Use initPwaProfile instead of switchProfile!
-                    // This ensures the PWA loads the target profile's settings (Padding, Theme, etc.)
-                    // into its own UI, without overwriting the Main Browser's active profile on disk!
-                    if (!targetProfileId.isNullOrEmpty() && viewModel.activeProfileId.value != targetProfileId) {
-                        viewModel.initPwaProfile(targetProfileId)
-                    }
 
                     // ALWAYS spawn the PWA tab SYNCHRONOUSLY!
                     // This guarantees pwaTab is populated instantly, avoiding NPEs and tab-mixing on Hot Starts.
