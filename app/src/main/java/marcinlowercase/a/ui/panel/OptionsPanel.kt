@@ -400,8 +400,8 @@ fun rememberBrowserOptionsRegistry(
                 enabled = true
             ) {
                 confirmationPopup(
-                    "optimize memory?",
-                    "close all background tabs and free up RAM",
+                    "close all background tabs and free up memory ? ",
+                    "",
                     {
                         viewModel.optimizeMemory()
                         viewModel.updateUI {
