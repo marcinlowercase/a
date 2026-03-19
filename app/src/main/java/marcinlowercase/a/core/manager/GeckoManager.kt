@@ -480,8 +480,7 @@ class GeckoManager(private val context: Context) {
         onPageStartFun: (eventTabId: Long, session: GeckoSession, url: String) -> Unit,
         onPageStopFun: (session: GeckoSession, success: Boolean) -> Unit,
         onContextMenuFun: (data: ContextMenuData) -> Unit,
-        onDownloadRequested: (url: String, userAgent: String, contentDisposition: String?, mimeType: String?) -> Unit,
-        onJsAlert: (String) -> Unit,
+        onDownloadRequested: (url: String, userAgent: String, contentDisposition: String?, mimeType: String?, stream: java.io.InputStream?) -> Unit,        onJsAlert: (String) -> Unit,
         onJsConfirm: (String, (Boolean) -> Unit) -> Unit,
         onJsPrompt: (String, String, (String?) -> Unit) -> Unit,
         onLoadErrorFun: (session: GeckoSession, uri: String?, error: WebRequestError) -> Unit,
@@ -743,7 +742,7 @@ class GeckoManager(private val context: Context) {
                     "Mozill9a/5.0 (Android 14; Mobile; rv:131.0) Gecko/131.0 Firefox/131.0"
                 }
 
-                onDownloadRequested(url, userAgent, contentDisposition, mimeType)
+                onDownloadRequested(url, userAgent, contentDisposition, mimeType, response.body)
             }
 
             override fun onTitleChange(session: GeckoSession, title: String?) {

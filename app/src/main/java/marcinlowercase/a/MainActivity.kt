@@ -1070,11 +1070,52 @@ fun BrowserScreen(
         // not use but still need to keep here to reset the pending download
         viewModel.pendingDownload = null
     }
-    val startDownload =
-        { url: String, userAgent: String, contentDisposition: String?, mimeType: String? ->
-            val params = DownloadParams(url, userAgent, contentDisposition, mimeType)
+    val startDownload = { url: String, userAgent: String, contentDisposition: String?, mimeType: String?, stream: java.io.InputStream? ->
+        if (url.startsWith("blob:") || url.startsWith("data:")) {
+            if (stream != null) {
+                coroutineScope.launch(Dispatchers.IO) {
+                    try {
+                        // Try to guess a file extension
+                        val ext = android.webkit.MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType) ?: "bin"
+                        var fileName = "download_${System.currentTimeMillis()}.$ext"
 
-//            val needsPermission = Build.VERSION.SDK_INT <= Build.VERSION_CODES.P
+                        // Try to parse real filename from Content-Disposition if it exists
+                        contentDisposition?.let { cd ->
+                            val regex = Regex("""filename=["']?([^"';]+)["']?""")
+                            val match = regex.find(cd)
+                            if (match != null) { fileName = match.groupValues[1] }
+                        }
+
+                        val resolver = context.contentResolver
+                        val contentValues = android.content.ContentValues().apply {
+                            put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+                            put(MediaStore.Downloads.MIME_TYPE, mimeType ?: "application/octet-stream")
+                            put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                        }
+                        val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+                        if (uri != null) {
+                            resolver.openOutputStream(uri)?.use { output ->
+                                stream.use { input -> input.copyTo(output) }
+                            }
+                        }
+
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(context, "Saved natively to Downloads: $fileName", Toast.LENGTH_SHORT).show()
+                        }
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(context, "Blob download failed", Toast.LENGTH_SHORT).show()
+                        }
+                    } finally {
+                        try { stream.close() } catch (e: Exception) {}
+                    }
+                }
+            } else {
+                Toast.makeText(context, "Error: Data stream is empty", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            // Standard HTTP/HTTPS download using Android's DownloadManager
+            val params = DownloadParams(url, userAgent, contentDisposition, mimeType)
             val needsPermission = false
             val hasPermission = ContextCompat.checkSelfPermission(
                 context, Manifest.permission.WRITE_EXTERNAL_STORAGE
@@ -1084,10 +1125,10 @@ fun BrowserScreen(
                 viewModel.pendingDownload = params
                 storagePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
             } else {
-                // Call the standard function directly
                 viewModel.performDownloadEnqueue(params)
             }
         }
+    }
 
     fun navigateWebView() {
         when (viewModel.activeNavAction.value) {
@@ -1738,13 +1779,13 @@ fun BrowserScreen(
                     }
 
                 },
-                onDownloadRequested = { url, userAgent, contentDisposition, mimeType ->
+                onDownloadRequested = { url, userAgent, contentDisposition, mimeType, stream ->
                     // Trigger your existing download logic
                     confirmationPopup(
                         message = "download file on",
                         url = url,
                         onConfirm = {
-                            startDownload(url, userAgent, contentDisposition, mimeType)
+                            startDownload(url, userAgent, contentDisposition, mimeType,stream)
                         },
                         onCancel = {
                         }
@@ -2697,6 +2738,7 @@ fun BrowserScreen(
                                         startDownload(
                                             url,
                                             activeSession.settings.userAgentOverride ?: "",
+                                            null,
                                             null,
                                             null,
                                         )
