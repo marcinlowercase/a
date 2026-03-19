@@ -1075,32 +1075,74 @@ fun BrowserScreen(
             if (stream != null) {
                 coroutineScope.launch(Dispatchers.IO) {
                     try {
-                        // Try to guess a file extension
+                        // 1. Try to guess a file extension
                         val ext = android.webkit.MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType) ?: "bin"
                         var fileName = "download_${System.currentTimeMillis()}.$ext"
 
-                        // Try to parse real filename from Content-Disposition if it exists
+                        // 2. Try to parse real filename from Content-Disposition if it exists
                         contentDisposition?.let { cd ->
                             val regex = Regex("""filename=["']?([^"';]+)["']?""")
                             val match = regex.find(cd)
                             if (match != null) { fileName = match.groupValues[1] }
                         }
 
-                        val resolver = context.contentResolver
-                        val contentValues = android.content.ContentValues().apply {
-                            put(MediaStore.Downloads.DISPLAY_NAME, fileName)
-                            put(MediaStore.Downloads.MIME_TYPE, mimeType ?: "application/octet-stream")
-                            put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
-                        }
-                        val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
-                        if (uri != null) {
-                            resolver.openOutputStream(uri)?.use { output ->
-                                stream.use { input -> input.copyTo(output) }
+                        // 3. Write directly to the Downloads folder
+                        var fileSize = 0L
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                            val resolver = context.contentResolver
+                            val contentValues = android.content.ContentValues().apply {
+                                put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+                                put(MediaStore.Downloads.MIME_TYPE, mimeType ?: "application/octet-stream")
+                                put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                            }
+                            val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+                            if (uri != null) {
+                                resolver.openOutputStream(uri)?.use { output ->
+                                    stream.use { input -> fileSize = input.copyTo(output) }
+                                }
+                            }
+                        } else {
+                            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                            if (!downloadsDir.exists()) downloadsDir.mkdirs()
+                            val file = File(downloadsDir, fileName)
+                            java.io.FileOutputStream(file).use { output ->
+                                stream.use { input -> fileSize = input.copyTo(output) }
                             }
                         }
 
+                        // 4. Finished! Now update the ViewModel and pull up the Download Panel
                         withContext(Dispatchers.Main) {
-                            Toast.makeText(context, "Saved natively to Downloads: $fileName", Toast.LENGTH_SHORT).show()
+                            val downloadId = System.currentTimeMillis()
+                            val completedItem = DownloadItem(
+                                id = downloadId,
+                                url = url,
+                                filename = fileName,
+                                mimeType = mimeType ?: "application/octet-stream",
+                                status = DownloadStatus.SUCCESSFUL,
+                                progress = 100,
+                                totalBytes = fileSize,
+                                downloadedBytes = fileSize,
+                                isBlobDownload = true
+                            )
+
+                            // Add to list and persist
+                            viewModel.downloads.add(0, completedItem)
+                            viewModel.downloadTracker.saveDownloads(viewModel.downloads)
+
+                            // Open the Download Panel (mirroring what performDownloadEnqueue does)
+                            viewModel.updateUI {
+                                it.copy(
+                                    isUrlBarVisible = true,
+                                    isDownloadPanelVisible = true,
+                                    isTabsPanelVisible = false,
+                                    isTabsPanelLock = false,
+                                    isSettingsPanelVisible = false,
+                                    isAppsPanelVisible = false,
+                                    isFindInPageVisible = false,
+                                    isNavPanelVisible = false,
+                                    savedPanelState = null
+                                )
+                            }
                         }
                     } catch (e: Exception) {
                         withContext(Dispatchers.Main) {

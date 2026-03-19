@@ -303,22 +303,23 @@ fun DownloadRow(
                     // A more descriptive status text
                     val statusText = when (item.status) {
                         DownloadStatus.RUNNING -> {
-                            val downloadedMb =
-                                String.format("%.1f", item.downloadedBytes / 1024f / 1024f)
+                            val downloadedMb = String.format("%.1f", item.downloadedBytes / 1024f / 1024f)
                             val totalMb = String.format("%.1f", item.totalBytes / 1024f / 1024f)
-                            val sizeInfo =
-                                if (item.totalBytes > 0) "$downloadedMb MB / $totalMb MB" else "Running..."
 
-                            val speedInfo =
-                                if (item.downloadSpeedBps > 0) formatSpeed(item.downloadSpeedBps) else ""
-                            val timeInfo =
-                                if (item.timeRemainingMs > 0) formatTimeRemaining(item.timeRemainingMs) else ""
+                            // Show actual live progress if total is unknown
+                            val sizeInfo = if (item.totalBytes > 0) {
+                                "$downloadedMb MB / $totalMb MB"
+                            } else if (item.downloadedBytes > 0) {
+                                "$downloadedMb MB downloaded"
+                            } else {
+                                "Starting..."
+                            }
 
-                            // Combine all parts, filtering out empty ones
-                            listOf(sizeInfo, speedInfo, timeInfo).filter { it.isNotBlank() }
-                                .joinToString(" - ")
+                            val speedInfo = if (item.downloadSpeedBps > 0) formatSpeed(item.downloadSpeedBps) else ""
+                            val timeInfo = if (item.timeRemainingMs > 0) formatTimeRemaining(item.timeRemainingMs) else ""
+
+                            listOf(sizeInfo, speedInfo, timeInfo).filter { it.isNotBlank() }.joinToString(" - ")
                         }
-
                         else -> ""
                     }
                     if (statusText.isNotBlank()) {
