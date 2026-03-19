@@ -1075,15 +1075,13 @@ fun BrowserScreen(
             if (stream != null) {
                 coroutineScope.launch(Dispatchers.IO) {
                     try {
-                        // 1. Try to guess a file extension
-                        val ext = android.webkit.MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType) ?: "bin"
-                        var fileName = "download_${System.currentTimeMillis()}.$ext"
+                        // 1. Let Android automatically extract the name AND append the correct extension!
+                        var fileName = android.webkit.URLUtil.guessFileName(url, contentDisposition, mimeType)
 
-                        // 2. Try to parse real filename from Content-Disposition if it exists
-                        contentDisposition?.let { cd ->
-                            val regex = Regex("""filename=["']?([^"';]+)["']?""")
-                            val match = regex.find(cd)
-                            if (match != null) { fileName = match.groupValues[1] }
+                        // 2. If it couldn't find a name and defaulted to "downloadfile.bin", make it unique
+                        if (fileName.startsWith("downloadfile")) {
+                            val ext = android.webkit.MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType) ?: "bin"
+                            fileName = "download_${System.currentTimeMillis()}.$ext"
                         }
 
                         // 3. Write directly to the Downloads folder
@@ -1116,7 +1114,7 @@ fun BrowserScreen(
                             val completedItem = DownloadItem(
                                 id = downloadId,
                                 url = url,
-                                filename = fileName,
+                                filename = fileName, // <-- Now guarantees "hima.gif"
                                 mimeType = mimeType ?: "application/octet-stream",
                                 status = DownloadStatus.SUCCESSFUL,
                                 progress = 100,
@@ -1129,7 +1127,7 @@ fun BrowserScreen(
                             viewModel.downloads.add(0, completedItem)
                             viewModel.downloadTracker.saveDownloads(viewModel.downloads)
 
-                            // Open the Download Panel (mirroring what performDownloadEnqueue does)
+                            // Open the Download Panel
                             viewModel.updateUI {
                                 it.copy(
                                     isUrlBarVisible = true,
@@ -1171,7 +1169,6 @@ fun BrowserScreen(
             }
         }
     }
-
     fun navigateWebView() {
         when (viewModel.activeNavAction.value) {
             GestureNavAction.BACK -> if (viewModel.activeTab!!.canGoBack) {
