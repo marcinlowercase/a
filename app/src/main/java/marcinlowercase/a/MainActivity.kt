@@ -1968,7 +1968,8 @@ fun BrowserScreen(
                         }
                     }
 
-                    androidx.lifecycle.Lifecycle.Event.ON_PAUSE -> {
+//                    androidx.lifecycle.Lifecycle.Event.ON_PAUSE -> {
+                    androidx.lifecycle.Lifecycle.Event.ON_STOP -> {
                         val isPip = mainActivity.isPipMode || mainActivity.isEnteringPip
                         if (!isPip) {
                             val currentGeckoView = geckoViewRef.value
