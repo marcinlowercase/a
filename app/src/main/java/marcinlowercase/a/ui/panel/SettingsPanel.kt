@@ -128,6 +128,7 @@ fun SliderSetting(
             BrowserSettingField.BACK_SQUARE_OPACITY -> settings.value.backSquareIdleOpacity
             BrowserSettingField.MAX_LIST_HEIGHT -> settings.value.maxListHeight
             BrowserSettingField.SEARCH_ENGINE -> settings.value.searchEngine.toFloat()
+            BrowserSettingField.MEMORY_USAGE -> settings.value.memoryUsage.toFloat()
             else -> 0f
         }
     }

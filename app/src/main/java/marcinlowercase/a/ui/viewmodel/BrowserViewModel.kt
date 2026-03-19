@@ -169,53 +169,53 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 //    }
 
 
-    fun switchProfile(newProfileId: String) {
-        if (activeProfileId.value == newProfileId) return
-
-        if (inspectingAppId.longValue != 0L) inspectingAppId.longValue = 0L
-
-        // 1. Freeze current tabs to disk before switching
-        tabManager.saveTabs(activeProfileId.value, tabs.toList(), _activeTabIndex.value)
-
-        // 2. INSTEAD OF CLOSING, WE JUST DEACTIVATE THEM
-        // This keeps the GeckoSessions alive in memory (GeckoManager.sessionPool).
-        // When you switch back, the page will instantly appear without reloading!
-        tabs.forEach { tab ->
-            geckoManager.pauseSessionIfExists(tab.id)
-        }
-
-        // 3. Update active profile ID and save to disk
-        activeProfileId.value = newProfileId
-        profileManager.saveActiveProfileId(newProfileId)
-
-        // reset settings
-        _browserSettings.value = loadSettingsFromPrefs(newProfileId)
-        geckoManager.setAdBlockEnabled(_browserSettings.value.isAdBlockEnabled)
-
-        // 4. Reload all memory lists from the new profile's SharedPreferences
-        apps.clear()
-        apps.addAll(appManager.loadApps(newProfileId))
-
-        visitedUrlMap.clear()
-        visitedUrlMap.putAll(visitedUrlManager.loadUrlMap(newProfileId))
-
-        siteSettings.clear()
-        siteSettings.putAll(siteSettingsManager.loadSettings(newProfileId))
-
-        // 5. Reload Tabs and set new Active Index
-        val loadedTabs = tabManager.loadTabs(newProfileId, null)
-        tabs.clear()
-        tabs.addAll(loadedTabs)
-        _activeTabIndex.value = tabManager.getActiveTabIndex(newProfileId).coerceAtLeast(0)
-
-//        // 6. Pre-warm and activate the newly selected tab in the new Space
-//        activeTab?.let {
-//            geckoManager.getSession(it).setActive(true)
+//    fun switchProfile(newProfileId: String) {
+//        if (activeProfileId.value == newProfileId) return
+//
+//        if (inspectingAppId.longValue != 0L) inspectingAppId.longValue = 0L
+//
+//        // 1. Freeze current tabs to disk before switching
+//        tabManager.saveTabs(activeProfileId.value, tabs.toList(), _activeTabIndex.value)
+//
+//        // 2. INSTEAD OF CLOSING, WE JUST DEACTIVATE THEM
+//        // This keeps the GeckoSessions alive in memory (GeckoManager.sessionPool).
+//        // When you switch back, the page will instantly appear without reloading!
+//        tabs.forEach { tab ->
+//            geckoManager.pauseSessionIfExists(tab.id)
 //        }
-
-        // 7. Force UI to update session
-        sessionRefreshTrigger.intValue++
-    }
+//
+//        // 3. Update active profile ID and save to disk
+//        activeProfileId.value = newProfileId
+//        profileManager.saveActiveProfileId(newProfileId)
+//
+//        // reset settings
+//        _browserSettings.value = loadSettingsFromPrefs(newProfileId)
+//        geckoManager.setAdBlockEnabled(_browserSettings.value.isAdBlockEnabled)
+//
+//        // 4. Reload all memory lists from the new profile's SharedPreferences
+//        apps.clear()
+//        apps.addAll(appManager.loadApps(newProfileId))
+//
+//        visitedUrlMap.clear()
+//        visitedUrlMap.putAll(visitedUrlManager.loadUrlMap(newProfileId))
+//
+//        siteSettings.clear()
+//        siteSettings.putAll(siteSettingsManager.loadSettings(newProfileId))
+//
+//        // 5. Reload Tabs and set new Active Index
+//        val loadedTabs = tabManager.loadTabs(newProfileId, null)
+//        tabs.clear()
+//        tabs.addAll(loadedTabs)
+//        _activeTabIndex.value = tabManager.getActiveTabIndex(newProfileId).coerceAtLeast(0)
+//
+////        // 6. Pre-warm and activate the newly selected tab in the new Space
+////        activeTab?.let {
+////            geckoManager.getSession(it).setActive(true)
+////        }
+//
+//        // 7. Force UI to update session
+//        sessionRefreshTrigger.intValue++
+//    }
 
     //    // keep active tab of each profile alive
 //    fun switchProfile(newProfileId: String) {
@@ -284,6 +284,71 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 //        // 9. Force UI to update session
 //        sessionRefreshTrigger.intValue++
 //    }
+    fun switchProfile(newProfileId: String) {
+        if (activeProfileId.value == newProfileId) return
+
+        if (inspectingAppId.longValue != 0L) inspectingAppId.longValue = 0L
+
+        // 1. Identify the Active Tab of the profile we are LEAVING
+        val currentActiveTabId = activeTab?.id
+
+        // 2. Prepare tabs for saving: Update states and Manage RAM
+        val memoryUsage = _browserSettings.value.memoryUsage // 0: Low, 1: Standard, 2: High
+
+        val updatedTabsForSave = tabs.map { tab ->
+            val liveState = geckoManager.getSessionStateString(tab.id)
+            val updatedTab = if (liveState != null) tab.copy(savedState = liveState) else tab
+
+            when (memoryUsage) {
+                0 -> { // LOW MEMORY: Close everything
+                    geckoManager.closeSession(tab)
+                }
+                1 -> { // STANDARD: Keep only the active tab paused, close the rest
+                    if (tab.id == currentActiveTabId) {
+                        geckoManager.pauseSessionIfExists(tab.id)
+                    } else {
+                        geckoManager.closeSession(tab)
+                    }
+                }
+                2 -> { // HIGH MEMORY: Keep all tabs paused in RAM
+                    geckoManager.pauseSessionIfExists(tab.id)
+                }
+            }
+            updatedTab
+        }
+
+        // 3. Freeze current tabs to disk before switching
+        tabManager.saveTabs(activeProfileId.value, updatedTabsForSave, _activeTabIndex.value)
+
+        // 4. Update Profile ID
+        activeProfileId.value = newProfileId
+        profileManager.saveActiveProfileId(newProfileId)
+
+        // 5. Reload settings
+        _browserSettings.value = loadSettingsFromPrefs(newProfileId)
+        geckoManager.setAdBlockEnabled(_browserSettings.value.isAdBlockEnabled)
+
+        // 6. Reload auxiliary data (Apps, History, Settings)
+        apps.clear()
+        apps.addAll(appManager.loadApps(newProfileId))
+
+        visitedUrlMap.clear()
+        visitedUrlMap.putAll(visitedUrlManager.loadUrlMap(newProfileId))
+
+        siteSettings.clear()
+        siteSettings.putAll(siteSettingsManager.loadSettings(newProfileId))
+
+        // 7. Reload Tabs for the NEW profile
+        val loadedTabs = tabManager.loadTabs(newProfileId, null)
+        tabs.clear()
+        tabs.addAll(loadedTabs)
+
+        // 8. Set new Active Index
+        _activeTabIndex.value = tabManager.getActiveTabIndex(newProfileId).coerceAtLeast(0)
+
+        // 9. Force UI to update session
+        sessionRefreshTrigger.intValue++
+    }
 
     fun initPwaProfile(pwaProfileId: String) {
         if (activeProfileId.value == pwaProfileId) return
@@ -635,6 +700,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             deviceCornerRadius = globalPrefs.getFloat("device_corner_radius", d.CORNER_RADIUS),
             singleLineHeight = globalPrefs.getFloat("single_line_height", d.SINGLE_LINE_HEIGHT),
             maxListHeight = globalPrefs.getFloat("max_list_height", d.MAX_LIST_HEIGHT),
+            memoryUsage = globalPrefs.getInt("memory_usage", d.MEMORY_USAGE),
+
 
             // --- PROFILE-SPECIFIC SETTINGS ---
             defaultUrl = prefsToUse.getString("default_url", d.URL) ?: d.URL,
@@ -730,6 +797,14 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 }
 
                 BrowserSettingField.GUIDE_MODE -> current.copy(isGuideModeEnabled = value as Boolean)
+                BrowserSettingField.MEMORY_USAGE -> {
+                    val index = when (value) {
+                        is Float -> value.toInt()
+                        is Int -> value
+                        else -> current.memoryUsage
+                    }
+                    current.copy(memoryUsage = index)
+                }
 
                 BrowserSettingField.INFO -> current
                 BrowserSettingField.OPTIONS_ORDER -> current.copy(optionsOrder = value as String)
@@ -766,7 +841,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 settingsOrder = d.SETTINGS_ORDER,
                 hiddenOptions = d.HIDDEN_OPTIONS,
                 isEnabledMediaControl = d.IS_ENABLED_MEDIA_CONTROL,
-                isEnabledOutSync = d.IS_ENABLED_OUT_SYNC
+                isEnabledOutSync = d.IS_ENABLED_OUT_SYNC,
+                memoryUsage = d.MEMORY_USAGE
             )
         }
     }
@@ -789,6 +865,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             putFloat("device_corner_radius", settings.deviceCornerRadius)
             putFloat("single_line_height", settings.singleLineHeight)
             putFloat("max_list_height", settings.maxListHeight)
+            putInt("memory_usage", settings.memoryUsage)
+
             apply()
         }
 

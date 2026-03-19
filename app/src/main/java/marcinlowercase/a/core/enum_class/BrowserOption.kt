@@ -57,5 +57,6 @@ enum class BrowserOption(val type: OptionType) {
     SUGGESTIONS(OptionType.TOGGLE_ACTION),
     MEDIA_CONTROL(OptionType.TOGGLE_ACTION),
     OUT_SYNC(OptionType.TOGGLE_ACTION),
-    OPTIMIZE_MEMORY(OptionType.TOGGLE_ACTION)
+    OPTIMIZE_MEMORY(OptionType.TOGGLE_ACTION),
+    MEMORY_USAGE(OptionType.OPENS_SETTING),
 }

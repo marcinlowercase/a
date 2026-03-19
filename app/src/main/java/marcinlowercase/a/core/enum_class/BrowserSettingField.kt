@@ -34,5 +34,6 @@ enum class BrowserSettingField {
     GUIDE_MODE,
     OPTIONS_ORDER,
     SETTINGS_ORDER,
-    HIDDEN_OPTIONS
+    HIDDEN_OPTIONS,
+    MEMORY_USAGE
 }

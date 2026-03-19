@@ -94,7 +94,7 @@ enum class SettingPanelView {
     MAIN, CORNER_RADIUS, PADDING, ANIMATION_SPEED, CURSOR_CONTAINER_SIZE,
     CURSOR_TRACKING_SPEED, BACK_SQUARE_OPACITY, DEFAULT_URL, INFO,
     CLOSED_TAB_HISTORY_SIZE, MAX_LIST_HEIGHT, SEARCH_ENGINE,
-    SINGLE_LINE_HEIGHT, HIGHLIGHT_COLOR
+    SINGLE_LINE_HEIGHT, HIGHLIGHT_COLOR,MEMORY_USAGE
 }
 
 // --- MASTER REGISTRY OF ALL BUTTONS ---
@@ -414,6 +414,11 @@ fun rememberBrowserOptionsRegistry(
                     {}
                 )
             },
+            BrowserOption.MEMORY_USAGE to OptionItem(
+                id = BrowserOption.MEMORY_USAGE,
+                iconRes = R.drawable.ic_memory, // Or ic_memory if you have one!
+                contentDescription = "memory usage"
+            ) { onNavigateToSetting(SettingPanelView.MEMORY_USAGE) },
 
             )
     }
@@ -878,7 +883,25 @@ fun SettingsPanel(
                     afterDecimal = true,
                     field = BrowserSettingField.MAX_LIST_HEIGHT
                 )
-
+                SettingPanelView.MEMORY_USAGE -> SliderSetting(
+                    textEnabled = false,
+                    onBackClick = { currentView = SettingPanelView.MAIN },
+                    valueRange = 0f..2f,
+                    steps = 1,
+                    textFieldValueFun = { src ->
+                        when (src[1].digitToInt()) {
+                            0 -> "Low Memory"
+                            1 -> "Standard"
+                            2 -> "High Memory"
+                            else -> "Standard"
+                        }
+                    },
+                    storeValueFun = { src -> src[1].digitToInt().toFloat() },
+                    iconID = R.drawable.ic_memory,
+                    digitCount = 4,
+                    afterDecimal = true,
+                    field = BrowserSettingField.MEMORY_USAGE
+                )
                 SettingPanelView.SEARCH_ENGINE -> SliderSetting(
                     textEnabled = false,
                     onBackClick = { currentView = SettingPanelView.MAIN },
