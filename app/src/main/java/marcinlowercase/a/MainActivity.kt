@@ -2353,16 +2353,21 @@ fun BrowserScreen(
 
                     } else {
                         // In Normal Browser Mode, ask the user
-//                        confirmationPopup(
-//                            message = "reach the beginning of tab history ,\nclose tab ? ",
-//                            onConfirm = {
-//                                viewModel.closeActiveTab {
-//                                    activity.finishAndRemoveTask()
-//                                    exitProcess(0)
-//                                }
-//                            },
-//                        )
-                        activity.moveTaskToBack(true)
+
+
+                        if (viewModel.tabs.size > 1) {
+                            confirmationPopup(
+                                message = "reach the beginning of tab history ,\nclose tab ? ",
+                                onConfirm = {
+                                    viewModel.closeActiveTab {
+                                        activity.finishAndRemoveTask()
+                                        exitProcess(0)
+                                    }
+                                },
+                            )
+                        } else {
+                            activity.moveTaskToBack(true)
+                        }
 
                     }
                 }
