@@ -393,7 +393,27 @@ fun rememberBrowserOptionsRegistry(
                 )
             }
             },
-
+            BrowserOption.OPTIMIZE_MEMORY to OptionItem(
+                id = BrowserOption.OPTIMIZE_MEMORY,
+                iconRes = R.drawable.ic_snowflake,
+                contentDescription = "optimize memory",
+                enabled = true
+            ) {
+                confirmationPopup(
+                    "optimize memory?",
+                    "close all background tabs and free up RAM",
+                    {
+                        viewModel.optimizeMemory()
+                        viewModel.updateUI {
+                            it.copy(
+                                isOptionsPanelVisible = false,
+                                isAppsPanelVisible = false
+                            )
+                        }
+                    },
+                    {}
+                )
+            },
 
             )
     }

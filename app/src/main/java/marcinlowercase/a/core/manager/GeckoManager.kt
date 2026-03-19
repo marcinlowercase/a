@@ -262,7 +262,23 @@ class GeckoManager(private val context: Context) {
         }
 
     }
+    fun optimizeMemoryExcept(activeTabId: Long) {
+        // Find all sessions currently eating RAM except the active one
+        val idsToClose = sessionPool.keys.filter { it != activeTabId }
 
+        for (id in idsToClose) {
+            val sessionToClose = sessionPool.remove(id)
+            sessionToClose?.apply {
+                if (this == activeMediaGeckoSession) {
+                    context.stopService(Intent(context, MediaPlaybackService::class.java))
+                    activeGeckoMediaSession = null
+                    activeMediaGeckoSession = null
+                }
+                close()
+            }
+            engineManagedSessionIds.remove(id)
+        }
+    }
     fun getSession(tab: Tab, isDesktopMode: Boolean = false): GeckoSession {
         val session = sessionPool.getOrPut(tab.id) {
             createAndConfigureSession(tab, isDesktopMode)

@@ -1160,6 +1160,38 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    val optimizeMemory = {
+        val currentActiveTab = activeTab
+        if (currentActiveTab != null) {
+            // 1. Identify tabs in the CURRENT profile to be closed
+            val tabsToClose = tabs.filter { it.id != currentActiveTab.id }
+
+            // 2. Add them to recently closed history
+            tabsToClose.forEach { tab ->
+                recentlyClosedTabs.add(tab)
+            }
+
+            val limit = _browserSettings.value.closedTabHistorySize.toInt()
+            while (recentlyClosedTabs.size > limit) {
+                recentlyClosedTabs.removeAt(0)
+            }
+
+            // 3. Clear the UI list and only keep the active tab
+            tabs.clear()
+            tabs.add(currentActiveTab)
+            _activeTabIndex.value = 0
+
+            // 4. Aggressively clear the Gecko Engine RAM (kills background profile sessions too!)
+            geckoManager.optimizeMemoryExcept(currentActiveTab.id)
+
+            // 5. Persist the cleaned state to disk
+            saveTabs()
+
+            // Force a UI refresh
+            sessionRefreshTrigger.intValue++
+        }
+    }
+
     fun createNewTab(insertAtIndex: Int, url: String, isStandalone: Boolean = false) {
         Log.w("PWA", "createNewTab index: $insertAtIndex")
         Log.w("PWA", "createNewTab url: $url")
