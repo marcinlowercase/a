@@ -794,6 +794,16 @@ fun BrowserScreen(
         if (settings.backSquareOffsetY != -1f) settings.backSquareOffsetY else 0f
     val backSquareOffsetX = remember { Animatable(initialX) }
     val backSquareOffsetY = remember { Animatable(initialY) }
+    LaunchedEffect(initialX, initialY) {
+        if (settings.backSquareOffsetX != initialX || settings.backSquareOffsetY != initialY) {
+            viewModel.updateSettings {
+                it.copy(
+                    backSquareOffsetX = initialX,
+                    backSquareOffsetY = initialY
+                )
+            }
+        }
+    }
 
     val geckoViewRef = remember { mutableStateOf<GeckoView?>(null) }
 
@@ -1605,6 +1615,13 @@ fun BrowserScreen(
                 backSquareOffsetX.snapTo(defaultX)
                 backSquareOffsetY.snapTo(defaultY)
                 viewModel.isBackSquareInitialized.value = true
+
+                viewModel.updateSettings {
+                    it.copy(
+                        backSquareOffsetX = defaultX,
+                        backSquareOffsetY = defaultY
+                    )
+                }
             }
         }
         LaunchedEffect(textFieldState.text, uiState.value.isFocusOnUrlTextField) {
