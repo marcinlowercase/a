@@ -107,8 +107,10 @@ fun PromptPanel(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = settings.value.padding.dp)
-                    .padding(horizontal = settings.value.padding.dp * 3)
+//                    .padding(bottom = settings.value.padding.dp)
+//                    .padding(horizontal = settings.value.padding.dp * 3)
+                    .padding(top = settings.value.padding.dp)
+                    .padding(horizontal = settings.value.cornerRadiusForLayer(2).dp)
                     .clip(
                         RoundedCornerShape(
                             settings.value.cornerRadiusForLayer(2).dp
@@ -133,30 +135,25 @@ fun PromptPanel(
                 verticalAlignment = Alignment.CenterVertically // Keeps text aligned nicely
             ) {
                 // "from" Text - Fixed Size
-                Row(
-                    modifier = Modifier
-                        .padding(settings.value.padding.dp)
+                Text(
+                    text = "from ", // Added a space for better readability
+                    color = Color.White.copy(alpha = 0.7f), // Subtly de-emphasize
+                    maxLines = 1, // Ensure it doesn't wrap
+                )
+
+                // URL Text - Scrollable and takes up remaining space
+                Box(
+                    modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        text = "from ", // Added a space for better readability
-                        color = Color.White.copy(alpha = 0.7f), // Subtly de-emphasize
-                        maxLines = 1, // Ensure it doesn't wrap
-                    )
-
-                    // URL Text - Scrollable and takes up remaining space
-                    Box(
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(
-                            text = viewModel.activeTab!!.currentURL, // Safely handle null URL
-                            color = Color.White,
-                            maxLines = 1, // Crucial for horizontal scrolling
-                            overflow = TextOverflow.Ellipsis, // Good practice, though scrolling will hide it
-                            modifier = Modifier
+                        text = viewModel.activeTab!!.currentURL, // Safely handle null URL
+                        color = Color.White,
+                        maxLines = 1, // Crucial for horizontal scrolling
+                        overflow = TextOverflow.Ellipsis, // Good practice, though scrolling will hide it
+                        modifier = Modifier
 //                                .weight(1f) // Takes all available remaining space
-                                .horizontalScroll(rememberScrollState()) // THIS MAKES IT SCROLLABLE
-                        )
-                    }
+                            .horizontalScroll(rememberScrollState()) // THIS MAKES IT SCROLLABLE
+                    )
                 }
             }
 

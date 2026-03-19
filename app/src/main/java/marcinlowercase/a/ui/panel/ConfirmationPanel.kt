@@ -78,8 +78,7 @@ fun ConfirmationPanel() {
             Column(
                 modifier = Modifier
 //                    .heightIn(min = settings.value.heightForLayer(3).dp)
-                    .padding(settings.value.padding.dp)
-                    .padding(settings.value.padding.dp)
+                    .padding(vertical = settings.value.padding.dp)
                     .padding(horizontal = settings.value.cornerRadiusForLayer(3).dp)
 //                    .background(Color.Cyan),
 
