@@ -386,6 +386,12 @@ class MainActivity : ComponentActivity() {
                 if (isPwa) {
                     Log.i("PWA", "Launched as a Progressive Web App in Profile: $targetProfileId")
 
+                    // CRITICAL FIX: Use initPwaProfile instead of switchProfile!
+                    // This ensures the PWA loads the target profile's settings (Padding, Theme, etc.)
+                    // into its own UI, without overwriting the Main Browser's active profile on disk!
+                    if (!targetProfileId.isNullOrEmpty() && viewModel.activeProfileId.value != targetProfileId) {
+                        viewModel.initPwaProfile(targetProfileId)
+                    }
 
                     // ALWAYS spawn the PWA tab SYNCHRONOUSLY!
                     // This guarantees pwaTab is populated instantly, avoiding NPEs and tab-mixing on Hot Starts.
@@ -2488,35 +2494,65 @@ fun BrowserScreen(
                                         }
 
                                         // --- PWA NATIVE SPLASH SCREEN ---
-                                        if(uiState.value.isLoading && viewModel.isStandaloneMode.value) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .fillMaxSize()
-                                                    .background(Color.White),
-                                                contentAlignment = Alignment.Center
+
+                                        // --- PWA NATIVE SPLASH SCREEN ---
+                                        Column(modifier = Modifier .fillMaxSize()){
+                                            AnimatedVisibility(
+                                                visible = uiState.value.isLoading && viewModel.isStandaloneMode.value,
+                                                enter = fadeIn(
+                                                    tween(
+                                                        settings.animationSpeedForLayer(
+                                                            0
+                                                        )
+                                                    )
+                                                ),
+                                                exit = fadeOut(
+                                                    tween(
+                                                        settings.animationSpeedForLayer(
+                                                            0
+                                                        )
+                                                    )
+                                                )
                                             ) {
-                                                // Grab the exact high-res URL passed from the WebAPK shell
-                                                val pwaIconUrl = activity.intent?.getStringExtra("pwa_icon_url") ?: ""
+                                                Box(
+                                                    modifier = Modifier
+                                                        .fillMaxSize()
+                                                        .background(Color.White),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    // Grab the exact high-res URL passed from the WebAPK shell
+                                                    val pwaIconUrl =
+                                                        activity.intent?.getStringExtra("pwa_icon_url")
+                                                            ?: ""
 
-                                                val imageSizePx = with(density) { 192.dp.roundToPx() }
+                                                    val imageSizePx =
+                                                        with(density) { 192.dp.roundToPx() }
 
-                                                val imageRequest = coil.request.ImageRequest.Builder(context)
-                                                    .addHeader("User-Agent", "Mozilla/5.0 (Android 14; Mobile; rv:130.0) Gecko/130.0 Firefox/130.0")
-                                                    .data(pwaIconUrl.ifBlank { viewModel.activeTab?.currentURL })
-                                                    .size(imageSizePx)
-                                                    .crossfade(true)
-                                                    .build()
+                                                    val imageRequest =
+                                                        coil.request.ImageRequest.Builder(context)
+                                                            .addHeader(
+                                                                "User-Agent",
+                                                                "Mozilla/5.0 (Android 14; Mobile; rv:130.0) Gecko/130.0 Firefox/130.0"
+                                                            )
+                                                            .data(pwaIconUrl.ifBlank { viewModel.activeTab?.currentURL })
+                                                            .size(imageSizePx)
+                                                            .crossfade(true)
+                                                            .build()
 
-                                                val painter = coil.compose.rememberAsyncImagePainter(
-                                                    model = imageRequest,
-                                                    imageLoader = coil.Coil.imageLoader(context) // Use global loader for SVG support!
-                                                )
+                                                    val painter =
+                                                        coil.compose.rememberAsyncImagePainter(
+                                                            model = imageRequest,
+                                                            imageLoader = coil.Coil.imageLoader(
+                                                                context
+                                                            ) // Use global loader for SVG support!
+                                                        )
 
-                                                androidx.compose.foundation.Image(
-                                                    painter = painter,
-                                                    contentDescription = "PWA Splash Screen",
-                                                    modifier = Modifier.size(96.dp) // Large center icon
-                                                )
+                                                    androidx.compose.foundation.Image(
+                                                        painter = painter,
+                                                        contentDescription = "PWA Splash Screen",
+                                                        modifier = Modifier.size(96.dp) // Large center icon
+                                                    )
+                                                }
                                             }
                                         }
                                     }

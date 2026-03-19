@@ -284,6 +284,33 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 //        // 9. Force UI to update session
 //        sessionRefreshTrigger.intValue++
 //    }
+
+    fun initPwaProfile(pwaProfileId: String) {
+        if (activeProfileId.value == pwaProfileId) return
+
+        // 1. Change the RAM value for this specific PWA window only
+        activeProfileId.value = pwaProfileId
+
+        // 2. Load settings for this profile (Padding, Corner Radius, Theme, etc.)
+        _browserSettings.value = loadSettingsFromPrefs(pwaProfileId)
+        geckoManager.setAdBlockEnabled(_browserSettings.value.isAdBlockEnabled)
+
+        // 3. Load all memory lists for this profile
+//        apps.clear()
+//        apps.addAll(appManager.loadApps(pwaProfileId))
+//
+//        visitedUrlMap.clear()
+//        visitedUrlMap.putAll(visitedUrlManager.loadUrlMap(pwaProfileId))
+
+        siteSettings.clear()
+        siteSettings.putAll(siteSettingsManager.loadSettings(pwaProfileId))
+
+        // Notice we do NOT call profileManager.saveActiveProfileId!
+        // We also do NOT load the normal tabs list, because this is a standalone PWA!
+    }
+
+
+
     fun createNewProfile(name: String = "new profile") {
         // Default to: (Active Profile Index) + 1
         val targetIndex =
@@ -1263,7 +1290,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Preparing WebAPK...", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "preparing web app installer...", Toast.LENGTH_SHORT).show()
                 }
 
                 // Step 1: Generate or Download the APK
@@ -1276,16 +1303,11 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 // NOW check if it generated successfully
                 withContext(Dispatchers.Main) {
                     if (isGenerated && apkFile.exists()) {
-                        Toast.makeText(
-                            context,
-                            "WebAPK Ready! Starting Installer...",
-                            Toast.LENGTH_SHORT
-                        ).show()
                         installApkWithIntent(context, apkFile)
                     } else {
                         Toast.makeText(
                             context,
-                            "Failed to generate WebAPK. Check Logcat for 'WebAPK'.",
+                            "failed to generate web app installer . ",
                             Toast.LENGTH_LONG
                         ).show()
                     }
@@ -1375,9 +1397,33 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                     iconBitmap = bitmap
                 }
 
-                val targetPackage = "com.webapk.app0000"
-                val randomId = (1000..9999).random()
-                val replacementPackage = "com.webapk.app$randomId"
+                // --- THE DYNAMIC PACKAGE NAME GENERATOR ---
+                // The template package is exactly 50 characters long
+                val targetPackage = "com.webapk.application.template.placeholder.namexx"
+
+                // 1. Detect the Host Flavor and set the base prefix
+                val prefix = when (context.packageName) {
+                    "marcinlowercase.a" -> "marcinlowercase.pwa_"
+                    "studio.oo1.browser" -> "studio.oo1.web_app_"
+                    else -> "com.webapp.pwa_"
+                }
+
+                // 2. Clean the App Title (lowercase, spaces to _, alphanumeric only)
+                // We no longer need to force "app_" because our prefix already ends with an underscore
+                // and the segment starts with "pwa_" or "web_app_", which are valid letters!
+                val cleanName = title.lowercase().replace(Regex("\\s+"), "_").filter { it.isLetterOrDigit() || it == '_' }
+
+                // 3. Add the System Clock suffix (Must start with a letter, so we use '.t')
+                val timeSuffix = ".t" + System.currentTimeMillis().toString()
+
+                // 4. Calculate how much room we have left for the app name to ensure we don't exceed 50 chars
+                val maxNameLen = 50 - prefix.length - timeSuffix.length
+                val safeName = cleanName.take(maxOf(0, maxNameLen))
+
+                val desiredPackage = "$prefix$safeName$timeSuffix"
+
+                // 5. Pad the end with 'x' to guarantee it is exactly 50 bytes long!
+                val replacementPackage = desiredPackage.padEnd(50, 'x')
 
                 java.util.zip.ZipInputStream(context.assets.open("template.apk")).use { zis ->
                     java.util.zip.ZipOutputStream(java.io.FileOutputStream(unsignedApk))
