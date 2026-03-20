@@ -107,7 +107,7 @@ fun TextEditPanel(
                         modifier = Modifier.weight(1f),
                         onTap = onEditClick,
                         
-                        buttonDescription = "edit pin name",
+                        buttonDescription = "edit app name",
                         painterId = R.drawable.ic_edit,
 
                     )

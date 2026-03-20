@@ -22,6 +22,8 @@ import android.content.ClipData
 import android.util.Log
 import android.util.Patterns
 import androidx.activity.compose.ManagedActivityResultLauncher
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
@@ -40,6 +42,7 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
 import androidx.compose.foundation.gestures.drag
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -72,6 +75,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -186,9 +191,32 @@ fun BottomPanel(
     ) {
         val clipboard = LocalClipboard.current
 
-        val customIconUrlState = rememberTextFieldState("")
+         val customIconUrlState = rememberTextFieldState("")
         val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
 
+        // --- NEW: Local Image Picker ---
+ val isPickingImage = remember { mutableStateOf(false) }
+
+        val imagePickerLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.GetContent()
+        ) { uri: android.net.Uri? ->
+            uri?.let {
+                customIconUrlState.setTextAndPlaceCursorAtEnd(it.toString())
+            }
+
+            // CRITICAL FIX: Delay resetting the flag!
+            // When returning from the picker, Android's onResume lifecycle often fires spurious
+            // onFocusChanged(false) events. By waiting 500ms before resetting this flag,
+            // we perfectly bridge over those false alarms and keep the pinning panel open!
+            coroutineScope.launch {
+                delay(500)
+                isPickingImage.value = false
+                delay(50) // Tiny layout buffer
+                urlBarFocusRequester.requestFocus()
+                keyboardController?.show()
+            }
+
+        }
         // Automatically clear the custom URL text box when the user finishes pinning or cancels
         LaunchedEffect(uiState.value.isPinningApp) {
             if (!uiState.value.isPinningApp) {
@@ -478,114 +506,116 @@ fun BottomPanel(
                                 setTextFieldHeightPx(size.height)
                             }
                         ) {
-                            AnimatedVisibility(
+                             AnimatedVisibility(
                                 visible = uiState.value.isPinningApp,
-                                enter = expandVertically(
-                                    tween(
-                                        settings.value.animationSpeedForLayer(1)
-                                    )
-                                ) + fadeIn(
-                                    tween(
-                                        settings.value.animationSpeedForLayer(1)
-                                    )
-                                ),
-                                exit = shrinkVertically(
-                                    tween(
-                                        settings.value.animationSpeedForLayer(1)
-                                    )
-                                ) + fadeOut(
-                                    tween(
-                                        settings.value.animationSpeedForLayer(1)
-                                    )
-                                )
-
-                            )  {
-                                TextField(
+                                enter = expandVertically(tween(settings.value.animationSpeedForLayer(1))) + fadeIn(tween(settings.value.animationSpeedForLayer(1))),
+                                exit = shrinkVertically(tween(settings.value.animationSpeedForLayer(1))) + fadeOut(tween(settings.value.animationSpeedForLayer(1)))
+                            ) {
+                                Row(
                                     modifier = Modifier
-                                        .heightIn(min = settings.value.heightForLayer(1).dp)
+                                        .fillMaxWidth()
                                         .padding(
                                             start = settings.value.padding.dp,
                                             end = settings.value.padding.dp,
                                             top = settings.value.padding.dp,
                                             bottom = 0.dp
-                                        )
-                                        .fillMaxWidth()
-                                        .onFocusChanged { focusState ->
-                                            viewModel.updateUI {
-                                                it.copy(isFocusOnIconUrlTextField = focusState.isFocused)
-                                            }
-                                            if (!focusState.isFocused) {
-
-                                                val input = (customIconUrlState.text as CharSequence).toString().trim()
-                                                if (input.isNotEmpty()) {
-                                                    // Check if it's a valid web URL OR a raw base64 image data string
-                                                    val isValid = Patterns.WEB_URL.matcher(input).matches() ||
-                                                            input.startsWith("data:image", ignoreCase = true)
-
-                                                    if (!isValid) {
-                                                        // It's invalid text! Wipe it blank.
-                                                        customIconUrlState.setTextAndPlaceCursorAtEnd("")
-                                                    }
+                                        ),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
+                                ) {
+                                    TextField(
+                                        modifier = Modifier
+                                            .weight(1f) // Take up remaining space
+                                            .heightIn(min = settings.value.heightForLayer(1).dp)
+                                            .onFocusChanged { focusState ->
+                                                viewModel.updateUI {
+                                                    it.copy(isFocusOnIconUrlTextField = focusState.isFocused)
                                                 }
-                                                val resetUrl = viewModel.activeTab!!.currentURL
-                                                coroutineScope.launch {
-                                                    delay(150)
-                                                    val currentState = viewModel.uiState.value
-                                                    // If focus was completely lost (e.g. user tapped the webview)
-                                                    if (!currentState.isFocusOnIconUrlTextField && !currentState.isFocusOnUrlTextField) {
+                                                if (!focusState.isFocused) {
+                                                    val input = (customIconUrlState.text as CharSequence).toString().trim()
+                                                    if (input.isNotEmpty()) {
+                                                        // CRITICAL FIX: Allow content:// URIs from the local file picker!
+                                                        val isValid = Patterns.WEB_URL.matcher(input).matches() ||
+                                                                input.startsWith("data:image", ignoreCase = true) ||
+                                                                input.startsWith("content://", ignoreCase = true)
 
-                                                        if (currentState.isPinningApp) viewModel.updateUI { it.copy(isPinningApp = false) }
-                                                        if (currentState.isCreatingProfile) viewModel.updateUI { it.copy(isCreatingProfile = false) }
-                                                        if (currentState.isRenamingProfile) viewModel.updateUI { it.copy(isRenamingProfile = false) }
-
-                                                        // Restore the panels to how they were before we started pinning
-                                                        currentState.savedPanelState?.let { savedState ->
-                                                            viewModel.updateUI {
-                                                                it.copy(
-                                                                    isOptionsPanelVisible = savedState.options,
-                                                                    isDownloadPanelVisible = savedState.downloads,
-                                                                    isTabDataPanelVisible = false,
-                                                                    isNavPanelVisible = savedState.nav,
-                                                                    savedPanelState = null,
-                                                                )
-                                                            }
-                                                            if (currentState.isTabsPanelLock) viewModel.updateUI {
-                                                                it.copy(isTabsPanelVisible = savedState.tabs)
-                                                            }
+                                                        if (!isValid) {
+                                                            customIconUrlState.setTextAndPlaceCursorAtEnd("")
                                                         }
+                                                    }
+                                                    val resetUrl = viewModel.activeTab!!.currentURL
+                                                    coroutineScope.launch {
+                                                        delay(150)
+                                                        val currentState = viewModel.uiState.value
+                                                        // Protect UI from tearing down if picker is open
+                                                        if (!currentState.isFocusOnIconUrlTextField && !currentState.isFocusOnUrlTextField && !isPickingImage.value) {
+                                                            if (currentState.isPinningApp) viewModel.updateUI { it.copy(isPinningApp = false) }
+                                                            if (currentState.isCreatingProfile) viewModel.updateUI { it.copy(isCreatingProfile = false) }
+                                                            if (currentState.isRenamingProfile) viewModel.updateUI { it.copy(isRenamingProfile = false) }
 
-                                                        // Reset the URL bar text back to the domain
-                                                        textFieldState.setTextAndPlaceCursorAtEnd(resetUrl.toDomain())
-                                                        viewModel.updateUI { it.copy(isUrlOverlayBoxVisible = true) }
+                                                            currentState.savedPanelState?.let { savedState ->
+                                                                viewModel.updateUI {
+                                                                    it.copy(
+                                                                        isOptionsPanelVisible = savedState.options,
+                                                                        isDownloadPanelVisible = savedState.downloads,
+                                                                        isTabDataPanelVisible = false,
+                                                                        isNavPanelVisible = savedState.nav,
+                                                                        savedPanelState = null,
+                                                                    )
+                                                                }
+                                                                if (currentState.isTabsPanelLock) viewModel.updateUI {
+                                                                    it.copy(isTabsPanelVisible = savedState.tabs)
+                                                                }
+                                                            }
+
+                                                            textFieldState.setTextAndPlaceCursorAtEnd(resetUrl.toDomain())
+                                                            viewModel.updateUI { it.copy(isUrlOverlayBoxVisible = true) }
+                                                        }
                                                     }
                                                 }
-                                            }
-                                        }
-                                    ,
-                                    state = customIconUrlState,
-                                    placeholder = {
-                                        Text("custom icon url", color = Color.Gray)
-                                    },
-                                    textStyle = LocalTextStyle.current.copy(
-                                        textAlign = TextAlign.Start
-                                    ),
-                                    lineLimits = TextFieldLineLimits.SingleLine,
-                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                                    shape = RoundedCornerShape(
-                                        settings.value.cornerRadiusForLayer(2).dp
-                                    ),
-                                    colors = TextFieldDefaults.colors(
-                                        focusedContainerColor = Color.White,
-                                        unfocusedContainerColor = Color.White,
-                                        cursorColor = Color.Black,
-                                        focusedTextColor = Color.Black,
-                                        unfocusedTextColor = Color.Black,
-                                        focusedIndicatorColor = Color.Transparent,
-                                        unfocusedIndicatorColor = Color.Transparent,
-                                        disabledIndicatorColor = Color.Transparent,
-                                        errorIndicatorColor = Color.Transparent
+                                            },
+                                        state = customIconUrlState,
+                                        placeholder = {
+                                            Text("custom icon url", color = Color.Gray)
+                                        },
+                                        textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Start),
+                                        lineLimits = TextFieldLineLimits.SingleLine,
+                                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                                        shape = RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp),
+                                        colors = TextFieldDefaults.colors(
+                                            focusedContainerColor = Color.White,
+                                            unfocusedContainerColor = Color.White,
+                                            cursorColor = Color.Black,
+                                            focusedTextColor = Color.Black,
+                                            unfocusedTextColor = Color.Black,
+                                            focusedIndicatorColor = Color.Transparent,
+                                            unfocusedIndicatorColor = Color.Transparent,
+                                            disabledIndicatorColor = Color.Transparent,
+                                            errorIndicatorColor = Color.Transparent
+                                        )
                                     )
-                                )
+
+                                    // --- NEW: Local Image Picker Button ---
+                                    Box(
+                                        modifier = Modifier
+                                            .size(settings.value.heightForLayer(1).dp) // Perfect square matching TextField height
+                                            .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp))
+                                            .background(Color.White)
+                                            .clickable {
+                                                isPickingImage.value = true // Prevent UI from closing
+                                                // Launch the native Android File Picker looking only for images
+                                                imagePickerLauncher.launch("image/*")
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(id = marcinlowercase.a.R.drawable.ic_add), // You can swap this for an image icon if you have one!
+                                            contentDescription = "Pick Local Image",
+                                            tint = Color.Black,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
+                                }
                             }
                             TextField(
                                 modifier = Modifier
@@ -639,7 +669,8 @@ fun BottomPanel(
                                             coroutineScope.launch {
                                                 delay(150)
                                                 val currentState = viewModel.uiState.value
-                                                if (!currentState.isFocusOnIconUrlTextField && !currentState.isFocusOnUrlTextField) {
+                                                // Protect the UI from tearing down if the picker is open
+                                                if (!currentState.isFocusOnIconUrlTextField && !currentState.isFocusOnUrlTextField && !isPickingImage.value) {
                                                     if (currentState.isPinningApp) viewModel.updateUI { it.copy(isPinningApp = false) }
                                                     if (currentState.isCreatingProfile) viewModel.updateUI { it.copy(isCreatingProfile = false) }
                                                     if (currentState.isRenamingProfile) viewModel.updateUI { it.copy(isRenamingProfile = false) }
@@ -673,7 +704,7 @@ fun BottomPanel(
                                     when {
                                         uiState.value.isCreatingProfile -> Text("profile label")
                                         uiState.value.isRenamingProfile -> Text("profile label")
-                                        uiState.value.isPinningApp -> Text("app label")
+                                        uiState.value.isPinningApp -> Text("pin label")
                                         else -> Text("search / url")
                                     }
                                 },
