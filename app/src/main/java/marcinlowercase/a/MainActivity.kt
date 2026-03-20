@@ -1589,7 +1589,7 @@ fun BrowserScreen(
 
             viewModel.updateSettings { it.copy(isFullscreenMode = uiState.value.isOnFullscreenVideo) }
             if (uiState.value.isOnFullscreenVideo) {
-                gestureManager.ensureFullscreenBrightness()
+//                gestureManager.ensureFullscreenBrightness()
             } else {
                 if (activity.requestedOrientation != ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) {
                     activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
