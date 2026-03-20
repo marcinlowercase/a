@@ -1270,10 +1270,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun createNewTab(insertAtIndex: Int, url: String, isStandalone: Boolean = false) {
-        Log.w("PWA", "createNewTab index: $insertAtIndex")
-        Log.w("PWA", "createNewTab url: $url")
-        Log.w("PWA", "createNewTab isStandalone: $isStandalone")
+    fun createNewTab(insertAtIndex: Int, url: String) {
 
         // 1. Deactivate current active tab
         val currentIndex = _activeTabIndex.value
@@ -1289,7 +1286,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             profileId = activeProfileId.value,
             currentURL = initialUrl.ifBlank { "about:blank" },
             state = TabState.ACTIVE,
-            isStandalone = isStandalone // <-- Set the standalone flag
         )
 
         // 3. Insert into the list at the desired index
@@ -1299,9 +1295,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         // 4. Ensure Gecko creates a session for this new tab
         geckoManager.getSession(newTab)
 
-        if (isStandalone) {
-            Log.d("PWA", "create standalone app at index $targetIndex")
-        }
         // 5. Update the inspection state to follow the new tab
 
         updateUI { it.copy(inspectingTabId = newTab.id) }
@@ -1344,7 +1337,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             profileId = activeProfileId.value,
             currentURL = url,
             state = TabState.ACTIVE,
-            isStandalone = true
         )
 
         geckoManager.getSession(newTab) // Boot the engine

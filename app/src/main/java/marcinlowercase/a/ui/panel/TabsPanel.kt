@@ -216,32 +216,25 @@ fun TabsPanel(
 ) {
     val viewModel = LocalBrowserViewModel.current
     val uiState = viewModel.uiState.collectAsState()
+    if (viewModel.tabs.isEmpty()) return
     val settings = viewModel.browserSettings.collectAsState()
 
-    // 1. Filter out Standalone tabs and keep track of their ORIGINAL indices
-    val visibleTabs = viewModel.tabs.mapIndexedNotNull { index, tab ->
-        if (!tab.isStandalone) index to tab else null
-    }
-
     val activeTabIndex = viewModel.activeTabIndex.collectAsState().value
-    val activeVisibleIndex = visibleTabs.indexOfFirst { it.first == activeTabIndex }.coerceAtLeast(0)
-
     val pagerState = rememberPagerState(
-        initialPage = activeVisibleIndex + 1,
-        pageCount = { visibleTabs.size + 2 }
+        initialPage = activeTabIndex + 1,
+        pageCount = { viewModel.tabs.size + 2 }
     )
 
-    LaunchedEffect(activeTabIndex, visibleTabs.size, viewModel.activeProfileId.value) {
-        val newActiveVisibleIndex = visibleTabs.indexOfFirst { it.first == activeTabIndex }.coerceAtLeast(0)
-        if (pagerState.currentPage != newActiveVisibleIndex + 1) {
-            if (uiState.value.isTabsPanelVisible) pagerState.animateScrollToPage(newActiveVisibleIndex + 1)
-            else pagerState.requestScrollToPage(newActiveVisibleIndex + 1)
+    LaunchedEffect(activeTabIndex, viewModel.tabs.size, viewModel.activeProfileId.value) {
+        if (pagerState.currentPage != activeTabIndex + 1) {
+            if (uiState.value.isTabsPanelVisible) pagerState.animateScrollToPage(activeTabIndex + 1)
+            else pagerState.requestScrollToPage(activeTabIndex + 1)
         }
     }
 
     LaunchedEffect(pagerState.currentPage) {
-        if (pagerState.currentPage in 1..visibleTabs.size) {
-            updateInspectingTab(visibleTabs[pagerState.currentPage - 1].second)
+        if (pagerState.currentPage in 1..viewModel.tabs.size) {
+            updateInspectingTab(viewModel.tabs[pagerState.currentPage - 1])
         } else {
             updateInspectingTab(Tab.createEmpty(viewModel.activeProfileId.value, 0L))
         }
@@ -271,9 +264,9 @@ fun TabsPanel(
                         NewTabButton(onClick = { viewModel.createNewTab(0, "") })
                     }
 
-                    in 1..visibleTabs.size -> {
-                        // We extract the real global index and the tab object
-                        val (realIndex, tab) = visibleTabs[pageIndex - 1]
+                    in 1..viewModel.tabs.size -> {
+                        val tabIndex = pageIndex - 1
+                        val tab = viewModel.tabs[tabIndex]
 
                         val title = if (tab.currentURL == "about:blank") {
                             "blank page"
@@ -287,7 +280,7 @@ fun TabsPanel(
                             faviconUrl = faviconUrl,
                             title = title,
                             isActive = pagerState.currentPage == pageIndex,
-                            onClick = { viewModel.selectTab(realIndex) },
+                            onClick = { viewModel.selectTab(tabIndex) },
                             onLongClick = {
                                 if (uiState.value.inspectingTabId == null) viewModel.updateUI { it.copy(inspectingTabId = tab.id) }
                                 viewModel.updateUI { it.copy(isTabDataPanelVisible = !it.isTabDataPanelVisible) }

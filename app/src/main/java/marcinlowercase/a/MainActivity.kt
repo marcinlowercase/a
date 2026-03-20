@@ -1691,6 +1691,7 @@ fun BrowserScreen(
                     override fun component1() = value
                     override fun component2(): (Tab) -> Unit = { value = it }
                 },
+                isStandaloneMode = viewModel.isStandaloneMode.value,
                 browserSettings = settingsState,
                 onTitleChangeFun = { eventTabId, _, title ->
 

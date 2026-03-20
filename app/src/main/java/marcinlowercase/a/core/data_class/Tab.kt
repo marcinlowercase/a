@@ -30,7 +30,6 @@ data class Tab(
     var currentFaviconUrl: String = currentURL,
     var savedState: String? = null,
     var profileId: String,
-    var isStandalone: Boolean = false,
 
     val faviconCache: Map<String, String> = emptyMap(),
 

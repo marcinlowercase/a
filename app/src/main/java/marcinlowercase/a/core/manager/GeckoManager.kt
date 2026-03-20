@@ -469,6 +469,7 @@ class GeckoManager(private val context: Context) {
     fun setupDelegates(
         session: GeckoSession,
         tab: MutableState<Tab>,
+        isStandaloneMode: Boolean,
         siteSettingsManager: SiteSettingsManager,
         siteSettings: Map<String, SiteSettings>,
         browserSettings: androidx.compose.runtime.State<BrowserSettings>,
@@ -604,6 +605,8 @@ class GeckoManager(private val context: Context) {
                 session: GeckoSession,
                 uri: String
             ): GeckoResult<GeckoSession> {
+
+
                 //Log.d("NewTabFlow", "onNewSession")
                 val newTabId = System.currentTimeMillis()
 
@@ -668,6 +671,16 @@ class GeckoManager(private val context: Context) {
                     // Tell Gecko NOT to load this in the webview
                     return GeckoResult.fromValue(AllowOrDeny.DENY)
                 }
+
+                if (request.target == GeckoSession.NavigationDelegate.TARGET_WINDOW_NEW && isStandaloneMode) {
+
+                    // Manually load the URL in the CURRENT session instead
+                    session.loadUri(uri)
+
+                    // DENY the request so GeckoView completely aborts the creation of a new session!
+                    return GeckoResult.fromValue(AllowOrDeny.DENY)
+                }
+
 
                 // 2. Allow normal web pages to load
                 return GeckoResult.fromValue(AllowOrDeny.ALLOW)
