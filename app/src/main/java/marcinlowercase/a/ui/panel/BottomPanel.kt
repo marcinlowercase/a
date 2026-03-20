@@ -537,7 +537,8 @@ fun BottomPanel(
                                                         // CRITICAL FIX: Allow content:// URIs from the local file picker!
                                                         val isValid = Patterns.WEB_URL.matcher(input).matches() ||
                                                                 input.startsWith("data:image", ignoreCase = true) ||
-                                                                input.startsWith("content://", ignoreCase = true)
+                                                                input.startsWith("content://", ignoreCase = true) ||
+                                                                input.startsWith("<svg", ignoreCase = true) // <-- NEW: Allow raw SVG text!
 
                                                         if (!isValid) {
                                                             customIconUrlState.setTextAndPlaceCursorAtEnd("")
@@ -576,7 +577,7 @@ fun BottomPanel(
                                             },
                                         state = customIconUrlState,
                                         placeholder = {
-                                            Text("custom icon url", color = Color.Gray)
+                                            Text("custom icon url / svg code", color = Color.Gray)
                                         },
                                         textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Start),
                                         lineLimits = TextFieldLineLimits.SingleLine,

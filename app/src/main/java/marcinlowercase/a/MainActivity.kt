@@ -2679,13 +2679,21 @@ fun BrowserScreen(
                                                     val imageSizePx =
                                                         with(density) { 192.dp.roundToPx() }
 
+                                                    // --- NEW: Handle raw SVG text for the Splash Screen ---
+                                                    val fallbackUrl = viewModel.activeTab?.currentURL ?: ""
+                                                    val dataPayload: Any = if (pwaIconUrl.trim().startsWith("<svg", ignoreCase = true)) {
+                                                        java.nio.ByteBuffer.wrap(pwaIconUrl.toByteArray(Charsets.UTF_8))
+                                                    } else {
+                                                        pwaIconUrl.ifBlank { fallbackUrl }
+                                                    }
+
                                                     val imageRequest =
                                                         coil.request.ImageRequest.Builder(context)
                                                             .addHeader(
                                                                 "User-Agent",
                                                                 "Mozilla/5.0 (Android 14; Mobile; rv:130.0) Gecko/130.0 Firefox/130.0"
                                                             )
-                                                            .data(pwaIconUrl.ifBlank { viewModel.activeTab?.currentURL })
+                                                            .data(dataPayload)
                                                             .size(imageSizePx)
                                                             .crossfade(true)
                                                             .build()

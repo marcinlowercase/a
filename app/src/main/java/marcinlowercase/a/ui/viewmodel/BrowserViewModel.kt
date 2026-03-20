@@ -1438,18 +1438,26 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
                 // 1. Try to load the Favicon using Coil
 
-                // 1. Try to load the Favicon using your GLOBAL Custom ImageLoader
+                 // 1. Try to load the Favicon using your GLOBAL Custom ImageLoader
                 var iconBitmap: Bitmap? = null
                 try {
                     if (iconUrl.isNotBlank()) {
                         val loader = coil.Coil.imageLoader(context)
+
+                        // --- NEW: Check if the string is raw SVG text ---
+                        // If it is, we wrap it in a ByteBuffer so Coil natively parses it as a file stream!
+                        val dataPayload: Any = if (iconUrl.trim().startsWith("<svg", ignoreCase = true)) {
+                            java.nio.ByteBuffer.wrap(iconUrl.toByteArray(Charsets.UTF_8))
+                        } else {
+                            iconUrl
+                        }
 
                         val request = ImageRequest.Builder(context)
                             .addHeader(
                                 "User-Agent",
                                 "Mozilla/5.0 (Android 14; Mobile; rv:130.0) Gecko/130.0 Firefox/130.0"
                             )
-                            .data(iconUrl)
+                            .data(dataPayload)
                             .size(192)
                             .allowHardware(false) //
                             .build()
@@ -1638,14 +1646,21 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                                 // If the file wasn't an icon, process normally
                                 if (bytesToWrite == null) {
                                     when (name) {
-                                        "assets/config.json" -> {
+                                                                                "assets/config.json" -> {
                                             val hostPackage = context.packageName
                                             val pId = activeProfileId.value
-                                            val escapedTitle = title.replace("\"", "\\\"")
+
+                                            // --- NEW: Safely escape everything ---
+                                            // Because raw SVGs contain quotes, slashes, and line breaks, we MUST safely
+                                            // escape them so the JSON doesn't become corrupted inside the APK!
+                                            val escapedTitle = title.replace("\\", "\\\\").replace("\"", "\\\"")
+                                            val escapedIconUrl = iconUrl.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "")
+
                                             val configJson =
-                                                """{"url": "$url", "host": "$hostPackage", "profileId": "$pId", "name": "$escapedTitle", "iconUrl": "$iconUrl"}"""
+                                                """{"url": "$url", "host": "$hostPackage", "profileId": "$pId", "name": "$escapedTitle", "iconUrl": "$escapedIconUrl"}"""
                                             bytesToWrite = configJson.toByteArray(Charsets.UTF_8)
                                         }
+
 
                                         "resources.arsc" -> {
                                             val bytes = zis.readBytes()
