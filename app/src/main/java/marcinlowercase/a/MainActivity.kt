@@ -401,6 +401,7 @@ class MainActivity : ComponentActivity() {
             viewModel.isStandaloneMode.value = false
         }
     }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         // Hot start!
@@ -505,7 +506,7 @@ class MainActivity : ComponentActivity() {
         // If entering PiP, we MUST keep the session active and prevent Gecko from
         // interpreting this as a background event that stops media.
         if (isInPictureInPictureMode || isEnteringPip) {
-            viewModel.tabManager.loadTabs(viewModel.activeProfileId.value ,null)
+            viewModel.tabManager.loadTabs(viewModel.activeProfileId.value, null)
             val index = viewModel.tabManager.getActiveTabIndex(viewModel.activeProfileId.value)
             if (viewModel.tabs.isNotEmpty() && index in viewModel.tabs.indices) {
                 val activeTab = viewModel.tabs[index]
@@ -818,14 +819,20 @@ fun BrowserScreen(
     //region OptionsPanel Drag State
     val optionsPanelHeight = (settings.heightForLayer(2) + settings.padding).dp
 
-    val appsPanelHeight = (settings.heightForLayer(3).dp * settings.maxListHeight) + (settings.padding.dp * 2) + (if ( ceil(settings.maxListHeight).toInt() > 1) settings.padding.dp else 0.dp)
+    val appsPanelHeight =
+        (settings.heightForLayer(3).dp * settings.maxListHeight) + (settings.padding.dp * 2) + (if (ceil(
+                settings.maxListHeight
+            ).toInt() > 1
+        ) settings.padding.dp else 0.dp)
 
-    val totalRevealHeight = optionsPanelHeight + settings.padding.dp  + appsPanelHeight
-    viewModel.updateUI { it.copy(
-        optionsPanelHeightPx = with(density) { (optionsPanelHeight).toPx() },
-        appsPanelHeightPx = with(density) { appsPanelHeight.toPx() },
-        totalRevealHeightPx = with(density) { totalRevealHeight.toPx()}
-    ) }
+    val totalRevealHeight = optionsPanelHeight + settings.padding.dp + appsPanelHeight
+    viewModel.updateUI {
+        it.copy(
+            optionsPanelHeightPx = with(density) { (optionsPanelHeight).toPx() },
+            appsPanelHeightPx = with(density) { appsPanelHeight.toPx() },
+            totalRevealHeightPx = with(density) { totalRevealHeight.toPx() }
+        )
+    }
 
     // define anchors for options panel
     val anchors = remember(uiState.value.optionsPanelHeightPx, uiState.value.totalRevealHeightPx) {
@@ -843,7 +850,7 @@ fun BrowserScreen(
     val flingBehavior = AnchoredDraggableDefaults.flingBehavior(
         state = draggableState,
         positionalThreshold = { distance -> distance * 0.5f },
-        )
+    )
 
     LaunchedEffect(draggableState.targetValue) {
         hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove) // Or HapticFeedbackType.LongPress
@@ -860,7 +867,8 @@ fun BrowserScreen(
 //
 
     LaunchedEffect(draggableState.settledValue) {
-        val isOptionsVisible = draggableState.settledValue == RevealState.Visible || draggableState.settledValue == RevealState.Expanded
+        val isOptionsVisible =
+            draggableState.settledValue == RevealState.Visible || draggableState.settledValue == RevealState.Expanded
         val isAppsVisible = draggableState.settledValue == RevealState.Expanded
 
         if (uiState.value.isOptionsPanelVisible != isOptionsVisible || uiState.value.isAppsPanelVisible != isAppsVisible) {
@@ -1080,105 +1088,127 @@ fun BrowserScreen(
         // not use but still need to keep here to reset the pending download
         viewModel.pendingDownload = null
     }
-    val startDownload = { url: String, userAgent: String, contentDisposition: String?, mimeType: String?, stream: java.io.InputStream? ->
-        if (url.startsWith("blob:") || url.startsWith("data:")) {
-            if (stream != null) {
-                coroutineScope.launch(Dispatchers.IO) {
-                    try {
-                        // 1. Let Android automatically extract the name AND append the correct extension!
-                        var fileName = android.webkit.URLUtil.guessFileName(url, contentDisposition, mimeType)
+    val startDownload =
+        { url: String, userAgent: String, contentDisposition: String?, mimeType: String?, stream: java.io.InputStream? ->
+            if (url.startsWith("blob:") || url.startsWith("data:")) {
+                if (stream != null) {
+                    coroutineScope.launch(Dispatchers.IO) {
+                        try {
+                            // 1. Let Android automatically extract the name AND append the correct extension!
+                            var fileName = android.webkit.URLUtil.guessFileName(
+                                url,
+                                contentDisposition,
+                                mimeType
+                            )
 
-                        // 2. If it couldn't find a name and defaulted to "downloadfile.bin", make it unique
-                        if (fileName.startsWith("downloadfile")) {
-                            val ext = android.webkit.MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType) ?: "bin"
-                            fileName = "download_${System.currentTimeMillis()}.$ext"
-                        }
-
-                        // 3. Write directly to the Downloads folder
-                        var fileSize = 0L
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                            val resolver = context.contentResolver
-                            val contentValues = android.content.ContentValues().apply {
-                                put(MediaStore.Downloads.DISPLAY_NAME, fileName)
-                                put(MediaStore.Downloads.MIME_TYPE, mimeType ?: "application/octet-stream")
-                                put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                            // 2. If it couldn't find a name and defaulted to "downloadfile.bin", make it unique
+                            if (fileName.startsWith("downloadfile")) {
+                                val ext = android.webkit.MimeTypeMap.getSingleton()
+                                    .getExtensionFromMimeType(mimeType) ?: "bin"
+                                fileName = "download_${System.currentTimeMillis()}.$ext"
                             }
-                            val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
-                            if (uri != null) {
-                                resolver.openOutputStream(uri)?.use { output ->
+
+                            // 3. Write directly to the Downloads folder
+                            var fileSize = 0L
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                val resolver = context.contentResolver
+                                val contentValues = android.content.ContentValues().apply {
+                                    put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+                                    put(
+                                        MediaStore.Downloads.MIME_TYPE,
+                                        mimeType ?: "application/octet-stream"
+                                    )
+                                    put(
+                                        MediaStore.Downloads.RELATIVE_PATH,
+                                        Environment.DIRECTORY_DOWNLOADS
+                                    )
+                                }
+                                val uri = resolver.insert(
+                                    MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                                    contentValues
+                                )
+                                if (uri != null) {
+                                    resolver.openOutputStream(uri)?.use { output ->
+                                        stream.use { input -> fileSize = input.copyTo(output) }
+                                    }
+                                }
+                            } else {
+                                val downloadsDir =
+                                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                                if (!downloadsDir.exists()) downloadsDir.mkdirs()
+                                val file = File(downloadsDir, fileName)
+                                FileOutputStream(file).use { output ->
                                     stream.use { input -> fileSize = input.copyTo(output) }
                                 }
                             }
-                        } else {
-                            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-                            if (!downloadsDir.exists()) downloadsDir.mkdirs()
-                            val file = File(downloadsDir, fileName)
-                            java.io.FileOutputStream(file).use { output ->
-                                stream.use { input -> fileSize = input.copyTo(output) }
-                            }
-                        }
 
-                        // 4. Finished! Now update the ViewModel and pull up the Download Panel
-                        withContext(Dispatchers.Main) {
-                            val downloadId = System.currentTimeMillis()
-                            val completedItem = DownloadItem(
-                                id = downloadId,
-                                url = url,
-                                filename = fileName, // <-- Now guarantees "hima.gif"
-                                mimeType = mimeType ?: "application/octet-stream",
-                                status = DownloadStatus.SUCCESSFUL,
-                                progress = 100,
-                                totalBytes = fileSize,
-                                downloadedBytes = fileSize,
-                                isBlobDownload = true
-                            )
-
-                            // Add to list and persist
-                            viewModel.downloads.add(0, completedItem)
-                            viewModel.downloadTracker.saveDownloads(viewModel.downloads)
-
-                            // Open the Download Panel
-                            viewModel.updateUI {
-                                it.copy(
-                                    isUrlBarVisible = true,
-                                    isDownloadPanelVisible = true,
-                                    isTabsPanelVisible = false,
-                                    isTabsPanelLock = false,
-                                    isSettingsPanelVisible = false,
-                                    isAppsPanelVisible = false,
-                                    isFindInPageVisible = false,
-                                    isNavPanelVisible = false,
-                                    savedPanelState = null
+                            // 4. Finished! Now update the ViewModel and pull up the Download Panel
+                            withContext(Dispatchers.Main) {
+                                val downloadId = System.currentTimeMillis()
+                                val completedItem = DownloadItem(
+                                    id = downloadId,
+                                    url = url,
+                                    filename = fileName, // <-- Now guarantees "hima.gif"
+                                    mimeType = mimeType ?: "application/octet-stream",
+                                    status = DownloadStatus.SUCCESSFUL,
+                                    progress = 100,
+                                    totalBytes = fileSize,
+                                    downloadedBytes = fileSize,
+                                    isBlobDownload = true
                                 )
+
+                                // Add to list and persist
+                                viewModel.downloads.add(0, completedItem)
+                                viewModel.downloadTracker.saveDownloads(viewModel.downloads)
+
+                                // Open the Download Panel
+                                viewModel.updateUI {
+                                    it.copy(
+                                        isUrlBarVisible = true,
+                                        isDownloadPanelVisible = true,
+                                        isTabsPanelVisible = false,
+                                        isTabsPanelLock = false,
+                                        isSettingsPanelVisible = false,
+                                        isAppsPanelVisible = false,
+                                        isFindInPageVisible = false,
+                                        isNavPanelVisible = false,
+                                        savedPanelState = null
+                                    )
+                                }
+                            }
+                        } catch (e: Exception) {
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(context, "Blob download failed", Toast.LENGTH_SHORT)
+                                    .show()
+                            }
+                        } finally {
+                            try {
+                                stream.close()
+                            } catch (e: Exception) {
                             }
                         }
-                    } catch (e: Exception) {
-                        withContext(Dispatchers.Main) {
-                            Toast.makeText(context, "Blob download failed", Toast.LENGTH_SHORT).show()
-                        }
-                    } finally {
-                        try { stream.close() } catch (e: Exception) {}
                     }
+                } else {
+                    Toast.makeText(context, "Error: Data stream is empty", Toast.LENGTH_SHORT)
+                        .show()
                 }
             } else {
-                Toast.makeText(context, "Error: Data stream is empty", Toast.LENGTH_SHORT).show()
-            }
-        } else {
-            // Standard HTTP/HTTPS download using Android's DownloadManager
-            val params = DownloadParams(url, userAgent, contentDisposition, mimeType)
-            val needsPermission = false
-            val hasPermission = ContextCompat.checkSelfPermission(
-                context, Manifest.permission.WRITE_EXTERNAL_STORAGE
-            ) == PackageManager.PERMISSION_GRANTED
+                // Standard HTTP/HTTPS download using Android's DownloadManager
+                val params = DownloadParams(url, userAgent, contentDisposition, mimeType)
+                val needsPermission = false
+                val hasPermission = ContextCompat.checkSelfPermission(
+                    context, Manifest.permission.WRITE_EXTERNAL_STORAGE
+                ) == PackageManager.PERMISSION_GRANTED
 
-            if (needsPermission && !hasPermission) {
-                viewModel.pendingDownload = params
-                storagePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-            } else {
-                viewModel.performDownloadEnqueue(params)
+                if (needsPermission && !hasPermission) {
+                    viewModel.pendingDownload = params
+                    storagePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                } else {
+                    viewModel.performDownloadEnqueue(params)
+                }
             }
         }
-    }
+
     fun navigateWebView() {
         when (viewModel.activeNavAction.value) {
             GestureNavAction.BACK -> if (viewModel.activeTab!!.canGoBack) {
@@ -1355,7 +1385,7 @@ fun BrowserScreen(
         }
         if (current != ActivePanel.PROMPT && viewModel.jsDialogState.value != null) viewModel.jsDialogState.value =
             null
-        if (current != ActivePanel.SETTINGS && uiState.value.isSettingsPanelVisible  && !(current == ActivePanel.APPS && viewModel.isSortingButtons.value)) {
+        if (current != ActivePanel.SETTINGS && uiState.value.isSettingsPanelVisible && !(current == ActivePanel.APPS && viewModel.isSortingButtons.value)) {
             viewModel.updateUI { it.copy(isSettingsPanelVisible = false) }
         }
 
@@ -1370,7 +1400,11 @@ fun BrowserScreen(
 
             if (uiState.value.isTabsPanelLock) viewModel.updateUI { it.copy(isTabsPanelLock = false) }
 
-            if (uiState.value.isTabDataPanelVisible) viewModel.updateUI { it.copy(isTabDataPanelVisible = false) }
+            if (uiState.value.isTabDataPanelVisible) viewModel.updateUI {
+                it.copy(
+                    isTabDataPanelVisible = false
+                )
+            }
 
         }
     }
@@ -1385,7 +1419,6 @@ fun BrowserScreen(
     //endregion
 
 
-
     CompositionLocalProvider(
         LocalBrowserViewModel provides viewModel
     ) {
@@ -1393,7 +1426,7 @@ fun BrowserScreen(
 
 
         LaunchedEffect(viewModel.activeProfileId.value) {
-            if (viewModel.inspectingOption.value != null ||  viewModel.isSortingButtons.value) {
+            if (viewModel.inspectingOption.value != null || viewModel.isSortingButtons.value) {
                 viewModel.isSortingButtons.value = false
                 viewModel.inspectingOption.value = null
             }
@@ -1424,9 +1457,9 @@ fun BrowserScreen(
                     // THE FIX: Use LOAD_FLAGS_REPLACE_HISTORY.
                     // This replaces the current page in the history stack with itself.
                     // It preserves the "Back" button history, but forces Gecko to discard the old Zoom level!
-                    val loader = org.mozilla.geckoview.GeckoSession.Loader()
+                    val loader = GeckoSession.Loader()
                         .uri(currentUrl)
-                        .flags(org.mozilla.geckoview.GeckoSession.LOAD_FLAGS_REPLACE_HISTORY)
+                        .flags(GeckoSession.LOAD_FLAGS_REPLACE_HISTORY)
 
                     activeSession.load(loader)
                 } else {
@@ -1565,7 +1598,7 @@ fun BrowserScreen(
 
         }
         LaunchedEffect(uiState.value.isFocusOnTextField, uiState.value.isPromptPanelVisible) {
-            if ((!uiState.value.isFocusOnTextField && !uiState.value.isPromptPanelVisible) ) {
+            if ((!uiState.value.isFocusOnTextField && !uiState.value.isPromptPanelVisible)) {
                 delay(300)
                 viewModel.isApplyImePaddingToWebView.value = true
             } else {
@@ -1590,7 +1623,8 @@ fun BrowserScreen(
         }
         LaunchedEffect(viewModel.inspectingAppId.longValue) {
             if (viewModel.inspectingAppId.longValue > 0L) viewModel.descriptionContent.value =
-                viewModel.apps.find { it.id == viewModel.inspectingAppId.longValue }?.label ?: "hello"
+                viewModel.apps.find { it.id == viewModel.inspectingAppId.longValue }?.label
+                    ?: "hello"
             else viewModel.descriptionContent.value = ""
 //            if (viewModel.inspectingAppId.longValue > 0L) textFieldState.setTextAndPlaceCursorAtEnd(viewModel.apps.find { it.id == viewModel.inspectingAppId.longValue }?.label ?: viewModel.activeTab!!.currentURL.toDomain())
 //            else if (textFieldState.text != viewModel.activeTab!!.currentURL && !uiState.value.isFocusOnUrlTextField) textFieldState.setTextAndPlaceCursorAtEnd(viewModel.activeTab!!.currentURL.toDomain() )
@@ -1659,7 +1693,7 @@ fun BrowserScreen(
         LaunchedEffect(uiState.value.isAppsPanelVisible) {
             if (!uiState.value.isAppsPanelVisible) {
                 viewModel.inspectingAppId.longValue = 0L
-                if (viewModel.inspectingOption.value != null ||  viewModel.isSortingButtons.value) {
+                if (viewModel.inspectingOption.value != null || viewModel.isSortingButtons.value) {
                     viewModel.isSortingButtons.value = false
                     viewModel.inspectingOption.value = null
                 }
@@ -1683,7 +1717,8 @@ fun BrowserScreen(
                 tab = object : MutableState<Tab> { // Bridge for the old delegate code
                     override var value: Tab
                         // CRITICAL FIX: Dynamically fetch activeTab so Gecko uses pwaTab instead of Tab 2!
-                        get() = viewModel.activeTab ?: Tab.createEmpty(viewModel.activeProfileId.value)
+                        get() = viewModel.activeTab
+                            ?: Tab.createEmpty(viewModel.activeProfileId.value)
                         set(newTab) {
                             viewModel.updateTabById(newTab.id) { newTab }
                         }
@@ -1713,7 +1748,8 @@ fun BrowserScreen(
                         && url != null
                         && !url.startsWith("javascript:")
                     ) {
-                        val isGhostBlank = url == "about:blank" && viewModel.activeTab!!.currentURL != "about:blank" && viewModel.activeTab!!.currentURL.isNotBlank()
+                        val isGhostBlank =
+                            url == "about:blank" && viewModel.activeTab!!.currentURL != "about:blank" && viewModel.activeTab!!.currentURL.isNotBlank()
 
                         if (!isGhostBlank) {
                             if (!uiState.value.isFocusOnUrlTextField) {
@@ -1740,7 +1776,11 @@ fun BrowserScreen(
                         viewModel.geckoManager.getSessionStateString(eventTabId)
                     if (stateToSave != null) {
                         viewModel.updateTabById(eventTabId) { it.copy(savedState = stateToSave) }
-                        viewModel.tabManager.saveTabs(viewModel.activeProfileId.value, viewModel.tabs, activeTabIndex)
+                        viewModel.tabManager.saveTabs(
+                            viewModel.activeProfileId.value,
+                            viewModel.tabs,
+                            activeTabIndex
+                        )
                     }
                 },
                 onCanGoBackFun = { _, canGoBack ->
@@ -1793,7 +1833,8 @@ fun BrowserScreen(
                         }
                     }
                     if (eventTabId == viewModel.activeTab!!.id) {
-                        val isGhostBlank = url == "about:blank" && viewModel.activeTab!!.currentURL != "about:blank" && viewModel.activeTab!!.currentURL.isNotBlank()
+                        val isGhostBlank =
+                            url == "about:blank" && viewModel.activeTab!!.currentURL != "about:blank" && viewModel.activeTab!!.currentURL.isNotBlank()
                         if (!isGhostBlank) {
                             viewModel.updateUI { it.copy(isLoading = true) }
                             if (viewModel.activeTab!!.errorState != null) {
@@ -1809,7 +1850,13 @@ fun BrowserScreen(
 
                 },
                 onPageStopFun = { _, _ ->
-                    viewModel.updateUI { it.copy(isLoading = false) }
+                    viewModel.updateUI {
+                        it.copy(
+                            isLoading = false,
+                            isFirstLoadPWA = false,
+                        )
+                    }
+
                 },
                 onFaviconChanged = { tabId, faviconUrl ->
                     if (faviconUrl.isNotBlank()) {
@@ -1842,7 +1889,7 @@ fun BrowserScreen(
                         message = "download file on",
                         url = url,
                         onConfirm = {
-                            startDownload(url, userAgent, contentDisposition, mimeType,stream)
+                            startDownload(url, userAgent, contentDisposition, mimeType, stream)
                         },
                         onCancel = {
                         }
@@ -2109,22 +2156,24 @@ fun BrowserScreen(
         LaunchedEffect(uiState.value.isUrlBarVisible) {
             if (!uiState.value.isUrlBarVisible) {
 //                setIsOptionsPanelVisible(false)
-                viewModel.updateUI { it.copy(
-                    isTabDataPanelVisible = false,
-                    isTabsPanelVisible = false,
-                    isDownloadPanelVisible = false,
-                ) }
+                viewModel.updateUI {
+                    it.copy(
+                        isTabDataPanelVisible = false,
+                        isTabsPanelVisible = false,
+                        isDownloadPanelVisible = false,
+                    )
+                }
                 if (!viewModel.isSortingButtons.value) {
                     viewModel.updateUI {
                         it.copy(
                             isOptionsPanelVisible = false,
                             isAppsPanelVisible = false,
                             isSettingsPanelVisible = false,
-                            )
+                        )
                     }
                 }
             } else {
-                if (uiState.value.isTabsPanelLock ) viewModel.updateUI {
+                if (uiState.value.isTabsPanelLock) viewModel.updateUI {
                     it.copy(
                         isTabsPanelVisible = true
                     )
@@ -2299,7 +2348,11 @@ fun BrowserScreen(
 
         LaunchedEffect(saveTrigger) {
             if (saveTrigger > 0) {
-                viewModel.tabManager.saveTabs(viewModel.activeProfileId.value, viewModel.tabs, activeTabIndex)
+                viewModel.tabManager.saveTabs(
+                    viewModel.activeProfileId.value,
+                    viewModel.tabs,
+                    activeTabIndex
+                )
                 saveTrigger = 0
             }
         }
@@ -2372,6 +2425,7 @@ fun BrowserScreen(
 
                     }
                 }
+
                 else -> {
                     // not back to home screen
                 }
@@ -2593,9 +2647,9 @@ fun BrowserScreen(
                                         // --- PWA NATIVE SPLASH SCREEN ---
 
                                         // --- PWA NATIVE SPLASH SCREEN ---
-                                        Column(modifier = Modifier .fillMaxSize()){
+                                        Column(modifier = Modifier.fillMaxSize()) {
                                             AnimatedVisibility(
-                                                visible = uiState.value.isLoading && viewModel.isStandaloneMode.value,
+                                                visible = uiState.value.isFirstLoadPWA && viewModel.isStandaloneMode.value,
                                                 enter = fadeIn(
                                                     tween(
                                                         settings.animationSpeedForLayer(
@@ -2657,8 +2711,6 @@ fun BrowserScreen(
                             }
                         }
                     }
-
-
 
 
                     val isControlsOnRight = remember { mutableStateOf(false) }
@@ -2858,7 +2910,6 @@ fun BrowserScreen(
                             onOpenFolderClicked = handleOpenDownloadsFolder,
 
 
-
                             navigateWebView = {
                                 navigateWebView()
                             },
@@ -2888,7 +2939,8 @@ fun BrowserScreen(
 
                         // BackSquare
                         AnimatedVisibility(
-                            visible = !uiState.value.isBottomPanelVisible && !uiState.value.isLandscape && !uiState.value.isOtherPanelVisible && !viewModel.isStandaloneMode.value,                            modifier = Modifier
+                            visible = !uiState.value.isBottomPanelVisible && !uiState.value.isLandscape && !uiState.value.isOtherPanelVisible && !viewModel.isStandaloneMode.value,
+                            modifier = Modifier
                                 .fillMaxSize()
                                 .padding(webViewPaddingValue)
                                 .onSizeChanged {

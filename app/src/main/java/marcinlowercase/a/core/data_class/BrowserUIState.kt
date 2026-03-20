@@ -68,6 +68,7 @@ data class BrowserUIState(
     // Web Load
     val initialLoadDone: Boolean = false,
     val isLoading: Boolean = false,
+    val isFirstLoadPWA: Boolean = true,
 
     // Screen Size / Orientation
     val isLandscape: Boolean = false,
