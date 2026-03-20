@@ -114,6 +114,7 @@ import marcinlowercase.a.core.enum_class.SearchEngine
 import marcinlowercase.a.core.enum_class.SuggestionSource
 import marcinlowercase.a.core.function.toDomain
 import marcinlowercase.a.core.function.webViewLoad
+import marcinlowercase.a.ui.component.CustomIconButton
 import marcinlowercase.a.ui.component.LoadingIndicator
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import org.mozilla.geckoview.GeckoResult
@@ -526,7 +527,7 @@ fun BottomPanel(
                                     TextField(
                                         modifier = Modifier
                                             .weight(1f) // Take up remaining space
-                                            .heightIn(min = settings.value.heightForLayer(1).dp)
+                                            .heightIn(min = settings.value.heightForLayer(2).dp)
                                             .onFocusChanged { focusState ->
                                                 viewModel.updateUI {
                                                     it.copy(isFocusOnIconUrlTextField = focusState.isFocused)
@@ -597,25 +598,41 @@ fun BottomPanel(
                                     )
 
                                     // --- NEW: Local Image Picker Button ---
-                                    Box(
-                                        modifier = Modifier
-                                            .size(settings.value.heightForLayer(1).dp) // Perfect square matching TextField height
-                                            .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp))
-                                            .background(Color.White)
-                                            .clickable {
-                                                isPickingImage.value = true // Prevent UI from closing
-                                                // Launch the native Android File Picker looking only for images
-                                                imagePickerLauncher.launch("image/*")
-                                            },
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(id = marcinlowercase.a.R.drawable.ic_add), // You can swap this for an image icon if you have one!
-                                            contentDescription = "Pick Local Image",
-                                            tint = Color.Black,
-                                            modifier = Modifier.size(24.dp)
-                                        )
-                                    }
+
+
+                                    CustomIconButton(
+                                        isLandscape = true,
+                                        layer = 2,
+                                        modifier = Modifier,
+                                        onTap = {
+                                            isPickingImage.value = true // Prevent UI from closing
+                                            // Launch the native Android File Picker looking only for images
+                                            imagePickerLauncher.launch("image/*")
+                                        },
+                                        buttonDescription = "pick local image",
+                                        painterId = R.drawable.ic_image,
+                                        isWhite = true
+                                    )
+
+//                                    Box(
+//                                        modifier = Modifier
+//                                            .size(settings.value.heightForLayer(1).dp) // Perfect square matching TextField height
+//                                            .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp))
+//                                            .background(Color.White)
+//                                            .clickable {
+//                                                isPickingImage.value = true // Prevent UI from closing
+//                                                // Launch the native Android File Picker looking only for images
+//                                                imagePickerLauncher.launch("image/*")
+//                                            },
+//                                        contentAlignment = Alignment.Center
+//                                    ) {
+//                                        Icon(
+//                                            painter = painterResource(id = marcinlowercase.a.R.drawable.ic_add), // You can swap this for an image icon if you have one!
+//                                            contentDescription = "Pick Local Image",
+//                                            tint = Color.Black,
+//                                            modifier = Modifier.size(24.dp)
+//                                        )
+//                                    }
                                 }
                             }
                             TextField(
