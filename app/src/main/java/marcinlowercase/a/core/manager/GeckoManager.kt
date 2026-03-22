@@ -46,6 +46,7 @@ import org.mozilla.geckoview.WebResponse
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.setValue
 import marcinlowercase.a.core.data_class.JsChoiceState
 import marcinlowercase.a.core.data_class.JsColorState
@@ -99,7 +100,9 @@ class GeckoManager(private val context: Context) {
 
 
 
-    private val sessionPool = mutableMapOf<Long, GeckoSession>()
+    private val sessionPool = mutableStateMapOf<Long, GeckoSession>()
+    val sessionPoolSize: Int
+        get() = sessionPool.size
     private val killedSessionIds = mutableSetOf<Long>()
 
     private var faviconExtensionFuture: GeckoResult<WebExtension>? = null

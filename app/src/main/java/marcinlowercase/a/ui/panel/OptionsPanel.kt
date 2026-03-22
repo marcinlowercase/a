@@ -395,11 +395,11 @@ fun rememberBrowserOptionsRegistry(
             },
             BrowserOption.OPTIMIZE_MEMORY to OptionItem(
                 id = BrowserOption.OPTIMIZE_MEMORY,
-                iconRes = R.drawable.ic_snowflake,
+                iconRes = if (viewModel.tabs.size > 1 || viewModel.geckoManager.sessionPoolSize > 1 ) R.drawable.ic_rocket_launch else R.drawable.ic_rocket,
                 contentDescription = "optimize memory",
-                enabled = true
+                enabled = viewModel.tabs.size > 1 || viewModel.geckoManager.sessionPoolSize > 1
             ) {
-                confirmationPopup(
+               if (viewModel.tabs.size > 1 || viewModel.geckoManager.sessionPoolSize > 1) confirmationPopup(
                     "close all background tabs and free up memory ? ",
                     "",
                     {
