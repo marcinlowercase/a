@@ -1235,6 +1235,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     }
 
 
+
     fun generateAndInstallWebApk(context: Context, title: String, url: String, iconUrl: String) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -1242,21 +1243,20 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                     Toast.makeText(context, "preparing web app installer...", Toast.LENGTH_SHORT).show()
                 }
 
-                // Step 1: Generate or Download the APK
+                // Step 1: Prepare the destination file
                 val apkFile = File(context.cacheDir, "webapk_${System.currentTimeMillis()}.apk")
 
-                // Run the generation process
-                val isGenerated =
-                    mockGenerateWebApkLocallyOrRemotely(context, title, url, iconUrl, apkFile)
+                // Step 2: Request the APK from the server
+                val isGenerated = generateWebApkRemotely(context, title, url, iconUrl, apkFile)
 
-                // NOW check if it generated successfully
+                // Step 3: Install if successful
                 withContext(Dispatchers.Main) {
                     if (isGenerated && apkFile.exists()) {
                         installApkWithIntent(context, apkFile)
                     } else {
                         Toast.makeText(
                             context,
-                            "failed to generate web app installer . ",
+                            "failed to generate web app installer from server.",
                             Toast.LENGTH_LONG
                         ).show()
                     }
@@ -1268,26 +1268,16 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    private suspend fun mockGenerateWebApkLocallyOrRemotely(
+    private suspend fun generateWebApkRemotely(
         context: Context, title: String, url: String, iconUrl: String, outFile: File
     ): Boolean {
-
-        Log.i("WebAPK", "iconURl: ${iconUrl}")
         return withContext(Dispatchers.IO) {
             try {
-                val unsignedApk =
-                    File(context.cacheDir, "unsigned_${System.currentTimeMillis()}.apk")
-
-                // 1. Try to load the Favicon using Coil
-
-                 // 1. Try to load the Favicon using your GLOBAL Custom ImageLoader
+                // 1. Process the Favicon locally using your existing Coil / Monogram logic
                 var iconBitmap: Bitmap? = null
                 try {
                     if (iconUrl.isNotBlank()) {
                         val loader = coil.Coil.imageLoader(context)
-
-                        // --- NEW: Check if the string is raw SVG text ---
-                        // If it is, we wrap it in a ByteBuffer so Coil natively parses it as a file stream!
                         val dataPayload: Any = if (iconUrl.trim().startsWith("<svg", ignoreCase = true)) {
                             java.nio.ByteBuffer.wrap(iconUrl.toByteArray(Charsets.UTF_8))
                         } else {
@@ -1295,28 +1285,21 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                         }
 
                         val request = ImageRequest.Builder(context)
-                            .addHeader(
-                                "User-Agent",
-                                "Mozilla/5.0 (Android 14; Mobile; rv:130.0) Gecko/130.0 Firefox/130.0"
-                            )
+                            .addHeader("User-Agent", "Mozilla/5.0 (Android 14; Mobile; rv:130.0) Gecko/130.0 Firefox/130.0")
                             .data(dataPayload)
                             .size(192)
-                            .allowHardware(false) //
+                            .allowHardware(false) // CRITICAL: Must be false so we can encode it to Base64
                             .build()
 
                         val result = loader.execute(request)
-
                         if (result is SuccessResult) {
                             val drawable = result.drawable
                             if (drawable is BitmapDrawable) {
                                 iconBitmap = drawable.bitmap
                             } else {
-                                // Because it's an SVG, Coil might return a PictureDrawable!
-                                // We must draw it onto a native Bitmap Canvas.
                                 val width = drawable.intrinsicWidth.takeIf { it > 0 } ?: 192
                                 val height = drawable.intrinsicHeight.takeIf { it > 0 } ?: 192
-                                val bitmap =
-                                    Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                                val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
                                 val canvas = android.graphics.Canvas(bitmap)
                                 drawable.setBounds(0, 0, canvas.width, canvas.height)
                                 drawable.draw(canvas)
@@ -1328,357 +1311,73 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                     Log.e("WebAPK", "Failed to load Favicon", e)
                 }
 
-                Log.d("WebAPK", "favicon ${iconBitmap.toString()}")
-
-                // 2. FALLBACK: If Coil fails (e.g. because it's an .ico file),
-                // dynamically generate a beautiful Monogram letter icon!
+                // Fallback Monogram
                 if (iconBitmap == null) {
                     val size = 192
                     val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
                     val canvas = android.graphics.Canvas(bitmap)
                     val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
-
-                    // Draw a sleek dark grey background
                     paint.color = android.graphics.Color.parseColor("#252526")
                     canvas.drawRect(0f, 0f, size.toFloat(), size.toFloat(), paint)
-
-                    // Draw the first letter of the App Title
                     paint.color = android.graphics.Color.WHITE
                     paint.textSize = 100f
                     paint.textAlign = android.graphics.Paint.Align.CENTER
-
                     val letter = if (title.isNotBlank()) title.take(1).uppercase() else "W"
                     val textY = (size / 2f) - ((paint.descent() + paint.ascent()) / 2f)
                     canvas.drawText(letter, size / 2f, textY, paint)
-
                     iconBitmap = bitmap
                 }
 
-                // --- THE DYNAMIC PACKAGE NAME GENERATOR ---
-                // The template package is exactly 50 characters long
-                val targetPackage = "com.webapk.application.template.placeholder.namexx"
+                // 2. Convert the resulting icon to Base64 PNG
+                val stream = java.io.ByteArrayOutputStream()
+                iconBitmap!!.compress(Bitmap.CompressFormat.PNG, 100, stream)
+                val iconBase64 = android.util.Base64.encodeToString(stream.toByteArray(), android.util.Base64.NO_WRAP)
 
-                // 1. Detect the Host Flavor and set the base prefix
-                val prefix = when (context.packageName) {
-                    "marcinlowercase.a" -> "marcinlowercase.pwa_"
-                    "studio.oo1.browser" -> "studio.oo1.web_app_"
-                    else -> "com.webapp.pwa_"
+                // 3. Prepare the JSON Payload
+                val jsonPayload = org.json.JSONObject().apply {
+                    put("title", title)
+                    put("url", url)
+                    put("iconBase64", iconBase64)
+                    put("host", context.packageName)
+                    put("profileId", activeProfileId.value)
                 }
 
-                // 2. Clean the App Title (lowercase, spaces to _, alphanumeric only)
-                // We no longer need to force "app_" because our prefix already ends with an underscore
-                // and the segment starts with "pwa_" or "web_app_", which are valid letters!
-                val cleanName = title.lowercase().replace(Regex("\\s+"), "_").filter { it.isLetterOrDigit() || it == '_' }
+                // 4. Configure the Network Request
+                // TODO: IF USING AN EMULATOR, use 10.0.2.2. If using a real phone, use your Mac's IP (e.g. 192.168.1.X)
+                val serverEndpoint = "http://192.168.1.212:8080/api/build-webapk"
 
-                // 3. Add the System Clock suffix (Must start with a letter, so we use '.t')
-                val timeSuffix = ".t" + System.currentTimeMillis().toString()
+                val connection = java.net.URL(serverEndpoint).openConnection() as java.net.HttpURLConnection
+                connection.requestMethod = "POST"
+                connection.setRequestProperty("Content-Type", "application/json; utf-8")
+                connection.setRequestProperty("Accept", "application/vnd.android.package-archive")
+                connection.doOutput = true
+                connection.connectTimeout = 30000 // 30s
+                connection.readTimeout = 30000    // 30s
 
-                // 4. Calculate how much room we have left for the app name to ensure we don't exceed 50 chars
-                val maxNameLen = 50 - prefix.length - timeSuffix.length
-                val safeName = cleanName.take(maxOf(0, maxNameLen))
+                // 5. Send Payload
+                connection.outputStream.use { os ->
+                    val inputBytes = jsonPayload.toString().toByteArray(Charsets.UTF_8)
+                    os.write(inputBytes, 0, inputBytes.size)
+                }
 
-                val desiredPackage = "$prefix$safeName$timeSuffix"
-
-                // 5. Pad the end with 'x' to guarantee it is exactly 50 bytes long!
-                val replacementPackage = desiredPackage.padEnd(50, 'x')
-
-                java.util.zip.ZipInputStream(context.assets.open("template.apk")).use { zis ->
-                    java.util.zip.ZipOutputStream(java.io.FileOutputStream(unsignedApk))
-                        .use { zos ->
-                            var entry = zis.nextEntry
-                            while (entry != null) {
-                                val name = entry.name
-
-                                Log.w("WebAPK", "name : $name")
-                                if (name.startsWith("META-INF/")) {
-                                    entry = zis.nextEntry
-                                    continue
-                                }
-
-
-                                var bytesToWrite: ByteArray? = null
-
-                                // --- ICON FIX 2: Replace ALL remaining PNG/WebP files ---
-                                if (name.contains("ic_launcher")) {
-                                    if (name.endsWith(".xml")) {
-                                        // 1. SILENTLY DROP ANY XML ICONS.
-                                        entry = zis.nextEntry
-                                        continue
-                                    } else if (name.endsWith(".png") || name.endsWith(".webp") || name.endsWith(
-                                            ".jpg"
-                                        )
-                                    ) {
-                                        // 2. OVERWRITE EVERY SINGLE RASTER ICON WITH OUR FAVICON
-                                        val stream = java.io.ByteArrayOutputStream()
-
-                                        // PREVENT STRETCHING: Draw the loaded image onto a perfect 192x192 square Canvas
-                                        val original = iconBitmap!!
-                                        val targetSize = 192
-                                        val scaled =
-                                            if (original.width == targetSize && original.height == targetSize) {
-                                                original
-                                            } else {
-                                                val square = Bitmap.createBitmap(
-                                                    targetSize,
-                                                    targetSize,
-                                                    Bitmap.Config.ARGB_8888
-                                                )
-                                                val canvas = android.graphics.Canvas(square)
-
-                                                // Calculate the scale to maintain aspect ratio
-                                                val scale = minOf(
-                                                    targetSize.toFloat() / original.width,
-                                                    targetSize.toFloat() / original.height
-                                                )
-                                                val drawW = (original.width * scale).toInt()
-                                                val drawH = (original.height * scale).toInt()
-
-                                                // Center the scaled image
-                                                val left = (targetSize - drawW) / 2
-                                                val top = (targetSize - drawH) / 2
-
-                                                val srcRect = android.graphics.Rect(
-                                                    0,
-                                                    0,
-                                                    original.width,
-                                                    original.height
-                                                )
-                                                val destRect = android.graphics.Rect(
-                                                    left,
-                                                    top,
-                                                    left + drawW,
-                                                    top + drawH
-                                                )
-
-                                                val paint =
-                                                    android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG)
-                                                canvas.drawBitmap(
-                                                    original,
-                                                    srcRect,
-                                                    destRect,
-                                                    paint
-                                                )
-                                                square
-                                            }
-
-                                        // Match the compression to the file extension Android Studio secretly generated
-                                        if (name.endsWith(".webp")) {
-                                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-                                                scaled.compress(
-                                                    Bitmap.CompressFormat.WEBP_LOSSLESS,
-                                                    100,
-                                                    stream
-                                                )
-                                            } else {
-                                                @Suppress("DEPRECATION")
-                                                scaled.compress(
-                                                    Bitmap.CompressFormat.WEBP,
-                                                    100,
-                                                    stream
-                                                )
-                                            }
-                                        } else {
-                                            scaled.compress(Bitmap.CompressFormat.PNG, 100, stream)
-                                        }
-
-                                        bytesToWrite = stream.toByteArray()
-                                    }
-                                }
-
-                                // If the file wasn't an icon, process normally
-                                if (bytesToWrite == null) {
-                                    when (name) {
-                                                                                "assets/config.json" -> {
-                                            val hostPackage = context.packageName
-                                            val pId = activeProfileId.value
-
-                                            // --- NEW: Safely escape everything ---
-                                            // Because raw SVGs contain quotes, slashes, and line breaks, we MUST safely
-                                            // escape them so the JSON doesn't become corrupted inside the APK!
-                                            val escapedTitle = title.replace("\\", "\\\\").replace("\"", "\\\"")
-                                            val escapedIconUrl = iconUrl.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "")
-
-                                            val configJson =
-                                                """{"url": "$url", "host": "$hostPackage", "profileId": "$pId", "name": "$escapedTitle", "iconUrl": "$escapedIconUrl"}"""
-                                            bytesToWrite = configJson.toByteArray(Charsets.UTF_8)
-                                        }
-
-
-                                        "resources.arsc" -> {
-                                            val bytes = zis.readBytes()
-                                            val targetTitle = "___PWA_APP_NAME___"
-
-                                            var cleanTitle = ""
-                                            var utf8Size = 0
-                                            for (char in title) {
-                                                val charSize =
-                                                    char.toString().toByteArray(Charsets.UTF_8).size
-                                                if (utf8Size + charSize > 18) break
-                                                cleanTitle += char
-                                                utf8Size += charSize
-                                            }
-
-                                            val replace8Bytes = ByteArray(18) { 0 }
-                                            val title8Bytes = cleanTitle.toByteArray(Charsets.UTF_8)
-                                            System.arraycopy(
-                                                title8Bytes,
-                                                0,
-                                                replace8Bytes,
-                                                0,
-                                                title8Bytes.size
-                                            )
-
-                                            val replace16Bytes = ByteArray(36) { 0 }
-                                            val title16Bytes =
-                                                cleanTitle.toByteArray(Charsets.UTF_16LE)
-                                            System.arraycopy(
-                                                title16Bytes,
-                                                0,
-                                                replace16Bytes,
-                                                0,
-                                                title16Bytes.size
-                                            )
-
-                                            var patched = replaceBytes(
-                                                bytes,
-                                                targetTitle.toByteArray(Charsets.UTF_16LE),
-                                                replace16Bytes
-                                            )
-                                            patched = replaceBytes(
-                                                patched,
-                                                targetTitle.toByteArray(Charsets.UTF_8),
-                                                replace8Bytes
-                                            )
-
-                                            patched = replaceBytes(
-                                                patched,
-                                                targetPackage.toByteArray(Charsets.UTF_16LE),
-                                                replacementPackage.toByteArray(Charsets.UTF_16LE)
-                                            )
-                                            patched = replaceBytes(
-                                                patched,
-                                                targetPackage.toByteArray(Charsets.UTF_8),
-                                                replacementPackage.toByteArray(Charsets.UTF_8)
-                                            )
-
-                                            bytesToWrite = patched
-                                        }
-
-                                        "AndroidManifest.xml" -> {
-                                            val bytes = zis.readBytes()
-                                            var patched = replaceBytes(
-                                                bytes,
-                                                targetPackage.toByteArray(Charsets.UTF_16LE),
-                                                replacementPackage.toByteArray(Charsets.UTF_16LE)
-                                            )
-                                            patched = replaceBytes(
-                                                patched,
-                                                targetPackage.toByteArray(Charsets.UTF_8),
-                                                replacementPackage.toByteArray(Charsets.UTF_8)
-                                            )
-                                            bytesToWrite = patched
-                                        }
-                                    }
-                                }
-
-                                if (bytesToWrite == null) {
-                                    bytesToWrite = zis.readBytes()
-                                }
-
-                                val newEntry = java.util.zip.ZipEntry(name)
-                                if (entry.method == java.util.zip.ZipEntry.STORED) {
-                                    newEntry.method = java.util.zip.ZipEntry.STORED
-                                    newEntry.size = bytesToWrite.size.toLong()
-                                    val crc = java.util.zip.CRC32()
-                                    crc.update(bytesToWrite)
-                                    newEntry.crc = crc.value
-                                } else {
-                                    newEntry.method = java.util.zip.ZipEntry.DEFLATED
-                                }
-
-                                zos.putNextEntry(newEntry)
-                                zos.write(bytesToWrite)
-                                zos.closeEntry()
-
-                                entry = zis.nextEntry
-                            }
+                // 6. Handle the Response (Stream the downloaded APK directly to cache!)
+                val responseCode = connection.responseCode
+                if (responseCode == java.net.HttpURLConnection.HTTP_OK) {
+                    connection.inputStream.use { input ->
+                        java.io.FileOutputStream(outFile).use { output ->
+                            input.copyTo(output)
                         }
+                    }
+                    return@withContext true
+                } else {
+                    Log.e("WebAPK", "Server error code: $responseCode")
+                    return@withContext false
                 }
-
-                val signerConfig = com.android.apksig.ApkSigner.SignerConfig.Builder(
-                    "PWA_KEY",
-                    getPrivateKeyFromAssets(context),
-                    getCertificatesFromAssets(context)
-                ).build()
-
-                val apkSigner = com.android.apksig.ApkSigner.Builder(listOf(signerConfig))
-                    .setInputApk(unsignedApk)
-                    .setOutputApk(outFile)
-                    .setV1SigningEnabled(true)
-                    .setV2SigningEnabled(true)
-                    .build()
-
-                apkSigner.sign()
-                unsignedApk.delete()
-
-                return@withContext true
             } catch (e: Exception) {
-                Log.e("WebAPK", "Failed to build local WebAPK", e)
+                Log.e("WebAPK", "Network or File Exception", e)
                 return@withContext false
             }
         }
-    }
-
-    // Helper: Binary Search and Replace Array
-    private fun replaceBytes(
-        source: ByteArray,
-        target: ByteArray,
-        replacement: ByteArray
-    ): ByteArray {
-        if (target.size != replacement.size) throw IllegalArgumentException("Target and replacement must be identical length to preserve binary offsets")
-        if (target.isEmpty()) return source
-
-        val result = source.clone()
-        var i = 0
-
-        while (i <= result.size - target.size) {
-            var match = true
-            for (j in target.indices) {
-                if (result[i + j] != target[j]) {
-                    match = false
-                    break
-                }
-            }
-            if (match) {
-                // Replace the bytes
-                System.arraycopy(replacement, 0, result, i, replacement.size)
-                // Skip ahead by the target size so we don't accidentally re-scan modified bytes
-                i += target.size
-            } else {
-                i++
-            }
-        }
-        return result
-    }
-
-    // Helpers for Keystore
-    // Helpers for Keystore
-    // Helpers for Cryptography (No Keystore Needed!)
-    private fun getPrivateKeyFromAssets(context: Context): java.security.PrivateKey {
-        // Read the raw unencrypted PKCS#8 private key
-        val keyBytes = context.assets.open("key.pk8").readBytes()
-        val keySpec = java.security.spec.PKCS8EncodedKeySpec(keyBytes)
-        val keyFactory = java.security.KeyFactory.getInstance("RSA")
-        return keyFactory.generatePrivate(keySpec)
-    }
-
-    private fun getCertificatesFromAssets(context: Context): List<java.security.cert.X509Certificate> {
-        // Read the raw X.509 certificate
-        val certFactory = java.security.cert.CertificateFactory.getInstance("X.509")
-        val cert = context.assets.open("cert.der").use {
-            certFactory.generateCertificate(it) as java.security.cert.X509Certificate
-        }
-        return listOf(cert)
     }
 
     private fun installApkWithIntent(context: Context, apkFile: File) {
