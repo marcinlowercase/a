@@ -363,7 +363,9 @@ class MainActivity : ComponentActivity() {
         if (isInPictureInPictureMode
             || isPipMode || isEnteringPip
         ) return
-        viewModel.tabManager.freezeAllTabs(viewModel.activeProfileId.value)
+        if (!viewModel.isStandaloneMode.value) {
+            viewModel.tabManager.freezeAllTabs(viewModel.activeProfileId.value)
+        }
     }
 
 
@@ -384,12 +386,7 @@ class MainActivity : ComponentActivity() {
                 viewModel.isStandaloneMode.value = isPwa
 
                 if (isPwa) {
-                    Log.i("PWA", "Launched as a Progressive Web App in Profile: $targetProfileId")
-
-
-                    // ALWAYS spawn the PWA tab SYNCHRONOUSLY!
-                    // This guarantees pwaTab is populated instantly, avoiding NPEs and tab-mixing on Hot Starts.
-                    viewModel.launchPwaTab(urlFromIntent)
+                    viewModel.initPwa(urlFromIntent, targetProfileId ?: viewModel.activeProfileId.value)
                 } else {
                     // Normal Browser Mode: Rely on TabManager for cold starts, Flow for hot starts
                     if (!isColdStart) {
@@ -505,14 +502,21 @@ class MainActivity : ComponentActivity() {
 
         // If entering PiP, we MUST keep the session active and prevent Gecko from
         // interpreting this as a background event that stops media.
-        if (isInPictureInPictureMode || isEnteringPip) {
-            viewModel.tabManager.loadTabs(viewModel.activeProfileId.value, null)
-            val index = viewModel.tabManager.getActiveTabIndex(viewModel.activeProfileId.value)
-            if (viewModel.tabs.isNotEmpty() && index in viewModel.tabs.indices) {
-                val activeTab = viewModel.tabs[index]
-                // Force the session to remain active
-                viewModel.geckoManager.getSession(activeTab).setActive(true)
+//        if (isInPictureInPictureMode || isEnteringPip) {
+//            viewModel.tabManager.loadTabs(viewModel.activeProfileId.value, null)
+//            val index = viewModel.tabManager.getActiveTabIndex(viewModel.activeProfileId.value)
+//            if (viewModel.tabs.isNotEmpty() && index in viewModel.tabs.indices) {
+//                val activeTab = viewModel.tabs[index]
+//                // Force the session to remain active
+//                viewModel.geckoManager.getSession(activeTab).setActive(true)
+//
+//            }
+//        }
 
+        if (isInPictureInPictureMode || isEnteringPip) {
+            viewModel.activeTab?.let {
+                // Safely keep the current tab (Browser or PWA) fully awake!
+                viewModel.geckoManager.getSession(it).setActive(true)
             }
         }
     }
@@ -2360,14 +2364,8 @@ fun BrowserScreen(
         LaunchedEffect(Unit) {
             newUrlFlow.collect { url ->
                 if (url != null) {
-                    if (viewModel.isStandaloneMode.value) {
-                        // PWA Mode: Launch in total isolation!
-                        viewModel.launchPwaTab(url)
-                    } else {
-                        // Normal Browser Mode: Append to the normal tabs list
-                        val insertIndex = (activeTabIndex + 1).coerceAtMost(viewModel.tabs.size)
-                        viewModel.createNewTab(insertIndex, url)
-                    }
+                    val insertIndex = (activeTabIndex + 1).coerceAtMost(viewModel.tabs.size)
+                    viewModel.createNewTab(insertIndex, url)
                     context.newUrlFromIntent.update { null }
                 }
             }

@@ -122,168 +122,52 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     //endregion
 
 
+    //region PWA Logic
+
+    val isStandaloneMode = mutableStateOf(false)
+    val pwaTab = mutableStateOf<Tab?>(null)
+    val pwaProfileId = mutableStateOf("")
+
+
+    fun initPwa(url: String, targetProfileId: String) {
+        // 1. Set the isolated PWA Profile ID
+        pwaProfileId.value = targetProfileId
+
+        // 2. Load settings for this profile into RAM (Padding, Corner Radius, AdBlock, etc.)
+        _browserSettings.value = loadSettingsFromPrefs(targetProfileId)
+        geckoManager.setAdBlockEnabled(_browserSettings.value.isAdBlockEnabled)
+
+        // 3. Load the necessary memory lists (Site Permissions)
+        siteSettings.clear()
+        siteSettings.putAll(siteSettingsManager.loadSettings(targetProfileId))
+
+        // 4. Launch the PWA Tab
+        val currentPwa = pwaTab.value
+
+        // Prevent reloading if we already spun up this PWA
+        if (currentPwa != null && (currentPwa.currentURL.startsWith(url) || url.startsWith(currentPwa.currentURL))) {
+            return
+        }
+
+        val newTab = Tab(
+            profileId = currentProfileId,
+            currentURL = url,
+            state = TabState.ACTIVE,
+        )
+
+        geckoManager.getSession(newTab) // Boot the engine
+        pwaTab.value = newTab // Set it as the active standalone app
+    }
+    //endregion
     // region Profile Logic
     val profiles = mutableStateListOf<Profile>().apply {
         addAll(profileManager.loadProfiles())
     }
 
     val activeProfileId = mutableStateOf(profileManager.getActiveProfileId())
-    val isStandaloneMode = mutableStateOf(false)
-    val pwaTab = mutableStateOf<Tab?>(null)
-//    // v1 close all tab when change profile
-//    fun switchProfile(newProfileId: String) {
-//        if (activeProfileId.value == newProfileId) return
-//
-//        if (inspectingAppId.longValue != 0L) inspectingAppId.longValue = 0L
-//
-//        // 1. Freeze current tabs to disk before switching
-//        tabManager.saveTabs(activeProfileId.value, tabs.toList(), _activeTabIndex.value)
-//
-//        // 2. Clear current sessions in GeckoView (Important so old audio stops playing)
-//        tabs.forEach { geckoManager.closeSession(it) }
-//
-//        // 3. Update active profile ID and save to disk
-//        activeProfileId.value = newProfileId
-//        profileManager.saveActiveProfileId(newProfileId)
-//// reset settings
-//        _browserSettings.value = loadSettingsFromPrefs(newProfileId)
-//        geckoManager.setAdBlockEnabled(_browserSettings.value.isAdBlockEnabled)
-//        // 4. Reload all memory lists from the new profile's SharedPreferences
-//        apps.clear()
-//        apps.addAll(appManager.loadApps(newProfileId))
-//
-//        visitedUrlMap.clear()
-//        visitedUrlMap.putAll(visitedUrlManager.loadUrlMap(newProfileId))
-//
-//        siteSettings.clear()
-//        siteSettings.putAll(siteSettingsManager.loadSettings(newProfileId))
-//
-//        // 5. Reload Tabs and set new Active Index
-//        val loadedTabs = tabManager.loadTabs(newProfileId, null)
-//        tabs.clear()
-//        tabs.addAll(loadedTabs)
-//        _activeTabIndex.value = tabManager.getActiveTabIndex(newProfileId).coerceAtLeast(0)
-//
-//        // 6. Force UI to update session
-//        sessionRefreshTrigger.intValue++
-//    }
 
-
-//    fun switchProfile(newProfileId: String) {
-//        if (activeProfileId.value == newProfileId) return
-//
-//        if (inspectingAppId.longValue != 0L) inspectingAppId.longValue = 0L
-//
-//        // 1. Freeze current tabs to disk before switching
-//        tabManager.saveTabs(activeProfileId.value, tabs.toList(), _activeTabIndex.value)
-//
-//        // 2. INSTEAD OF CLOSING, WE JUST DEACTIVATE THEM
-//        // This keeps the GeckoSessions alive in memory (GeckoManager.sessionPool).
-//        // When you switch back, the page will instantly appear without reloading!
-//        tabs.forEach { tab ->
-//            geckoManager.pauseSessionIfExists(tab.id)
-//        }
-//
-//        // 3. Update active profile ID and save to disk
-//        activeProfileId.value = newProfileId
-//        profileManager.saveActiveProfileId(newProfileId)
-//
-//        // reset settings
-//        _browserSettings.value = loadSettingsFromPrefs(newProfileId)
-//        geckoManager.setAdBlockEnabled(_browserSettings.value.isAdBlockEnabled)
-//
-//        // 4. Reload all memory lists from the new profile's SharedPreferences
-//        apps.clear()
-//        apps.addAll(appManager.loadApps(newProfileId))
-//
-//        visitedUrlMap.clear()
-//        visitedUrlMap.putAll(visitedUrlManager.loadUrlMap(newProfileId))
-//
-//        siteSettings.clear()
-//        siteSettings.putAll(siteSettingsManager.loadSettings(newProfileId))
-//
-//        // 5. Reload Tabs and set new Active Index
-//        val loadedTabs = tabManager.loadTabs(newProfileId, null)
-//        tabs.clear()
-//        tabs.addAll(loadedTabs)
-//        _activeTabIndex.value = tabManager.getActiveTabIndex(newProfileId).coerceAtLeast(0)
-//
-////        // 6. Pre-warm and activate the newly selected tab in the new Space
-////        activeTab?.let {
-////            geckoManager.getSession(it).setActive(true)
-////        }
-//
-//        // 7. Force UI to update session
-//        sessionRefreshTrigger.intValue++
-//    }
-
-    //    // keep active tab of each profile alive
-//    fun switchProfile(newProfileId: String) {
-//        if (activeProfileId.value == newProfileId) return
-//
-//        if (inspectingAppId.value != 0L) inspectingAppId.value = 0L
-//
-//        // 1. Identify the Active Tab of the profile we are LEAVING
-//        val currentActiveTabId = activeTab?.id
-//
-//        // 2. Prepare tabs for saving: Update states and Manage RAM
-//        val updatedTabsForSave = tabs.map { tab ->
-//            // CRITICAL: Grab the latest state from the engine before we potentially kill the session.
-//            // If we don't do this, the user might lose their scroll position on background tabs.
-//            val liveState = geckoManager.getSessionStateString(tab.id)
-//            val updatedTab = if (liveState != null) tab.copy(savedState = liveState) else tab
-//
-//            if (tab.id == currentActiveTabId) {
-//                // --- ACTIVE TAB ---
-//                // KEEP ALIVE: Just pause CPU/Timers.
-//                // It stays in RAM so switching back is instant.
-//                geckoManager.getSession(tab).setActive(false)
-//            } else {
-//                // --- BACKGROUND TABS ---
-//                // KILL: Close the session to free up RAM.
-//                // When we return to this profile, these will reload from 'savedState'.
-//                geckoManager.closeSession(tab)
-//            }
-//            updatedTab
-//        }
-//
-//        // 3. Save the tabs (with the fresh states) to disk
-//        tabManager.saveTabs(activeProfileId.value, updatedTabsForSave, _activeTabIndex.value)
-//
-//        // 4. Update Profile ID
-//        activeProfileId.value = newProfileId
-//        profileManager.saveActiveProfileId(newProfileId)
-//// reset settings
-//        _browserSettings.value = loadSettingsFromPrefs(newProfileId)
-//        geckoManager.setAdBlockEnabled(_browserSettings.value.isAdBlockEnabled)
-//        // 5. Reload auxiliary data (Apps, History, Settings)
-//        apps.clear()
-//        apps.addAll(appManager.loadApps(newProfileId))
-//
-//        visitedUrlMap.clear()
-//        visitedUrlMap.putAll(visitedUrlManager.loadUrlMap(newProfileId))
-//
-//        siteSettings.clear()
-//        siteSettings.putAll(siteSettingsManager.loadSettings(newProfileId))
-//
-//        // 6. Reload Tabs for the NEW profile
-//        val loadedTabs = tabManager.loadTabs(newProfileId, null)
-//        tabs.clear()
-//        tabs.addAll(loadedTabs)
-//
-//        // 7. Set new Active Index
-//        _activeTabIndex.value = tabManager.getActiveTabIndex(newProfileId).coerceAtLeast(0)
-//
-//        // 8. Wake up the active tab of the NEW profile
-//        activeTab?.let {
-//            // If this was the "Active Tab" when we last left this profile, it's still in RAM.
-//            // If it was a background tab, it will re-initialize from savedState automatically.
-//            geckoManager.getSession(it).setActive(true)
-//        }
-//
-//        // 9. Force UI to update session
-//        sessionRefreshTrigger.intValue++
-//    }
+    val currentProfileId: String
+        get() = if (isStandaloneMode.value && pwaProfileId.value.isNotEmpty()) pwaProfileId.value else activeProfileId.value
     fun switchProfile(newProfileId: String) {
         if (activeProfileId.value == newProfileId) return
 
@@ -350,29 +234,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         sessionRefreshTrigger.intValue++
     }
 
-    fun initPwaProfile(pwaProfileId: String) {
-        if (activeProfileId.value == pwaProfileId) return
-
-        // 1. Change the RAM value for this specific PWA window only
-        activeProfileId.value = pwaProfileId
-
-        // 2. Load settings for this profile (Padding, Corner Radius, Theme, etc.)
-        _browserSettings.value = loadSettingsFromPrefs(pwaProfileId)
-        geckoManager.setAdBlockEnabled(_browserSettings.value.isAdBlockEnabled)
-
-        // 3. Load all memory lists for this profile
-//        apps.clear()
-//        apps.addAll(appManager.loadApps(pwaProfileId))
-//
-//        visitedUrlMap.clear()
-//        visitedUrlMap.putAll(visitedUrlManager.loadUrlMap(pwaProfileId))
-
-        siteSettings.clear()
-        siteSettings.putAll(siteSettingsManager.loadSettings(pwaProfileId))
-
-        // Notice we do NOT call profileManager.saveActiveProfileId!
-        // We also do NOT load the normal tabs list, because this is a standalone PWA!
-    }
 
 
 
@@ -751,7 +612,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     fun updateSettings(mutation: (BrowserSettings) -> BrowserSettings) {
         _browserSettings.update(mutation)
         // Persist the resulting value after the update for the CURRENT active profile
-        saveSettingsToPrefs(activeProfileId.value, _browserSettings.value)
+        saveSettingsToPrefs(currentProfileId, _browserSettings.value)
     }
 
     fun updateField(field: BrowserSettingField, value: Any) {
@@ -849,7 +710,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     fun refreshSettings() {
         // Force the ViewModel to re-read the disk.
         // This ensures the PWA instantly adopts any changes made in the Main Browser!
-        _browserSettings.value = loadSettingsFromPrefs(activeProfileId.value)
+        _browserSettings.value = loadSettingsFromPrefs(currentProfileId)
         geckoManager.setAdBlockEnabled(_browserSettings.value.isAdBlockEnabled)
     }
     private fun saveSettingsToPrefs(profileId: String, settings: BrowserSettings) {
@@ -897,7 +758,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             apply()
         }
     }    //endregion
-
     //region UI State
     private val _uiState = MutableStateFlow(
         BrowserUIState(
@@ -947,7 +807,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 //        }
 //    }
     //endregion
-
     //region Tab logic
 
     val tabs = mutableStateListOf<Tab>()
@@ -1027,8 +886,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         }
 
         // 2. Create the new Tab object using the ID provided by the engine
-        val newTab = Tab(
-            profileId = activeProfileId.value,
+       val newTab = Tab(
+            profileId = currentProfileId,
             id = engineId,
             currentURL = uri,
             state = TabState.ACTIVE
@@ -1282,8 +1141,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         val initialUrl = url.ifBlank { _browserSettings.value.defaultUrl }
 
         Log.d("marcBlank", "load blank from createNewTab, $initialUrl")
-        val newTab = Tab(
-            profileId = activeProfileId.value,
+       val newTab = Tab(
+            profileId = currentProfileId,
             currentURL = initialUrl.ifBlank { "about:blank" },
             state = TabState.ACTIVE,
         )
@@ -1326,22 +1185,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         }
     }
     private var saveJob: Job? = null
-    fun launchPwaTab(url: String) {
-        val currentPwa = pwaTab.value
-        // Prevent reloading if we already spun up this PWA
-        if (currentPwa != null && (currentPwa.currentURL.startsWith(url) || url.startsWith(currentPwa.currentURL))) {
-            return
-        }
-
-        val newTab = Tab(
-            profileId = activeProfileId.value,
-            currentURL = url,
-            state = TabState.ACTIVE,
-        )
-
-        geckoManager.getSession(newTab) // Boot the engine
-        pwaTab.value = newTab // Set it as the active standalone app
-    }
     val saveTabs = {
         saveJob?.cancel()
         saveJob = viewModelScope.launch(Dispatchers.IO) {
@@ -1352,8 +1195,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     }
 
     //endregion
-
-    //region App/Pin Logic
+    //region Pin Logic
     val apps = mutableStateListOf<App>().apply {
         addAll(appManager.loadApps(activeProfileId.value))
     }
@@ -1862,7 +1704,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     }
 
     //endregion
-
     //region Download Logic
     val downloads =
         mutableStateListOf<DownloadItem>().apply { addAll(downloadTracker.loadDownloads()) }
@@ -2111,7 +1952,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         }
     }
     //endregion
-
     //region Site Settings logic
     val siteSettings = mutableStateMapOf<String, SiteSettings>().apply {
         putAll(siteSettingsManager.loadSettings(activeProfileId.value))
@@ -2138,7 +1978,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     }
 
     val addHistory = { url: String, title: String ->
-        visitedUrlManager.addUrl(activeProfileId.value, url, title)
+        visitedUrlManager.addUrl(currentProfileId, url, title)
         if (title.isNotBlank()) {
             visitedUrlMap[url] = title
         }
@@ -2146,11 +1986,10 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     val clearDomainData = { domain: String ->
         siteSettings.remove(domain)
-        siteSettingsManager.saveSettings(activeProfileId.value, siteSettings)
+        siteSettingsManager.saveSettings(currentProfileId, siteSettings)
     }
 
     //endregion
-
     //region Permission Logic
     val pendingPermissionRequest = mutableStateOf<CustomPermissionRequest?>(null)
     val pendingMediaPermissionRequest = mutableStateOf<CustomPermissionRequest?>(null)
@@ -2174,10 +2013,10 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             updatedDecisions[generic_location_permission] = isGranted
         }
 
-        // 3. Update memory map and persist to disk
+       // 3. Update memory map and persist to disk
         val newSettings = currentSettings.copy(permissionDecisions = updatedDecisions)
         siteSettings[domain] = newSettings
-        siteSettingsManager.saveSettings(activeProfileId.value, siteSettings)
+        siteSettingsManager.saveSettings(currentProfileId, siteSettings)
     }
 
     val toggleSitePermission = { domain: String?, permission: String ->
@@ -2192,7 +2031,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             // Update state map and persist to disk
             val newSettings = currentSettings.copy(permissionDecisions = updatedDecisions)
             siteSettings[domain] = newSettings
-            siteSettingsManager.saveSettings(activeProfileId.value, siteSettings)
+            siteSettingsManager.saveSettings(currentProfileId, siteSettings)
         }
     }
 
@@ -2227,7 +2066,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         }
     }
     //endregion
-
     //region Suggestions Logic
     val suggestions = mutableStateListOf<Suggestion>()
     fun fetchSuggestions(query: String, isPinning: Boolean) {
@@ -2312,16 +2150,15 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     }
 
-    val removeSuggestionFromHistory = { suggestionToRemove: Suggestion ->
+  val removeSuggestionFromHistory = { suggestionToRemove: Suggestion ->
         if (suggestionToRemove.source == SuggestionSource.HISTORY) {
-            visitedUrlManager.removeUrl(activeProfileId.value, suggestionToRemove.url)
+            visitedUrlManager.removeUrl(currentProfileId, suggestionToRemove.url)
             visitedUrlMap.remove(suggestionToRemove.url)
             suggestions.remove(suggestionToRemove)
         }
     }
 
     //endregion
-
     //region Single Purpose State
     val descriptionContent = mutableStateOf("")
     val resetBottomPanelTrigger = mutableStateOf(false)
@@ -2338,7 +2175,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
 
     //endregion
-
     //region JS/Complex State
     val jsDialogState = mutableStateOf<JsDialogState?>(null)
     val jsDialogDisplayState = mutableStateOf<JsDialogState?>(null)
@@ -2360,13 +2196,11 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     val findInPageResult = mutableStateOf(0 to 0)
 
     //endregion
-
     //region Confirmation logic
     val confirmationState = mutableStateOf<ConfirmationDialogState?>(null)
     val confirmationDisplayState = mutableStateOf<ConfirmationDialogState?>(null)
 
     //endregion
-
     //region Sorting logic
     val isSortingButtons = mutableStateOf(false)
     val inspectingOption = mutableStateOf<BrowserOption?>(null)
