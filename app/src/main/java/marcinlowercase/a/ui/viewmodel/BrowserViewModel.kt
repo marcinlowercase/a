@@ -1342,7 +1342,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                     put("profileId", activeProfileId.value)
                 }
 
-                
+
                 // 4. Configure the Network Request
                 // TODO: IF USING AN EMULATOR, use 10.0.2.2. If using a real phone, use your Mac's IP (e.g. 192.168.1.X)
                 val serverEndpoint = "http://192.168.1.212:8080/api/build-webapk"
