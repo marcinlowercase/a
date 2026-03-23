@@ -362,6 +362,28 @@ fun AppsPanel(
                             }
                             visualItemCount++
                         }
+
+                        // 4. Done Button
+                        if (isInspectingThisApp) {
+                            item(key = "done_${app.id}", contentType = "action_button") {
+                                AnimatedVisibility(
+                                    visible = true,
+                                    enter = scaleIn(animationSpec = spring(stiffness = Spring.StiffnessMedium)) + fadeIn(),
+                                    modifier = Modifier.animateItem()
+                                ) {
+                                    PlaceholderIcon(
+                                        iconRes = R.drawable.ic_check,
+                                        onClick = {
+                                            if (isInteractive()) {
+                                                viewModel.inspectingAppId.longValue = 0L
+                                            }
+                                        },
+                                        buttonDescription = "done editing"
+                                    )
+                                }
+                            }
+                            visualItemCount++
+                        }
                     }
 
                     // --- FOOTER / PLACEHOLDERS ---
