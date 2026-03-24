@@ -105,6 +105,7 @@
     <string name="placeholder_browser_label">browser label</string>
     <string name="placeholder_url">search / url</string>
     <string name="placeholder_blank_page">blank page</string>
+    <string name="placeholder_icon_link">custom icon url / svg code</string>
 
     <!-- Toast -->
     <string name="toast_prepare_cloned">preparing custom browser…</string>
