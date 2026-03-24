@@ -78,6 +78,7 @@ data class BrowserUIState(
     val optionsPanelHeightPx: Float = 0f,
     val appsPanelHeightPx: Float = 0f,
     val totalRevealHeightPx: Float = 0f,
+    val isFullscreenPreview: Boolean = false,
 
 
 

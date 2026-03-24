@@ -337,6 +337,13 @@ class MainActivity : ComponentActivity() {
 
         createNotificationChannel(this)
 
+        val startupViewModel: BrowserViewModel by viewModels()
+        if (startupViewModel.browserSettings.value.isFullscreenMode) {
+            val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+            insetsController.hide(WindowInsetsCompat.Type.systemBars())
+            insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
+
         setContent {
             Theme {
 
@@ -599,6 +606,9 @@ fun BrowserScreen(
     } else {
         spring(visibilityThreshold = Dp.VisibilityThreshold)
     }
+
+    val isEffectivelyFullscreen = settings.isFullscreenMode || uiState.value.isOnFullscreenVideo || uiState.value.isLandscapeByButton
+
     // Top Padding
 
     val webViewTopPaddingFullscreen = if (settings.isSharpMode && !uiState.value.isLandscape) {
@@ -616,7 +626,7 @@ fun BrowserScreen(
         innerPadding.calculateTopPadding()
     }
 
-    val webViewTopPaddingNormalScreen = if (settings.isFullscreenMode) {
+    val webViewTopPaddingNormalScreen = if (isEffectivelyFullscreen) {
         webViewTopPaddingFullscreen
     } else {
         webViewTopPaddingRegular
@@ -648,7 +658,7 @@ fun BrowserScreen(
         innerPadding.calculateBottomPadding()
 
     }
-    val webViewBottomPaddingNormalScreen = if (settings.isFullscreenMode) {
+    val webViewBottomPaddingNormalScreen = if (isEffectivelyFullscreen) {
         webViewBottomPaddingFullscreen
     } else {
         webViewBottomPaddingRegular
@@ -717,7 +727,7 @@ fun BrowserScreen(
 
     //region Panel Paddings
     // If keyboard is displayed, only need the regular padding, no need extra padding
-    val floatingPanelBottomPaddingNoKeyboard = if (settings.isFullscreenMode) {
+    val floatingPanelBottomPaddingNoKeyboard = if (isEffectivelyFullscreen) {
         webViewBottomPaddingFullscreen
     } else {
         webViewBottomPaddingRegular
@@ -1573,8 +1583,23 @@ fun BrowserScreen(
                 }
             }
         }
+        LaunchedEffect(settings.isFullscreenMode, uiState.value.isFullscreenPreview) {
+            // If Global Fullscreen is ON OR if we are in the Corner Radius preview mode
+            val shouldHideBars = settings.isFullscreenMode || uiState.value.isFullscreenPreview
+
+            if (shouldHideBars) {
+                insetsController.hide(WindowInsetsCompat.Type.systemBars())
+                insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            } else {
+                insetsController.show(WindowInsetsCompat.Type.systemBars())
+                insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
+            }
+        }
         LaunchedEffect(uiState.value.isLandscapeByButton, uiState.value.isOnFullscreenVideo) {
             viewModel.updateUI { it.copy(isLandscape = uiState.value.isLandscapeByButton || uiState.value.isOnFullscreenVideo) }
+        }
+        LaunchedEffect(settings.isFullscreenMode) {
+            Log.d("mrcFF", "change to ${settings.isFullscreenMode}")
         }
         LaunchedEffect(uiState.value.isLandscapeByButton) {
             if (uiState.value.isLandscapeByButton) {
@@ -1585,12 +1610,12 @@ fun BrowserScreen(
                 activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
             }
 
-            viewModel.updateSettings { it.copy(isFullscreenMode = uiState.value.isLandscapeByButton) }
+//            viewModel.updateSettings { it.copy(isFullscreenMode = uiState.value.isLandscapeByButton) }
         }
         LaunchedEffect(uiState.value.isOnFullscreenVideo) {
             viewModel.updateUI { it.copy(isMediaControlPanelVisible = uiState.value.isOnFullscreenVideo) }
 
-            viewModel.updateSettings { it.copy(isFullscreenMode = uiState.value.isOnFullscreenVideo) }
+//            viewModel.updateSettings { it.copy(isFullscreenMode = uiState.value.isOnFullscreenVideo) }
             if (uiState.value.isOnFullscreenVideo) {
 //                gestureManager.ensureFullscreenBrightness()
             } else {

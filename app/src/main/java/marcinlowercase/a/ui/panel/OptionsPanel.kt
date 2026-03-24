@@ -17,6 +17,7 @@
 package marcinlowercase.a.ui.panel
 
 import android.annotation.SuppressLint
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
@@ -594,13 +595,14 @@ fun SettingsPanel(
         if (currentView == SettingPanelView.CORNER_RADIUS) {
             if (settings.value.isSharpMode) viewModel.updateSettings { it.copy(isSharpMode = false) }
             viewModel.backgroundColor.value = Color.Red
-            viewModel.updateUI { it.copy(isSettingCornerRadius = true) }
-            viewModel.updateSettings { it.copy(isFullscreenMode = true) }
+            viewModel.updateUI { it.copy(isSettingCornerRadius = true,
+                isFullscreenPreview = true) }
         } else {
             viewModel.backgroundColor.value = Color.Black
-            if (uiState.value.isSettingCornerRadius) viewModel.updateSettings {
+            Log.e("mrcFF", "here")
+            if (uiState.value.isSettingCornerRadius) viewModel.updateUI {
                 it.copy(
-                    isFullscreenMode = false
+                    isFullscreenPreview = false
                 )
             }
             viewModel.updateUI { it.copy(isSettingCornerRadius = false) }
