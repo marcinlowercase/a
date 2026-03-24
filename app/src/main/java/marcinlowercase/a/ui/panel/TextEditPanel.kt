@@ -88,7 +88,7 @@ fun TextEditPanel(
                 isWhite = false,
             )
 
-            if (uiState.value.isPinningApp || uiState.value.isCreatingProfile || uiState.value.isRenamingProfile) {
+            if (uiState.value.isPinningApp || uiState.value.isCreatingProfile || uiState.value.isRenamingProfile || uiState.value.isCloningBrowser) {
                 if (uiState.value.isPinningApp) {
                     CustomIconButton(
                         layer = 3,

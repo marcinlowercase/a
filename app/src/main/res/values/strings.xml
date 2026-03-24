@@ -1,4 +1,7 @@
 <resources>
+
+    <string name="bold_icon_url" translatable="false">https://browser.oo1.studio/data/img/logo_bold.svg</string>
+
     <string name="app_name">browser</string>
 
     <!-- Content Descriptions & Options -->

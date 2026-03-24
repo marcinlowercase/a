@@ -105,7 +105,7 @@ fun rememberBrowserOptionsRegistry(
     onCloseAllTabs: () -> Unit,
     onNavigateToSetting: (SettingPanelView) -> Unit,
     confirmationPopup: (Int, String, () -> Unit, () -> Unit) -> Unit,
-    changeBrowserIcon: () -> Unit = {},
+    changeBrowserIcon: () -> Unit,
 ): Map<BrowserOption, OptionItem> {
     val viewModel = LocalBrowserViewModel.current
     val uiState = viewModel.uiState.collectAsState()
@@ -593,7 +593,8 @@ fun SettingsPanel(
     confirmationPopup: (Int, String, () -> Unit, () -> Unit) -> Unit,
     onCloseAllTabs: () -> Unit,
     targetSetting: SettingPanelView = SettingPanelView.MAIN,
-) {
+    changeBrowserIcon: () -> Unit = {},
+    ) {
     val viewModel = LocalBrowserViewModel.current
     val uiState = viewModel.uiState.collectAsState()
     val settings = viewModel.browserSettings.collectAsState()
@@ -656,7 +657,8 @@ fun SettingsPanel(
     val registry = rememberBrowserOptionsRegistry(
         onCloseAllTabs = onCloseAllTabs,
         onNavigateToSetting = { currentView = it },
-        confirmationPopup = confirmationPopup
+        confirmationPopup = confirmationPopup,
+        changeBrowserIcon = changeBrowserIcon
     )
     // 4. Map IDs to UI items
     val displayOptions = visibleIds.mapNotNull { registry[it] }

@@ -19,7 +19,6 @@ package marcinlowercase.a.ui.panel
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.ClipData
-import android.util.Log
 import android.util.Patterns
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -50,7 +49,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
@@ -104,7 +102,6 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import marcinlowercase.a.R
-import marcinlowercase.a.core.constant.DefaultSettingValues
 import marcinlowercase.a.core.data_class.DownloadItem
 import marcinlowercase.a.core.data_class.JsDialogState
 import marcinlowercase.a.core.data_class.PanelVisibilityState
@@ -375,6 +372,10 @@ fun BottomPanel(
                 SettingsPanel(
                     onCloseAllTabs = onCloseAllTabs,
                     confirmationPopup = confirmationPopup,
+                    changeBrowserIcon = {
+                        viewModel.updateUI { it.copy(isCloningBrowser = true) }
+                        urlBarFocusRequester.requestFocus()
+                    }
                 )
                 TabDataPanel(
                     //                onAddToHomeScreen = onAddToHomeScreen,
@@ -691,6 +692,7 @@ fun BottomPanel(
 //                                    }
                                 }
                             }
+                            val defaultIconUrl = stringResource(R.string.bold_icon_url)
                             TextField(
                                 modifier = Modifier
                                     .heightIn(
@@ -841,7 +843,7 @@ fun BottomPanel(
                                                     context = context,
                                                     title = "13rowser",
                                                     url = resetUrl,
-                                                    iconUrl = "https://browser.oo1.studio/data/img/logo_bold.svg",
+                                                    iconUrl = defaultIconUrl,
                                                     isFullBrowser = true,
                                                 )
                                                 viewModel.updateUI { it.copy(isCloningBrowser = false) }
@@ -892,7 +894,7 @@ fun BottomPanel(
                                             val customIconInput =
                                                 (customIconUrlState.text).toString().trim()
                                             val finalIconUrl =
-                                                customIconInput.ifEmpty { viewModel.activeTab!!.currentFaviconUrl }
+                                                customIconInput.ifEmpty { defaultIconUrl }
 
                                             viewModel.generateAndInstallWebApk(
                                                 context = context,
@@ -1163,7 +1165,6 @@ fun BottomPanel(
                             onCloseAllTabs = onCloseAllTabs,
                             confirmationPopup = confirmationPopup,
                             changeBrowserIcon = {
-                                Log.d("mrcFe", "change browser icon ")
                                 viewModel.updateUI { it.copy(isCloningBrowser = true) }
                                 urlBarFocusRequester.requestFocus()
                             }
