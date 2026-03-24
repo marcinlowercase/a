@@ -132,6 +132,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     fun initPwa(url: String, targetProfileId: String) {
         // 1. Set the isolated PWA Profile ID
         pwaProfileId.value = targetProfileId
+        setupPrefsListener(targetProfileId)
 
         // 2. Load settings for this profile into RAM (Padding, Corner Radius, AdBlock, etc.)
         _browserSettings.value = loadSettingsFromPrefs(targetProfileId)
@@ -168,6 +169,48 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     val currentProfileId: String
         get() = if (isStandaloneMode.value && pwaProfileId.value.isNotEmpty()) pwaProfileId.value else activeProfileId.value
+
+    // --- ON-THE-FLY SYNC ---
+    private var globalPrefs: android.content.SharedPreferences? = null
+    private var currentProfilePrefs: android.content.SharedPreferences? = null
+    private var syncJob: Job? = null // The debounce tracker
+
+    private val prefsListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
+        // DEBOUNCE: Cancel the previous job if the user is still actively dragging a slider!
+        syncJob?.cancel()
+        syncJob = viewModelScope.launch(Dispatchers.IO) {
+            // Wait 300ms for the user to finish dragging/typing before we do heavy disk reads
+            delay(300)
+
+            // Do the heavy lifting on a background thread so the UI never drops a frame
+            val newSettings = loadSettingsFromPrefs(currentProfileId)
+            val newSiteSettings = siteSettingsManager.loadSettings(currentProfileId)
+
+            // Push the fresh data to the UI on the Main thread
+            withContext(Dispatchers.Main) {
+                _browserSettings.value = newSettings
+                geckoManager.setAdBlockEnabled(newSettings.isAdBlockEnabled)
+
+                siteSettings.clear()
+                siteSettings.putAll(newSiteSettings)
+            }
+        }
+    }
+
+    private fun setupPrefsListener(profileId: String) {
+        val context = getApplication<Application>()
+
+        // Listen to Global Prefs (Corner Radius, Padding, etc)
+        globalPrefs = context.getSharedPreferences("BrowserPrefs", Context.MODE_PRIVATE)
+        globalPrefs?.registerOnSharedPreferenceChangeListener(prefsListener)
+
+        // Listen to Profile Prefs (AdBlock, Theme, etc)
+        currentProfilePrefs?.unregisterOnSharedPreferenceChangeListener(prefsListener)
+        currentProfilePrefs = context.getSharedPreferences("BrowserPrefs_$profileId", Context.MODE_PRIVATE)
+        currentProfilePrefs?.registerOnSharedPreferenceChangeListener(prefsListener)
+    }
+
+
     fun switchProfile(newProfileId: String) {
         if (activeProfileId.value == newProfileId) return
 
@@ -207,6 +250,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         // 4. Update Profile ID
         activeProfileId.value = newProfileId
         profileManager.saveActiveProfileId(newProfileId)
+        setupPrefsListener(newProfileId)
 
         // 5. Reload settings
         _browserSettings.value = loadSettingsFromPrefs(newProfileId)
@@ -712,6 +756,10 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         // This ensures the PWA instantly adopts any changes made in the Main Browser!
         _browserSettings.value = loadSettingsFromPrefs(currentProfileId)
         geckoManager.setAdBlockEnabled(_browserSettings.value.isAdBlockEnabled)
+
+        val updatedSiteSettings = siteSettingsManager.loadSettings(currentProfileId)
+        siteSettings.clear()
+        siteSettings.putAll(updatedSiteSettings)
     }
     private fun saveSettingsToPrefs(profileId: String, settings: BrowserSettings) {
         val context = getApplication<Application>()
@@ -2309,5 +2357,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     init {
         geckoManager.setAdBlockEnabled(_browserSettings.value.isAdBlockEnabled)
         startDownloadPolling()
+        setupPrefsListener(currentProfileId)
     }
 }
