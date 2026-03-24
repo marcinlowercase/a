@@ -1,11 +1,11 @@
 {
   "manifest_version": 2,
-  "name": "Favicon Fetcher",
+  "name": "Browser Core Extension",
   "version": "1.0",
-  "description": "Extracts favicon for the browser",
+  "description": "Handles Favicons and OutSync Protocol",
   "browser_specific_settings": {
     "gecko": {
-      "id": "favicon@marcinlowercase",
+      "id": "browser_core_extension@marcinlowercase",
       "strict_min_version": "57.0"
     }
   },
@@ -18,7 +18,13 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content.js"],
+      "js":["theme_injector.js"],
+      "run_at": "document_start",
+      "all_frames": true
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": ["favicon_fetcher.js"],
       "run_at": "document_idle"
     }
   ]

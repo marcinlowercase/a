@@ -57,8 +57,8 @@ import org.mozilla.geckoview.GeckoRuntimeSettings
 import kotlin.math.abs
 
 private const val UBLOCK_ID = "uBlock0@raymondhill.net"
-private const val FAVICON_ID = "favicon@marcinlowercase" // Must match manifest.json
-private var faviconExtension: WebExtension? = null
+private const val FAVICON_ID = "browser_core_extension@marcinlowercase"
+private var coreExtension: WebExtension? = null
 
 private const val INIT = -1.0
 private const val RESET = -2.0
@@ -105,7 +105,7 @@ class GeckoManager(private val context: Context) {
         get() = sessionPool.size
     private val killedSessionIds = mutableSetOf<Long>()
 
-    private var faviconExtensionFuture: GeckoResult<WebExtension>? = null
+    private var coreExtensionFuture: GeckoResult<WebExtension>? = null
 
     private var uBlockExtension: WebExtension? = null
     var isAdBlockEnabledTarget = true
@@ -180,18 +180,18 @@ class GeckoManager(private val context: Context) {
     }
 
     private fun installFaviconFetcher() {
-        val uri = "resource://android/assets/extensions/favicon_fetcher/"
+        val uri = "resource://android/assets/extensions/core/"
 
-        faviconExtensionFuture = runtime.webExtensionController
+        coreExtensionFuture = runtime.webExtensionController
             .ensureBuiltIn(uri, FAVICON_ID)
 
 //        runtime.webExtensionController
 //            .ensureBuiltIn(uri, FAVICON_ID)
-        faviconExtensionFuture?.accept(
+        coreExtensionFuture?.accept(
             { ext ->
                 //Log.i("GeckoExt", "Favicon Fetcher Installed")
                 // SAVE THE REFERENCE
-                faviconExtension = ext
+                coreExtension = ext
             },
             { _ -> //Log.e("GeckoExt", "Favicon Fetcher Failed", e)
                  }
@@ -527,36 +527,78 @@ class GeckoManager(private val context: Context) {
                 message: Any,
                 sender: WebExtension.MessageSender
             ): GeckoResult<Any>? {
-                if (nativeApp == "browser" && message is JSONObject) {
-                    val type = message.optString("type")
-                    if (type == "favicon") {
-                        val iconUrl = message.optString("url")
-                        if (iconUrl.isNotEmpty()) {
-                            onFaviconChanged(eventTabId, iconUrl)
+
+                Log.d("OutSyncNative", "Message received from JS! Payload: $message")
+
+                if (nativeApp == "browser") {
+                    try {
+                        val type = when (message) {
+                            is JSONObject -> message.optString("type")
+                            is Map<*, *> -> message["type"] as? String
+                            else -> null
                         }
+
+                        if (type == "favicon") {
+                            val iconUrl = when (message) {
+                                is JSONObject -> message.optString("url")
+                                is Map<*, *> -> message["url"] as? String
+                                else -> ""
+                            }
+                            if (!iconUrl.isNullOrEmpty()) {
+                                onFaviconChanged(eventTabId, iconUrl)
+                            }
+                            // BYPASS BUG: Return a simple primitive String
+                            return GeckoResult.fromValue("OK")
+                        }
+                        else if (type == "getSettings") {
+                            val responseObj = JSONObject().apply {
+                                put("enabled", browserSettings.value.isEnabledOutSync)
+                                put("radius", browserSettings.value.deviceCornerRadius.toDouble())
+                                put("padding", browserSettings.value.padding.toDouble())
+                                put("lineHeight", browserSettings.value.singleLineHeight.toDouble())
+                                put("color", formatArgbToCss(browserSettings.value.highlightColor.toHexString()))
+                                put("isDesktop", browserSettings.value.isDesktopMode)
+                            }
+
+                            // BYPASS BUG: Convert JSONObject to a raw String!
+                            val responseString = responseObj.toString()
+
+                            Log.d("OutSyncNative", "Sending theme settings as String: $responseString")
+                            return GeckoResult.fromValue(responseString)
+                        }
+                    } catch (e: Exception) {
+                        Log.e("OutSyncNative", "Error parsing JS message", e)
                     }
                 }
-                return null
+
+                // Fallback: return primitive string instead of object
+                return GeckoResult.fromValue("IGNORE")
             }
         }
-
         @SuppressLint("WrongThread")
         fun ensureDelegateAttached() {
-            // Use the future we stored in init.
-            // If installed: runs immediately.
-            // If installing: runs when done.
-            faviconExtensionFuture?.accept { ext ->
-                if (ext != null) {
-                    // Critical: Attach to the current session provided in the argument
-                    session.webExtensionController.setMessageDelegate(
-                        ext,
-                        messageDelegate,
-                        "browser"
-                    )
-                    //Log.i(
-//                        "GeckoFavicon",
-//                        "Delegate successfully attached to session ${session.isOpen}"
-//                    )
+            // Note: This prints to the MAIN App Process logcat, not the Isolated Web Content logcat!
+            Log.d("OutSyncNative", "Attempting to attach message delegate to session...")
+
+            // CRITICAL SPEED FIX: If the extension is already loaded, attach INSTANTLY!
+            if (coreExtension != null) {
+                session.webExtensionController.setMessageDelegate(
+                    coreExtension!!,
+                    messageDelegate,
+                    "browser"
+                )
+                Log.d("OutSyncNative", "SUCCESS: Message delegate attached instantly!")
+            } else {
+                // Fallback if it's still loading
+                coreExtensionFuture?.accept { ext ->
+                    if (ext != null) {
+                        session.webExtensionController.setMessageDelegate(
+                            ext,
+                            messageDelegate,
+                            "browser"
+                        )
+                        Log.d("OutSyncNative", "SUCCESS: Message delegate attached via future.")
+                    }
                 }
             }
         }
@@ -703,63 +745,63 @@ class GeckoManager(private val context: Context) {
             // EQUIVALENT TO onPageFinished
             override fun onPageStop(session: GeckoSession, success: Boolean) {
 
-                Log.d("marcW", "highlightColor ${browserSettings.value.highlightColor.toHexString()}")
-
-                if (browserSettings.value.isEnabledOutSync && success) {
-                    // inject js for design value
+//                Log.d("marcW", "highlightColor ${browserSettings.value.highlightColor.toHexString()}")
+//
+//                if (browserSettings.value.isEnabledOutSync && success) {
+//                    // inject js for design value
+////                    val js = """
+////                            javascript:void((function(){
+////                            document.documentElement.style.setProperty('--device-corner-radius', '${browserSettings.value.deviceCornerRadius}px');
+////                            document.documentElement.style.setProperty('--padding', '${browserSettings.value.padding}px');
+////                            document.documentElement.style.setProperty('--single-line-height', '${browserSettings.value.singleLineHeight}px');
+////                            document.documentElement.style.setProperty('--highlight-color', '${formatArgbToCss(browserSettings.value.highlightColor.toHexString())}');
+////                            window.deviceCornerRadius = ${browserSettings.value.deviceCornerRadius};
+////                            if (typeof window.render === 'function') window.render(${browserSettings.value.deviceCornerRadius});
+////
+////
+////                            console.log("Injection Success! Radius is " + window.deviceCornerRadius);
+////                            })());
+////                            """
+////                        .trimIndent()
+////                        .replace("\n", " ")
+////                    session.loadUri(js)
+//
 //                    val js = """
 //                            javascript:void((function(){
-//                            document.documentElement.style.setProperty('--device-corner-radius', '${browserSettings.value.deviceCornerRadius}px');
-//                            document.documentElement.style.setProperty('--padding', '${browserSettings.value.padding}px');
-//                            document.documentElement.style.setProperty('--single-line-height', '${browserSettings.value.singleLineHeight}px');
-//                            document.documentElement.style.setProperty('--highlight-color', '${formatArgbToCss(browserSettings.value.highlightColor.toHexString())}');
-//                            window.deviceCornerRadius = ${browserSettings.value.deviceCornerRadius};
-//                            if (typeof window.render === 'function') window.render(${browserSettings.value.deviceCornerRadius});
+//                                let scale = 1.0;
+//                                let isDesktop = ${browserSettings.value.isDesktopMode};
 //
+//                                if (isDesktop) {
 //
-//                            console.log("Injection Success! Radius is " + window.deviceCornerRadius);
+//                                    let screenW = window.screen.width;
+//                                    if (!screenW || screenW >= 980) { screenW = 390; }
+//
+//                                    let viewportW = document.documentElement.clientWidth || window.innerWidth || 980;
+//
+//                                    if (viewportW > screenW) {
+//                                        scale = viewportW / screenW;
+//                                    }
+//                                }
+//
+//                                let scaledRadius = ${browserSettings.value.deviceCornerRadius} * scale;
+//                                let scaledPadding = ${browserSettings.value.padding} * scale;
+//                                let scaledLineHeight = ${browserSettings.value.singleLineHeight} * scale;
+//
+//                                document.documentElement.style.setProperty('--device-corner-radius', scaledRadius + 'px');
+//                                document.documentElement.style.setProperty('--padding', scaledPadding + 'px');
+//                                document.documentElement.style.setProperty('--single-line-height', scaledLineHeight + 'px');
+//                                document.documentElement.style.setProperty('--highlight-color', '${formatArgbToCss(browserSettings.value.highlightColor.toHexString())}');
+//
+//                                window.deviceCornerRadius = scaledRadius;
+//                                if (typeof window.render === 'function') window.render(scaledRadius);
+//
+//                                console.log("Injection Success! Scaled Radius is " + scaledRadius + "px (Scale: " + scale + ")");
 //                            })());
 //                            """
 //                        .trimIndent()
 //                        .replace("\n", " ")
 //                    session.loadUri(js)
-
-                    val js = """
-                            javascript:void((function(){
-                                let scale = 1.0;
-                                let isDesktop = ${browserSettings.value.isDesktopMode};
-                                
-                                if (isDesktop) {
-                                    
-                                    let screenW = window.screen.width;
-                                    if (!screenW || screenW >= 980) { screenW = 390; }
-                                    
-                                    let viewportW = document.documentElement.clientWidth || window.innerWidth || 980;
-                                    
-                                    if (viewportW > screenW) {
-                                        scale = viewportW / screenW;
-                                    }
-                                }
-                                
-                                let scaledRadius = ${browserSettings.value.deviceCornerRadius} * scale;
-                                let scaledPadding = ${browserSettings.value.padding} * scale;
-                                let scaledLineHeight = ${browserSettings.value.singleLineHeight} * scale;
-                                
-                                document.documentElement.style.setProperty('--device-corner-radius', scaledRadius + 'px');
-                                document.documentElement.style.setProperty('--padding', scaledPadding + 'px');
-                                document.documentElement.style.setProperty('--single-line-height', scaledLineHeight + 'px');
-                                document.documentElement.style.setProperty('--highlight-color', '${formatArgbToCss(browserSettings.value.highlightColor.toHexString())}');
-                                
-                                window.deviceCornerRadius = scaledRadius;
-                                if (typeof window.render === 'function') window.render(scaledRadius);
-                                
-                                console.log("Injection Success! Scaled Radius is " + scaledRadius + "px (Scale: " + scale + ")");
-                            })());
-                            """
-                        .trimIndent()
-                        .replace("\n", " ")
-                    session.loadUri(js)
-                }
+//                }
 
                 onPageStopFun(session, success)
                 //Log.d("GeckoView", "Page Finished. Success: $success")
