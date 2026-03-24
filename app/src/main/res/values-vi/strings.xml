@@ -2,9 +2,9 @@
     <string name="app_name">trình duyệt</string>
 
     <!-- Content Descriptions & Options -->
-    <string name="desc_tabs_panel">bảng tab</string>
+    <string name="desc_tabs_panel">khung tab</string>
     <string name="desc_find_in_page">tìm trong trang</string>
-    <string name="desc_download_panel">bảng tải xuống</string>
+    <string name="desc_download_panel">khung tải xuống</string>
     <string name="desc_settings">cài đặt</string>
     <string name="desc_search_engine">công cụ tìm kiếm</string>
     <string name="desc_default_url">url mặc định</string>
@@ -17,7 +17,7 @@
     <string name="desc_animation_speed">tốc độ hoạt ảnh</string>
     <string name="desc_cursor_size">kích thước con trỏ</string>
     <string name="desc_cursor_speed">tốc độ con trỏ</string>
-    <string name="desc_back_square_opacity">độ mờ ô vuông khi nghỉ</string>
+    <string name="desc_back_square_opacity">độ mờ backsquare khi nghỉ</string>
     <string name="desc_privacy_policy">chính sách bảo mật</string>
     <string name="desc_reset_settings">đặt lại cài đặt</string>
     <string name="desc_sort_buttons">sắp xếp nút</string>
