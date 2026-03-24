@@ -64,6 +64,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -190,7 +191,7 @@ fun AppsPanel(
                                 modifier = Modifier.animateItem(), // Smoothly slides when appearing/disappearing
                                 iconRes = R.drawable.ic_arrow_back,
                                 onClick = { viewModel.moveOptionLeft() },
-                                buttonDescription = "move button left"
+                                buttonDescription = stringResource(R.string.desc_move_button_left)
                             )
                         }
                         visualItemCount++
@@ -203,7 +204,7 @@ fun AppsPanel(
                                 modifier = Modifier.animateItem(),
                                 iconRes = if (isHidden) R.drawable.ic_visibility_off else R.drawable.ic_visibility,
                                 onClick = { viewModel.toggleOptionVisibility() },
-                                buttonDescription = if (isHidden) "show button" else "hide button"
+                                buttonDescription = stringResource(if (isHidden) R.string.desc_show_button else R.string.desc_hide_button)
                             )
                         }
                         visualItemCount++
@@ -216,7 +217,7 @@ fun AppsPanel(
                                 modifier = Modifier.animateItem(),
                                 iconRes = R.drawable.ic_arrow_forward,
                                 onClick = { viewModel.moveOptionRight() },
-                                buttonDescription = "move button right"
+                                buttonDescription = stringResource(R.string.desc_move_button_right)
                             )
                         }
                         visualItemCount++
@@ -232,7 +233,7 @@ fun AppsPanel(
                                 viewModel.inspectingOption.value = null
                                 viewModel.updateUI { it.copy(isAppsPanelVisible = false) }
                             },
-                            buttonDescription = "done sorting"
+                            buttonDescription = stringResource(R.string.desc_done_sorting)
                         )
                     }
                     visualItemCount++
@@ -265,7 +266,7 @@ fun AppsPanel(
                                                 }
                                             }
                                         },
-                                        buttonDescription = "move pin up"
+                                        buttonDescription = stringResource(R.string.desc_move_pin_up)
                                     )
                                 }
                             }
@@ -333,7 +334,7 @@ fun AppsPanel(
                                                 }
                                             }
                                         },
-                                        buttonDescription = "move pin down"
+                                        buttonDescription = stringResource(R.string.desc_move_pin_down)
                                     )
                                 }
                             }
@@ -356,7 +357,7 @@ fun AppsPanel(
                                                 viewModel.inspectingAppId.longValue = 0L
                                             }
                                         },
-                                        buttonDescription = "delete pin"
+                                        buttonDescription = stringResource(R.string.desc_delete_pin)
                                     )
                                 }
                             }
@@ -378,7 +379,7 @@ fun AppsPanel(
                                                 viewModel.inspectingAppId.longValue = 0L
                                             }
                                         },
-                                        buttonDescription = "done editing"
+                                        buttonDescription = stringResource(R.string.desc_done_editing)
                                     )
                                 }
                             }
@@ -397,7 +398,7 @@ fun AppsPanel(
                             iconRes = R.drawable.ic_keep,
                             onClick = { if (isInteractive()) addAppToPin() },
                             modifier = Modifier.animateItem(),
-                            buttonDescription = "pin current tab"
+                            buttonDescription = stringResource(R.string.desc_pin_current_tab)
                         )
                     }
                     visualItemCount++
@@ -424,7 +425,7 @@ fun AppsPanel(
                     PlaceholderIcon(
                         text = pageProfile.name,
                         modifier = Modifier.animateItem(),
-                        buttonDescription = "rename profile",
+                        buttonDescription = stringResource(R.string.desc_rename_profile),
                         onClick = {
                             if (isInteractive()) {
                                 renameProfile()
@@ -444,7 +445,7 @@ fun AppsPanel(
                         iconRes = R.drawable.ic_person_add,
                         onClick = { if (isInteractive()) createNewProfile() },
                         modifier = Modifier.animateItem(),
-                        buttonDescription = "new profile"
+                        buttonDescription = stringResource(R.string.desc_new_profile)
                     )
                 }
                 visualItemCount++
@@ -464,7 +465,7 @@ fun AppsPanel(
                                 }
                             },
                             modifier = Modifier.animateItem(),
-                            buttonDescription = "delete profile"
+                            buttonDescription = stringResource(R.string.desc_delete_profile)
                         )
                     }
                     visualItemCount++

@@ -71,6 +71,7 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
@@ -119,7 +120,7 @@ fun rememberBrowserOptionsRegistry(
             BrowserOption.TABS_PANEL to OptionItem(
                 id = BrowserOption.TABS_PANEL,
                 iconRes = R.drawable.ic_tabs,
-                contentDescription = "tabs panel",
+                contentDescription = R.string.desc_tabs_panel,
                 enabled = uiState.value.isTabsPanelLock
             ) {
                 viewModel.updateUI {
@@ -138,7 +139,7 @@ fun rememberBrowserOptionsRegistry(
             BrowserOption.FIND_IN_PAGE to OptionItem(
                 id = BrowserOption.FIND_IN_PAGE,
                 iconRes = R.drawable.ic_find_in_page,
-                contentDescription = "find in page",
+                contentDescription = R.string.desc_find_in_page,
                 enabled = uiState.value.isFindInPageVisible
             ) {
                 viewModel.updateUI {
@@ -152,7 +153,7 @@ fun rememberBrowserOptionsRegistry(
             BrowserOption.DOWNLOAD_PANEL to OptionItem(
                 id = BrowserOption.DOWNLOAD_PANEL,
                 iconRes = R.drawable.ic_download,
-                contentDescription = "download panel",
+                contentDescription = R.string.desc_download_panel,
                 enabled = uiState.value.isDownloadPanelVisible
             ) {
                 viewModel.updateUI {
@@ -166,7 +167,7 @@ fun rememberBrowserOptionsRegistry(
             BrowserOption.SETTINGS to OptionItem(
                 id = BrowserOption.SETTINGS,
                 iconRes = R.drawable.ic_settings,
-                contentDescription = "settings",
+                contentDescription = R.string.desc_settings,
                 enabled = uiState.value.isSettingsPanelVisible
             ) {
                 viewModel.updateUI {
@@ -182,67 +183,67 @@ fun rememberBrowserOptionsRegistry(
             BrowserOption.SEARCH_ENGINE to OptionItem(
                 id = BrowserOption.SEARCH_ENGINE,
                 iconRes = R.drawable.ic_search,
-                contentDescription = "search engine"
+                contentDescription = R.string.desc_search_engine
             ) { onNavigateToSetting(SettingPanelView.SEARCH_ENGINE) },
             BrowserOption.DEFAULT_URL to OptionItem(
                 id = BrowserOption.DEFAULT_URL,
                 iconRes = R.drawable.ic_link,
-                contentDescription = "default url"
+                contentDescription = R.string.desc_default_url
             ) { onNavigateToSetting(SettingPanelView.DEFAULT_URL) },
             BrowserOption.HISTORY_SIZE to OptionItem(
                 id = BrowserOption.HISTORY_SIZE,
                 iconRes = R.drawable.ic_manage_history,
-                contentDescription = "history size"
+                contentDescription = R.string.desc_history_size
             ) { onNavigateToSetting(SettingPanelView.CLOSED_TAB_HISTORY_SIZE) },
             BrowserOption.CORNER_RADIUS to OptionItem(
                 id = BrowserOption.CORNER_RADIUS,
                 iconRes = R.drawable.ic_adjust_corner_radius,
-                contentDescription = "corner radius"
+                contentDescription = R.string.desc_corner_radius
             ) { onNavigateToSetting(SettingPanelView.CORNER_RADIUS) },
             BrowserOption.PADDING to OptionItem(
                 id = BrowserOption.PADDING,
                 iconRes = R.drawable.ic_padding,
-                contentDescription = "padding"
+                contentDescription = R.string.desc_padding
             ) { onNavigateToSetting(SettingPanelView.PADDING) },
             BrowserOption.SINGLE_LINE_HEIGHT to OptionItem(
                 id = BrowserOption.SINGLE_LINE_HEIGHT,
                 iconRes = R.drawable.ic_expand,
-                contentDescription = "min height"
+                contentDescription = R.string.desc_min_height
             ) { onNavigateToSetting(SettingPanelView.SINGLE_LINE_HEIGHT) },
             BrowserOption.MAX_LIST_HEIGHT to OptionItem(
                 id = BrowserOption.MAX_LIST_HEIGHT,
                 iconRes = R.drawable.ic_max_list_height,
-                contentDescription = "max list height"
+                contentDescription = R.string.desc_max_list_height
             ) { onNavigateToSetting(SettingPanelView.MAX_LIST_HEIGHT) },
             BrowserOption.HIGHLIGHT_COLOR to OptionItem(
                 id = BrowserOption.HIGHLIGHT_COLOR,
                 iconRes = R.drawable.ic_colors,
-                contentDescription = "highlight color"
+                contentDescription = R.string.desc_highlight_color
             ) { onNavigateToSetting(SettingPanelView.HIGHLIGHT_COLOR) },
             BrowserOption.ANIMATION_SPEED to OptionItem(
                 id = BrowserOption.ANIMATION_SPEED,
                 iconRes = R.drawable.ic_animation,
-                contentDescription = "animation speed"
+                contentDescription = R.string.desc_animation_speed
             ) { onNavigateToSetting(SettingPanelView.ANIMATION_SPEED) },
             BrowserOption.CURSOR_SIZE to OptionItem(
                 id = BrowserOption.CURSOR_SIZE,
                 iconRes = R.drawable.ic_cursor_size,
-                contentDescription = "cursor size"
+                contentDescription = R.string.desc_cursor_size
             ) { onNavigateToSetting(SettingPanelView.CURSOR_CONTAINER_SIZE) },
             BrowserOption.CURSOR_SPEED to OptionItem(
                 id = BrowserOption.CURSOR_SPEED,
                 iconRes = R.drawable.ic_cursor_speed,
-                contentDescription = "cursor speed"
+                contentDescription = R.string.desc_cursor_speed
             ) { onNavigateToSetting(SettingPanelView.CURSOR_TRACKING_SPEED) },
             BrowserOption.BACK_SQUARE_OPACITY to OptionItem(
                 id = BrowserOption.BACK_SQUARE_OPACITY,
                 iconRes = R.drawable.ic_opacity,
-                contentDescription = "back square idle opacity"
+                contentDescription = R.string.desc_back_square_opacity
             ) { onNavigateToSetting(SettingPanelView.BACK_SQUARE_OPACITY) },
             BrowserOption.PRIVACY_POLICY to OptionItem(
                 id = BrowserOption.PRIVACY_POLICY,
                 iconRes = R.drawable.ic_developer_guide,
-                contentDescription = "privacy policy"
+                contentDescription = R.string.desc_privacy_policy
             ) {
                 viewModel.createNewTab(viewModel.activeTabIndex.value + 1, privacy_policy_url)
                 viewModel.updateUI {
@@ -255,14 +256,14 @@ fun rememberBrowserOptionsRegistry(
             BrowserOption.RESET_SETTINGS to OptionItem(
                 id = BrowserOption.RESET_SETTINGS,
                 iconRes = R.drawable.ic_reset_settings,
-                contentDescription = "reset settings"
+                contentDescription = R.string.desc_reset_settings
             ) {
                 confirmationPopup("reset all settings?", "", { viewModel.resetSettings() }, {})
             },
             BrowserOption.SORT_BUTTONS to OptionItem(
                 id = BrowserOption.SORT_BUTTONS,
                 iconRes = R.drawable.ic_swap_calls,
-                contentDescription = "sort buttons",
+                contentDescription = R.string.desc_sort_buttons,
                 enabled = viewModel.isSortingButtons.value
             ) {
                 viewModel.isSortingButtons.value = !viewModel.isSortingButtons.value
@@ -279,7 +280,7 @@ fun rememberBrowserOptionsRegistry(
             BrowserOption.SHARP_MODE to OptionItem(
                 id = BrowserOption.SHARP_MODE,
                 iconRes = if (settings.value.isSharpMode) R.drawable.ic_rounded_corner else R.drawable.ic_sharp_corner,
-                contentDescription = "sharp mode",
+                contentDescription = R.string.desc_sharp_mode,
                 enabled = settings.value.isSharpMode
             ) {
                 viewModel.updateSettings { it.copy(isSharpMode = !it.isSharpMode) }; viewModel.updateUI {
@@ -292,7 +293,7 @@ fun rememberBrowserOptionsRegistry(
             BrowserOption.REOPEN_TAB to OptionItem(
                 id = BrowserOption.REOPEN_TAB,
                 iconRes = R.drawable.ic_reopen_window,
-                contentDescription = "reopen closed tab",
+                contentDescription = R.string.desc_reopen_tab,
                 enabled = viewModel.recentlyClosedTabs.isNotEmpty()
             ) {
                 viewModel.reopenClosedTab(); viewModel.updateUI {
@@ -305,13 +306,13 @@ fun rememberBrowserOptionsRegistry(
             BrowserOption.FULLSCREEN to OptionItem(
                 id = BrowserOption.FULLSCREEN,
                 iconRes = R.drawable.ic_fullscreen,
-                contentDescription = "fullscreen mode",
+                contentDescription = R.string.desc_fullscreen_mode,
                 enabled = settings.value.isFullscreenMode
             ) { viewModel.updateSettings { it.copy(isFullscreenMode = !it.isFullscreenMode) } },
             BrowserOption.DESKTOP_MODE to OptionItem(
                 id = BrowserOption.DESKTOP_MODE,
                 iconRes = if (settings.value.isDesktopMode) R.drawable.ic_computer else R.drawable.ic_mobile_3,
-                contentDescription = "desktop mode",
+                contentDescription = R.string.desc_desktop_mode,
                 enabled = settings.value.isDesktopMode
             ) {
                 viewModel.updateSettings { it.copy(isDesktopMode = !it.isDesktopMode) }; viewModel.updateUI {
@@ -324,12 +325,12 @@ fun rememberBrowserOptionsRegistry(
             BrowserOption.ROTATE to OptionItem(
                 id = BrowserOption.ROTATE,
                 iconRes = R.drawable.ic_screen_rotation_up,
-                contentDescription = "rotate"
+                contentDescription = R.string.desc_rotate
             ) { viewModel.updateUI { it.copy(isLandscapeByButton = true) } },
             BrowserOption.CLOSE_ALL_TABS to OptionItem(
                 id = BrowserOption.CLOSE_ALL_TABS,
                 iconRes = R.drawable.ic_close_all_tabs,
-                contentDescription = "close all tabs"
+                contentDescription = R.string.desc_close_all_tabs
             ) {
                 onCloseAllTabs(); viewModel.updateUI {
                 it.copy(
@@ -341,7 +342,7 @@ fun rememberBrowserOptionsRegistry(
             BrowserOption.ADBLOCK to OptionItem(
                 id = BrowserOption.ADBLOCK,
                 iconRes = if (settings.value.isAdBlockEnabled) R.drawable.ic_ublock else R.drawable.ic_remove_moderator,
-                contentDescription = "adblock (uBlock Origin)",
+                contentDescription = R.string.desc_adblock,
                 enabled = settings.value.isAdBlockEnabled
             ) {
                 viewModel.updateField(
@@ -357,7 +358,7 @@ fun rememberBrowserOptionsRegistry(
             BrowserOption.SUGGESTIONS to OptionItem(
                 id = BrowserOption.SUGGESTIONS,
                 iconRes = R.drawable.ic_lightbulb,
-                contentDescription = "suggestions",
+                contentDescription = R.string.desc_suggestions,
                 enabled = settings.value.showSuggestions
             ) {
                 viewModel.updateSettings { it.copy(showSuggestions = !it.showSuggestions) }; viewModel.updateUI {
@@ -370,7 +371,7 @@ fun rememberBrowserOptionsRegistry(
             BrowserOption.MEDIA_CONTROL to OptionItem(
                 id = BrowserOption.MEDIA_CONTROL,
                 iconRes = R.drawable.ic_video_settings,
-                contentDescription = "media control",
+                contentDescription = R.string.desc_media_control,
                 enabled = settings.value.isEnabledMediaControl
             ) {
                 viewModel.updateSettings { it.copy(isEnabledMediaControl = !it.isEnabledMediaControl) }; viewModel.updateUI {
@@ -383,7 +384,7 @@ fun rememberBrowserOptionsRegistry(
             BrowserOption.OUT_SYNC to OptionItem(
                 id = BrowserOption.OUT_SYNC,
                 iconRes = R.drawable.ic_room_preferences,
-                contentDescription = "out sync",
+                contentDescription = R.string.desc_out_sync,
                 enabled = settings.value.isEnabledOutSync
             ) {
                 viewModel.updateSettings { it.copy(isEnabledOutSync = !it.isEnabledOutSync) }; viewModel.updateUI {
@@ -396,7 +397,7 @@ fun rememberBrowserOptionsRegistry(
             BrowserOption.OPTIMIZE_MEMORY to OptionItem(
                 id = BrowserOption.OPTIMIZE_MEMORY,
                 iconRes = if (viewModel.tabs.size > 1 || viewModel.geckoManager.sessionPoolSize > 1 ) R.drawable.ic_rocket_launch else R.drawable.ic_rocket,
-                contentDescription = "optimize memory",
+                contentDescription = R.string.desc_optimize_memory,
                 enabled = viewModel.tabs.size > 1 || viewModel.geckoManager.sessionPoolSize > 1
             ) {
                if (viewModel.tabs.size > 1 || viewModel.geckoManager.sessionPoolSize > 1) confirmationPopup(
@@ -417,7 +418,7 @@ fun rememberBrowserOptionsRegistry(
             BrowserOption.MEMORY_USAGE to OptionItem(
                 id = BrowserOption.MEMORY_USAGE,
                 iconRes = R.drawable.ic_memory, // Or ic_memory if you have one!
-                contentDescription = "memory usage"
+                contentDescription = R.string.desc_memory_usage
             ) { onNavigateToSetting(SettingPanelView.MEMORY_USAGE) },
 
             )
@@ -547,7 +548,7 @@ fun OptionsPanel(
                                     }
                                 },
                                 textIcon = option.textIcon,
-                                buttonDescription = option.contentDescription,
+                                buttonDescription = stringResource(option.contentDescription),
                                 painterId = option.iconRes,
                                 isWhite = option.enabled
                             )
@@ -749,7 +750,7 @@ fun SettingsPanel(
                                                 }
                                             },
                                             textIcon = option.textIcon,
-                                            buttonDescription = option.contentDescription,
+                                            buttonDescription = stringResource(option.contentDescription),
                                             painterId = option.iconRes,
                                             isWhite = option.enabled,
                                         )

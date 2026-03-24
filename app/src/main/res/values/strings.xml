@@ -1,3 +1,51 @@
 <resources>
     <string name="app_name">browser</string>
+
+    <!-- Content Descriptions & Options -->
+    <string name="desc_tabs_panel">tabs panel</string>
+    <string name="desc_find_in_page">find in page</string>
+    <string name="desc_download_panel">download panel</string>
+    <string name="desc_settings">settings</string>
+    <string name="desc_search_engine">search engine</string>
+    <string name="desc_default_url">default url</string>
+    <string name="desc_history_size">history size</string>
+    <string name="desc_corner_radius">corner radius</string>
+    <string name="desc_padding">padding</string>
+    <string name="desc_min_height">min height</string>
+    <string name="desc_max_list_height">max list height</string>
+    <string name="desc_highlight_color">highlight color</string>
+    <string name="desc_animation_speed">animation speed</string>
+    <string name="desc_cursor_size">cursor size</string>
+    <string name="desc_cursor_speed">cursor speed</string>
+    <string name="desc_back_square_opacity">back square idle opacity</string>
+    <string name="desc_privacy_policy">privacy policy</string>
+    <string name="desc_reset_settings">reset settings</string>
+    <string name="desc_sort_buttons">sort buttons</string>
+    <string name="desc_sharp_mode">sharp mode</string>
+    <string name="desc_reopen_tab">reopen closed tab</string>
+    <string name="desc_fullscreen_mode">fullscreen mode</string>
+    <string name="desc_desktop_mode">desktop mode</string>
+    <string name="desc_rotate">rotate</string>
+    <string name="desc_close_all_tabs">close all tabs</string>
+    <string name="desc_adblock">adblock (uBlock Origin)</string>
+    <string name="desc_suggestions">suggestions</string>
+    <string name="desc_media_control">media control</string>
+    <string name="desc_out_sync">out sync</string>
+    <string name="desc_optimize_memory">optimize memory</string>
+    <string name="desc_memory_usage">memory usage</string>
+
+    <!-- Apps Panel & Profile Descriptions -->
+    <string name="desc_move_button_left">move button left</string>
+    <string name="desc_hide_button">hide button</string>
+    <string name="desc_show_button">show button</string>
+    <string name="desc_move_button_right">move button right</string>
+    <string name="desc_done_sorting">done sorting</string>
+    <string name="desc_move_pin_up">move pin up</string>
+    <string name="desc_move_pin_down">move pin down</string>
+    <string name="desc_delete_pin">delete pin</string>
+    <string name="desc_done_editing">done editing</string>
+    <string name="desc_pin_current_tab">pin current tab</string>
+    <string name="desc_rename_profile">rename profile</string>
+    <string name="desc_new_profile">new profile</string>
+    <string name="desc_delete_profile">delete profile</string>
 </resources>
