@@ -104,7 +104,8 @@ enum class SettingPanelView {
 fun rememberBrowserOptionsRegistry(
     onCloseAllTabs: () -> Unit,
     onNavigateToSetting: (SettingPanelView) -> Unit,
-    confirmationPopup: (Int, String, () -> Unit, () -> Unit) -> Unit
+    confirmationPopup: (Int, String, () -> Unit, () -> Unit) -> Unit,
+    changeBrowserIcon: () -> Unit = {},
 ): Map<BrowserOption, OptionItem> {
     val viewModel = LocalBrowserViewModel.current
     val uiState = viewModel.uiState.collectAsState()
@@ -254,6 +255,15 @@ fun rememberBrowserOptionsRegistry(
                     )
                 }
             },
+            BrowserOption.CHANGE_ICON to OptionItem(
+                id = BrowserOption.CHANGE_ICON,
+                iconRes = R.drawable.ic_empty_logo,
+                contentDescription = R.string.desc_change_icon
+            ) {
+                Log.w("mrcFe", "change browser icon ")
+
+                changeBrowserIcon()
+            },
             BrowserOption.RESET_SETTINGS to OptionItem(
                 id = BrowserOption.RESET_SETTINGS,
                 iconRes = R.drawable.ic_reset_settings,
@@ -333,7 +343,8 @@ fun rememberBrowserOptionsRegistry(
                 iconRes = R.drawable.ic_close_all_tabs,
                 contentDescription = R.string.desc_close_all_tabs
             ) {
-                onCloseAllTabs(); viewModel.updateUI {
+                onCloseAllTabs()
+                viewModel.updateUI {
                 it.copy(
                     isOptionsPanelVisible = false,
                     isAppsPanelVisible = false
@@ -431,7 +442,8 @@ fun rememberBrowserOptionsRegistry(
 @Composable
 fun OptionsPanel(
     onCloseAllTabs: () -> Unit,
-    confirmationPopup: (Int, String, () -> Unit, () -> Unit) -> Unit
+    confirmationPopup: (Int, String, () -> Unit, () -> Unit) -> Unit,
+    changeBrowserIcon: () -> Unit,
 ) {
     val viewModel = LocalBrowserViewModel.current
     val settings = viewModel.browserSettings.collectAsState()
@@ -470,7 +482,8 @@ fun OptionsPanel(
     val registry = rememberBrowserOptionsRegistry(
         onCloseAllTabs = onCloseAllTabs,
         onNavigateToSetting = {},
-        confirmationPopup = confirmationPopup
+        confirmationPopup = confirmationPopup,
+        changeBrowserIcon = changeBrowserIcon,
     )
 
     // 4. Map IDs to UI Items
@@ -926,14 +939,14 @@ fun SettingsPanel(
 
                 SettingPanelView.HIGHLIGHT_COLOR -> {
                     // 1. Minimum Brightness to ensure visibility against a BLACK background
-                    val MIN_BRIGHTNESS = 0.35f
+                    val minBrightness = 0.35f
 
                     val initialHsv = remember(settings.value.highlightColor) {
                         val hsv = FloatArray(3)
                         AndroidColor.colorToHSV(settings.value.highlightColor, hsv)
                         // Sanitize initial color based on the new logic
                         val safeMaxV = (0.60f + hsv[1]).coerceAtMost(1f)
-                        hsv[2] = hsv[2].coerceIn(MIN_BRIGHTNESS, safeMaxV)
+                        hsv[2] = hsv[2].coerceIn(minBrightness, safeMaxV)
                         hsv
                     }
                     var hue by remember { mutableFloatStateOf(initialHsv[0]) }
@@ -1008,7 +1021,7 @@ fun SettingsPanel(
 
                                                 // 3. New Math: Allows Pure Red/Green/Blue to have 1.0f Brightness
                                                 val safeMaxV = (0.60f + saturation).coerceAtMost(1f)
-                                                value = hsv[2].coerceIn(MIN_BRIGHTNESS, safeMaxV)
+                                                value = hsv[2].coerceIn(minBrightness, safeMaxV)
                                             } catch (_: Exception) { }
                                         }
                                     },
@@ -1018,11 +1031,11 @@ fun SettingsPanel(
                                             viewModel.updateUI {
                                                 it.copy(isFocusOnSettingTextField = focusState.hasFocus)
                                             }
-                                            if (focusState.hasFocus) {
-                                                hexText = "" // Clear text so user can easily type
+                                            hexText = if (focusState.hasFocus) {
+                                                "" // Clear text so user can easily type
                                             } else {
                                                 // 4. THE FIX: The moment focus is lost, force text to match the real clamped color
-                                                hexText = String.format(
+                                                String.format(
                                                     "#%06X",
                                                     0xFFFFFF and selectedColorInt
                                                 )
@@ -1115,7 +1128,7 @@ fun SettingsPanel(
                                             saturation = safeMinS
                                         }
                                     },
-                                    valueRange = MIN_BRIGHTNESS..1f, // Brightness is allowed back up to 100%
+                                    valueRange = minBrightness..1f, // Brightness is allowed back up to 100%
                                     colors = SliderDefaults.colors(
                                         thumbColor = Color.White,
                                         activeTrackColor = Color.White.copy(alpha = value)

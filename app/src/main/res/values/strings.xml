@@ -20,6 +20,7 @@
     <string name="desc_back_square_opacity">back square idle opacity</string>
     <string name="desc_privacy_policy">privacy policy</string>
     <string name="desc_reset_settings">reset settings</string>
+    <string name="desc_change_icon">change icon</string>
     <string name="desc_sort_buttons">sort buttons</string>
     <string name="desc_sharp_mode">sharp mode</string>
     <string name="desc_reopen_tab">reopen closed tab</string>
@@ -101,6 +102,7 @@
     <!-- Placeholder -->
     <string name="placeholder_profile_label">profile label</string>
     <string name="placeholder_pin_label">pin label</string>
+    <string name="placeholder_browser_label">browser label</string>
     <string name="placeholder_url">search / url</string>
     <string name="placeholder_blank_page">blank page</string>
 

@@ -20,6 +20,7 @@
     <string name="desc_back_square_opacity">độ mờ backsquare khi nghỉ</string>
     <string name="desc_privacy_policy">chính sách bảo mật</string>
     <string name="desc_reset_settings">đặt lại cài đặt</string>
+    <string name="desc_change_icon">đổi biểu tượng</string>
     <string name="desc_sort_buttons">sắp xếp nút</string>
     <string name="desc_sharp_mode">chế độ góc vuông</string>
     <string name="desc_reopen_tab">mở lại tab đã đóng</string>
@@ -101,6 +102,8 @@
     <!-- Placeholder -->
     <string name="placeholder_profile_label">tên hồ sơ</string>
     <string name="placeholder_pin_label">tên ứng dụng</string>
+    <string name="placeholder_browser_label">tên trình duyệt</string>
+
     <string name="placeholder_url">tìm kiếm / url</string>
     <string name="placeholder_blank_page">trang trống</string>
 

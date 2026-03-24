@@ -104,6 +104,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import marcinlowercase.a.R
+import marcinlowercase.a.core.constant.DefaultSettingValues
 import marcinlowercase.a.core.data_class.DownloadItem
 import marcinlowercase.a.core.data_class.JsDialogState
 import marcinlowercase.a.core.data_class.PanelVisibilityState
@@ -193,11 +194,11 @@ fun BottomPanel(
     ) {
         val clipboard = LocalClipboard.current
 
-         val customIconUrlState = rememberTextFieldState("")
+        val customIconUrlState = rememberTextFieldState("")
         val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
 
         // --- NEW: Local Image Picker ---
- val isPickingImage = remember { mutableStateOf(false) }
+        val isPickingImage = remember { mutableStateOf(false) }
 
         val imagePickerLauncher = rememberLauncherForActivityResult(
             contract = ActivityResultContracts.GetContent()
@@ -220,15 +221,16 @@ fun BottomPanel(
 
         }
         // Automatically clear the custom URL text box when the user finishes pinning or cancels
-        LaunchedEffect(uiState.value.isPinningApp) {
-            if (!uiState.value.isPinningApp) {
+        LaunchedEffect(uiState.value.isPinningApp, uiState.value.isCloningBrowser) {
+            if (!uiState.value.isPinningApp && !uiState.value.isCloningBrowser) {
                 customIconUrlState.setTextAndPlaceCursorAtEnd("")
             }
         }
 
         Box(
             modifier = Modifier.fillMaxWidth()
-        ) {            Column(
+        ) {
+            Column(
                 modifier = Modifier
                     .padding(settings.value.padding.dp)
                     .windowInsetsPadding(WindowInsets.ime)
@@ -490,7 +492,7 @@ fun BottomPanel(
                             // The long press on the UrlBar will activate the gesture
 
                         },
-                    visible = uiState.value.isUrlBarVisible  && !viewModel.isStandaloneMode.value,
+                    visible = uiState.value.isUrlBarVisible && !viewModel.isStandaloneMode.value,
                     enter = fadeIn(
                         tween(
                             settings.value.animationSpeedForLayer(1)
@@ -508,10 +510,22 @@ fun BottomPanel(
                                 setTextFieldHeightPx(size.height)
                             }
                         ) {
-                             AnimatedVisibility(
-                                visible = uiState.value.isPinningApp,
-                                enter = expandVertically(tween(settings.value.animationSpeedForLayer(1))) + fadeIn(tween(settings.value.animationSpeedForLayer(1))),
-                                exit = shrinkVertically(tween(settings.value.animationSpeedForLayer(1))) + fadeOut(tween(settings.value.animationSpeedForLayer(1)))
+                            AnimatedVisibility(
+                                visible = uiState.value.isPinningApp || uiState.value.isCloningBrowser,
+                                enter = expandVertically(
+                                    tween(
+                                        settings.value.animationSpeedForLayer(
+                                            1
+                                        )
+                                    )
+                                ) + fadeIn(tween(settings.value.animationSpeedForLayer(1))),
+                                exit = shrinkVertically(
+                                    tween(
+                                        settings.value.animationSpeedForLayer(
+                                            1
+                                        )
+                                    )
+                                ) + fadeOut(tween(settings.value.animationSpeedForLayer(1)))
                             ) {
                                 Row(
                                     modifier = Modifier
@@ -534,16 +548,30 @@ fun BottomPanel(
                                                     it.copy(isFocusOnIconUrlTextField = focusState.isFocused)
                                                 }
                                                 if (!focusState.isFocused) {
-                                                    val input = (customIconUrlState.text).toString().trim()
+                                                    val input =
+                                                        (customIconUrlState.text).toString().trim()
                                                     if (input.isNotEmpty()) {
                                                         // CRITICAL FIX: Allow content:// URIs from the local file picker!
-                                                        val isValid = Patterns.WEB_URL.matcher(input).matches() ||
-                                                                input.startsWith("data:image", ignoreCase = true) ||
-                                                                input.startsWith("content://", ignoreCase = true) ||
-                                                                input.startsWith("<svg", ignoreCase = true) // <-- NEW: Allow raw SVG text!
+                                                        val isValid =
+                                                            Patterns.WEB_URL.matcher(input)
+                                                                .matches() ||
+                                                                    input.startsWith(
+                                                                        "data:image",
+                                                                        ignoreCase = true
+                                                                    ) ||
+                                                                    input.startsWith(
+                                                                        "content://",
+                                                                        ignoreCase = true
+                                                                    ) ||
+                                                                    input.startsWith(
+                                                                        "<svg",
+                                                                        ignoreCase = true
+                                                                    ) // <-- NEW: Allow raw SVG text!
 
                                                         if (!isValid) {
-                                                            customIconUrlState.setTextAndPlaceCursorAtEnd("")
+                                                            customIconUrlState.setTextAndPlaceCursorAtEnd(
+                                                                ""
+                                                            )
                                                         }
                                                     }
                                                     val resetUrl = viewModel.activeTab!!.currentURL
@@ -553,6 +581,7 @@ fun BottomPanel(
                                                         // Protect UI from tearing down if picker is open
                                                         if (!currentState.isFocusOnIconUrlTextField && !currentState.isFocusOnUrlTextField && !isPickingImage.value) {
                                                             if (currentState.isPinningApp) viewModel.updateUI { it.copy(isPinningApp = false) }
+                                                            if (currentState.isCloningBrowser) viewModel.updateUI { it.copy(isCloningBrowser = false) }
                                                             if (currentState.isCreatingProfile) viewModel.updateUI { it.copy(isCreatingProfile = false) }
                                                             if (currentState.isRenamingProfile) viewModel.updateUI { it.copy(isRenamingProfile = false) }
 
@@ -571,8 +600,14 @@ fun BottomPanel(
                                                                 }
                                                             }
 
-                                                            textFieldState.setTextAndPlaceCursorAtEnd(resetUrl.toDomain())
-                                                            viewModel.updateUI { it.copy(isUrlOverlayBoxVisible = true) }
+                                                            textFieldState.setTextAndPlaceCursorAtEnd(
+                                                                resetUrl.toDomain()
+                                                            )
+                                                            viewModel.updateUI {
+                                                                it.copy(
+                                                                    isUrlOverlayBoxVisible = true
+                                                                )
+                                                            }
                                                         }
                                                     }
                                                 }
@@ -584,7 +619,11 @@ fun BottomPanel(
                                         textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Start),
                                         lineLimits = TextFieldLineLimits.SingleLine,
                                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                                        shape = RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp),
+                                        shape = RoundedCornerShape(
+                                            settings.value.cornerRadiusForLayer(
+                                                2
+                                            ).dp
+                                        ),
                                         colors = TextFieldDefaults.colors(
                                             focusedContainerColor = Color.White,
                                             unfocusedContainerColor = Color.White,
@@ -654,7 +693,7 @@ fun BottomPanel(
 
                                         if (focusState.isFocused) {
 
-                                            if (!uiState.value.isPinningApp) {
+                                            if (!(uiState.value.isPinningApp || uiState.value.isCloningBrowser)) {
                                                 viewModel.updateUI {
                                                     it.copy(
                                                         savedPanelState = PanelVisibilityState(
@@ -690,9 +729,26 @@ fun BottomPanel(
                                                 val currentState = viewModel.uiState.value
                                                 // Protect the UI from tearing down if the picker is open
                                                 if (!currentState.isFocusOnIconUrlTextField && !currentState.isFocusOnUrlTextField && !isPickingImage.value) {
-                                                    if (currentState.isPinningApp) viewModel.updateUI { it.copy(isPinningApp = false) }
-                                                    if (currentState.isCreatingProfile) viewModel.updateUI { it.copy(isCreatingProfile = false) }
-                                                    if (currentState.isRenamingProfile) viewModel.updateUI { it.copy(isRenamingProfile = false) }
+                                                    if (currentState.isPinningApp) viewModel.updateUI {
+                                                        it.copy(
+                                                            isPinningApp = false
+                                                        )
+                                                    }
+                                                    if (currentState.isCloningBrowser) viewModel.updateUI {
+                                                        it.copy(
+                                                            isCloningBrowser = false
+                                                        )
+                                                    }
+                                                    if (currentState.isCreatingProfile) viewModel.updateUI {
+                                                        it.copy(
+                                                            isCreatingProfile = false
+                                                        )
+                                                    }
+                                                    if (currentState.isRenamingProfile) viewModel.updateUI {
+                                                        it.copy(
+                                                            isRenamingProfile = false
+                                                        )
+                                                    }
 
                                                     currentState.savedPanelState?.let { savedState ->
                                                         viewModel.updateUI {
@@ -708,8 +764,14 @@ fun BottomPanel(
                                                             it.copy(isTabsPanelVisible = savedState.tabs)
                                                         }
                                                     }
-                                                    textFieldState.setTextAndPlaceCursorAtEnd(resetUrl.toDomain())
-                                                    viewModel.updateUI { it.copy(isUrlOverlayBoxVisible = true) }
+                                                    textFieldState.setTextAndPlaceCursorAtEnd(
+                                                        resetUrl.toDomain()
+                                                    )
+                                                    viewModel.updateUI {
+                                                        it.copy(
+                                                            isUrlOverlayBoxVisible = true
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }
@@ -724,6 +786,7 @@ fun BottomPanel(
                                         uiState.value.isCreatingProfile -> Text(stringResource(R.string.placeholder_profile_label))
                                         uiState.value.isRenamingProfile -> Text(stringResource(R.string.placeholder_profile_label))
                                         uiState.value.isPinningApp -> Text(stringResource(R.string.placeholder_pin_label))
+                                        uiState.value.isCloningBrowser -> Text(stringResource(R.string.placeholder_browser_label))
                                         else -> Text(stringResource(R.string.placeholder_url))
                                     }
                                 },
@@ -757,6 +820,16 @@ fun BottomPanel(
                                                 )
                                                 viewModel.updateUI { it.copy(isPinningApp = false) }
                                             }
+                                            uiState.value.isCloningBrowser -> {
+                                                viewModel.generateAndInstallWebApk(
+                                                    context = context,
+                                                    title = "13rowser",
+                                                    url = resetUrl,
+                                                    iconUrl = "https://browser.oo1.studio/data/img/logo_bold.svg",
+                                                    isFullBrowser = true,
+                                                )
+                                                viewModel.updateUI { it.copy(isCloningBrowser = false) }
+                                            }
 
                                             else -> activeSession.reload()
                                         }
@@ -786,8 +859,10 @@ fun BottomPanel(
 
                                         uiState.value.isPinningApp -> {
 
-                                            val customIconInput = (customIconUrlState.text).toString().trim()
-                                            val finalIconUrl = customIconInput.ifEmpty { viewModel.activeTab!!.currentFaviconUrl }
+                                            val customIconInput =
+                                                (customIconUrlState.text).toString().trim()
+                                            val finalIconUrl =
+                                                customIconInput.ifEmpty { viewModel.activeTab!!.currentFaviconUrl }
 
                                             viewModel.pinApp(
                                                 context = context,
@@ -796,6 +871,22 @@ fun BottomPanel(
                                                 iconUrl = finalIconUrl,
                                             )
                                             viewModel.updateUI { it.copy(isPinningApp = false) }
+                                        }
+                                        uiState.value.isCloningBrowser -> {
+                                            val customIconInput =
+                                                (customIconUrlState.text).toString().trim()
+                                            val finalIconUrl =
+                                                customIconInput.ifEmpty { viewModel.activeTab!!.currentFaviconUrl }
+
+                                            viewModel.generateAndInstallWebApk(
+                                                context = context,
+                                                title = input,
+                                                url = settings.value.defaultUrl,
+                                                iconUrl = finalIconUrl,
+                                                isFullBrowser = true,
+                                            )
+                                            viewModel.updateUI { it.copy(isCloningBrowser = false) }
+
                                         }
 
 
@@ -807,8 +898,14 @@ fun BottomPanel(
                                                             "javascript:",
                                                             ignoreCase = true
                                                         ) ||
-                                                        input.startsWith("file:", ignoreCase = true) ||
-                                                        input.startsWith("data:", ignoreCase = true) ||
+                                                        input.startsWith(
+                                                            "file:",
+                                                            ignoreCase = true
+                                                        ) ||
+                                                        input.startsWith(
+                                                            "data:",
+                                                            ignoreCase = true
+                                                        ) ||
                                                         Patterns.WEB_URL.matcher(input).matches() ||
                                                         (input.contains(".") && !input.contains(" "))
                                                         && !input.endsWith(".")
@@ -817,10 +914,19 @@ fun BottomPanel(
                                                 false
                                             }
                                             val finalUrl = if (isUrl) {
-                                                if (input.startsWith("http://", ignoreCase = true) ||
-                                                    input.startsWith("https://", ignoreCase = true) ||
+                                                if (input.startsWith(
+                                                        "http://",
+                                                        ignoreCase = true
+                                                    ) ||
+                                                    input.startsWith(
+                                                        "https://",
+                                                        ignoreCase = true
+                                                    ) ||
                                                     input.startsWith("about:", ignoreCase = true) ||
-                                                    input.startsWith("javascript:", ignoreCase = true) ||
+                                                    input.startsWith(
+                                                        "javascript:",
+                                                        ignoreCase = true
+                                                    ) ||
                                                     input.startsWith("file:", ignoreCase = true) ||
                                                     input.startsWith("data:", ignoreCase = true)
                                                 ) {
@@ -1039,15 +1145,12 @@ fun BottomPanel(
                     Column {
                         OptionsPanel(
                             onCloseAllTabs = onCloseAllTabs,
-                            confirmationPopup = confirmationPopup
-//                            addAppToPin = {
-//                                viewModel.updateUI { it.copy(isPinningApp = true) }
-//                                urlBarFocusRequester.requestFocus()
-//                            },
-//                            createNewProfile = {
-//                                viewModel.updateUI { it.copy(isCreatingProfile = true) }
-//                                urlBarFocusRequester.requestFocus()
-//                            }
+                            confirmationPopup = confirmationPopup,
+                            changeBrowserIcon = {
+                                Log.d("mrcFe", "change browser icon ")
+                                viewModel.updateUI { it.copy(isCloningBrowser = true) }
+                                urlBarFocusRequester.requestFocus()
+                            }
                         )
 
                         AppsPanel(
@@ -1093,9 +1196,10 @@ fun BottomPanel(
                 }
 
 
+                val browserName = stringResource(R.string.app_name)
                 TextEditPanel(
 //                    currentRotation =  currentRotation,
-                    isVisible = uiState.value.isPinningApp || (uiState.value.isFocusOnUrlTextField && textFieldState.text.isBlank()),
+                    isVisible = uiState.value.isPinningApp || uiState.value.isCloningBrowser || (uiState.value.isFocusOnUrlTextField && textFieldState.text.isBlank()),
                     onCopyClick = {
                         val clipData =
                             ClipData.newPlainText("url", viewModel.activeTab!!.currentURL)
@@ -1111,7 +1215,9 @@ fun BottomPanel(
                                     ?: ""
 
                                 uiState.value.isPinningApp -> viewModel.activeTab!!.currentTitle
-                                else -> viewModel.activeTab!!.errorState?.failingUrl ?: viewModel.activeTab!!.currentURL
+                                uiState.value.isCloningBrowser -> browserName
+                                else -> viewModel.activeTab!!.errorState?.failingUrl
+                                    ?: viewModel.activeTab!!.currentURL
                             }
                         )
                         urlBarFocusRequester.requestFocus()
@@ -1126,12 +1232,14 @@ fun BottomPanel(
                         // 2. If the user cleared the text, fallback to the website's title
                         val finalTitle = input.ifEmpty { viewModel.activeTab!!.currentTitle }
                         val customIconInput = (customIconUrlState.text).toString().trim()
-                        val finalIconUrl = customIconInput.ifEmpty { viewModel.activeTab!!.currentFaviconUrl }
+                        val finalIconUrl =
+                            customIconInput.ifEmpty { viewModel.activeTab!!.currentFaviconUrl }
                         viewModel.generateAndInstallWebApk(
                             context = context,
                             title = finalTitle,
                             url = viewModel.activeTab!!.currentURL,
-                            iconUrl = finalIconUrl
+                            iconUrl = finalIconUrl,
+                            isFullBrowser = false
                         )
                         viewModel.updateUI { it.copy(isPinningApp = false) }
                         focusManager.clearFocus()

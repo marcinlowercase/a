@@ -61,6 +61,7 @@ data class BrowserUIState(
     val isFocusOnProfileTextField: Boolean = false,
     val isFocusOnIconUrlTextField: Boolean = false,
     val isPinningApp: Boolean = false,
+    val isCloningBrowser: Boolean = false,
     val isCreatingProfile: Boolean = false,
     val isRenamingProfile: Boolean = false,
 

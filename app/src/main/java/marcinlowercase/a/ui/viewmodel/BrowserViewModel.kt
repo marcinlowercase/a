@@ -146,7 +146,10 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         val currentPwa = pwaTab.value
 
         // Prevent reloading if we already spun up this PWA
-        if (currentPwa != null && (currentPwa.currentURL.startsWith(url) || url.startsWith(currentPwa.currentURL))) {
+        if (currentPwa != null && (currentPwa.currentURL.startsWith(url) || url.startsWith(
+                currentPwa.currentURL
+            ))
+        ) {
             return
         }
 
@@ -159,6 +162,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         geckoManager.getSession(newTab) // Boot the engine
         pwaTab.value = newTab // Set it as the active standalone app
     }
+
     //endregion
     // region Profile Logic
     val profiles = mutableStateListOf<Profile>().apply {
@@ -175,27 +179,28 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     private var currentProfilePrefs: android.content.SharedPreferences? = null
     private var syncJob: Job? = null // The debounce tracker
 
-    private val prefsListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
-        // DEBOUNCE: Cancel the previous job if the user is still actively dragging a slider!
-        syncJob?.cancel()
-        syncJob = viewModelScope.launch(Dispatchers.IO) {
-            // Wait 300ms for the user to finish dragging/typing before we do heavy disk reads
-            delay(300)
+    private val prefsListener =
+        android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
+            // DEBOUNCE: Cancel the previous job if the user is still actively dragging a slider!
+            syncJob?.cancel()
+            syncJob = viewModelScope.launch(Dispatchers.IO) {
+                // Wait 300ms for the user to finish dragging/typing before we do heavy disk reads
+                delay(300)
 
-            // Do the heavy lifting on a background thread so the UI never drops a frame
-            val newSettings = loadSettingsFromPrefs(currentProfileId)
-            val newSiteSettings = siteSettingsManager.loadSettings(currentProfileId)
+                // Do the heavy lifting on a background thread so the UI never drops a frame
+                val newSettings = loadSettingsFromPrefs(currentProfileId)
+                val newSiteSettings = siteSettingsManager.loadSettings(currentProfileId)
 
-            // Push the fresh data to the UI on the Main thread
-            withContext(Dispatchers.Main) {
-                _browserSettings.value = newSettings
-                geckoManager.setAdBlockEnabled(newSettings.isAdBlockEnabled)
+                // Push the fresh data to the UI on the Main thread
+                withContext(Dispatchers.Main) {
+                    _browserSettings.value = newSettings
+                    geckoManager.setAdBlockEnabled(newSettings.isAdBlockEnabled)
 
-                siteSettings.clear()
-                siteSettings.putAll(newSiteSettings)
+                    siteSettings.clear()
+                    siteSettings.putAll(newSiteSettings)
+                }
             }
         }
-    }
 
     private fun setupPrefsListener(profileId: String) {
         val context = getApplication<Application>()
@@ -206,7 +211,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
         // Listen to Profile Prefs (AdBlock, Theme, etc)
         currentProfilePrefs?.unregisterOnSharedPreferenceChangeListener(prefsListener)
-        currentProfilePrefs = context.getSharedPreferences("BrowserPrefs_$profileId", Context.MODE_PRIVATE)
+        currentProfilePrefs =
+            context.getSharedPreferences("BrowserPrefs_$profileId", Context.MODE_PRIVATE)
         currentProfilePrefs?.registerOnSharedPreferenceChangeListener(prefsListener)
     }
 
@@ -230,6 +236,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 0 -> { // LOW MEMORY: Close everything
                     geckoManager.closeSession(tab)
                 }
+
                 1 -> { // STANDARD: Keep only the active tab paused, close the rest
                     if (tab.id == currentActiveTabId) {
                         geckoManager.pauseSessionIfExists(tab.id)
@@ -237,6 +244,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                         geckoManager.closeSession(tab)
                     }
                 }
+
                 2 -> { // HIGH MEMORY: Keep all tabs paused in RAM
                     geckoManager.pauseSessionIfExists(tab.id)
                 }
@@ -277,8 +285,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         // 9. Force UI to update session
         sessionRefreshTrigger.intValue++
     }
-
-
 
 
     fun createNewProfile(name: String = "new profile") {
@@ -751,6 +757,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             )
         }
     }
+
     fun refreshSettings() {
         // Force the ViewModel to re-read the disk.
         // This ensures the PWA instantly adopts any changes made in the Main Browser!
@@ -761,6 +768,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         siteSettings.clear()
         siteSettings.putAll(updatedSiteSettings)
     }
+
     private fun saveSettingsToPrefs(profileId: String, settings: BrowserSettings) {
         val context = getApplication<Application>()
         val globalPrefs = context.getSharedPreferences("BrowserPrefs", Context.MODE_PRIVATE)
@@ -806,6 +814,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             apply()
         }
     }    //endregion
+
     //region UI State
     private val _uiState = MutableStateFlow(
         BrowserUIState(
@@ -934,7 +943,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         }
 
         // 2. Create the new Tab object using the ID provided by the engine
-       val newTab = Tab(
+        val newTab = Tab(
             profileId = currentProfileId,
             id = engineId,
             currentURL = uri,
@@ -1189,7 +1198,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         val initialUrl = url.ifBlank { _browserSettings.value.defaultUrl }
 
         Log.d("marcBlank", "load blank from createNewTab, $initialUrl")
-       val newTab = Tab(
+        val newTab = Tab(
             profileId = currentProfileId,
             currentURL = initialUrl.ifBlank { "about:blank" },
             state = TabState.ACTIVE,
@@ -1283,11 +1292,13 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     }
 
 
-    fun generateAndInstallWebApk(context: Context, title: String, url: String, iconUrl: String) {
+    fun generateAndInstallWebApk(context: Context, title: String, url: String, iconUrl: String, isFullBrowser: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                //TODO
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "preparing web app installer...", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, if (isFullBrowser) "preparing custom browser..." else "preparing web app installer...", Toast.LENGTH_SHORT)
+                        .show()
                 }
 
                 // Step 1: Generate or Download the APK
@@ -1295,7 +1306,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
                 // Run the generation process
                 val isGenerated =
-                    mockGenerateWebApkLocallyOrRemotely(context, title, url, iconUrl, apkFile)
+                    mockGenerateWebApkLocallyOrRemotely(context, title, url, iconUrl, apkFile, isFullBrowser)
 
                 // NOW check if it generated successfully
                 withContext(Dispatchers.Main) {
@@ -1317,7 +1328,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private suspend fun mockGenerateWebApkLocallyOrRemotely(
-        context: Context, title: String, url: String, iconUrl: String, outFile: File
+        context: Context, title: String, url: String, iconUrl: String, outFile: File, isFullBrowser: Boolean
     ): Boolean {
 
         Log.i("WebAPK", "iconURl: ${iconUrl}")
@@ -1328,7 +1339,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
                 // 1. Try to load the Favicon using Coil
 
-                 // 1. Try to load the Favicon using your GLOBAL Custom ImageLoader
+                // 1. Try to load the Favicon using your GLOBAL Custom ImageLoader
                 var iconBitmap: Bitmap? = null
                 try {
                     if (iconUrl.isNotBlank()) {
@@ -1336,11 +1347,12 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
                         // --- NEW: Check if the string is raw SVG text ---
                         // If it is, we wrap it in a ByteBuffer so Coil natively parses it as a file stream!
-                        val dataPayload: Any = if (iconUrl.trim().startsWith("<svg", ignoreCase = true)) {
-                            java.nio.ByteBuffer.wrap(iconUrl.toByteArray(Charsets.UTF_8))
-                        } else {
-                            iconUrl
-                        }
+                        val dataPayload: Any =
+                            if (iconUrl.trim().startsWith("<svg", ignoreCase = true)) {
+                                java.nio.ByteBuffer.wrap(iconUrl.toByteArray(Charsets.UTF_8))
+                            } else {
+                                iconUrl
+                            }
 
                         val request = ImageRequest.Builder(context)
                             .addHeader(
@@ -1416,7 +1428,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 // 2. Clean the App Title (lowercase, spaces to _, alphanumeric only)
                 // We no longer need to force "app_" because our prefix already ends with an underscore
                 // and the segment starts with "pwa_" or "web_app_", which are valid letters!
-                val cleanName = title.lowercase().replace(Regex("\\s+"), "_").filter { it.isLetterOrDigit() || it == '_' }
+                val cleanName = title.lowercase().replace(Regex("\\s+"), "_")
+                    .filter { it.isLetterOrDigit() || it == '_' }
 
                 // 3. Add the System Clock suffix (Must start with a letter, so we use '.t')
                 val timeSuffix = ".t" + System.currentTimeMillis().toString()
@@ -1536,18 +1549,20 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                                 // If the file wasn't an icon, process normally
                                 if (bytesToWrite == null) {
                                     when (name) {
-                                                                                "assets/config.json" -> {
+                                        "assets/config.json" -> {
                                             val hostPackage = context.packageName
                                             val pId = activeProfileId.value
-
                                             // --- NEW: Safely escape everything ---
                                             // Because raw SVGs contain quotes, slashes, and line breaks, we MUST safely
                                             // escape them so the JSON doesn't become corrupted inside the APK!
-                                            val escapedTitle = title.replace("\\", "\\\\").replace("\"", "\\\"")
-                                            val escapedIconUrl = iconUrl.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "")
+                                            val escapedTitle =
+                                                title.replace("\\", "\\\\").replace("\"", "\\\"")
+                                            val escapedIconUrl =
+                                                iconUrl.replace("\\", "\\\\").replace("\"", "\\\"")
+                                                    .replace("\n", "\\n").replace("\r", "")
 
                                             val configJson =
-                                                """{"url": "$url", "host": "$hostPackage", "profileId": "$pId", "name": "$escapedTitle", "iconUrl": "$escapedIconUrl"}"""
+                                                """{"url": "$url", "host": "$hostPackage", "profileId": "$pId", "name": "$escapedTitle", "iconUrl": "$escapedIconUrl", "isFullBrowser": $isFullBrowser}"""
                                             bytesToWrite = configJson.toByteArray(Charsets.UTF_8)
                                         }
 
@@ -1999,6 +2014,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             counter++
         }
     }
+
     //endregion
     //region Site Settings logic
     val siteSettings = mutableStateMapOf<String, SiteSettings>().apply {
@@ -2061,7 +2077,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             updatedDecisions[generic_location_permission] = isGranted
         }
 
-       // 3. Update memory map and persist to disk
+        // 3. Update memory map and persist to disk
         val newSettings = currentSettings.copy(permissionDecisions = updatedDecisions)
         siteSettings[domain] = newSettings
         siteSettingsManager.saveSettings(currentProfileId, siteSettings)
@@ -2113,6 +2129,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
         }
     }
+
     //endregion
     //region Suggestions Logic
     val suggestions = mutableStateListOf<Suggestion>()
@@ -2198,7 +2215,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     }
 
-  val removeSuggestionFromHistory = { suggestionToRemove: Suggestion ->
+    val removeSuggestionFromHistory = { suggestionToRemove: Suggestion ->
         if (suggestionToRemove.source == SuggestionSource.HISTORY) {
             visitedUrlManager.removeUrl(currentProfileId, suggestionToRemove.url)
             visitedUrlMap.remove(suggestionToRemove.url)

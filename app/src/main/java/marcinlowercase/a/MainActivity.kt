@@ -190,7 +190,10 @@ import kotlin.system.exitProcess
 //region Composable
 
 class MainActivity : ComponentActivity() {
-
+    companion object {
+        // Keeps track of the ONE allowed Full Browser window globally
+        var currentFullBrowserInstance: java.lang.ref.WeakReference<MainActivity>? = null
+    }
     val newUrlFromIntent = MutableStateFlow<String?>(null)
 
     private var pendingFilePrompt: GeckoSession.PromptDelegate.FilePrompt? = null
@@ -312,7 +315,9 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         val isPwa = intent?.getBooleanExtra("is_pwa", false) == true
-        if (!isTaskRoot && !isPwa) {
+        val isClonedBrowser = intent?.getBooleanExtra("is_cloned_browser", false) == true
+
+        if (!isTaskRoot && !isPwa && !isClonedBrowser) {
             // We are trapped inside another app's task!
             // Clone the intent, add the NEW_TASK flag, and fire it to our Main Browser task!
             val bounceIntent = Intent(intent).apply {
@@ -374,6 +379,14 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        // Clean up the Highlander reference if this instance is destroyed natively
+        if (currentFullBrowserInstance?.get() == this) {
+            currentFullBrowserInstance = null
+        }
+    }
+
 
     //region Intent
     //region Intent
@@ -402,6 +415,39 @@ class MainActivity : ComponentActivity() {
             }
         } else {
             viewModel.isStandaloneMode.value = false
+        }
+
+        if (!viewModel.isStandaloneMode.value) {
+            val oldInstance = currentFullBrowserInstance?.get()
+            if (oldInstance != null && oldInstance != this@MainActivity) {
+                Log.i("MultiWindow", "Killing old full browser instance to prevent state collision!")
+                try {
+                    val caller = oldInstance.callingActivity
+                    Log.i("marcCloned", "caller ${caller?.packageName}")
+                    if (caller != null) {
+                        // 1. It is a Cloned Browser sitting on a Shell App!
+                        // We shoot a "Kill" Intent down to the exact Shell App that spawned it.
+                        // CLEAR_TOP instantly incinerates the Cloned Browser sitting above it.
+                        // SINGLE_TOP wakes up the Shell App so it can call finishAndRemoveTask().
+                        val killIntent = Intent()
+
+                        killIntent.component = caller
+                        killIntent.putExtra("kill_shell", true)
+                        killIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+
+                        // Fire the missile from the current foreground window!
+                        startActivity(killIntent)
+                    } else {
+                        // 2. It is the Original Browser. It owns its own task.
+                        // We can safely obliterate it directly!
+                        oldInstance.finishAndRemoveTask()
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+            // Crown this window as the new active Full Browser
+            currentFullBrowserInstance = java.lang.ref.WeakReference(this@MainActivity)
         }
     }
 
