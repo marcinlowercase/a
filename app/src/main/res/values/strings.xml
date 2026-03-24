@@ -106,5 +106,9 @@
     <string name="placeholder_url">search / url</string>
     <string name="placeholder_blank_page">blank page</string>
 
+    <!-- Toast -->
+    <string name="toast_prepare_cloned">preparing custom browser…</string>
+    <string name="toast_prepare_pwa">preparing web app installer…</string>
+
 
 </resources>

@@ -41,6 +41,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.core.content.pm.ShortcutInfoCompat
@@ -1295,9 +1296,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     fun generateAndInstallWebApk(context: Context, title: String, url: String, iconUrl: String, isFullBrowser: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                //TODO
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(context, if (isFullBrowser) "preparing custom browser..." else "preparing web app installer...", Toast.LENGTH_SHORT)
+                    Toast.makeText(context, if (isFullBrowser) context.getString(R.string.toast_prepare_cloned) else context.getString(R.string.toast_prepare_pwa), Toast.LENGTH_SHORT)
                         .show()
                 }
 
