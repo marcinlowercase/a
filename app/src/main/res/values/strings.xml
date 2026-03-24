@@ -106,6 +106,7 @@
     <string name="placeholder_url">search / url</string>
     <string name="placeholder_blank_page">blank page</string>
     <string name="placeholder_icon_link">custom icon url / svg code</string>
+    <string name="placeholder_profile">profile</string>
 
     <!-- Toast -->
     <string name="toast_prepare_cloned">preparing custom browser…</string>

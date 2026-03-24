@@ -104,6 +104,7 @@ import java.util.regex.Pattern
 import androidx.core.graphics.scale
 import marcinlowercase.a.R
 import androidx.core.graphics.createBitmap
+import androidx.lifecycle.application
 
 val LocalBrowserViewModel = staticCompositionLocalOf<BrowserViewModel> {
     error("No BrowserViewModel provided! Check your root Composable.")
@@ -340,7 +341,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             // Case: Only 1 profile exists. Create a new one.
             val newProfile = Profile(
                 id = "profile_${System.currentTimeMillis()}",
-                name = "profile ${profiles.size + 1}"
+                name = "${application.getString(R.string.placeholder_profile)} ${profiles.size + 1}"
             )
             profiles.add(newProfile)
             profileManager.saveProfiles(profiles)

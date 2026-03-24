@@ -580,10 +580,26 @@ fun BottomPanel(
                                                         val currentState = viewModel.uiState.value
                                                         // Protect UI from tearing down if picker is open
                                                         if (!currentState.isFocusOnIconUrlTextField && !currentState.isFocusOnUrlTextField && !isPickingImage.value) {
-                                                            if (currentState.isPinningApp) viewModel.updateUI { it.copy(isPinningApp = false) }
-                                                            if (currentState.isCloningBrowser) viewModel.updateUI { it.copy(isCloningBrowser = false) }
-                                                            if (currentState.isCreatingProfile) viewModel.updateUI { it.copy(isCreatingProfile = false) }
-                                                            if (currentState.isRenamingProfile) viewModel.updateUI { it.copy(isRenamingProfile = false) }
+                                                            if (currentState.isPinningApp) viewModel.updateUI {
+                                                                it.copy(
+                                                                    isPinningApp = false
+                                                                )
+                                                            }
+                                                            if (currentState.isCloningBrowser) viewModel.updateUI {
+                                                                it.copy(
+                                                                    isCloningBrowser = false
+                                                                )
+                                                            }
+                                                            if (currentState.isCreatingProfile) viewModel.updateUI {
+                                                                it.copy(
+                                                                    isCreatingProfile = false
+                                                                )
+                                                            }
+                                                            if (currentState.isRenamingProfile) viewModel.updateUI {
+                                                                it.copy(
+                                                                    isRenamingProfile = false
+                                                                )
+                                                            }
 
                                                             currentState.savedPanelState?.let { savedState ->
                                                                 viewModel.updateUI {
@@ -614,7 +630,7 @@ fun BottomPanel(
                                             },
                                         state = customIconUrlState,
                                         placeholder = {
-                                            Text("custom icon url / svg code", color = Color.Gray)
+                                            Text(stringResource(R.string.placeholder_icon_link), color = Color.Gray)
                                         },
                                         textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Start),
                                         lineLimits = TextFieldLineLimits.SingleLine,
@@ -1197,6 +1213,7 @@ fun BottomPanel(
 
 
                 val browserName = stringResource(R.string.app_name)
+                val profileText = stringResource(R.string.placeholder_profile)
                 TextEditPanel(
 //                    currentRotation =  currentRotation,
                     isVisible = uiState.value.isPinningApp || uiState.value.isCloningBrowser || (uiState.value.isFocusOnUrlTextField && textFieldState.text.isBlank()),
@@ -1210,7 +1227,7 @@ fun BottomPanel(
                     onEditClick = {
                         textFieldState.setTextAndPlaceCursorAtEnd(
                             when {
-                                uiState.value.isCreatingProfile -> "profile "
+                                uiState.value.isCreatingProfile -> "$profileText "
                                 uiState.value.isRenamingProfile -> viewModel.profiles.find { it.id == viewModel.activeProfileId.value }?.name
                                     ?: ""
 

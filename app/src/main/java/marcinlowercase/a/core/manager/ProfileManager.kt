@@ -16,12 +16,13 @@
  */
 package marcinlowercase.a.core.manager
 
+import marcinlowercase.a.R
 import android.content.Context
 import androidx.core.content.edit
 import kotlinx.serialization.json.Json
 import marcinlowercase.a.core.data_class.Profile
 
-class ProfileManager(context: Context) {
+class ProfileManager(private val context: Context) {
     private val prefs = context.getSharedPreferences("BrowserProfiles", Context.MODE_PRIVATE)
     private val json = Json { ignoreUnknownKeys = true }
     private val profilesKey = "profiles_list_json"
@@ -49,7 +50,7 @@ class ProfileManager(context: Context) {
     }
 
     private fun createDefaultProfile(): List<Profile> {
-        val defaultProfile = Profile(id = "profile_1", "profile 1")
+        val defaultProfile = Profile(id = "profile_1", "${context.getString(R.string.placeholder_profile)} 1")
         saveProfiles(listOf(defaultProfile))
         return listOf(defaultProfile)
     }

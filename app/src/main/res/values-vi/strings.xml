@@ -107,6 +107,8 @@
     <string name="placeholder_url">tìm kiếm / url</string>
     <string name="placeholder_blank_page">trang trống</string>
     <string name="placeholder_icon_link">url tới biểu tượng tuỳ chỉnh / mã svg</string>
+    <string name="placeholder_profile">hồ sơ</string>
+
 
     <!-- Toast -->
     <string name="toast_prepare_cloned">đang chuẩn bị trình duyệt tuỳ chỉnh…</string>
