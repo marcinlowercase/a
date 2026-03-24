@@ -48,4 +48,11 @@
     <string name="desc_rename_profile">rename profile</string>
     <string name="desc_new_profile">new profile</string>
     <string name="desc_delete_profile">delete profile</string>
+
+    <!-- Text Edit Panel -->
+    <string name="desc_cancel">cancel</string>
+    <string name="desc_install_web_app">install web app</string>
+    <string name="desc_edit_app_name">edit app name</string>
+    <string name="desc_copy_current_url">copy current url</string>
+    <string name="desc_edit_current_url">edit current url</string>
 </resources>
