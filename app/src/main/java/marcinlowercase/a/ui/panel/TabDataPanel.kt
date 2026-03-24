@@ -45,6 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import marcinlowercase.a.R
 import marcinlowercase.a.core.constant.generic_location_permission
@@ -56,7 +57,7 @@ import kotlin.math.roundToInt
 
 private enum class TabDataPanelView {
     MAIN,
-//    HISTORY,
+    //    HISTORY,
     PERMISSIONS
 }
 
@@ -160,7 +161,7 @@ fun TabDataPanel(
 //                                        browserSettings = browserSettings,
 //                                        modifier = Modifier.fillMaxWidth(),
 //                                        onTap = { currentView = TabDataPanelView.HISTORY },
-//                                        
+//
 //                                        buttonDescription = "history list",
 //                                        painterId = R.drawable.ic_history,
 //                                        isWhite = false,
@@ -176,8 +177,7 @@ fun TabDataPanel(
                                         layer = 3,
                                         modifier = Modifier.fillMaxWidth(),
                                         onTap = { currentView = TabDataPanelView.PERMISSIONS },
-                                        
-                                        buttonDescription = "permission list",
+                                        buttonDescription = stringResource(R.string.desc_permission_list),
                                         painterId = R.drawable.ic_shield_toggle,
                                         isWhite = false,
                                     )
@@ -201,13 +201,13 @@ fun TabDataPanel(
                                     horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
                                 ) {
                                     settings.permissionDecisions.forEach { (permission, isGranted) ->
-                                        // Determine the correct icon and name for the button
+                                        // Determine the correct icon and name resource for the button
                                         //Log.i("PermissionRelated", "permission: $permission")
-                                        val (iconRes, name) = when (permission) {
-                                            generic_location_permission -> R.drawable.ic_location_on to "location"
-                                            Manifest.permission.CAMERA -> R.drawable.ic_camera_on to "camera"
-                                            Manifest.permission.RECORD_AUDIO -> R.drawable.ic_mic_on to "microphone"
-                                            else -> R.drawable.ic_bug to "unknown"
+                                        val (iconRes, nameResId) = when (permission) {
+                                            generic_location_permission -> R.drawable.ic_location_on to R.string.desc_permission_location
+                                            Manifest.permission.CAMERA -> R.drawable.ic_camera_on to R.string.desc_permission_camera
+                                            Manifest.permission.RECORD_AUDIO -> R.drawable.ic_mic_on to R.string.desc_permission_microphone
+                                            else -> R.drawable.ic_bug to R.string.desc_permission_unknown
                                         }
 
                                         CustomIconButton(
@@ -215,8 +215,7 @@ fun TabDataPanel(
                                             layer = 3,
                                             modifier = Modifier.weight(1f),
                                             onTap = { onPermissionToggle(domain, permission, !isGranted)},
-                                            
-                                            buttonDescription = name,
+                                            buttonDescription = stringResource(nameResId),
                                             painterId = iconRes,
                                             isWhite = isGranted,
                                         )
@@ -256,8 +255,7 @@ fun TabDataPanel(
                             layer = 3,
                             modifier = Modifier.weight(1f),
                             onTap = onClearSiteData,
-                            
-                            buttonDescription = "clear site data",
+                            buttonDescription = stringResource(R.string.desc_clear_site_data),
                             painterId = R.drawable.ic_database_off
                         )
 
@@ -269,8 +267,7 @@ fun TabDataPanel(
                         layer = 3,
                         modifier = Modifier.weight(1f),
                         onTap = { viewModel.duplicateInspectedTab() },
-                        
-                        buttonDescription = "duplicate tab",
+                        buttonDescription = stringResource(R.string.desc_duplicate_tab),
                         painterId = R.drawable.ic_tab_duplicate
                     )
 
@@ -279,8 +276,7 @@ fun TabDataPanel(
                         layer = 3,
                         modifier = Modifier.weight(1f),
                         onTap = onCloseTab,
-                        
-                        buttonDescription = "close tab",
+                        buttonDescription = stringResource(R.string.desc_close_tab),
                         painterId = R.drawable.ic_tab_close
                     )
 
@@ -289,8 +285,7 @@ fun TabDataPanel(
                         layer = 3,
                         modifier = Modifier.weight(1f),
                         onTap = { viewModel.moveInspectedTabToNextProfile() },
-
-                        buttonDescription = "move tab to next profile",
+                        buttonDescription = stringResource(R.string.desc_move_tab_to_next_profile),
                         painterId = R.drawable.ic_tab_move
                     )
 

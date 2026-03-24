@@ -43,6 +43,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import marcinlowercase.a.R
@@ -54,7 +55,7 @@ import androidx.compose.runtime.collectAsState
 fun FindInPagePanel(
 //    currentRotation: Float,
     isVisible: Boolean,
-   
+
     onSearchTextChanged: (String) -> Unit,
     onFindNext: () -> Unit,
     onFindPrevious: () -> Unit,
@@ -115,7 +116,7 @@ fun FindInPagePanel(
                 shape = RoundedCornerShape(
                     settings.value.cornerRadiusForLayer(2).dp
                 ),
-                placeholder = { Text("find in page") },
+                placeholder = { Text(stringResource(R.string.ui_find_in_page)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() }),
@@ -146,7 +147,7 @@ fun FindInPagePanel(
                     modifier = Modifier.weight(1f),
                     onTap = onClose,
 
-                    buttonDescription = "cancel",
+                    buttonDescription = stringResource(R.string.desc_cancel),
                     painterId = R.drawable.ic_arrow_back,
                     isWhite = false,
                 )
@@ -155,7 +156,7 @@ fun FindInPagePanel(
                     modifier = Modifier.weight(1f),
                     onTap = onFindNext,
 
-                    buttonDescription = "next",
+                    buttonDescription = stringResource(R.string.desc_find_next),
                     painterId = R.drawable.ic_arrow_downward,
                     isWhite = viewModel.findInPageResult.value.second > 0,
                 )
@@ -177,7 +178,7 @@ fun FindInPagePanel(
                     modifier = Modifier.weight(1f),
                     onTap = onFindPrevious,
 
-                    buttonDescription = "previous",
+                    buttonDescription = stringResource(R.string.desc_find_previous),
                     painterId = R.drawable.ic_arrow_upward,
                     isWhite = viewModel.findInPageResult.value.second > 0,
                 )

@@ -103,7 +103,7 @@ enum class SettingPanelView {
 fun rememberBrowserOptionsRegistry(
     onCloseAllTabs: () -> Unit,
     onNavigateToSetting: (SettingPanelView) -> Unit,
-    confirmationPopup: (String, String, () -> Unit, () -> Unit) -> Unit
+    confirmationPopup: (Int, String, () -> Unit, () -> Unit) -> Unit
 ): Map<BrowserOption, OptionItem> {
     val viewModel = LocalBrowserViewModel.current
     val uiState = viewModel.uiState.collectAsState()
@@ -258,7 +258,7 @@ fun rememberBrowserOptionsRegistry(
                 iconRes = R.drawable.ic_reset_settings,
                 contentDescription = R.string.desc_reset_settings
             ) {
-                confirmationPopup("reset all settings?", "", { viewModel.resetSettings() }, {})
+                confirmationPopup(R.string.confirm_reset_setting, "", { viewModel.resetSettings() }, {})
             },
             BrowserOption.SORT_BUTTONS to OptionItem(
                 id = BrowserOption.SORT_BUTTONS,
@@ -401,7 +401,7 @@ fun rememberBrowserOptionsRegistry(
                 enabled = viewModel.tabs.size > 1 || viewModel.geckoManager.sessionPoolSize > 1
             ) {
                if (viewModel.tabs.size > 1 || viewModel.geckoManager.sessionPoolSize > 1) confirmationPopup(
-                    "close all background tabs and free up memory ? ",
+                    R.string.confirm_optimize_memory,
                     "",
                     {
                         viewModel.optimizeMemory()
@@ -430,7 +430,7 @@ fun rememberBrowserOptionsRegistry(
 @Composable
 fun OptionsPanel(
     onCloseAllTabs: () -> Unit,
-    confirmationPopup: (String, String, () -> Unit, () -> Unit) -> Unit
+    confirmationPopup: (Int, String, () -> Unit, () -> Unit) -> Unit
 ) {
     val viewModel = LocalBrowserViewModel.current
     val settings = viewModel.browserSettings.collectAsState()
@@ -576,7 +576,7 @@ fun OptionsPanel(
 // --- SETTINGS PANEL ---
 @Composable
 fun SettingsPanel(
-    confirmationPopup: (String, String, () -> Unit, () -> Unit) -> Unit,
+    confirmationPopup: (Int, String, () -> Unit, () -> Unit) -> Unit,
     onCloseAllTabs: () -> Unit,
     targetSetting: SettingPanelView = SettingPanelView.MAIN,
 ) {
@@ -884,25 +884,31 @@ fun SettingsPanel(
                     afterDecimal = true,
                     field = BrowserSettingField.MAX_LIST_HEIGHT
                 )
-                SettingPanelView.MEMORY_USAGE -> SliderSetting(
-                    textEnabled = false,
-                    onBackClick = { currentView = SettingPanelView.MAIN },
-                    valueRange = 0f..2f,
-                    steps = 1,
-                    textFieldValueFun = { src ->
-                        when (src[1].digitToInt()) {
-                            0 -> "Low Memory"
-                            1 -> "Standard"
-                            2 -> "High Memory"
-                            else -> "Standard"
-                        }
-                    },
-                    storeValueFun = { src -> src[1].digitToInt().toFloat() },
-                    iconID = R.drawable.ic_memory,
-                    digitCount = 4,
-                    afterDecimal = true,
-                    field = BrowserSettingField.MEMORY_USAGE
-                )
+                SettingPanelView.MEMORY_USAGE -> {
+                    val memoryLow = stringResource(R.string.memory_low)
+                    val memoryStandard = stringResource(R.string.memory_standard)
+                    val memoryHigh = stringResource(R.string.memory_high)
+                    SliderSetting(
+
+                        textEnabled = false,
+                        onBackClick = { currentView = SettingPanelView.MAIN },
+                        valueRange = 0f..2f,
+                        steps = 1,
+                        textFieldValueFun = { src ->
+                            when (src[1].digitToInt()) {
+                                0 -> memoryLow
+                                1 -> memoryStandard
+                                2 -> memoryHigh
+                                else -> memoryStandard
+                            }
+                        },
+                        storeValueFun = { src -> src[1].digitToInt().toFloat() },
+                        iconID = R.drawable.ic_memory,
+                        digitCount = 4,
+                        afterDecimal = true,
+                        field = BrowserSettingField.MEMORY_USAGE
+                    )
+                }
                 SettingPanelView.SEARCH_ENGINE -> SliderSetting(
                     textEnabled = false,
                     onBackClick = { currentView = SettingPanelView.MAIN },
@@ -1014,7 +1020,10 @@ fun SettingsPanel(
                                                 hexText = "" // Clear text so user can easily type
                                             } else {
                                                 // 4. THE FIX: The moment focus is lost, force text to match the real clamped color
-                                                hexText = String.format("#%06X", 0xFFFFFF and selectedColorInt)
+                                                hexText = String.format(
+                                                    "#%06X",
+                                                    0xFFFFFF and selectedColorInt
+                                                )
                                             }
                                         },
                                     cursorBrush = SolidColor(Color.Transparent),

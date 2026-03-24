@@ -93,6 +93,7 @@ import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.SoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -140,7 +141,7 @@ fun BottomPanel(
 
 
 //    onAddToHomeScreen: () -> Unit,
-    confirmationPopup: (message: String, url: String, onConfirm: () -> Unit, onCancel: () -> Unit) -> Unit,
+    confirmationPopup: (message: Int, url: String, onConfirm: () -> Unit, onCancel: () -> Unit) -> Unit,
     urlBarFocusRequester: FocusRequester,
 
     updateInspectingTab: (Tab) -> Unit,
@@ -533,7 +534,7 @@ fun BottomPanel(
                                                     it.copy(isFocusOnIconUrlTextField = focusState.isFocused)
                                                 }
                                                 if (!focusState.isFocused) {
-                                                    val input = (customIconUrlState.text as CharSequence).toString().trim()
+                                                    val input = (customIconUrlState.text).toString().trim()
                                                     if (input.isNotEmpty()) {
                                                         // CRITICAL FIX: Allow content:// URIs from the local file picker!
                                                         val isValid = Patterns.WEB_URL.matcher(input).matches() ||
@@ -785,7 +786,7 @@ fun BottomPanel(
 
                                         uiState.value.isPinningApp -> {
 
-                                            val customIconInput = (customIconUrlState.text as CharSequence).toString().trim()
+                                            val customIconInput = (customIconUrlState.text).toString().trim()
                                             val finalIconUrl = customIconInput.ifEmpty { viewModel.activeTab!!.currentFaviconUrl }
 
                                             viewModel.pinApp(
@@ -1075,7 +1076,7 @@ fun BottomPanel(
                                     )
                                 }
                                 confirmationPopup(
-                                    "delete profile ? ",
+                                    R.string.confirm_delete_profile,
                                     "",
                                     {
                                         viewModel.deleteProfile()
@@ -1121,10 +1122,10 @@ fun BottomPanel(
                         focusManager.clearFocus()
                     },
                     onAddToHomeScreen = {
-                        val input = (textFieldState.text as CharSequence).toString().trim()
+                        val input = (textFieldState.text).toString().trim()
                         // 2. If the user cleared the text, fallback to the website's title
                         val finalTitle = input.ifEmpty { viewModel.activeTab!!.currentTitle }
-                        val customIconInput = (customIconUrlState.text as CharSequence).toString().trim()
+                        val customIconInput = (customIconUrlState.text).toString().trim()
                         val finalIconUrl = customIconInput.ifEmpty { viewModel.activeTab!!.currentFaviconUrl }
                         viewModel.generateAndInstallWebApk(
                             context = context,

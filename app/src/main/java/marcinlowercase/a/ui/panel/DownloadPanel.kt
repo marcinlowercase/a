@@ -48,6 +48,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -58,6 +59,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import marcinlowercase.a.R
@@ -67,18 +69,20 @@ import marcinlowercase.a.core.function.formatSpeed
 import marcinlowercase.a.core.function.formatTimeRemaining
 import marcinlowercase.a.ui.component.CustomIconButton
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
-import androidx.compose.runtime.collectAsState
 
 @Composable
 fun DownloadPanel(
 //    currentRotation: Float,
-    confirmationPopup: (message: String, url: String, onConfirm: () -> Unit, onCancel: () -> Unit) -> Unit,
+    confirmationPopup: (message: Int, url: String, onConfirm: () -> Unit, onCancel: () -> Unit) -> Unit,
     isDownloadPanelVisible: Boolean,
     onDownloadRowClicked: (DownloadItem) -> Unit,
     onOpenFolderClicked: () -> Unit,
 ) {
     val viewModel = LocalBrowserViewModel.current
     val settings = viewModel.browserSettings.collectAsState()
+
+    // Cache the string resource for the popup lambda
+
     AnimatedVisibility(
         visible = isDownloadPanelVisible,
         enter = expandVertically(
@@ -160,7 +164,7 @@ fun DownloadPanel(
                     layer = 3,
                     modifier = Modifier.weight(1f),
                     onTap = onOpenFolderClicked,
-                    buttonDescription = "download folder",
+                    buttonDescription = stringResource(R.string.desc_download_folder),
                     painterId = R.drawable.ic_folder,
 //                    currentRotation = currentRotation,
                 )
@@ -171,7 +175,7 @@ fun DownloadPanel(
                         modifier = Modifier.weight(1f),
                         onTap = {
                             confirmationPopup(
-                                "clear download list ?",
+                                R.string.prompt_clear_download_list,
                                 "",
                                 {
                                     viewModel.clearDownloadList()
@@ -179,7 +183,7 @@ fun DownloadPanel(
                                 {}
                             )
                         },
-                        buttonDescription = "clear download list",
+                        buttonDescription = stringResource(R.string.desc_clear_download_list),
                         painterId = R.drawable.ic_clear_all,
 
                         )
@@ -282,7 +286,7 @@ fun DownloadRow(
                                     else -> R.drawable.ic_download
                                 }
                         ),
-                        contentDescription = "Download Icon",
+                        contentDescription = stringResource(R.string.desc_download_icon),
                         // Change the tint based on status for better visual feedback
                         tint = if (item.status == DownloadStatus.RUNNING) Color(settings.value.highlightColor) else Color.Black,
                         modifier = Modifier
@@ -312,11 +316,11 @@ fun DownloadRow(
 
                             // Show actual live progress if total is unknown
                             val sizeInfo = if (item.totalBytes > 0) {
-                                "$downloadedMb MB / $totalMb MB"
+                                stringResource(R.string.ui_download_progress_known, downloadedMb, totalMb)
                             } else if (item.downloadedBytes > 0) {
-                                "$downloadedMb MB downloaded"
+                                stringResource(R.string.ui_download_progress_unknown, downloadedMb)
                             } else {
-                                "Starting..."
+                                stringResource(R.string.ui_download_starting)
                             }
 
                             val speedInfo = if (item.downloadSpeedBps > 0) formatSpeed(item.downloadSpeedBps) else ""
@@ -369,7 +373,7 @@ fun DownloadRow(
             ) {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_delete_forever),
-                    contentDescription = "Confirm Delete",
+                    contentDescription = stringResource(R.string.desc_confirm_delete),
                     tint = Color.White,
                     modifier = Modifier.size(32.dp)
                 )

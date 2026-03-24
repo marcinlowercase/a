@@ -55,4 +55,48 @@
     <string name="desc_edit_app_name">edit app name</string>
     <string name="desc_copy_current_url">copy current url</string>
     <string name="desc_edit_current_url">edit current url</string>
+
+    <!-- Find In Page Panel -->
+    <string name="ui_find_in_page">find in page</string>
+    <string name="desc_find_next">next</string>
+    <string name="desc_find_previous">previous</string>
+
+    <!-- Download Panel -->
+    <string name="desc_download_folder">download folder</string>
+    <string name="prompt_clear_download_list">clear download list ?</string>
+    <string name="desc_clear_download_list">clear download list</string>
+    <string name="desc_download_icon">Download Icon</string>
+    <string name="desc_confirm_delete">Confirm Delete</string>
+    <string name="ui_download_starting">Starting…</string>
+    <string name="ui_download_progress_known">%1$s MB / %2$s MB</string>
+    <string name="ui_download_progress_unknown">%1$s MB downloaded</string>
+
+    <!-- Tab Data Panel -->
+    <string name="desc_permission_list">permission list</string>
+    <string name="desc_permission_location">location</string>
+    <string name="desc_permission_camera">camera</string>
+    <string name="desc_permission_microphone">microphone</string>
+    <string name="desc_permission_unknown">unknown</string>
+    <string name="desc_clear_site_data">clear site data</string>
+    <string name="desc_duplicate_tab">duplicate tab</string>
+    <string name="desc_close_tab">close tab</string>
+    <string name="desc_move_tab_to_next_profile">move tab to next profile</string>
+
+    <!-- Confirmation Popup -->
+    <string name="confirm_delete_profile">delete profile ? </string>
+    <string name="confirm_reset_setting">reset all settings ?</string>
+    <string name="confirm_optimize_memory">close all background tabs and free up memory ?</string>
+    <string name="confirm_close_tab">close tab ?</string>
+    <string name="confirm_clear_site_data">clear site data ?</string>
+    <string name="confirm_download_file_on">download file on</string>
+    <string name="confirm_close_all_tab">close all tabs and exit ?</string>
+    <string name="confirm_remove_suggestion">remove suggestion from history ?</string>
+    <string name="confirm_beginning_of_history">reach the beginning of tab history ,\nclose tab ? </string>
+
+    <!-- Memory Setting -->
+    <string name="memory_low">low memory</string>
+    <string name="memory_standard">standard</string>
+    <string name="memory_high">high memory</string>
+
+
 </resources>

@@ -95,7 +95,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableDoubleStateOf
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -888,7 +887,7 @@ fun BrowserScreen(
 
 
     fun confirmationPopup(
-        message: String,
+        message: Int,
         url: String = "",
         onConfirm: () -> Unit,
         onCancel: () -> Unit = {}
@@ -1013,7 +1012,7 @@ fun BrowserScreen(
         val tabToClose = viewModel.currentInspectingTab
         if (tabToClose != null && viewModel.tabs.indexOf(tabToClose) > -1) {
             confirmationPopup(
-                message = "close tab ?",
+                message = R.string.confirm_close_tab,
                 onConfirm = {
                     viewModel.closeInspectedTab {
                         activity.finishAndRemoveTask()
@@ -1035,7 +1034,7 @@ fun BrowserScreen(
     }
     val handleClearInspectedTabData = {
         confirmationPopup(
-            message = "clear site data ?",
+            message = R.string.confirm_clear_site_data,
             onConfirm = {
                 val inspectingTab = viewModel.currentInspectingTab
 
@@ -1890,7 +1889,7 @@ fun BrowserScreen(
                 onDownloadRequested = { url, userAgent, contentDisposition, mimeType, stream ->
                     // Trigger your existing download logic
                     confirmationPopup(
-                        message = "download file on",
+                        message = R.string.confirm_download_file_on,
                         url = url,
                         onConfirm = {
                             startDownload(url, userAgent, contentDisposition, mimeType, stream)
@@ -2409,7 +2408,7 @@ fun BrowserScreen(
 
                         if (viewModel.tabs.size > 1) {
                             confirmationPopup(
-                                message = "reach the beginning of tab history ,\nclose tab ? ",
+                                message = R.string.confirm_beginning_of_history,
                                 onConfirm = {
                                     viewModel.closeActiveTab {
                                         activity.finishAndRemoveTask()
@@ -2506,7 +2505,7 @@ fun BrowserScreen(
                         confirmationPopup = ::confirmationPopup,
                         onCloseAllTabs = {
                             confirmationPopup(
-                                message = "close all tabs and exit ? ",
+                                message = R.string.confirm_close_all_tab,
                                 onConfirm = {
                                     closeAllTabs()
                                 },
@@ -2852,7 +2851,7 @@ fun BrowserScreen(
                             onDownload = { url ->
                                 // Simple generic download for images found via context menu
                                 confirmationPopup(
-                                    message = "download file on",
+                                    message = R.string.confirm_download_file_on,
                                     url = url,
                                     onConfirm = {
                                         startDownload(
@@ -2872,7 +2871,7 @@ fun BrowserScreen(
                             textFieldState = textFieldState,
                             onCloseAllTabs = {
                                 confirmationPopup(
-                                    message = "close all tabs and exit ? ",
+                                    message = R.string.confirm_close_all_tab,
                                     onConfirm = {
                                         closeAllTabs()
                                     },
@@ -2887,7 +2886,7 @@ fun BrowserScreen(
                             },
                             onRemoveSuggestion = { suggestionToRemove ->
                                 confirmationPopup(
-                                    message = "remove suggestion from history ? ",
+                                    message = R.string.confirm_remove_suggestion,
                                     onConfirm = {
                                         viewModel.removeSuggestionFromHistory(suggestionToRemove)
                                     },
