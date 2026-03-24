@@ -721,10 +721,10 @@ fun BottomPanel(
                                     ),
                                 placeholder = {
                                     when {
-                                        uiState.value.isCreatingProfile -> Text("profile label")
-                                        uiState.value.isRenamingProfile -> Text("profile label")
-                                        uiState.value.isPinningApp -> Text("pin label")
-                                        else -> Text("search / url")
+                                        uiState.value.isCreatingProfile -> Text(stringResource(R.string.placeholder_profile_label))
+                                        uiState.value.isRenamingProfile -> Text(stringResource(R.string.placeholder_profile_label))
+                                        uiState.value.isPinningApp -> Text(stringResource(R.string.placeholder_pin_label))
+                                        else -> Text(stringResource(R.string.placeholder_url))
                                     }
                                 },
                                 state = textFieldState,

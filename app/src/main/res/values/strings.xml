@@ -98,5 +98,11 @@
     <string name="memory_standard">standard</string>
     <string name="memory_high">high memory</string>
 
+    <!-- Placeholder -->
+    <string name="placeholder_profile_label">profile label</string>
+    <string name="placeholder_pin_label">pin label</string>
+    <string name="placeholder_url">search / url</string>
+    <string name="placeholder_blank_page">blank page</string>
+
 
 </resources>

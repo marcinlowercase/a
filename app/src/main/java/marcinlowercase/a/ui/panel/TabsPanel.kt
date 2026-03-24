@@ -64,6 +64,7 @@ import marcinlowercase.a.core.data_class.Tab
 import marcinlowercase.a.core.function.getFaviconUrlFromGoogleServer
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.res.stringResource
 import marcinlowercase.a.core.function.toDomain
 
 @Composable
@@ -269,7 +270,7 @@ fun TabsPanel(
                         val tab = viewModel.tabs[tabIndex]
 
                         val title = if (tab.currentURL == "about:blank") {
-                            "blank page"
+                            stringResource(R.string.placeholder_blank_page)
                         } else {
                             tab.currentTitle.ifBlank { tab.currentURL.toDomain() }
                         }

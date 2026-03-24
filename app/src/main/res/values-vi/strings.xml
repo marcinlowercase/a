@@ -98,4 +98,13 @@
     <string name="memory_standard">tiêu chuẩn</string>
     <string name="memory_high">bộ nhớ cao</string>
 
+    <!-- Placeholder -->
+    <string name="placeholder_profile_label">tên hồ sơ</string>
+    <string name="placeholder_pin_label">tên ứng dụng</string>
+    <string name="placeholder_url">tìm kiếm / url</string>
+    <string name="placeholder_blank_page">trang trống</string>
+
+
+
+
 </resources>
