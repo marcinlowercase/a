@@ -1629,9 +1629,9 @@ fun BrowserScreen(
                 }
             }
         }
-        LaunchedEffect(settings.isFullscreenMode, uiState.value.isFullscreenPreview) {
-            // If Global Fullscreen is ON OR if we are in the Corner Radius preview mode
-            val shouldHideBars = settings.isFullscreenMode || uiState.value.isFullscreenPreview
+        LaunchedEffect(isEffectivelyFullscreen, uiState.value.isFullscreenPreview) {
+            // Unify observation for Global Mode, Video Fullscreen, and Landscape Button Mode
+            val shouldHideBars = isEffectivelyFullscreen || uiState.value.isFullscreenPreview
 
             if (shouldHideBars) {
                 insetsController.hide(WindowInsetsCompat.Type.systemBars())
@@ -1643,9 +1643,6 @@ fun BrowserScreen(
         }
         LaunchedEffect(uiState.value.isLandscapeByButton, uiState.value.isOnFullscreenVideo) {
             viewModel.updateUI { it.copy(isLandscape = uiState.value.isLandscapeByButton || uiState.value.isOnFullscreenVideo) }
-        }
-        LaunchedEffect(settings.isFullscreenMode) {
-            Log.d("mrcFF", "change to ${settings.isFullscreenMode}")
         }
         LaunchedEffect(uiState.value.isLandscapeByButton) {
             if (uiState.value.isLandscapeByButton) {
@@ -2013,7 +2010,6 @@ fun BrowserScreen(
 
                     } else {
                         // Normal behavior for all other cases
-                        viewModel.updateUI { it.copy(isOnFullscreenVideo = isFullscreen) }
                         mainActivity.isCurrentlyFullscreen = isFullscreen
                         mainActivity.updatePipParams(isFullscreen)
 
@@ -2037,7 +2033,7 @@ fun BrowserScreen(
                                         isLandscapeByButton = false
                                     )
                                 }
-                                gestureManager.resetBrightness()
+//                                gestureManager.resetBrightness()
 
                                 activity.requestedOrientation =
                                     ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
@@ -2052,44 +2048,6 @@ fun BrowserScreen(
                             }
                         }
                     }
-                    mainActivity.updatePipParams(isFullscreen)
-                    if (isFullscreen) {
-                        // When video is fullscreen, UNLOCK rotation (allow Landscape)
-                        // Use SCREEN_ORIENTATION_SENSOR to let the user rotate the phone naturally.
-                        // Or use SCREEN_ORIENTATION_SENSOR_LANDSCAPE if you want to FORCE it sideways immediately.
-                        activity.requestedOrientation =
-                            ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-
-                        insetsController.hide(WindowInsetsCompat.Type.systemBars())
-                        insetsController.systemBarsBehavior =
-                            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-
-                        if (uiState.value.isBottomPanelVisible) viewModel.updateUI {
-                            it.copy(
-                                isBottomPanelVisible = false
-                            )
-                        }
-
-
-                    } else {
-                        // When exiting fullscreen, LOCK back to Portrait
-
-                        if (inPip) {
-                        } else {
-                            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-
-                            if (!settings.isFullscreenMode) {
-                                insetsController.show(WindowInsetsCompat.Type.systemBars())
-                                insetsController.systemBarsBehavior =
-                                    WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
-                            }
-                            coroutineScope.launch {
-                                hideBackSquare(true)
-                            }
-                        }
-
-                    }
-
                 },
                 onSessionCrash = {
                     viewModel.geckoManager.forceKillSession(viewModel.activeTab!!.id)
@@ -2280,16 +2238,6 @@ fun BrowserScreen(
                             || viewModel.contextMenuData.value != null
                             || viewModel.choiceState.value != null
                 )
-            }
-        }
-        LaunchedEffect(settings.isFullscreenMode) {
-            if (settings.isFullscreenMode) {
-                insetsController.hide(WindowInsetsCompat.Type.systemBars())
-                insetsController.systemBarsBehavior =
-                    WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-            } else {
-                insetsController.show(WindowInsetsCompat.Type.systemBars())
-                insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
             }
         }
 
