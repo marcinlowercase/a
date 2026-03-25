@@ -2121,7 +2121,7 @@ fun BrowserScreen(
                 val stateToRestore = viewModel.activeTab!!.savedState?.let {
                     viewModel.geckoManager.restoreStateFromString(it)
                 }
-                if (stateToRestore == null) {
+                if (stateToRestore == null && !viewModel.geckoManager.isEngineManaged(viewModel.activeTab!!.id)) {
                     val baseLoad = viewModel.activeTab!!.currentURL.ifBlank { settings.defaultUrl }
 
                     val urlToLoad = baseLoad.ifBlank { "about:blank" }

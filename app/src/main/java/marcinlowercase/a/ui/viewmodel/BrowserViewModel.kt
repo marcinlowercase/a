@@ -436,8 +436,11 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     // endregion
     //region Gecko
     fun handleExternalIntent(activity: Activity, url: String) {
+        if (url.isBlank()) return
+
         try {
             val intent: Intent
+            Log.d("marcEE", "url: $url")
             val isIntentScheme = url.startsWith("intent://")
 
             if (isIntentScheme) {

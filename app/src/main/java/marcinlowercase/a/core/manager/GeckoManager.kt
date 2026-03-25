@@ -288,7 +288,7 @@ class GeckoManager(private val context: Context) {
         }
 
         if (!session.isOpen) {
-            val isManagedByEngine = engineManagedSessionIds.contains(tab.id)
+            val isManagedByEngine = isEngineManaged(tab.id)
 
             if (isManagedByEngine) {
                 //Log.d("GeckoManager", "Skipping manual open for engine-managed session: ${tab.id}")
@@ -455,11 +455,14 @@ class GeckoManager(private val context: Context) {
         lastSnapshotTime.longValue = System.currentTimeMillis()
     }
     private fun isExternalScheme(uri: String): Boolean {
+        if (uri.isBlank()) return false
+
         val lowerUri = uri.lowercase()
         // These are standard web schemes. Everything else should likely be handled by an external app.
         return !(lowerUri.startsWith("http://") ||
                 lowerUri.startsWith("https://") ||
                 lowerUri.startsWith("file://") ||
+                lowerUri.startsWith("content://") ||
                 lowerUri.startsWith("about:") ||
                 lowerUri.startsWith("resource://") ||
                 lowerUri.startsWith("javascript:") ||
@@ -468,6 +471,9 @@ class GeckoManager(private val context: Context) {
                 lowerUri.startsWith("moz-extension://") || // <-- THE FIX: Allow uBlock Origin's block pages!
                 lowerUri.startsWith("chrome-extension://") ||
                 lowerUri.startsWith("extension://")) // <-- THE FIX: Allow uBlock Origin's block pages!
+    }
+    fun isEngineManaged(tabId: Long): Boolean {
+        return engineManagedSessionIds.contains(tabId)
     }
     fun setupDelegates(
         session: GeckoSession,
@@ -705,6 +711,7 @@ class GeckoManager(private val context: Context) {
                 request: GeckoSession.NavigationDelegate.LoadRequest
             ): GeckoResult<AllowOrDeny> {
                 val uri = request.uri
+                Log.i("marcEE", "uri onLoadRequest $uri")
 
                 // 1. Check if this is a "Special" scheme (mailto, tel, intent, market)
                 if (isExternalScheme(uri)) {
