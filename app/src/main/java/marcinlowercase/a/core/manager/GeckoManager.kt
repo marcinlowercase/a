@@ -509,7 +509,7 @@ class GeckoManager(private val context: Context) {
         onDownloadRequested: (url: String, userAgent: String, contentDisposition: String?, mimeType: String?, stream: java.io.InputStream?) -> Unit,        onJsAlert: (String) -> Unit,
         onJsConfirm: (String, (Boolean) -> Unit) -> Unit,
         onJsPrompt: (String, String, (String?) -> Unit) -> Unit,
-        onLoadErrorFun: (session: GeckoSession, uri: String?, error: WebRequestError) -> Unit,
+        onLoadErrorFun: (eventTabId: Long, session: GeckoSession, uri: String?, error: WebRequestError) -> Unit,
         onSessionCrash: () -> Unit,
 
         onFilePromptFun: (prompt: GeckoSession.PromptDelegate.FilePrompt, result: GeckoResult<GeckoSession.PromptDelegate.PromptResponse>) -> Unit,
@@ -700,7 +700,7 @@ class GeckoManager(private val context: Context) {
                 uri: String?,
                 error: WebRequestError
             ): GeckoResult<String>? {
-                onLoadErrorFun(session, uri, error)
+                onLoadErrorFun(eventTabId, session, uri, error)
 //                return GeckoResult.fromValue("about:blank")
                 return null
 

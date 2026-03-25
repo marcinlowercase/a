@@ -185,11 +185,13 @@ import java.io.FileOutputStream
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 import kotlin.system.exitProcess
+import androidx.compose.ui.res.stringResource
 
 
 //region Composable
 
 class MainActivity : ComponentActivity() {
+
     companion object {
         // Keeps track of the ONE allowed Full Browser window globally
         var currentFullBrowserInstance: java.lang.ref.WeakReference<MainActivity>? = null
@@ -1772,6 +1774,8 @@ fun BrowserScreen(
                 activeSession.flushSessionState()
             }
         }
+        val errorTitle = stringResource(R.string.error_failed_to_load)
+
         LaunchedEffect(activeSession) {
             activeSession.setActive(true)
 
@@ -1903,20 +1907,25 @@ fun BrowserScreen(
                             viewModel.pendingPermissionRequest.value = null
                         }
                     }
+
+                    val tab = viewModel.tabs.find { it.id == eventTabId }
+                    val isGhostBlank =
+                        url == "about:blank" && tab?.currentURL != "about:blank" && !tab?.currentURL.isNullOrBlank()
+
+                    if (!isGhostBlank) {
+                        if (tab?.errorState != null) {
+                            viewModel.updateTabById(eventTabId) { it.copy(errorState = null) }
+                        }
+                    }
+
                     if (eventTabId == viewModel.activeTab!!.id) {
-                        val isGhostBlank =
-                            url == "about:blank" && viewModel.activeTab!!.currentURL != "about:blank" && viewModel.activeTab!!.currentURL.isNotBlank()
                         if (!isGhostBlank) {
                             viewModel.updateUI { it.copy(isLoading = true) }
-                            if (viewModel.activeTab!!.errorState != null) {
-                                viewModel.updateTabById(eventTabId) { it.copy(errorState = null) }
-                            }
 
                             if (!uiState.value.isFocusOnUrlTextField) textFieldState.setTextAndPlaceCursorAtEnd(
                                 url.toDomain()
                             )
                         }
-
                     }
 
                 },
@@ -1976,19 +1985,29 @@ fun BrowserScreen(
                     viewModel.jsDialogState.value = JsPrompt(message, defaultValue, callback)
                 },
 
-                onLoadErrorFun = { session, uri, error ->
-                    // Only show if it's the active tab
+                onLoadErrorFun = { eventTabId, session, uri, error ->
+                    val failingUrl = uri ?: viewModel.tabs.find { it.id == eventTabId }?.currentURL ?: ""
+
                     if (session == activeSession) {
                         viewModel.updateUI { it.copy(isLoading = false) }
+                        if (!uiState.value.isFocusOnUrlTextField) {
+                            textFieldState.setTextAndPlaceCursorAtEnd(failingUrl.toDomain())
+                        }
+                    }
 
-                        val newError = ErrorState(
-                            error = error,
-                            failingUrl = uri ?: viewModel.activeTab!!.currentURL
+                    val newError = ErrorState(
+                        error = error,
+                        failingUrl = failingUrl
+                    )
+
+                    // Update the Tab object
+                    viewModel.updateTabById(eventTabId) {
+                        it.copy(
+                            errorState = newError,
+                            currentURL = failingUrl,
+                            currentTitle = errorTitle,
+                            currentFaviconUrl = ""
                         )
-
-                        // Update the Tab object
-                        viewModel.updateTabById(viewModel.activeTab!!.id) { it.copy(errorState = newError) }
-
                     }
                 },
                 siteSettings = viewModel.siteSettings,

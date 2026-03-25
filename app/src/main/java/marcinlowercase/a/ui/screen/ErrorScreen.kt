@@ -38,6 +38,7 @@ import marcinlowercase.a.R
 import marcinlowercase.a.core.data_class.ErrorState
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.res.stringResource
 import org.mozilla.geckoview.WebRequestError
 
 @Composable
@@ -51,12 +52,19 @@ fun ErrorScreen(
     val viewModel = LocalBrowserViewModel.current
     val settings = viewModel.browserSettings.collectAsState()
 
+    val noConnectionString = stringResource(R.string.error_no_connection)
+    val notSecureString = stringResource(R.string.error_not_secure)
+    val cannotBeReachedString = stringResource(R.string.error_cannot_be_reached)
+    val cannotBeDisplayedString = stringResource(R.string.error_cannot_be_displayed)
+    val genericErrorString = "Error" // Or use another stringResource
+
+// 2. Apply them to your logic
     val userMessage = when (errorState.error.category) {
-        WebRequestError.ERROR_CATEGORY_NETWORK -> "no connection"
-        WebRequestError.ERROR_CATEGORY_SECURITY -> "this site is not secure"
-        WebRequestError.ERROR_CATEGORY_URI -> "this site cannot be reached"
-        WebRequestError.ERROR_CATEGORY_CONTENT -> "this site cannot be displayed"
-        else -> "error"
+        WebRequestError.ERROR_CATEGORY_NETWORK -> noConnectionString
+        WebRequestError.ERROR_CATEGORY_SECURITY -> notSecureString
+        WebRequestError.ERROR_CATEGORY_URI -> cannotBeReachedString
+        WebRequestError.ERROR_CATEGORY_CONTENT -> cannotBeDisplayedString
+        else -> genericErrorString
     }
 
     when (errorState.error.category) {

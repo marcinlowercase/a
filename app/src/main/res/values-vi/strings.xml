@@ -103,13 +103,17 @@
     <string name="placeholder_profile_label">tên hồ sơ</string>
     <string name="placeholder_pin_label">tên ứng dụng</string>
     <string name="placeholder_browser_label">tên trình duyệt</string>
-
     <string name="placeholder_url">tìm kiếm / url</string>
     <string name="placeholder_blank_page">trang trống</string>
     <string name="placeholder_icon_link">url tới biểu tượng tuỳ chỉnh / mã svg</string>
     <string name="placeholder_profile">hồ sơ</string>
 
-
+    <!-- Error -->
+    <string name="error_failed_to_load">lỗi tải dữ liệu</string>
+    <string name="error_no_connection">không có kết nối</string>
+    <string name="error_not_secure">trang web này không an toàn</string>
+    <string name="error_cannot_be_reached">không thể truy cập trang web này</string>
+    <string name="error_cannot_be_displayed">không thể hiển thị trang web này</string>
     <!-- Toast -->
     <string name="toast_prepare_cloned">đang chuẩn bị trình duyệt tuỳ chỉnh…</string>
     <string name="toast_prepare_pwa">đang chuẩn bị ứng dụng web…</string>
