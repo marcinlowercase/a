@@ -19,7 +19,6 @@ package marcinlowercase.a.core.custom_class
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
-import android.util.Log
 import androidx.compose.runtime.MutableState
 import androidx.core.content.ContextCompat
 import marcinlowercase.a.R
@@ -31,7 +30,6 @@ import marcinlowercase.a.core.function.toDomain
 import marcinlowercase.a.core.manager.SiteSettingsManager
 import org.mozilla.geckoview.GeckoResult
 import org.mozilla.geckoview.GeckoSession
-import kotlin.collections.get
 
 class CustomPermissionDelegate(
     // The callback to trigger the UI update in the Composable remains the same
@@ -57,47 +55,25 @@ class CustomPermissionDelegate(
                 return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY)
 
             }
-//            if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-//                || ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
-//            ) {
-//
-//                val customRequest = CustomPermissionRequest(
-//                    origin = tab.value.currentURL,
-//                    title = "Location Request",
-//                    rationale = "This site wants to use your device's location.",
-//                    iconResAllow = R.drawable.ic_location_on, // Make sure you have these drawables
-//                    iconResDeny = R.drawable.ic_location_off,
-//                    permissionsToRequest = listOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
-//                    onResult = { permissionsMap, pendingRequest ->
-//                        // This is the final step, after the user interacts with the system dialog.
-//                        if (permissionsMap.any { it.value }) {
-//                            // Tell GeckoView the app permission was granted.
-//                            GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW)
-//
-//
-//                        } else {
-//                            // Tell GeckoView the app permission was denied.
-//                            GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY)
-//                            pendingRequest.value = null
-//                        }
-//                    }
-//                )
-//                onShowRequest(customRequest)
-//
-//                return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_PROMPT)
-//
-//
-//            }
-
             return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW)
         }
 
         if (perm.permission == GeckoSession.PermissionDelegate.PERMISSION_DESKTOP_NOTIFICATION) {
             val domain = perm.uri.toDomain()
-            val permissionKey = "desktop_notification"
 
-            // Check if the user has already allowed/denied notifications for this site
-            val decision = siteSettings[domain]?.permissionDecisions?.get(permissionKey)
+            // Define the key so the ViewModel's automatic saver aligns perfectly with our checker.
+            val notificationPermissionKey = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                Manifest.permission.POST_NOTIFICATIONS
+            } else {
+                // Android 12 and below don't use OS-level notification permissions.
+                // We use INTERNET as a dummy key because it's always granted by the system,
+                // ensuring the ActivityResultLauncher returns 'true' instantly without OS popups.
+                Manifest.permission.INTERNET
+            }
+
+            // Check if the ViewModel already remembered this decision in memory/disk
+            val decision = siteSettings[domain]?.permissionDecisions?.get(notificationPermissionKey)
+
             if (decision == false) {
                 return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY)
             } else if (decision == true) {
@@ -106,55 +82,30 @@ class CustomPermissionDelegate(
 
             val result = GeckoResult<Int?>()
 
-            // Prepare the Android system permissions to request based on the OS version
-            val permissionsToAsk = mutableListOf<String>()
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                permissionsToAsk.add(Manifest.permission.POST_NOTIFICATIONS)
-            } else {
-                // Dummy valid permission for older APIs to ensure the launcher returns a 'true' map
-                // so we can distinguish between an 'Allow' click and a 'Deny' dismissal in the UI
-                permissionsToAsk.add(Manifest.permission.INTERNET)
-            }
-
             val customRequest = CustomPermissionRequest(
                 origin = perm.uri,
                 title = "Notifications Request",
                 rationale = "This site wants to send you notifications.",
-                // Feel free to replace ic_bug with an ic_notifications_on / ic_notifications_off drawable
-                iconResAllow = R.drawable.ic_bug,
-                iconResDeny = R.drawable.ic_bug,
-                permissionsToRequest = permissionsToAsk,
+                iconResAllow = R.drawable.ic_notifications, // Ensure you have this drawable
+                iconResDeny = R.drawable.ic_notifications_off, // Ensure you have this drawable
+                permissionsToRequest = listOf(notificationPermissionKey),
                 onResult = { permissionsMap, pendingRequest ->
 
-                    // Determine if it was granted based on the Android API
-                    val isGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        permissionsMap[Manifest.permission.POST_NOTIFICATIONS] == true
-                    } else {
-                        permissionsMap[Manifest.permission.INTERNET] == true
-                    }
+                    // The MainActivity automatically saves the permissionsMap into the ViewModel!
+                    // We just need to check the result here to complete the Gecko prompt.
+                    val isGranted = permissionsMap[notificationPermissionKey] == true
 
-                    // Safely save the decision locally to SiteSettingsManager
-                    val currentSettings = siteSettingsManager.loadSettings(tab.value.profileId)
-                    val domainSettings = currentSettings[domain] ?: SiteSettings(domain)
-                    val updatedDecisions = domainSettings.permissionDecisions.toMutableMap()
-                    updatedDecisions[permissionKey] = isGranted
-                    currentSettings[domain] = domainSettings.copy(permissionDecisions = updatedDecisions)
-                    siteSettingsManager.saveSettings(tab.value.profileId, currentSettings)
-
-                    // Give GeckoView the final resolution
                     if (isGranted) {
                         result.complete(GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW)
                     } else {
                         result.complete(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY)
                     }
 
-                    // Close the custom Prompt Panel
                     pendingRequest.value = null
                 },
                 isSystemRequest = false
             )
 
-            // Show your Custom UI panel
             onShowRequest(customRequest)
             return result
         }
@@ -376,8 +327,7 @@ class CustomPermissionDelegate(
 
         // SCENARIO 3: Both are requested (orchestrated case)
         if (isRequestingVideo && isRequestingAudio) {
-            // Store the state needed for the multi-step flow
-
+            // Store the state needed for the multistep flow
             if (videoDecision == true && audioDecision == true) {
                 callback.grant(videoSource, audioSource)
                 return
