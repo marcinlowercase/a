@@ -16,9 +16,18 @@
  */
 package marcinlowercase.a.core.manager
 
+import android.Manifest
 import android.annotation.SuppressLint
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.content.pm.PackageManager
+import android.graphics.BitmapFactory
+import android.os.Build
 import android.util.Log
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
@@ -27,6 +36,10 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.core.app.ActivityCompat
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import marcinlowercase.a.core.custom_class.CustomPermissionDelegate
@@ -40,6 +53,7 @@ import marcinlowercase.a.core.data_class.SiteSettings
 import marcinlowercase.a.core.data_class.Tab
 import marcinlowercase.a.core.enum_class.ContextMenuType
 import marcinlowercase.a.core.function.formatArgbToCss
+import marcinlowercase.a.core.function.toDomain
 import marcinlowercase.a.core.service.MediaPlaybackService
 import org.json.JSONObject
 import org.mozilla.geckoview.AllowOrDeny
@@ -51,6 +65,8 @@ import org.mozilla.geckoview.GeckoSessionSettings
 import org.mozilla.geckoview.MediaSession
 import org.mozilla.geckoview.WebExtension
 import org.mozilla.geckoview.WebExtensionController
+import org.mozilla.geckoview.WebNotification
+import org.mozilla.geckoview.WebNotificationDelegate
 import org.mozilla.geckoview.WebRequestError
 import org.mozilla.geckoview.WebResponse
 import kotlin.math.abs
@@ -107,11 +123,126 @@ class GeckoManager(private val context: Context) {
 
     private var uBlockExtension: WebExtension? = null
     var isAdBlockEnabledTarget = true
-
+    private val webNotificationReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == "marcinlowercase.a.WEB_NOTIFICATION_DISMISS") {
+                try {
+                    val notification = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        intent.getParcelableExtra("web_notification", WebNotification::class.java)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        intent.getParcelableExtra<WebNotification>("web_notification")
+                    }
+                    // Tells the website JavaScript that the user dismissed/swiped it away
+                    notification?.dismiss()
+                } catch (e: Exception) {
+                    Log.e("GeckoExt", "Failed to dismiss WebNotification", e)
+                }
+            }
+        }
+    }
     init {
+
+        ContextCompat.registerReceiver(
+            context,
+            webNotificationReceiver,
+            IntentFilter("marcinlowercase.a.WEB_NOTIFICATION_DISMISS"),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+
         setupExtensionPrompts()
         installFaviconFetcher()
         ensureUblockOrigin()
+
+        setupWebNotifications()
+
+    }
+
+
+    private fun setupWebNotifications() {
+        // Ensure Android Notification Channel Exists
+        val channel = NotificationChannel(
+            "web_notifications",
+            "Web Notifications",
+            NotificationManager.IMPORTANCE_DEFAULT
+        )
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.createNotificationChannel(channel)
+
+        runtime.webNotificationDelegate = object : WebNotificationDelegate {
+            @SuppressLint("WrongThread")
+            override fun onShowNotification(notification: WebNotification) {
+                // Ensure a unique tag/ID for stacking notifications
+                val tag = notification.tag?.ifEmpty { notification.title } ?: notification.title
+                val notifId = tag.hashCode()
+
+                // 1. Click Intent (Launches MainActivity)
+                val clickIntent = Intent().apply {
+                    setClassName(context, "marcinlowercase.a.MainActivity")
+                    action = "marcinlowercase.a.WEB_NOTIFICATION_CLICK"
+                    putExtra("web_notification", notification)
+                    flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                }
+
+                val pendingFlags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                val pendingClick = PendingIntent.getActivity(context, notifId, clickIntent, pendingFlags)
+
+                // 2. Dismiss Intent (Hits our BroadcastReceiver)
+                val deleteIntent = Intent("marcinlowercase.a.WEB_NOTIFICATION_DISMISS").apply {
+                    setPackage(context.packageName)
+                    putExtra("web_notification", notification)
+                }
+                val pendingDelete = PendingIntent.getBroadcast(context, notifId, deleteIntent, pendingFlags)
+
+
+                var siteDomain = "web"
+                try {
+                    // 'source' is the URL of the page/ServiceWorker that triggered this (e.g., "https://example.com/...")
+                    val sourceUrl = notification.source
+                    siteDomain = sourceUrl?.toDomain() ?: "web"
+                } catch (e: Exception) {
+                    Log.e("GeckoExt", "Failed to parse notification source URL", e)
+                }
+
+                // 3. Build the Android Notification
+                val builder = NotificationCompat.Builder(context, "web_notifications")
+                    .setSmallIcon(marcinlowercase.a.R.drawable.ic_empty_logo) // Use your icon here
+                    .setContentTitle(notification.title)
+                    .setContentText(notification.text)
+                    .setContentIntent(pendingClick)
+                    .setSubText(siteDomain)
+                    .setDeleteIntent(pendingDelete)
+                    .setAutoCancel(true)
+
+                val manager = NotificationManagerCompat.from(context)
+                val hasPermission = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+                        ActivityCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+
+                // 4. Send the Notification to the OS
+                if (hasPermission) {
+                    manager.notify(tag, notifId, builder.build())
+                    try {
+                        notification.show() // VERY IMPORTANT: Tells JS the notification successfully appeared
+                    } catch (e: Exception) {}
+                } else {
+                    try {
+                        notification.dismiss() // Tells JS the notification was blocked by OS
+                    } catch (e: Exception) {}
+                }
+            }
+
+            @SuppressLint("WrongThread")
+            override fun onCloseNotification(notification: WebNotification) {
+                // Fires if the website's JS calls `notification.close()`
+                val tag = notification.tag?.ifEmpty { notification.title } ?: notification.title
+                val manager = NotificationManagerCompat.from(context)
+                manager.cancel(tag, tag.hashCode()) // Close the native Android popup
+
+                try {
+                    notification.dismiss() // Clean up the GeckoView IPC resource
+                } catch (e: Exception) {}
+            }
+        }
     }
 
     private fun ensureUblockOrigin() {
