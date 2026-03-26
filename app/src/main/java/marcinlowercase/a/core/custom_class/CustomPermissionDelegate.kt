@@ -18,6 +18,7 @@ package marcinlowercase.a.core.custom_class
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.os.Build
 import android.util.Log
 import androidx.compose.runtime.MutableState
 import androidx.core.content.ContextCompat
@@ -90,6 +91,74 @@ class CustomPermissionDelegate(
 
             return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW)
         }
+
+        if (perm.permission == GeckoSession.PermissionDelegate.PERMISSION_DESKTOP_NOTIFICATION) {
+            val domain = perm.uri.toDomain()
+            val permissionKey = "desktop_notification"
+
+            // Check if the user has already allowed/denied notifications for this site
+            val decision = siteSettings[domain]?.permissionDecisions?.get(permissionKey)
+            if (decision == false) {
+                return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY)
+            } else if (decision == true) {
+                return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW)
+            }
+
+            val result = GeckoResult<Int?>()
+
+            // Prepare the Android system permissions to request based on the OS version
+            val permissionsToAsk = mutableListOf<String>()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                permissionsToAsk.add(Manifest.permission.POST_NOTIFICATIONS)
+            } else {
+                // Dummy valid permission for older APIs to ensure the launcher returns a 'true' map
+                // so we can distinguish between an 'Allow' click and a 'Deny' dismissal in the UI
+                permissionsToAsk.add(Manifest.permission.INTERNET)
+            }
+
+            val customRequest = CustomPermissionRequest(
+                origin = perm.uri,
+                title = "Notifications Request",
+                rationale = "This site wants to send you notifications.",
+                // Feel free to replace ic_bug with an ic_notifications_on / ic_notifications_off drawable
+                iconResAllow = R.drawable.ic_bug,
+                iconResDeny = R.drawable.ic_bug,
+                permissionsToRequest = permissionsToAsk,
+                onResult = { permissionsMap, pendingRequest ->
+
+                    // Determine if it was granted based on the Android API
+                    val isGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        permissionsMap[Manifest.permission.POST_NOTIFICATIONS] == true
+                    } else {
+                        permissionsMap[Manifest.permission.INTERNET] == true
+                    }
+
+                    // Safely save the decision locally to SiteSettingsManager
+                    val currentSettings = siteSettingsManager.loadSettings(tab.value.profileId)
+                    val domainSettings = currentSettings[domain] ?: SiteSettings(domain)
+                    val updatedDecisions = domainSettings.permissionDecisions.toMutableMap()
+                    updatedDecisions[permissionKey] = isGranted
+                    currentSettings[domain] = domainSettings.copy(permissionDecisions = updatedDecisions)
+                    siteSettingsManager.saveSettings(tab.value.profileId, currentSettings)
+
+                    // Give GeckoView the final resolution
+                    if (isGranted) {
+                        result.complete(GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW)
+                    } else {
+                        result.complete(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY)
+                    }
+
+                    // Close the custom Prompt Panel
+                    pendingRequest.value = null
+                },
+                isSystemRequest = false
+            )
+
+            // Show your Custom UI panel
+            onShowRequest(customRequest)
+            return result
+        }
+
         return super.onContentPermissionRequest(session, perm)
     }
 
