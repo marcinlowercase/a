@@ -210,7 +210,8 @@ fun TabDataPanel(
                                             Manifest.permission.POST_NOTIFICATIONS, Manifest.permission.INTERNET -> R.drawable.ic_notifications to R.string.desc_permission_notifications
 
                                             Manifest.permission.ACCESS_NETWORK_STATE -> R.drawable.ic_folder to R.string.desc_permission_storage
-
+                                            Manifest.permission.VIBRATE ->
+                                                R.drawable.ic_media_output to R.string.desc_permission_drm
                                             else -> R.drawable.ic_bug to R.string.desc_permission_unknown
                                         }
 

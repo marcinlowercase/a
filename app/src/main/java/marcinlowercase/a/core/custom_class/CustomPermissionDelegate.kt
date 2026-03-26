@@ -160,6 +160,53 @@ class CustomPermissionDelegate(
             return result
         }
 
+        if (perm.permission == GeckoSession.PermissionDelegate.PERMISSION_MEDIA_KEY_SYSTEM_ACCESS) {
+            val domain = perm.uri.toDomain()
+
+            // We use another benign, auto-granted Android permission as a unique "key"
+            // so your ViewModel auto-saves it without triggering an OS permission popup.
+            val drmPermissionKey = Manifest.permission.VIBRATE
+
+            // Check if the ViewModel already remembered this decision
+            val decision = siteSettings[domain]?.permissionDecisions?.get(drmPermissionKey)
+
+            if (decision == false) {
+                return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY)
+            } else if (decision == true) {
+                return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW)
+            }
+
+            val result = GeckoResult<Int?>()
+
+            val permissionTitle = context.getString(R.string.desc_permission_drm)
+
+            val customRequest = CustomPermissionRequest(
+                origin = perm.uri,
+                title = permissionTitle,
+                rationale = "This site wants to play protected/encrypted media (DRM).",
+                // Feel free to replace these with play/lock icons (e.g., R.drawable.ic_play_circle)
+                iconResAllow = R.drawable.ic_media_output,
+                iconResDeny = R.drawable.ic_media_output_off,
+                permissionsToRequest = listOf(drmPermissionKey),
+                onResult = { permissionsMap, pendingRequest ->
+
+                    val isGranted = permissionsMap[drmPermissionKey] == true
+
+                    if (isGranted) {
+                        result.complete(GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW)
+                    } else {
+                        result.complete(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY)
+                    }
+
+                    pendingRequest.value = null
+                },
+                isSystemRequest = false
+            )
+
+            onShowRequest(customRequest)
+            return result
+        }
+
         return super.onContentPermissionRequest(session, perm)
     }
 

@@ -85,6 +85,9 @@
     <string name="desc_permission_allow">allow</string>
     <string name="desc_permission_deny">deny</string>
     <string name="desc_permission_unknown">unknown</string>
+    <string name="desc_permission_drm">playing protected media (DRM)</string>
+
+
     <string name="desc_clear_site_data">clear site data</string>
     <string name="desc_duplicate_tab">duplicate tab</string>
     <string name="desc_close_tab">close tab</string>
