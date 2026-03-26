@@ -37,6 +37,7 @@ import android.view.MotionEvent
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -314,7 +315,18 @@ class MainActivity : ComponentActivity() {
         "SourceLockedOrientationActivity"
     )
     override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.auto(
+                android.graphics.Color.TRANSPARENT,
+                android.graphics.Color.TRANSPARENT
+            ),
+            navigationBarStyle = SystemBarStyle.auto(
+                android.graphics.Color.TRANSPARENT,
+                android.graphics.Color.TRANSPARENT
+            )
+        )
+
+
         super.onCreate(savedInstanceState)
         val isPwa = intent?.getBooleanExtra("is_pwa", false) == true
         val isClonedBrowser = intent?.getBooleanExtra("is_cloned_browser", false) == true
