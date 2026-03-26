@@ -45,6 +45,9 @@ import androidx.compose.ui.unit.dp
 import marcinlowercase.a.core.function.buttonSettingsForLayer
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.res.stringResource
+import marcinlowercase.a.R
+import marcinlowercase.a.ui.component.CustomIconButton
 import kotlin.math.roundToInt
 
 @Composable
@@ -55,11 +58,11 @@ fun PermissionPanel(
     onAllow: () -> Unit,
     // Event for when the user clicks "Deny" on our panel.
 
-    ) {
+) {
     val viewModel = LocalBrowserViewModel.current
     val uiState = viewModel.uiState.collectAsState()
     val request = viewModel.pendingPermissionRequest.value
-val settings = viewModel.browserSettings.collectAsState()
+    val settings = viewModel.browserSettings.collectAsState()
     var requestToShow by remember { mutableStateOf(request) }
 
     LaunchedEffect(request) {
@@ -101,49 +104,35 @@ val settings = viewModel.browserSettings.collectAsState()
         ) {
 
 
+
+            val allowString = stringResource(R.string.desc_permission_allow)
+            val denyString = stringResource(R.string.desc_permission_deny)
+
             // Action buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
             ) {
                 // --- Deny Button ---
-                IconButton(
-                    onClick = {
+
+                CustomIconButton(
+                    layer = 2,
+                    onTap = {
                         viewModel.denyCurrentPermissionRequest()
                     },
-                    modifier = Modifier
-                        .buttonSettingsForLayer(
-                            layer = 2,
-                            settings.value,
-                            white = false // false = transparent background, white border
-                        )
-                        .weight(1f),
+                    buttonDescription = "$denyString ${currentRequest.title}",
+                    painterId = currentRequest.iconResDeny,
+                    isWhite = false,
+                    modifier = Modifier.weight(1f)
+                )
+                CustomIconButton(
+                    layer = 2,
+                    onTap = onAllow,
+                    buttonDescription = "$allowString ${currentRequest.title}",
+                    painterId = currentRequest.iconResAllow,
+                    modifier = Modifier.weight(1f)
 
-                    ) {
-                    Icon(
-                        painter = painterResource(id = currentRequest.iconResDeny), // You can make this icon generic too
-                        contentDescription = "Deny Permission",
-                        tint = Color.White
-                    )
-                }
-
-                // --- Allow Button ---
-                IconButton(
-                    onClick = onAllow,
-                    modifier = Modifier
-                        .buttonSettingsForLayer(
-                            layer = 2,
-                            settings.value,
-                            white = true // true = white background
-                        )
-                        .weight(1f),
-                ) {
-                    Icon(
-                        painter = painterResource(id = currentRequest.iconResAllow), // You can make this icon generic too
-                        contentDescription = "Allow Permission",
-                        tint = Color.Black
-                    )
-                }
+                )
             }
         }
     }

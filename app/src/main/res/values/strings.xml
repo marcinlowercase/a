@@ -77,9 +77,13 @@
 
     <!-- Tab Data Panel -->
     <string name="desc_permission_list">permission list</string>
-    <string name="desc_permission_location">location</string>
-    <string name="desc_permission_camera">camera</string>
-    <string name="desc_permission_microphone">microphone</string>
+    <string name="desc_permission_location">location permission</string>
+    <string name="desc_permission_camera">camera permission</string>
+    <string name="desc_permission_microphone">microphone permission</string>
+    <string name="desc_permission_notifications">notifications permission</string>
+    <string name="desc_permission_storage">persistent storage permission</string>
+    <string name="desc_permission_allow">allow</string>
+    <string name="desc_permission_deny">deny</string>
     <string name="desc_permission_unknown">unknown</string>
     <string name="desc_clear_site_data">clear site data</string>
     <string name="desc_duplicate_tab">duplicate tab</string>

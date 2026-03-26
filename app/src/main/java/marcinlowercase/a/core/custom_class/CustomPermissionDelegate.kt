@@ -82,9 +82,11 @@ class CustomPermissionDelegate(
 
             val result = GeckoResult<Int?>()
 
+            val permissionName = context.getString(R.string.desc_permission_notifications)
+
             val customRequest = CustomPermissionRequest(
                 origin = perm.uri,
-                title = "Notifications Request",
+                title = permissionName,
                 rationale = "This site wants to send you notifications.",
                 iconResAllow = R.drawable.ic_notifications, // Ensure you have this drawable
                 iconResDeny = R.drawable.ic_notifications_off, // Ensure you have this drawable
@@ -128,9 +130,11 @@ class CustomPermissionDelegate(
 
             val result = GeckoResult<Int?>()
 
+            val permissionName = context.getString(R.string.desc_permission_storage)
+
             val customRequest = CustomPermissionRequest(
                 origin = perm.uri,
-                title = "Persistent Storage",
+                title = permissionName,
                 rationale = "This site wants to store data persistently to work offline or save local data.",
                 // Feel free to replace these with actual save/deny icons (e.g., R.drawable.ic_save)
                 iconResAllow = R.drawable.ic_folder,
@@ -190,7 +194,8 @@ class CustomPermissionDelegate(
 
 
             // Show the UI that will eventually trigger the system permission launcher
-            requestTitle = "Location Request"
+            requestTitle = context.getString(R.string.desc_permission_location)
+
             requestRationale = "This site wants to use your device's location."
             requestAllowIcon = R.drawable.ic_location_on
             requestDenyIcon = R.drawable.ic_location_off
@@ -200,9 +205,12 @@ class CustomPermissionDelegate(
             // Show the UI that will eventually trigger the system permission launcher
             decision = siteSettings[domain]?.permissionDecisions?.get(Manifest.permission.CAMERA)
 
+            requestTitle = context.getString(R.string.desc_permission_camera)
+
             requestRationale = "This site wants to use your device's camera."
             requestAllowIcon = R.drawable.ic_camera_on
             requestDenyIcon = R.drawable.ic_camera_off
+
 
         }
         if (permissions.contains("android.permission.RECORD_AUDIO")) {
@@ -210,7 +218,8 @@ class CustomPermissionDelegate(
             decision = siteSettings[domain]?.permissionDecisions?.get(Manifest.permission.RECORD_AUDIO)
 
             // Show the UI that will eventually trigger the system permission launcher
-            requestTitle = "Microphone Request"
+            requestTitle = context.getString(R.string.desc_permission_microphone)
+
             requestRationale = "This site wants to use your device's microphone."
             requestAllowIcon = R.drawable.ic_mic_on
             requestDenyIcon = R.drawable.ic_mic_off
@@ -396,15 +405,19 @@ class CustomPermissionDelegate(
         permission: String,
         onResult: (Boolean) -> Unit
     ) {
+        var permissionName = context.getString(R.string.desc_permission_camera)
+
         var allowIcon = R.drawable.ic_camera_on
         var denyIcon = R.drawable.ic_camera_off
         if (type == "microphone") {
+            permissionName = context.getString(R.string.desc_permission_microphone)
+
             allowIcon = R.drawable.ic_mic_on
             denyIcon = R.drawable.ic_mic_off
         }
         val customRequest = CustomPermissionRequest(
             origin = uri,
-            title = "Media Request",
+            title = permissionName,
             rationale = "$uri wants to use your $type.",
             iconResAllow = allowIcon,
             iconResDeny = denyIcon,
@@ -426,9 +439,11 @@ class CustomPermissionDelegate(
             return
 
         }
+        val permissionName = context.getString(R.string.desc_permission_camera)
+
         val cameraRequest = CustomPermissionRequest(
             origin = uri,
-            title = "Camera Access",
+            title = permissionName,
             rationale = "$uri wants to use your camera.",
             iconResAllow = R.drawable.ic_camera_on,
             iconResDeny = R.drawable.ic_camera_off,
@@ -469,9 +484,10 @@ class CustomPermissionDelegate(
             originalAudioSources = null
             return
         }
+        val permissionName = context.getString(R.string.desc_permission_microphone)
         val microphoneRequest = CustomPermissionRequest(
             origin = uri,
-            title = "Microphone Access",
+            title = permissionName,
             rationale = "$uri wants to use your microphone.",
             iconResAllow = R.drawable.ic_mic_on,
             iconResDeny = R.drawable.ic_mic_off,

@@ -74,10 +74,14 @@
 
     <!-- Tab Data Panel -->
     <string name="desc_permission_list">danh sách quyền</string>
-    <string name="desc_permission_location">vị trí</string>
-    <string name="desc_permission_camera">camera</string>
-    <string name="desc_permission_microphone">micrô</string>
+    <string name="desc_permission_location">quyền truy cập vị trí</string>
+    <string name="desc_permission_camera">quyền truy cập camera</string>
+    <string name="desc_permission_microphone">quyền truy cập micrô</string>
+    <string name="desc_permission_notifications">quyền tạo thông báo</string>
+    <string name="desc_permission_storage">quyền truy cập bộ nhớ thiết bị</string>
     <string name="desc_permission_unknown">không xác định</string>
+    <string name="desc_permission_allow">cho phép</string>
+    <string name="desc_permission_deny">từ chối</string>
     <string name="desc_clear_site_data">xóa dữ liệu trang web</string>
     <string name="desc_duplicate_tab">nhân bản tab</string>
     <string name="desc_close_tab">đóng tab</string>

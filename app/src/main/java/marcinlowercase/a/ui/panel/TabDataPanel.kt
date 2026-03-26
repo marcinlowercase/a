@@ -207,6 +207,10 @@ fun TabDataPanel(
                                             generic_location_permission -> R.drawable.ic_location_on to R.string.desc_permission_location
                                             Manifest.permission.CAMERA -> R.drawable.ic_camera_on to R.string.desc_permission_camera
                                             Manifest.permission.RECORD_AUDIO -> R.drawable.ic_mic_on to R.string.desc_permission_microphone
+                                            Manifest.permission.POST_NOTIFICATIONS, Manifest.permission.INTERNET -> R.drawable.ic_notifications to R.string.desc_permission_notifications
+
+                                            Manifest.permission.ACCESS_NETWORK_STATE -> R.drawable.ic_folder to R.string.desc_permission_storage
+
                                             else -> R.drawable.ic_bug to R.string.desc_permission_unknown
                                         }
 
