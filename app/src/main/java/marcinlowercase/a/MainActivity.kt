@@ -496,15 +496,15 @@ class MainActivity : ComponentActivity() {
     //region Pip
     // currently not working for YouTube yet, other platform work fine
     fun updatePipParams(isDataFullscreen: Boolean) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            isEnteringPip = true
-            val params = android.app.PictureInPictureParams.Builder()
-                // If video is fullscreen, allow Auto-Enter (Swipe up to PiP)
-                .setAutoEnterEnabled(isDataFullscreen)
-                .setAspectRatio(android.util.Rational(16, 9)) // Default to 16:9
-                .build()
-            setPictureInPictureParams(params)
-        }
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+//            isEnteringPip = true
+//            val params = android.app.PictureInPictureParams.Builder()
+//                // If video is fullscreen, allow Auto-Enter (Swipe up to PiP)
+//                .setAutoEnterEnabled(isDataFullscreen)
+//                .setAspectRatio(android.util.Rational(16, 9)) // Default to 16:9
+//                .build()
+//            setPictureInPictureParams(params)
+//        }
     }
 
     var isCurrentlyFullscreen by mutableStateOf(false)
