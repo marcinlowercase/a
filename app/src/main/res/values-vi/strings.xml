@@ -97,6 +97,7 @@
     <string name="confirm_close_all_tab">đóng tất cả tab và thoát ?</string>
     <string name="confirm_remove_suggestion">xóa đề xuất khỏi lịch sử ?</string>
     <string name="confirm_beginning_of_history">đạt đến đầu lịch sử tab ,\nđóng tab ? </string>
+    <string name="confirm_open_pop_up">mở tab mới với url : </string>
 
     <!-- Memory Setting -->
     <string name="memory_low">bộ nhớ thấp</string>

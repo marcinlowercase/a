@@ -42,6 +42,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
+import marcinlowercase.a.R
 import marcinlowercase.a.core.custom_class.CustomPermissionDelegate
 import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.ContextMenuData
@@ -1140,7 +1141,45 @@ class GeckoManager(private val context: Context) {
         )
 
         session.promptDelegate = object : GeckoSession.PromptDelegate {
+            override fun onPopupPrompt(
+                session: GeckoSession,
+                prompt: GeckoSession.PromptDelegate.PopupPrompt
+            ): GeckoResult<GeckoSession.PromptDelegate.PromptResponse> {
 
+                val result = GeckoResult<GeckoSession.PromptDelegate.PromptResponse>()
+                val targetUrl = prompt.targetUri ?: ""
+
+                // We use onJsPrompt instead to give the user an editable OutlinedTextField!
+                onJsPrompt(
+                    context.getString(R.string.confirm_open_pop_up),
+                    targetUrl
+                ) { editedUrl ->
+
+                    if (editedUrl != null) {
+                        if (editedUrl == targetUrl) {
+                            // 1. User kept the original URL.
+                            // We ALLOW the native popup so it keeps its connection to the parent tab
+                            // (crucial so things like "Sign in with Google" popups don't break).
+                            result.complete(prompt.confirm(AllowOrDeny.ALLOW))
+                        } else {
+                            // 2. User typed a custom URL!
+                            // We DENY the native popup, and trick the app into opening a brand new tab with their URL.
+                            result.complete(prompt.confirm(AllowOrDeny.DENY))
+
+                            val dummyId = System.currentTimeMillis()
+                            MainScope().launch {
+                                // This triggers MainActivity to open a new tab seamlessly
+                                onNewSessionFunWithId(dummyId, editedUrl)
+                            }
+                        }
+                    } else {
+                        // 3. User clicked Dismiss.
+                        result.complete(prompt.confirm(AllowOrDeny.DENY))
+                    }
+                }
+
+                return result
+            }
             override fun onDateTimePrompt(
                 session: GeckoSession,
                 prompt: GeckoSession.PromptDelegate.DateTimePrompt
