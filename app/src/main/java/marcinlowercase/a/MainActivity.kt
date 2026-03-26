@@ -805,6 +805,43 @@ fun BrowserScreen(
 
 
     //region Permissions Handle
+
+    val pendingWebAuthnResult = remember { mutableStateOf<GeckoResult<Intent>?>(null) }
+    val webAuthnLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult(),
+        onResult = { result ->
+            if (result.resultCode == Activity.RESULT_OK && result.data != null) {
+                // Pass the FIDO payload back to GeckoView
+                pendingWebAuthnResult.value?.complete(result.data)
+            } else {
+                // Fails the Javascript Promise if the user cancels the FIDO prompt
+                pendingWebAuthnResult.value?.completeExceptionally(Exception("WebAuthn canceled or failed"))
+            }
+            pendingWebAuthnResult.value = null
+        }
+    )
+
+    // Attach the ActivityDelegate to your GeckoRuntime so it can launch the FIDO Intents
+    LaunchedEffect(viewModel.geckoManager.runtime) {
+        viewModel.geckoManager.runtime.setActivityDelegate(object : org.mozilla.geckoview.GeckoRuntime.ActivityDelegate {
+            override fun onStartActivityForResult(intent: android.app.PendingIntent): GeckoResult<Intent>? {
+                val geckoResult = GeckoResult<Intent>()
+                pendingWebAuthnResult.value = geckoResult
+
+                try {
+                    // Start the Google Play Services FIDO dialog
+                    val request = androidx.activity.result.IntentSenderRequest.Builder(intent.intentSender).build()
+                    webAuthnLauncher.launch(request)
+                } catch (e: Exception) {
+                    geckoResult.completeExceptionally(e)
+                    pendingWebAuthnResult.value = null
+                }
+
+                return geckoResult
+            }
+        })
+    }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions(),
         onResult = { permissions ->
@@ -2637,7 +2674,7 @@ fun BrowserScreen(
                                                             ViewGroup.LayoutParams.MATCH_PARENT
                                                         )
                                                         isSaveEnabled = false
-
+                                                        activityContextDelegate = GeckoView.ActivityContextDelegate { context }
                                                         setOnTouchListener { _, event ->
 
                                                             if (event.source == android.view.InputDevice.SOURCE_UNKNOWN) {

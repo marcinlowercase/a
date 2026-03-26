@@ -110,6 +110,52 @@ class CustomPermissionDelegate(
             return result
         }
 
+        if (perm.permission == GeckoSession.PermissionDelegate.PERMISSION_PERSISTENT_STORAGE) {
+            val domain = perm.uri.toDomain()
+
+            // We use a benign, auto-granted Android permission as a unique "key" so your ViewModel
+            // automatically saves it without triggering an actual OS permission popup.
+            val storagePermissionKey = Manifest.permission.ACCESS_NETWORK_STATE
+
+            // Check if the ViewModel already remembered this decision
+            val decision = siteSettings[domain]?.permissionDecisions?.get(storagePermissionKey)
+
+            if (decision == false) {
+                return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY)
+            } else if (decision == true) {
+                return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW)
+            }
+
+            val result = GeckoResult<Int?>()
+
+            val customRequest = CustomPermissionRequest(
+                origin = perm.uri,
+                title = "Persistent Storage",
+                rationale = "This site wants to store data persistently to work offline or save local data.",
+                // Feel free to replace these with actual save/deny icons (e.g., R.drawable.ic_save)
+                iconResAllow = R.drawable.ic_folder,
+                iconResDeny = R.drawable.ic_folder_off,
+                permissionsToRequest = listOf(storagePermissionKey),
+                onResult = { permissionsMap, pendingRequest ->
+
+                    // Your MainActivity automatically updates the ViewModel based on this map.
+                    val isGranted = permissionsMap[storagePermissionKey] == true
+
+                    if (isGranted) {
+                        result.complete(GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW)
+                    } else {
+                        result.complete(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY)
+                    }
+
+                    pendingRequest.value = null
+                },
+                isSystemRequest = false
+            )
+
+            onShowRequest(customRequest)
+            return result
+        }
+
         return super.onContentPermissionRequest(session, perm)
     }
 
