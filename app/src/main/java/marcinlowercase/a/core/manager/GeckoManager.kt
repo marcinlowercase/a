@@ -557,6 +557,11 @@ class GeckoManager(private val context: Context) {
                             return GeckoResult.fromValue("OK")
                         }
                         else if (type == "getSettings") {
+                            // BYPASS THE STALE CONTEXT:
+                            // Get the absolute LIVE screen dimensions from the Android System
+                            val displayMetrics = android.content.res.Resources.getSystem().displayMetrics
+                            val liveScreenWidthDp = displayMetrics.widthPixels / displayMetrics.density.toDouble()
+
                             val responseObj = JSONObject().apply {
                                 put("enabled", browserSettings.value.isEnabledOutSync)
                                 put("radius", browserSettings.value.deviceCornerRadius.toDouble())
@@ -564,14 +569,14 @@ class GeckoManager(private val context: Context) {
                                 put("lineHeight", browserSettings.value.singleLineHeight.toDouble())
                                 put("color", formatArgbToCss(browserSettings.value.highlightColor.toHexString()))
                                 put("isDesktop", browserSettings.value.isDesktopMode)
+                                // Send the LIVE width to JavaScript
+                                put("screenWidth", liveScreenWidthDp)
                             }
 
-                            // BYPASS BUG: Convert JSONObject to a raw String!
                             val responseString = responseObj.toString()
-
-                            Log.d("OutSyncNative", "Sending theme settings as String: $responseString")
                             return GeckoResult.fromValue(responseString)
                         }
+
                     } catch (e: Exception) {
                         Log.e("OutSyncNative", "Error parsing JS message", e)
                     }

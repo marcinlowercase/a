@@ -1,17 +1,11 @@
 // theme_injector.js
 (async function () {
-  // 1. CRITICAL: Do not run on Gecko's hidden background frames or blank pages!
   if (
     !window.location.href || window.location.href === "about:blank" ||
     window.location.protocol === "moz-extension:"
   ) {
     return;
   }
-
-//  console.log(
-//    "OutSync Protocol: Theme Injection Script Started for: " +
-//      window.location.hostname,
-//  );
 
   async function getSettingsFromKotlin() {
     for (let i = 0; i < 20; i++) {
@@ -20,7 +14,6 @@
           type: "getSettings",
         });
 
-        // BYPASS BUG: If Kotlin sends a String, parse it back into an object
         let response = typeof rawResponse === "string"
           ? JSON.parse(rawResponse)
           : rawResponse;
@@ -29,54 +22,73 @@
       } catch (e) {
         let errorMsg = e ? (e.message || String(e)) : "undefined error";
         if (errorMsg.includes("Actor 'Conduits' destroyed")) {
-//          console.warn(
-//            "OutSync Protocol: Page navigated away, stopping injection.",
-//          );
           return null;
         }
-        // Wait 25ms and try again
         await new Promise((res) => setTimeout(res, 25));
       }
     }
-    return null; // Give up gracefully
+    return null;
   }
-  try {
-    let response = await getSettingsFromKotlin();
-    if (!response || !response.enabled) return;
 
-    let script = document.createElement("script");
-    script.textContent = `
-            (function() {
-                let scale = 1.0;
-                let isDesktop = ${response.isDesktop};
+  // Keep track of what we applied to prevent CSS spam
+  let lastInjectedSignature = "";
 
-                if (isDesktop) {
-                    let screenW = window.screen.width;
-                    if (!screenW || screenW >= 980) { screenW = 390; }
-                    let viewportW = document.documentElement.clientWidth || window.innerWidth || 980;
-                    if (viewportW > screenW) {
-                        scale = viewportW / screenW;
-                    }
-                }
+  async function applyTheme() {
+    try {
+      let response = await getSettingsFromKotlin();
+      if (!response || !response.enabled) return;
 
-                let scaledRadius = ${response.radius} * scale;
-                let scaledPadding = ${response.padding} * scale;
-                let scaledLineHeight = ${response.lineHeight} * scale;
+      // In Desktop Mode, viewportW is ALWAYS ~980.
+      // But screenW is now dynamically ~390 (Portrait) or ~850 (Landscape) from Kotlin!
+      let screenW = response.screenWidth;
+      let viewportW = document.documentElement.clientWidth || window.innerWidth || 980;
 
-                document.documentElement.style.setProperty('--device-corner-radius', scaledRadius + 'px');
-                document.documentElement.style.setProperty('--padding', scaledPadding + 'px');
-                document.documentElement.style.setProperty('--single-line-height', scaledLineHeight + 'px');
-                document.documentElement.style.setProperty('--highlight-color', '${response.color}');
+      // Create a signature of the current state
+      let currentSignature = screenW + "|" + viewportW + "|" + response.radius;
 
-                window.deviceCornerRadius = scaledRadius;
-                if (typeof window.render === 'function') window.render(scaledRadius);
+      // SPAM PREVENTION: If the values are identical to last time, do nothing!
+      if (lastInjectedSignature === currentSignature) {
+          return;
+      }
+      lastInjectedSignature = currentSignature;
 
-//                console.log("OutSync Protocol: SUCCESS! Variables applied. Radius: " + scaledRadius);
-            })();
-        `;
-    document.documentElement.appendChild(script);
-    script.remove();
-  } catch (e) {
-//    console.error("OutSync Protocol Error:", e);
+      let scale = 1.0;
+      let isDesktop = response.isDesktop;
+
+      // MATH EXPLANATION:
+      // Portrait: scale = 980 / 390 = 2.51
+      // Landscape: scale = 980 / 850 = 1.15
+      if (isDesktop && viewportW > screenW) {
+          scale = viewportW / screenW;
+      }
+
+      let scaledRadius = response.radius * scale;
+      let scaledPadding = response.padding * scale;
+      let scaledLineHeight = response.lineHeight * scale;
+
+      document.documentElement.style.setProperty('--device-corner-radius', scaledRadius + 'px');
+      document.documentElement.style.setProperty('--padding', scaledPadding + 'px');
+      document.documentElement.style.setProperty('--single-line-height', scaledLineHeight + 'px');
+      document.documentElement.style.setProperty('--highlight-color', response.color);
+
+      window.deviceCornerRadius = scaledRadius;
+      if (typeof window.render === 'function') window.render(scaledRadius);
+
+    } catch (e) {
+    }
   }
+
+  // Run on page load
+  await applyTheme();
+
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    // We don't check window.innerWidth here anymore, because it's locked to 980.
+    // We just wait 250ms for the screen rotation to settle, then run applyTheme.
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(async () => {
+      await applyTheme();
+    }, 250);
+  });
+
 })();
