@@ -1,4 +1,8 @@
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -14,14 +18,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -42,10 +49,47 @@ fun CursorPointer(
     var trailPoints by remember { mutableStateOf(listOf<Offset>()) }
     val maxTailLength = 15 // Increase to make the tail longer
 
+    // Ripple state for the "click" animation
+    var rippleRadius by remember { mutableFloatStateOf(0f) }
+    var rippleAlpha by remember { mutableFloatStateOf(0f) }
+    var clickOffset by remember { mutableStateOf(Offset.Zero) }
+
+    // Squeeze scale for the pointer (shrinks when clicking, pops up when appearing)
+    val pointerScale by animateFloatAsState(
+        targetValue = if (isCursorPadVisible) 1f else 0.4f,
+        animationSpec = if (isCursorPadVisible) {
+            spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow)
+        } else {
+            tween(settings.value.animationSpeed.roundToInt())
+        },
+        label = "CursorSqueeze"
+    )
+
+    // Trigger the ripple expansion when the user lifts their finger (tap occurs)
+    LaunchedEffect(isCursorPadVisible) {
+        if (!isCursorPadVisible) {
+            clickOffset = position // Anchor the wave exactly where they clicked
+
+            animate(
+                initialValue = 0f,
+                targetValue = 1f,
+                animationSpec = tween(settings.value.animationSpeed.roundToInt())
+            ) { value, _ ->
+                rippleRadius = value * 120f // Ripple expands outwards
+                rippleAlpha = 0.8f * (1f - value) // Fades out smoothly as it expands
+            }
+        } else {
+            // Reset state when the cursor reappears
+            rippleAlpha = 0f
+            rippleRadius = 0f
+        }
+    }
+
     // Continuously record positions and decay them when the cursor stops
     LaunchedEffect(position, isCursorPadVisible) {
         if (!isCursorPadVisible) {
-            trailPoints = emptyList()
+            // Return early instead of clearing the list, so the tail freezes
+            // in place and gracefully fades out with the exit animation!
             return@LaunchedEffect
         }
 
@@ -72,8 +116,19 @@ fun CursorPointer(
             val cursorContainerSize = settings.value.cursorContainerSize.dp
             val pointerSize = cursorContainerSize / 2
 
-            // --- Draw the Tail ---
+            // --- Draw the Tail and Click Ripple ---
             Canvas(modifier = Modifier.fillMaxSize()) {
+
+                // Draw Click Ripple Wave
+                if (rippleAlpha > 0f) {
+                    drawCircle(
+                        color = Color(settings.value.highlightColor).copy(alpha = rippleAlpha),
+                        radius = rippleRadius,
+                        center = clickOffset,
+                        style = Stroke(width = 4.dp.toPx())
+                    )
+                }
+
                 if (trailPoints.size > 1) {
                     // Connect the dots line-by-line so we can taper thickness and alpha
                     for (i in 0 until trailPoints.size - 1) {
@@ -108,6 +163,7 @@ fun CursorPointer(
                         )
                     }
                     .size(cursorContainerSize)
+                    .scale(pointerScale) // <--- APPLIES SQUEEZE/POP ANIMATION
                     .background(Color.Black.copy(alpha = 0.5f), CircleShape)
             ) {
                 Icon(
