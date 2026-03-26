@@ -411,6 +411,24 @@ class MainActivity : ComponentActivity() {
     private fun handleIntent(intent: Intent?, isColdStart: Boolean = false) {
         val viewModel: BrowserViewModel by viewModels()
 
+        if (intent?.action == "marcinlowercase.a.WEB_NOTIFICATION_CLICK") {
+            try {
+                val webNotification = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableExtra("web_notification", org.mozilla.geckoview.WebNotification::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    intent.getParcelableExtra<org.mozilla.geckoview.WebNotification>("web_notification")
+                }
+
+                // This natively triggers the JavaScript `notification.onclick` event!
+                webNotification?.click()
+            } catch (e: Exception) {
+                Log.e("GeckoExt", "Failed to click WebNotification", e)
+            }
+            // It's safe to return early if the intent was purely a notification click
+            return
+        }
+
         if (intent?.action == Intent.ACTION_VIEW) {
             intent.dataString?.let { urlFromIntent ->
 

@@ -21,21 +21,31 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableDoubleStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import marcinlowercase.a.core.custom_class.CustomPermissionDelegate
 import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.ContextMenuData
 import marcinlowercase.a.core.data_class.CustomPermissionRequest
+import marcinlowercase.a.core.data_class.JsChoiceState
+import marcinlowercase.a.core.data_class.JsColorState
+import marcinlowercase.a.core.data_class.JsDateTimeState
 import marcinlowercase.a.core.data_class.SiteSettings
 import marcinlowercase.a.core.data_class.Tab
 import marcinlowercase.a.core.enum_class.ContextMenuType
+import marcinlowercase.a.core.function.formatArgbToCss
 import marcinlowercase.a.core.service.MediaPlaybackService
 import org.json.JSONObject
 import org.mozilla.geckoview.AllowOrDeny
 import org.mozilla.geckoview.GeckoResult
 import org.mozilla.geckoview.GeckoRuntime
+import org.mozilla.geckoview.GeckoRuntimeSettings
 import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.GeckoSessionSettings
 import org.mozilla.geckoview.MediaSession
@@ -43,17 +53,6 @@ import org.mozilla.geckoview.WebExtension
 import org.mozilla.geckoview.WebExtensionController
 import org.mozilla.geckoview.WebRequestError
 import org.mozilla.geckoview.WebResponse
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableDoubleStateOf
-import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.runtime.setValue
-import marcinlowercase.a.core.data_class.JsChoiceState
-import marcinlowercase.a.core.data_class.JsColorState
-import marcinlowercase.a.core.data_class.JsDateTimeState
-import marcinlowercase.a.core.data_class.WebAppManifest
-import marcinlowercase.a.core.function.formatArgbToCss
-import org.mozilla.geckoview.GeckoRuntimeSettings
 import kotlin.math.abs
 
 private const val UBLOCK_ID = "uBlock0@raymondhill.net"
@@ -99,7 +98,6 @@ class GeckoManager(private val context: Context) {
     private val engineManagedSessionIds = mutableSetOf<Long>()
 
 
-
     private val sessionPool = mutableStateMapOf<Long, GeckoSession>()
     val sessionPoolSize: Int
         get() = sessionPool.size
@@ -126,7 +124,8 @@ class GeckoManager(private val context: Context) {
                     configureExtension(existing)
                 } else {
                     // 2. Not installed yet. Fetch the absolute latest version from Mozilla Add-ons (AMO).
-                    val latestUblockUrl = "https://addons.mozilla.org/firefox/downloads/latest/ublock-origin/latest.xpi"
+                    val latestUblockUrl =
+                        "https://addons.mozilla.org/firefox/downloads/latest/ublock-origin/latest.xpi"
                     installRemoteExtension(latestUblockUrl)
                 }
             },
@@ -138,7 +137,10 @@ class GeckoManager(private val context: Context) {
         runtime.webExtensionController.install(url).accept(
             { extension ->
                 if (extension != null) {
-                    Log.i("GeckoExt", "Successfully downloaded and installed: ${extension.metaData.name}")
+                    Log.i(
+                        "GeckoExt",
+                        "Successfully downloaded and installed: ${extension.metaData.name}"
+                    )
                     configureExtension(extension)
                 }
             },
@@ -147,6 +149,7 @@ class GeckoManager(private val context: Context) {
             }
         )
     }
+
     fun setAdBlockEnabled(isEnabled: Boolean) {
         isAdBlockEnabledTarget = isEnabled
         uBlockExtension?.let { ext ->
@@ -157,6 +160,7 @@ class GeckoManager(private val context: Context) {
             }
         }
     }
+
     fun tickLivePosition() {
         if (lastPositionSnapshot.doubleValue >= 0.0) {
             val now = System.currentTimeMillis()
@@ -194,7 +198,7 @@ class GeckoManager(private val context: Context) {
                 coreExtension = ext
             },
             { _ -> //Log.e("GeckoExt", "Favicon Fetcher Failed", e)
-                 }
+            }
         )
     }
 
@@ -202,6 +206,7 @@ class GeckoManager(private val context: Context) {
         // Tells GeckoView to permanently delete all cookies/data for this specific partition
         runtime.storageController.clearDataForSessionContext(profileId)
     }
+
     private fun setupExtensionPrompts() {
         runtime.webExtensionController.setPromptDelegate(object :
             WebExtensionController.PromptDelegate {
@@ -255,16 +260,26 @@ class GeckoManager(private val context: Context) {
         if (extension.id == UBLOCK_ID) {
             uBlockExtension = extension
             if (isAdBlockEnabledTarget) {
-                runtime.webExtensionController.enable(extension, WebExtensionController.EnableSource.APP)
+                runtime.webExtensionController.enable(
+                    extension,
+                    WebExtensionController.EnableSource.APP
+                )
             } else {
-                runtime.webExtensionController.disable(extension, WebExtensionController.EnableSource.APP)
+                runtime.webExtensionController.disable(
+                    extension,
+                    WebExtensionController.EnableSource.APP
+                )
             }
         } else {
             // Default behavior for Favicon or other extensions
-            runtime.webExtensionController.enable(extension, WebExtensionController.EnableSource.APP)
+            runtime.webExtensionController.enable(
+                extension,
+                WebExtensionController.EnableSource.APP
+            )
         }
 
     }
+
     fun optimizeMemoryExcept(activeTabId: Long) {
         // Find all sessions currently eating RAM except the active one
         val idsToClose = sessionPool.keys.filter { it != activeTabId }
@@ -282,6 +297,7 @@ class GeckoManager(private val context: Context) {
             engineManagedSessionIds.remove(id)
         }
     }
+
     fun getSession(tab: Tab, isDesktopMode: Boolean = false): GeckoSession {
         val session = sessionPool.getOrPut(tab.id) {
             createAndConfigureSession(tab, isDesktopMode)
@@ -332,16 +348,17 @@ class GeckoManager(private val context: Context) {
         engineManagedSessionIds.remove(tab.id)
     }
 
-        private fun getSessionSettings(tab: Tab, isDesktopMode: Boolean): GeckoSessionSettings {
-            return GeckoSessionSettings.Builder()
-                .usePrivateMode(false) // Set based on your Incognito logic
-                .userAgentMode(if (isDesktopMode) GeckoSessionSettings.USER_AGENT_MODE_DESKTOP else GeckoSessionSettings.USER_AGENT_MODE_MOBILE)
-                .viewportMode(if (isDesktopMode) GeckoSessionSettings.VIEWPORT_MODE_DESKTOP else GeckoSessionSettings.VIEWPORT_MODE_MOBILE)
-                .suspendMediaWhenInactive(false)
-                .allowJavascript(true)
-                .contextId(tab.profileId)
-                .build()
-        }
+    private fun getSessionSettings(tab: Tab, isDesktopMode: Boolean): GeckoSessionSettings {
+        return GeckoSessionSettings.Builder()
+            .usePrivateMode(false) // Set based on your Incognito logic
+            .userAgentMode(if (isDesktopMode) GeckoSessionSettings.USER_AGENT_MODE_DESKTOP else GeckoSessionSettings.USER_AGENT_MODE_MOBILE)
+            .viewportMode(if (isDesktopMode) GeckoSessionSettings.VIEWPORT_MODE_DESKTOP else GeckoSessionSettings.VIEWPORT_MODE_MOBILE)
+            .suspendMediaWhenInactive(false)
+            .allowJavascript(true)
+            .contextId(tab.profileId)
+            .build()
+    }
+
     private fun createAndConfigureSession(tab: Tab, isDesktopMode: Boolean): GeckoSession {
 
         val session = GeckoSession(getSessionSettings(tab, isDesktopMode))
@@ -454,6 +471,7 @@ class GeckoManager(private val context: Context) {
         lastPositionSnapshot.doubleValue = newTime
         lastSnapshotTime.longValue = System.currentTimeMillis()
     }
+
     private fun isExternalScheme(uri: String): Boolean {
         if (uri.isBlank()) return false
 
@@ -472,9 +490,11 @@ class GeckoManager(private val context: Context) {
                 lowerUri.startsWith("chrome-extension://") ||
                 lowerUri.startsWith("extension://")) // <-- THE FIX: Allow uBlock Origin's block pages!
     }
+
     fun isEngineManaged(tabId: Long): Boolean {
         return engineManagedSessionIds.contains(tabId)
     }
+
     fun setupDelegates(
         session: GeckoSession,
         tab: MutableState<Tab>,
@@ -506,7 +526,8 @@ class GeckoManager(private val context: Context) {
         onPageStartFun: (eventTabId: Long, session: GeckoSession, url: String) -> Unit,
         onPageStopFun: (session: GeckoSession, success: Boolean) -> Unit,
         onContextMenuFun: (data: ContextMenuData) -> Unit,
-        onDownloadRequested: (url: String, userAgent: String, contentDisposition: String?, mimeType: String?, stream: java.io.InputStream?) -> Unit,        onJsAlert: (String) -> Unit,
+        onDownloadRequested: (url: String, userAgent: String, contentDisposition: String?, mimeType: String?, stream: java.io.InputStream?) -> Unit,
+        onJsAlert: (String) -> Unit,
         onJsConfirm: (String, (Boolean) -> Unit) -> Unit,
         onJsPrompt: (String, String, (String?) -> Unit) -> Unit,
         onLoadErrorFun: (eventTabId: Long, session: GeckoSession, uri: String?, error: WebRequestError) -> Unit,
@@ -532,7 +553,7 @@ class GeckoManager(private val context: Context) {
                 nativeApp: String,
                 message: Any,
                 sender: WebExtension.MessageSender
-            ): GeckoResult<Any>? {
+            ): GeckoResult<Any> {
 
                 Log.d("OutSyncNative", "Message received from JS! Payload: $message")
 
@@ -555,19 +576,23 @@ class GeckoManager(private val context: Context) {
                             }
                             // BYPASS BUG: Return a simple primitive String
                             return GeckoResult.fromValue("OK")
-                        }
-                        else if (type == "getSettings") {
+                        } else if (type == "getSettings") {
                             // BYPASS THE STALE CONTEXT:
                             // Get the absolute LIVE screen dimensions from the Android System
-                            val displayMetrics = android.content.res.Resources.getSystem().displayMetrics
-                            val liveScreenWidthDp = displayMetrics.widthPixels / displayMetrics.density.toDouble()
+                            val displayMetrics =
+                                android.content.res.Resources.getSystem().displayMetrics
+                            val liveScreenWidthDp =
+                                displayMetrics.widthPixels / displayMetrics.density.toDouble()
 
                             val responseObj = JSONObject().apply {
                                 put("enabled", browserSettings.value.isEnabledOutSync)
                                 put("radius", browserSettings.value.deviceCornerRadius.toDouble())
                                 put("padding", browserSettings.value.padding.toDouble())
                                 put("lineHeight", browserSettings.value.singleLineHeight.toDouble())
-                                put("color", formatArgbToCss(browserSettings.value.highlightColor.toHexString()))
+                                put(
+                                    "color",
+                                    formatArgbToCss(browserSettings.value.highlightColor.toHexString())
+                                )
                                 put("isDesktop", browserSettings.value.isDesktopMode)
                                 // Send the LIVE width to JavaScript
                                 put("screenWidth", liveScreenWidthDp)
@@ -586,6 +611,7 @@ class GeckoManager(private val context: Context) {
                 return GeckoResult.fromValue("IGNORE")
             }
         }
+
         @SuppressLint("WrongThread")
         fun ensureDelegateAttached() {
             // Note: This prints to the MAIN App Process logcat, not the Isolated Web Content logcat!
@@ -666,7 +692,8 @@ class GeckoManager(private val context: Context) {
                 //Log.d("NewTabFlow", "onNewSession")
                 val newTabId = System.currentTimeMillis()
 
-                val newSession = GeckoSession(getSessionSettings(tab.value, browserSettings.value.isDesktopMode))
+                val newSession =
+                    GeckoSession(getSessionSettings(tab.value, browserSettings.value.isDesktopMode))
 
                 // This ensures that even if the UI is slow to load the new tab,
                 // the session can still close itself.
@@ -689,7 +716,6 @@ class GeckoManager(private val context: Context) {
 
                 return GeckoResult.fromValue(newSession)
             }
-
 
 
             override fun onCanGoBack(session: GeckoSession, canGoBack: Boolean) {
