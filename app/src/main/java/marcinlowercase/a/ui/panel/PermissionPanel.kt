@@ -105,8 +105,8 @@ fun PermissionPanel(
 
 
 
-            val allowString = stringResource(R.string.desc_permission_allow)
-            val denyString = stringResource(R.string.desc_permission_deny)
+            val allowString = stringResource(R.string.word_allow)
+            val denyString = stringResource(R.string.word_deny)
 
             // Action buttons
             Row(

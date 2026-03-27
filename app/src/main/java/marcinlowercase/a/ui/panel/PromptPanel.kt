@@ -31,16 +31,20 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
@@ -53,7 +57,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -65,6 +71,7 @@ import marcinlowercase.a.core.data_class.JsPrompt
 import marcinlowercase.a.core.function.buttonSettingsForLayer
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import org.mozilla.geckoview.GeckoView
+import kotlin.math.ceil
 
 @Composable
 fun PromptPanel(
@@ -107,8 +114,6 @@ fun PromptPanel(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-//                    .padding(bottom = settings.value.padding.dp)
-//                    .padding(horizontal = settings.value.padding.dp * 3)
                     .padding(top = settings.value.padding.dp)
                     .padding(horizontal = settings.value.cornerRadiusForLayer(2).dp)
                     .clip(
@@ -118,25 +123,13 @@ fun PromptPanel(
                     )
                     .background(
                         Color.Black
-                    )
-//                    .border(
-//                        1.dp,
-//                        Color.White,
-//                        shape = RoundedCornerShape(
-//                            cornerRadiusForLayer(
-//                                2,
-//                                settings.value.deviceCornerRadius,
-//                                settings.value.padding
-//                            ).dp
-//                        )
-//                    )
-                ,
+                    ),
 
                 verticalAlignment = Alignment.CenterVertically // Keeps text aligned nicely
             ) {
                 // "from" Text - Fixed Size
                 Text(
-                    text = "from ", // Added a space for better readability
+                    text = "${stringResource(R.string.word_from)} ", // Added a space for better readability
                     color = Color.White.copy(alpha = 0.7f), // Subtly de-emphasize
                     maxLines = 1, // Ensure it doesn't wrap
                 )
@@ -166,86 +159,93 @@ fun PromptPanel(
                             settings.value.cornerRadiusForLayer(2).dp
                         )
                     )
-//                    .border(
-//                        width = 1.dp,
-//                        color = Color.White,
-//                        shape = RoundedCornerShape(
-//                            cornerRadiusForLayer(
-//                                2,
-//                                settings.value.deviceCornerRadius,
-//                                settings.value.padding
-//                            ).dp
-//                        )
-//                    )
             )
             {
 
                 val textModifier = Modifier
-                    .padding(settings.value.padding.dp)
+                    .padding(vertical = settings.value.padding.dp)
+                    .padding(horizontal = settings.value.cornerRadiusForLayer(3).dp)
 
 
                 Column(
                     modifier = Modifier
                         .padding(settings.value.padding.dp)
-                        .background(
-                            color = Color.Transparent,
-                            shape = RoundedCornerShape(
+                        .clip(
+                            RoundedCornerShape(
                                 settings.value.cornerRadiusForLayer(3).dp
                             )
+                        )
+                        .background(
+                            color = Color.White,
                         )
                 ) {
                     when (displayState) {
                         is JsAlert -> Text(
                             text = displayState.message,
-                            color = Color.White,
+                            color = Color.Black,
                             modifier = textModifier
                         )
 
                         is JsConfirm -> Text(
                             text = displayState.message,
-                            color = Color.White,
+                            color = Color.Black,
                             modifier = textModifier
                         )
 
                         is JsPrompt -> {
                             Text(
                                 text = displayState.message,
-                                color = Color.White,
+                                color = Color.Black,
                                 modifier = textModifier
                             )
-                            Spacer(Modifier.height(settings.value.padding.dp))
-                            OutlinedTextField(
+                            BasicTextField(
                                 value = textInput,
                                 onValueChange = { textInput = it },
-                                maxLines = 6, //hardcode
+                                maxLines = ceil(settings.value.maxListHeight).toInt(),
                                 modifier = Modifier
-                                    .height(IntrinsicSize.Min)
-                                    .fillMaxWidth(),
+                                    // 1. External padding (margins)
+                                    .padding(horizontal = settings.value.padding.dp)
+                                    .padding(bottom = settings.value.padding.dp)
+                                    // 2. Sizing
+                                    .fillMaxWidth()
+                                    .heightIn(min = settings.value.heightForLayer(4).dp)
+                                    // 3. Container background and shape (replaces TextFieldDefaults container colors)
+                                    .background(
+                                        color = Color.Black.copy(alpha = 0.1f),
+                                        shape = RoundedCornerShape(
+                                            settings.value.cornerRadiusForLayer(
+                                                4
+                                            ).dp
+                                        )
+                                    ),
                                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default),
                                 keyboardActions = KeyboardActions(
                                     onDone = {
-
                                         geckoViewRef.value?.requestFocus()
                                         displayState.onResult(textInput)
                                         onDismiss()
                                     }
                                 ),
-                                shape = RoundedCornerShape(
-                                    settings.value.cornerRadiusForLayer(3).dp
+                                // Text and cursor styling
+                                textStyle = LocalTextStyle.current.copy(
+                                    color = Color.Black
                                 ),
-                                colors = TextFieldDefaults.colors(
-                                    focusedContainerColor = Color.Black.copy(0.95f), // Background when focused
-                                    unfocusedContainerColor = Color.Black.copy(0.8f), // Background when unfocused
-                                    cursorColor = Color.White,
-                                    disabledContainerColor = Color.White, // Background when disabled
-                                    errorContainerColor = Color.Red, // Background when in error state.
-                                    focusedIndicatorColor = Color.White.copy(0.95f),      // Outline color when focused
-                                    unfocusedIndicatorColor = Color.White.copy(0.8f),    // Outline color when unfocused
-                                    disabledIndicatorColor = Color.White, // Outline color when disabled
-                                    errorIndicatorColor = Color.Red,          // Outline color on error
-                                    focusedTextColor = Color.White,
-                                    unfocusedTextColor = Color.White.copy(0.8f),
-                                )
+                                cursorBrush = SolidColor(Color.Black),
+
+                                // 4. The decorationBox allows us to define the vertical centering
+                                decorationBox = { innerTextField ->
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            // Internal padding inside the text field
+                                            .padding(horizontal = 16.dp, vertical = 8.dp),
+
+                                        // THIS is the magic property that centers the text vertically!
+                                        contentAlignment = Alignment.CenterStart
+                                    ) {
+                                        innerTextField()
+                                    }
+                                }
                             )
                         }
                     }

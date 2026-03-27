@@ -1,6 +1,12 @@
 <resources>
     <string name="app_name">trình duyệt</string>
 
+
+    <!-- Word -->
+    <string name="word_allow">cho phép</string>
+    <string name="word_deny">từ chối</string>
+    <string name="word_from">từ</string>
+
     <!-- Content Descriptions & Options -->
     <string name="desc_tabs_panel">khung tab</string>
     <string name="desc_find_in_page">tìm trong trang</string>
@@ -80,8 +86,6 @@
     <string name="desc_permission_notifications">quyền tạo thông báo</string>
     <string name="desc_permission_storage">quyền truy cập bộ nhớ thiết bị</string>
     <string name="desc_permission_unknown">không xác định</string>
-    <string name="desc_permission_allow">cho phép</string>
-    <string name="desc_permission_deny">từ chối</string>
     <string name="desc_permission_drm">phát nội dung được bảo vệ (DRM)</string>
 
     <string name="desc_clear_site_data">xóa dữ liệu trang web</string>

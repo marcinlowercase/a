@@ -4,6 +4,11 @@
 
     <string name="app_name">browser</string>
 
+    <!-- Word -->
+    <string name="word_allow">allow</string>
+    <string name="word_deny">deny</string>
+    <string name="word_from">from</string>
+
     <!-- Content Descriptions & Options -->
     <string name="desc_tabs_panel">tabs panel</string>
     <string name="desc_find_in_page">find in page</string>
@@ -82,8 +87,6 @@
     <string name="desc_permission_microphone">microphone permission</string>
     <string name="desc_permission_notifications">notifications permission</string>
     <string name="desc_permission_storage">persistent storage permission</string>
-    <string name="desc_permission_allow">allow</string>
-    <string name="desc_permission_deny">deny</string>
     <string name="desc_permission_unknown">unknown</string>
     <string name="desc_permission_drm">playing protected media (DRM)</string>
 
