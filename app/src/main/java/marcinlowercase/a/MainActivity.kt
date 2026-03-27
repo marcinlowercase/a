@@ -2125,7 +2125,7 @@ fun BrowserScreen(
 
                                 activity.requestedOrientation =
                                     ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                                if (!settings.isFullscreenMode) {
+                                if (!isEffectivelyFullscreen) {
                                     insetsController.show(WindowInsetsCompat.Type.systemBars())
                                     insetsController.systemBarsBehavior =
                                         WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
