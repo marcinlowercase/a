@@ -175,9 +175,13 @@ fun PromptPanel(
                                 settings.value.cornerRadiusForLayer(3).dp
                             )
                         )
+                        .heightIn(
+                            settings.value.heightForLayer(3).dp
+                        )
                         .background(
                             color = Color.White,
-                        )
+                        ),
+                    verticalArrangement = Arrangement.Center
                 ) {
                     when (displayState) {
                         is JsAlert -> Text(
