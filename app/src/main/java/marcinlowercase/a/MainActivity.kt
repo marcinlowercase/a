@@ -1172,7 +1172,7 @@ fun BrowserScreen(
                         viewModel.clearDomainData(domain)
                         val runtime = viewModel.geckoManager.runtime
                         val flags = StorageController.ClearFlags.ALL
-                        runtime.storageController.clearData(flags).then {
+                        runtime.storageController.clearDataFromHost(domain, flags).then {
                             runOnUiThread {
                                 // loop through ALL viewModel.tabs to find matches
                                 viewModel.tabs.forEachIndexed { _, tab ->
@@ -1201,7 +1201,6 @@ fun BrowserScreen(
 
                     viewModel.updateUI { it.copy(isTabDataPanelVisible = false) }
                 }
-
             }
         )
     }
