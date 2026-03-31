@@ -3145,13 +3145,6 @@ fun BrowserScreen(
                                                             val changeSpaceY =
                                                                 (change.position.y - change.previousPosition.y) * settings.cursorTrackingSpeed
 
-                                                            //                                                val newCursorX =
-                                                            //                                                    viewModel.cursorPointerPosition.value.x + changeSpaceX
-                                                            //
-                                                            //                                                val newCursorY =
-                                                            //                                                    (viewModel.cursorPointerPosition.value.y + changeSpaceY)
-                                                            //                                                viewModel.cursorPointerPosition.value =
-                                                            //                                                    Offset(newCursorX, newCursorY)
                                                             var newX =
                                                                 viewModel.cursorPointerPosition.value.x + changeSpaceX
                                                             var newY =
@@ -3181,8 +3174,7 @@ fun BrowserScreen(
                                                             MotionEvent.ACTION_DOWN,
                                                             viewModel.cursorPointerPosition.value.x,
                                                             //                                                    viewModel.cursorPointerPosition.value.y - webViewTopPadding.toPx(),
-                                                            viewModel.cursorPointerPosition.value.y - innerPadding.calculateTopPadding()
-                                                                .toPx(),
+                                                            viewModel.cursorPointerPosition.value.y - webViewPaddingValue.calculateTopPadding().toPx(),
                                                             0
                                                         )
                                                         val upEvent = MotionEvent.obtain(
@@ -3190,8 +3182,7 @@ fun BrowserScreen(
                                                             downTime + 10,
                                                             MotionEvent.ACTION_UP,
                                                             viewModel.cursorPointerPosition.value.x,
-                                                            viewModel.cursorPointerPosition.value.y - innerPadding.calculateTopPadding()
-                                                                .toPx(),
+                                                            viewModel.cursorPointerPosition.value.y - webViewPaddingValue.calculateTopPadding().toPx(),
                                                             0
                                                         )
 
