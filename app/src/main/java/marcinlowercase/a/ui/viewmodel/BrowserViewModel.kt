@@ -902,16 +902,11 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 updateUI { it.copy(isLoading = false) }
             }
 
-            val oldTab = tabs[currentIndex]
-            val newTab = tabs[newIndex]
-
-            geckoManager.pauseSessionIfExists(oldTab.id)
-
-//            geckoManager.getSession(newTab).setActive(true)
-
 
             // 2. Deactivate current tab
             if (currentIndex in tabs.indices) {
+                val oldTab = tabs[currentIndex]
+                geckoManager.pauseSessionIfExists(oldTab.id)
                 tabs[currentIndex] = tabs[currentIndex].copy(state = TabState.BACKGROUND)
             }
 
@@ -1181,17 +1176,9 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun createNewTab(insertAtIndex: Int, url: String) {
-
-        // 1. Deactivate current active tab
-        val currentIndex = _activeTabIndex.value
-        if (currentIndex in tabs.indices) {
-            tabs[currentIndex] = tabs[currentIndex].copy(state = TabState.BACKGROUND)
-        }
-
         // 2. Create the new Tab object
         val initialUrl = url.ifBlank { _browserSettings.value.defaultUrl }
 
-        Log.d("marcBlank", "load blank from createNewTab, $initialUrl")
         val newTab = Tab(
             profileId = currentProfileId,
             currentURL = initialUrl.ifBlank { "about:blank" },
@@ -1205,16 +1192,11 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         // 4. Ensure Gecko creates a session for this new tab
         geckoManager.getSession(newTab)
 
-        // 5. Update the inspection state to follow the new tab
-
-        updateUI { it.copy(inspectingTabId = newTab.id) }
-
-        // 6. Update the active index
-        _activeTabIndex.value = targetIndex
-
-        // 7. Persist changes to disk
-        saveTabs()
-
+        val currentIndex = _activeTabIndex.value
+        if (targetIndex <= currentIndex) {
+            _activeTabIndex.value = currentIndex + 1
+        }
+        selectTab(targetIndex)
     }
 
     val updateTabById = { tabId: Long, transform: (Tab) -> Tab ->

@@ -48,7 +48,6 @@ class TabManager(private val context: Context) {
         val tabs = loadTabs(profileId, null)
         if (tabs.isNotEmpty()) {
             val activeIndex = getActiveTabIndex(profileId)
-            tabs.forEach { it.state = TabState.FROZEN }
             saveTabs(profileId, tabs, activeIndex)
         }
     }

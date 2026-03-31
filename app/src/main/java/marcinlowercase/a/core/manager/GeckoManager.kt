@@ -460,9 +460,10 @@ class GeckoManager(private val context: Context) {
         val session = sessionPool[tabId]
         if (session != null) {
             session.setActive(false)
-            if (activeMediaGeckoSession == session) {
-                activeGeckoMediaSession?.pause()
-            }
+            //TODO make this take a value of isUseBackground AUDIO
+//            if (activeMediaGeckoSession == session) {
+//                activeGeckoMediaSession?.pause()
+//            }
         }
     }
 

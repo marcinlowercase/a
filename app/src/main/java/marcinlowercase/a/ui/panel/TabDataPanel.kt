@@ -72,78 +72,46 @@ fun TabDataPanel(
     val viewModel = LocalBrowserViewModel.current
     val browserSettings = viewModel.browserSettings.collectAsState()
 
-    // 1. Local state to hold the tab being displayed.
+    // 1. ADD THIS LINE: Collect uiState so Compose tracks when inspectingTabId changes!
+    val uiState by viewModel.uiState.collectAsState()
 
     var currentView by remember { mutableStateOf(TabDataPanelView.PERMISSIONS) }
+    val currentTab = viewModel.tabs.find { it.id == uiState.inspectingTabId }
+    val domain = currentTab?.currentURL?.toDomain()
+    val settings = viewModel.siteSettings[domain]
 
-
-    // This AnimatedVisibility controls the entire panel's appearance
     AnimatedVisibility(
         visible = isTabDataPanelVisible,
         enter = fadeIn(tween(browserSettings.value.animationSpeed.roundToInt())) + expandVertically(
             expandFrom = Alignment.Bottom
         ),
-        exit = shrinkVertically(
-            tween(
-                browserSettings.value.animationSpeedForLayer(1)
-            )
-        ) + fadeOut(
+        exit = shrinkVertically(tween(browserSettings.value.animationSpeedForLayer(1))) + fadeOut(
             tween(browserSettings.value.animationSpeedForLayer(1))
         )
-
     ) {
-        // A Box to handle clicking outside to dismiss
         Box(
-            modifier = Modifier
-                .clickable(onClick = onDismiss),
+            modifier = Modifier.clickable(onClick = onDismiss),
             contentAlignment = Alignment.BottomCenter
         ) {
-            // This inner Column prevents the dismiss click from propagating
             Column(
                 modifier = Modifier
-                    .clickable(enabled = false, onClick = {}) // Block clicks
+                    .clickable(enabled = false, onClick = {})
                     .padding(top = browserSettings.value.padding.dp)
                     .padding(horizontal = browserSettings.value.padding.dp)
                     .fillMaxWidth()
                     .heightIn(max = 450.dp)
-                    .clip(
-                        RoundedCornerShape(
-                            browserSettings.value.cornerRadiusForLayer(2).dp
-                        )
-                    )
+                    .clip(RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(2).dp))
                     .background(Color.Black)
             ) {
-                //Log.d("TabDataPanel", "inspectingTab.value: ${viewModel.currentInspectingTab?.currentURL}")
 
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .animateContentSize(
-                            tween(
-                                browserSettings.value.animationSpeedForLayer(1)
-                            )
-                        )
+                        .animateContentSize(tween(browserSettings.value.animationSpeedForLayer(1)))
                 ) {
 
-//                    val viewModel.siteSettings = currentSiteSettings
-//                    viewModel.siteSettings?.domain
-//                    val domain =
-//                        SiteSettingsManager(LocalContext.current).getDomain(
-//                            webViewManager.getWebView(
-//                                tab
-//                            ).url ?: browserSettings.value.defaultUrl
-//                        )
-                    val domain = viewModel.currentInspectingTab?.currentURL?.toDomain()
-                    val settings = viewModel.siteSettings[domain]
-                    //Log.i("TabDataPanel", "domain $domain")
-                    //Log.i("TabDataPanel", "settings $settings")
 
-
-//                    val history = webViewManager.getWebView(tab).copyBackForwardList()
-
-                    val isStillHaveOptions =
-                        (settings != null && settings.permissionDecisions.isNotEmpty())
-//                                || history.size > 0
+                    val isStillHaveOptions = (settings != null && settings.permissionDecisions.isNotEmpty())
 
                     when (currentView) {
                         TabDataPanelView.MAIN -> {
@@ -154,26 +122,8 @@ fun TabDataPanel(
                                 verticalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                // History Button
-//                                if (history.size > 0)
-//                                    CustomIconButton(
-//                                        layer = 3,
-//                                        browserSettings = browserSettings,
-//                                        modifier = Modifier.fillMaxWidth(),
-//                                        onTap = { currentView = TabDataPanelView.HISTORY },
-//
-//                                        buttonDescription = "history list",
-//                                        painterId = R.drawable.ic_history,
-//                                        isWhite = false,
-//                                        )
-
-
-
-                                // Permissions Button
-
                                 if (settings != null && settings.permissionDecisions.isNotEmpty()) {
                                     CustomIconButton(
-//                                        currentRotation = currentRotation,
                                         layer = 3,
                                         modifier = Modifier.fillMaxWidth(),
                                         onTap = { currentView = TabDataPanelView.PERMISSIONS },
@@ -182,17 +132,14 @@ fun TabDataPanel(
                                         isWhite = false,
                                     )
                                 }
-
                             }
                         }
 
                         TabDataPanelView.PERMISSIONS -> {
-                            val domain = viewModel.currentInspectingTab?.currentURL?.toDomain()
-                            val settings = viewModel.siteSettings[domain]
+                            // 3. REMOVED REDUNDANT LOOKUP HERE.
+                            // We just use `settings` and `domain` declared above!
 
-                            // Check if there are any permissions to display
                             if (settings != null && settings.permissionDecisions.isNotEmpty()) {
-                                // A single row that can scroll horizontally if needed
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -201,22 +148,17 @@ fun TabDataPanel(
                                     horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
                                 ) {
                                     settings.permissionDecisions.forEach { (permission, isGranted) ->
-                                        // Determine the correct icon and name resource for the button
-                                        //Log.i("PermissionRelated", "permission: $permission")
                                         val (iconRes, nameResId) = when (permission) {
                                             generic_location_permission -> R.drawable.ic_location_on to R.string.desc_permission_location
                                             Manifest.permission.CAMERA -> R.drawable.ic_camera_on to R.string.desc_permission_camera
                                             Manifest.permission.RECORD_AUDIO -> R.drawable.ic_mic_on to R.string.desc_permission_microphone
                                             Manifest.permission.POST_NOTIFICATIONS, Manifest.permission.INTERNET -> R.drawable.ic_notifications to R.string.desc_permission_notifications
-
                                             Manifest.permission.ACCESS_NETWORK_STATE -> R.drawable.ic_folder to R.string.desc_permission_storage
-                                            Manifest.permission.VIBRATE ->
-                                                R.drawable.ic_media_output to R.string.desc_permission_drm
+                                            Manifest.permission.VIBRATE -> R.drawable.ic_media_output to R.string.desc_permission_drm
                                             else -> R.drawable.ic_bug to R.string.desc_permission_unknown
                                         }
 
                                         CustomIconButton(
-//                                            currentRotation = currentRotation,
                                             layer = 3,
                                             modifier = Modifier.weight(1f),
                                             onTap = { onPermissionToggle(domain, permission, !isGranted)},
@@ -224,24 +166,9 @@ fun TabDataPanel(
                                             painterId = iconRes,
                                             isWhite = isGranted,
                                         )
-//
                                     }
                                 }
                             }
-//                            else {
-//                                // Same fallback UI for when no permissions are set
-//                                Box(
-//                                    modifier = Modifier
-//                                        .fillMaxWidth()
-//                                        .height(
-//                                            browserSettings.value.heightForLayer(3).dp
-//                                        )
-//                                        .padding(top = browserSettings.value.padding.dp),
-//                                    contentAlignment = Alignment.Center
-//                                ) {
-//                                    Text("No permissions requested yet.", color = Color.Gray)
-//                                }
-//                            }
                         }
                     }
                 }
@@ -254,21 +181,16 @@ fun TabDataPanel(
                     horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
                 ) {
 
-                    if (viewModel.currentInspectingTab?.state != TabState.FROZEN) {
-                        CustomIconButton(
-//                            currentRotation = currentRotation,
-                            layer = 3,
-                            modifier = Modifier.weight(1f),
-                            onTap = onClearSiteData,
-                            buttonDescription = stringResource(R.string.desc_clear_site_data),
-                            painterId = R.drawable.ic_database_off
-                        )
-
-                    }
-
-                    // DUPLICATE
+                    // 4. Update this to use `currentTab` instead of the non-observed getter
                     CustomIconButton(
-//                        currentRotation = currentRotation,
+                        layer = 3,
+                        modifier = Modifier.weight(1f),
+                        onTap = onClearSiteData,
+                        buttonDescription = stringResource(R.string.desc_clear_site_data),
+                        painterId = R.drawable.ic_database_off
+                    )
+
+                    CustomIconButton(
                         layer = 3,
                         modifier = Modifier.weight(1f),
                         onTap = { viewModel.duplicateInspectedTab() },
@@ -277,7 +199,6 @@ fun TabDataPanel(
                     )
 
                     CustomIconButton(
-//                        currentRotation = currentRotation,
                         layer = 3,
                         modifier = Modifier.weight(1f),
                         onTap = onCloseTab,
@@ -286,27 +207,12 @@ fun TabDataPanel(
                     )
 
                     CustomIconButton(
-//                        currentRotation = currentRotation,
                         layer = 3,
                         modifier = Modifier.weight(1f),
                         onTap = { viewModel.moveInspectedTabToNextProfile() },
                         buttonDescription = stringResource(R.string.desc_move_tab_to_next_profile),
                         painterId = R.drawable.ic_tab_move
                     )
-
-//                    IconButton(
-//                        onClick = onAddToHomeScreen,
-//                        modifier = Modifier.buttonSettingsForLayer(
-//                            3,
-//                            browserSettings
-//                        ).weight(1f)
-//                    ) {
-//                        Icon(
-//                            painter = painterResource(id = R.drawable.ic_install_desktop),
-//                            contentDescription = "Add to Home Screen",
-//                            tint = Color.Black
-//                        )
-//                    }
                 }
             }
         }

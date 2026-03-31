@@ -22,6 +22,5 @@ import kotlinx.serialization.Serializable
 enum class TabState {
     ACTIVE,      // The tab currently visible to the user
     BACKGROUND,  // A tab that is loaded but not visible
-    FROZEN       // A tab that needs to be reloaded when opened
 }
 
