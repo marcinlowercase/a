@@ -460,7 +460,7 @@ class GeckoManager(private val context: Context) {
         val session = sessionPool[tabId]
         if (session != null) {
             session.setActive(false)
-            //TODO make this take a value of isUseBackground AUDIO
+//            TODO make this take a value of isUseBackground AUDIO
 //            if (activeMediaGeckoSession == session) {
 //                activeGeckoMediaSession?.pause()
 //            }
@@ -1385,10 +1385,8 @@ class GeckoManager(private val context: Context) {
                 activeGeckoMediaSession = mediaSession
 
                 isActiveMediaSessionPaused = true
-                val title = tab.value.currentTitle.ifBlank { tab.value.currentURL.toDomain() }
 
                 context.startService(Intent(context, MediaPlaybackService::class.java).apply {
-                    putExtra("TITLE", title)
                     putExtra("IS_PAUSED", true)
                 })
                 super.onPause(session, mediaSession)
@@ -1403,6 +1401,7 @@ class GeckoManager(private val context: Context) {
                 if (lastPositionSnapshot.doubleValue == INIT) {
                     lastPositionSnapshot.doubleValue = 0.0
                 }
+
                 context.startService(Intent(context, MediaPlaybackService::class.java).apply {
                     putExtra("IS_PAUSED", false)
                 })
