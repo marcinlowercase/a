@@ -1,19 +1,3 @@
-/*
- * Copyright (C) 2026 marcinlowercase
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- */
 package marcinlowercase.a.core.service
 
 import android.app.*
@@ -24,13 +8,11 @@ import android.os.IBinder
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
-import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.media.app.NotificationCompat.MediaStyle
 import marcinlowercase.a.CustomApplication
 import marcinlowercase.a.MainActivity
 
-// Action constants for the buttons
 private const val ACTION_PLAY = "marcinlowercase.a.PLAY"
 private const val ACTION_PAUSE = "marcinlowercase.a.PAUSE"
 
@@ -40,7 +22,6 @@ class MediaPlaybackService : Service() {
     private var mediaSession: MediaSessionCompat? = null
 
     private var currentTitle = "Browser Video"
-    private var currentArtist = "Website"
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -69,7 +50,6 @@ class MediaPlaybackService : Service() {
         }
     }
 
-    // Helper functions to talk to Gecko
     private fun handlePlay() {
         (applicationContext as? CustomApplication)?.geckoManager?.activeGeckoMediaSession?.play()
     }
@@ -89,29 +69,27 @@ class MediaPlaybackService : Service() {
             getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
         }
     }
+
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
-        // Stop the foreground service immediately when the user swipes the app away
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // Handle button clicks from the notification actions
         when (intent?.action) {
             ACTION_PLAY -> handlePlay()
             ACTION_PAUSE -> handlePause()
         }
 
         intent?.getStringExtra("TITLE")?.let { currentTitle = it }
-        intent?.getStringExtra("ARTIST")?.let { currentArtist = it }
         val isPaused = intent?.getBooleanExtra("IS_PAUSED", false) ?: false
 
-        updateNotification(currentTitle, currentArtist, isPaused)
+        updateNotification(currentTitle, isPaused)
         return START_STICKY
     }
 
-    private fun updateNotification(title: String, artist: String, isPaused: Boolean) {
+    private fun updateNotification(title: String, isPaused: Boolean) {
         val state = if (isPaused) PlaybackStateCompat.STATE_PAUSED else PlaybackStateCompat.STATE_PLAYING
         val playbackState = PlaybackStateCompat.Builder()
             .setState(state, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 1.0f)
@@ -121,11 +99,9 @@ class MediaPlaybackService : Service() {
 
         val metadata = MediaMetadataCompat.Builder()
             .putString(MediaMetadataCompat.METADATA_KEY_TITLE, title)
-            .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, artist)
             .build()
         mediaSession?.setMetadata(metadata)
 
-        // --- NEW: Create PendingIntents for the buttons ---
         val playIntent = PendingIntent.getService(this, 1,
             Intent(this, MediaPlaybackService::class.java).apply { action = ACTION_PLAY },
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
@@ -134,7 +110,6 @@ class MediaPlaybackService : Service() {
             Intent(this, MediaPlaybackService::class.java).apply { action = ACTION_PAUSE },
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
 
-        // Choose which icon to show as the main action
         val toggleAction = if (isPaused) {
             NotificationCompat.Action(marcinlowercase.a.R.drawable.ic_play_arrow, "Play", playIntent)
         } else {
@@ -143,17 +118,14 @@ class MediaPlaybackService : Service() {
 
         val notificationBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(marcinlowercase.a.R.drawable.ic_video_camera_back)
-            .setContentTitle(title)
-            .setContentText(artist)
+            .setContentTitle(title) // Only the Title is shown now
             .setOngoing(!isPaused)
             .setSilent(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setContentIntent(mediaSession?.controller?.sessionActivity)
-            // ADD THE ACTION HERE (Index 0)
             .addAction(toggleAction)
             .setStyle(MediaStyle()
                 .setMediaSession(mediaSession?.sessionToken)
-                // This now refers to the 'toggleAction' we just added
                 .setShowActionsInCompactView(0)
             )
 

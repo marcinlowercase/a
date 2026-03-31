@@ -1029,6 +1029,12 @@ class GeckoManager(private val context: Context) {
             override fun onTitleChange(session: GeckoSession, title: String?) {
                 title?.let { title ->
                     onTitleChangeFun(eventTabId, session, title)
+                    if (session == activeMediaGeckoSession) {
+                        context.startService(Intent(context, MediaPlaybackService::class.java).apply {
+                            putExtra("TITLE", title)
+                            putExtra("IS_PAUSED", isActiveMediaSessionPaused)
+                        })
+                    }
                 }
             }
 
@@ -1324,8 +1330,13 @@ class GeckoManager(private val context: Context) {
                 activeGeckoMediaSession = mediaSession
                 activeMediaGeckoSession = session
                 isActiveMediaSessionPaused = false
+                val title = tab.value.currentTitle.ifBlank { tab.value.currentURL.toDomain() }
+
                 // website started playing media! Start the background service.
-                val intent = Intent(context, MediaPlaybackService::class.java)
+                val intent = Intent(context, MediaPlaybackService::class.java).apply {
+                    putExtra("TITLE", title)
+                    putExtra("IS_PAUSED", false)
+                }
                 context.startForegroundService(intent)
             }
 
@@ -1354,13 +1365,6 @@ class GeckoManager(private val context: Context) {
                     mediaSession.play()
 
                 }
-
-                // pass value to android media control on notification panel
-                val intent = Intent(context, MediaPlaybackService::class.java).apply {
-                    putExtra("TITLE", metadata.title)
-                    putExtra("ARTIST", metadata.artist ?: "Web Browser")
-                }
-                context.startService(intent)
             }
 
             // not work
@@ -1381,8 +1385,10 @@ class GeckoManager(private val context: Context) {
                 activeGeckoMediaSession = mediaSession
 
                 isActiveMediaSessionPaused = true
-                //Log.d("marcMedia", "onPause")
+                val title = tab.value.currentTitle.ifBlank { tab.value.currentURL.toDomain() }
+
                 context.startService(Intent(context, MediaPlaybackService::class.java).apply {
+                    putExtra("TITLE", title)
                     putExtra("IS_PAUSED", true)
                 })
                 super.onPause(session, mediaSession)
