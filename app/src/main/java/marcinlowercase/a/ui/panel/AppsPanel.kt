@@ -505,7 +505,7 @@ fun PlaceholderIcon(
         modifier = modifier
             .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(3).dp))
             .heightIn(min = settings.value.heightForLayer(3).dp)
-            .background(Color.Black.copy(settings.value.backSquareIdleOpacity * (if (text == null && iconRes == null) 0.2f else 0.35f)))
+            .background(Color.Black.copy(settings.value.backSquareIdleOpacity * 0.2f))
             .then(
                 if (onClick != null && buttonDescription != null)
                     Modifier.pointerInput(buttonDescription) {
@@ -596,7 +596,7 @@ fun AppIcon(
         modifier = modifier
             .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(3).dp))
             .heightIn(min = settings.value.heightForLayer(3).dp)
-            .background(Color.Black.copy(settings.value.backSquareIdleOpacity))
+            .background(Color.Black.copy(settings.value.backSquareIdleOpacity * 0.2f))
             .padding(2.dp)
             .fillMaxWidth()
             .combinedClickable(
