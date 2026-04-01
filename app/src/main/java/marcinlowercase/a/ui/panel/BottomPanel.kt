@@ -45,6 +45,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -52,6 +53,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeContentPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -670,26 +672,6 @@ fun BottomPanel(
                                         painterId = R.drawable.ic_image,
                                         isWhite = true
                                     )
-
-//                                    Box(
-//                                        modifier = Modifier
-//                                            .size(settings.value.heightForLayer(1).dp) // Perfect square matching TextField height
-//                                            .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp))
-//                                            .background(Color.White)
-//                                            .clickable {
-//                                                isPickingImage.value = true // Prevent UI from closing
-//                                                // Launch the native Android File Picker looking only for images
-//                                                imagePickerLauncher.launch("image/*")
-//                                            },
-//                                        contentAlignment = Alignment.Center
-//                                    ) {
-//                                        Icon(
-//                                            painter = painterResource(id = marcinlowercase.a.R.drawable.ic_add), // You can swap this for an image icon if you have one!
-//                                            contentDescription = "Pick Local Image",
-//                                            tint = Color.Black,
-//                                            modifier = Modifier.size(24.dp)
-//                                        )
-//                                    }
                                 }
                             }
                             val defaultIconUrl = stringResource(R.string.bold_icon_url)
@@ -698,7 +680,6 @@ fun BottomPanel(
                                     .heightIn(
                                         min = settings.value.heightForLayer(1).dp
                                     )
-                                    .padding(settings.value.padding.dp)
                                     .onSizeChanged { size ->
                                         setTextFieldHeightPx(size.height)
                                     }
@@ -796,9 +777,10 @@ fun BottomPanel(
                                     }
                                     .clip(
                                         RoundedCornerShape(
-                                            settings.value.cornerRadiusForLayer(2).dp
+                                            settings.value.cornerRadiusForLayer(1).dp
                                         )
                                     ),
+                                contentPadding = PaddingValues(horizontal = settings.value.cornerRadiusForLayer(1).dp),
                                 placeholder = {
                                     when {
                                         uiState.value.isCreatingProfile -> Text(stringResource(R.string.placeholder_profile_label))
