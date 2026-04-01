@@ -25,8 +25,11 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -39,6 +42,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -148,22 +152,22 @@ fun TabItem(
                     )
                 )
                 .background(if (isActive) Color.White else Color.White.copy(alpha = 0.5f)) // Different background for inactive
-                .padding(horizontal = settings.value.padding.dp),
+//                .padding(horizontal = settings.value.padding.dp)
+            ,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(
                 modifier = Modifier
-                    .padding(settings.value.padding.dp)
+                    .padding(horizontal = settings.value.cornerRadiusForLayer(3).dp)
+                    .padding(vertical = settings.value.padding.dp),
+                horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
 
             ) {
 
                 Box(
                     modifier = Modifier
-                        .size(24.dp),
-
-//                        .clip(RoundedCornerShape(settings.value.padding.dp / 2)),
-//                        .background(Color.White.copy(alpha = 0.2f)),
-//                        .background(if (isActive) Color.White else Color.White.copy(alpha = 0.7f)),
+                        .size(24.dp)
+                    ,
                     contentAlignment = Alignment.Center
                 ) {
                     val imageSizePx = with(LocalDensity.current) {
@@ -196,13 +200,18 @@ fun TabItem(
                     )
                 }
 
-                Spacer(Modifier.width(settings.value.padding.dp))
                 Text(
                     text = title,
                     color = if (isActive) Color.Black else Color.Black.copy(alpha = 0.7f), // Dim the text for inactive
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .basicMarquee(
+                            iterations = Int.MAX_VALUE,
+                            repeatDelayMillis = 0,
+                            initialDelayMillis = 3000
+                        )
                 )
             }
 
