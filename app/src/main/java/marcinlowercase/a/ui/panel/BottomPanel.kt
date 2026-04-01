@@ -968,6 +968,7 @@ fun BottomPanel(
                                     focusedTextColor = Color.White,
                                     unfocusedTextColor = Color.White,
 
+
                                     // 3. This is the key to removing the underline
                                     focusedIndicatorColor = Color.Transparent,
                                     unfocusedIndicatorColor = Color.Transparent,
