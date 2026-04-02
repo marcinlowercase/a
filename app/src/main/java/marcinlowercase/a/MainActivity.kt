@@ -1553,6 +1553,23 @@ fun BrowserScreen(
     ) {
         //region LaunchedEffect
 
+        //TODO COMPALETE SYNC LOGIC
+        fun triggerSyncEvent() {
+            Log.d("BrowserSync", "Sync event triggered! Commencing background sync...")
+            // We will build the actual data sync logic here later.
+        }
+
+        var previousIsSync by remember { mutableStateOf(settings.isSync) }
+
+        LaunchedEffect(settings.isSync) {
+            if (!previousIsSync && settings.isSync) {
+                // Triggered from False -> True
+                triggerSyncEvent()
+            }
+            previousIsSync = settings.isSync
+        }
+
+        // Placeholder Sync Function
 
         LaunchedEffect(viewModel.activeProfileId.value) {
             if (viewModel.inspectingOption.value != null || viewModel.isSortingButtons.value) {

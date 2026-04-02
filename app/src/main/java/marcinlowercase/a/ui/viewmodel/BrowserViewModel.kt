@@ -94,6 +94,7 @@ import java.net.URLDecoder
 import java.net.URLEncoder
 import java.util.Collections
 import java.util.regex.Pattern
+import androidx.core.content.edit
 
 val LocalBrowserViewModel = staticCompositionLocalOf<BrowserViewModel> {
     error("No BrowserViewModel provided! Check your root Composable.")
@@ -440,7 +441,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
         try {
             val intent: Intent
-            Log.d("marcEE", "url: $url")
             val isIntentScheme = url.startsWith("intent://")
 
             if (isIntentScheme) {
@@ -504,62 +504,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    //    fun handleExternalIntent(activity: Activity, url: String) {
-//        try {
-//            val intent: Intent
-//
-//            // 1. Special handling for Android "intent://" scheme
-//            if (url.startsWith("intent://")) {
-//                try {
-//                    intent = Intent.parseUri(url, Intent.URI_INTENT_SCHEME)
-//                } catch (e: Exception) {
-//                    //Log.e("Intent", "Bad intent URI", e)
-//                    return
-//                }
-//
-//                // Check if an app exists to handle this
-//                val packageManager = activity.packageManager
-//                val info = packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)
-//
-//                if (info == null) {
-//                    // App not installed. Check if there is a fallback URL (e.g. Play Store link)
-//                    val fallbackUrl = intent.getStringExtra("browser_fallback_url")
-//                    if (!fallbackUrl.isNullOrEmpty()) {
-//                        // Load the fallback URL in our browser
-//                        activeTab?.let { tab ->
-//                            val session = geckoManager.getSession(tab)
-//                            session.loadUri(fallbackUrl)
-//                        }
-//                    } else {
-//                        // No fallback? Try to open the Play Store for the package
-//                        val pack = intent.`package`
-//                        if (!pack.isNullOrEmpty()) {
-//                            val marketIntent = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$pack"))
-//                            try {
-//                                activity.startActivity(marketIntent)
-//                            } catch (e: Exception) {
-//                                // If no Play Store, try web play store
-//                                val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=$pack"))
-//                                activity.startActivity(webIntent)
-//                            }
-//                        }
-//                    }
-//                    return
-//                }
-//            } else {
-//                // 2. Standard schemes (mailto:, tel:, market://, etc.)
-//                intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-//            }
-//
-//            // 3. Launch the external app
-//            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-//            activity.startActivity(intent)
-//
-//        } catch (e: ActivityNotFoundException) {
-//            // Optional: Show a Toast "No app found to open this link"
-//        } catch (e: Exception) {
-//        }
-//    }
     //endregion
     //region Browser Settings
     private val _browserSettings = MutableStateFlow(loadSettingsFromPrefs(activeProfileId.value))
@@ -606,6 +550,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             singleLineHeight = globalPrefs.getFloat("single_line_height", d.SINGLE_LINE_HEIGHT),
             maxListHeight = globalPrefs.getFloat("max_list_height", d.MAX_LIST_HEIGHT),
             memoryUsage = globalPrefs.getInt("memory_usage", d.MEMORY_USAGE),
+            isSync = globalPrefs.getBoolean("is_sync", d.IS_SYNC),
 
 
             // --- PROFILE-SPECIFIC SETTINGS ---
@@ -777,6 +722,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             putFloat("single_line_height", settings.singleLineHeight)
             putFloat("max_list_height", settings.maxListHeight)
             putInt("memory_usage", settings.memoryUsage)
+            putBoolean("is_sync", settings.isSync)
 
             apply()
         }
@@ -825,7 +771,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         _uiState.update(mutation)
     }
 
-//    /**
+    //    /**
 //     * Helper to save current panel state before entering "Search Mode" (Focusing URL bar)
 //     */
 //    fun saveCurrentPanelState() {
@@ -857,6 +803,41 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 //            }
 //        }
 //    }
+    //endregion
+    //region Sync Logic
+// 1. Add Auth variables (put this near the top of the class)
+    var userEmailToLogin = ""
+    val syncAuthPrefs = application.getSharedPreferences("SyncAuthPrefs", Context.MODE_PRIVATE)
+
+    fun isLoggedIn(): Boolean {
+        return syncAuthPrefs.getString("jwt_token", null) != null
+    }
+
+    fun logout() {
+        syncAuthPrefs.edit { remove("jwt_token") }
+        updateSettings { it.copy(isSync = false) } // Turn off sync on logout
+    }
+
+    // 2. Add API Wrapper functions
+    fun requestLoginCode(email: String, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            val success = marcinlowercase.a.core.api.SyncApi.requestCode(email)
+            onResult(success)
+        }
+    }
+
+    fun verifyLoginCode(code: String, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            val response = marcinlowercase.a.core.api.SyncApi.verifyCode(userEmailToLogin, code)
+            if (response?.token != null) {
+                syncAuthPrefs.edit { putString("jwt_token", response.token) }
+                onResult(true)
+            } else {
+                onResult(false)
+            }
+        }
+    }
+
     //endregion
     //region Tab logic
 
@@ -1268,11 +1249,23 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     }
 
 
-    fun generateAndInstallWebApk(context: Context, title: String, url: String, iconUrl: String, isFullBrowser: Boolean) {
+    fun generateAndInstallWebApk(
+        context: Context,
+        title: String,
+        url: String,
+        iconUrl: String,
+        isFullBrowser: Boolean
+    ) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(context, if (isFullBrowser) context.getString(R.string.toast_prepare_cloned) else context.getString(R.string.toast_prepare_pwa), Toast.LENGTH_SHORT)
+                    Toast.makeText(
+                        context,
+                        if (isFullBrowser) context.getString(R.string.toast_prepare_cloned) else context.getString(
+                            R.string.toast_prepare_pwa
+                        ),
+                        Toast.LENGTH_SHORT
+                    )
                         .show()
                 }
 
@@ -1281,7 +1274,14 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
                 // Run the generation process
                 val isGenerated =
-                    mockGenerateWebApkLocallyOrRemotely(context, title, url, iconUrl, apkFile, isFullBrowser)
+                    mockGenerateWebApkLocallyOrRemotely(
+                        context,
+                        title,
+                        url,
+                        iconUrl,
+                        apkFile,
+                        isFullBrowser
+                    )
 
                 // NOW check if it generated successfully
                 withContext(Dispatchers.Main) {
@@ -1303,7 +1303,12 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private suspend fun mockGenerateWebApkLocallyOrRemotely(
-        context: Context, title: String, url: String, iconUrl: String, outFile: File, isFullBrowser: Boolean
+        context: Context,
+        title: String,
+        url: String,
+        iconUrl: String,
+        outFile: File,
+        isFullBrowser: Boolean
     ): Boolean {
 
         Log.i("WebAPK", "iconURl: ${iconUrl}")

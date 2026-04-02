@@ -42,6 +42,9 @@
     <string name="desc_out_sync">out sync</string>
     <string name="desc_optimize_memory">optimize memory</string>
     <string name="desc_memory_usage">memory usage</string>
+    <string name="desc_sync">sync</string>
+    <string name="desc_login">login</string>
+
 
     <!-- Apps Panel & Profile Descriptions -->
     <string name="desc_move_button_left">move button left</string>
@@ -64,6 +67,8 @@
     <string name="desc_edit_app_name">edit app name</string>
     <string name="desc_copy_current_url">copy current url</string>
     <string name="desc_edit_current_url">edit current url</string>
+    <string name="desc_resend_email">resend email</string>
+    <string name="desc_open_email_app">open email app</string>
 
     <!-- Find In Page Panel -->
     <string name="ui_find_in_page">find in page</string>
@@ -107,6 +112,7 @@
     <string name="confirm_remove_suggestion">remove suggestion from history ?</string>
     <string name="confirm_beginning_of_history">reach the beginning of tab history ,\nclose tab ? </string>
     <string name="confirm_open_pop_up">open pop-up with url : </string>
+    <string name="confirm_sync">sync ?</string>
 
     <!-- Memory Setting -->
     <string name="memory_low">low memory</string>
@@ -115,6 +121,8 @@
 
     <!-- Placeholder -->
     <string name="placeholder_profile_label">profile label</string>
+    <string name="placeholder_email">email</string>
+    <string name="placeholder_login_code">login code</string>
     <string name="placeholder_pin_label">pin label</string>
     <string name="placeholder_browser_label">browser label</string>
     <string name="placeholder_url">search / url</string>

@@ -875,7 +875,6 @@ class GeckoManager(private val context: Context) {
                 request: GeckoSession.NavigationDelegate.LoadRequest
             ): GeckoResult<AllowOrDeny> {
                 val uri = request.uri
-                Log.i("marcEE", "uri onLoadRequest $uri")
 
                 // 1. Check if this is a "Special" scheme (mailto, tel, intent, market)
                 if (isExternalScheme(uri)) {

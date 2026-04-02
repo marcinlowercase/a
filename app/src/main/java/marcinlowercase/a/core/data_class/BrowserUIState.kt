@@ -64,6 +64,8 @@ data class BrowserUIState(
     val isCloningBrowser: Boolean = false,
     val isCreatingProfile: Boolean = false,
     val isRenamingProfile: Boolean = false,
+    val isEnteringEmail: Boolean = false,
+    val isEnteringLoginCode: Boolean = false,
 
 
     // Web Load

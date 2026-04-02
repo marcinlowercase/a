@@ -106,6 +106,7 @@ fun rememberBrowserOptionsRegistry(
     onNavigateToSetting: (SettingPanelView) -> Unit,
     confirmationPopup: (Int, String, () -> Unit, () -> Unit) -> Unit,
     changeBrowserIcon: () -> Unit,
+    onLoginClick: () -> Unit,
 ): Map<BrowserOption, OptionItem> {
     val viewModel = LocalBrowserViewModel.current
     val uiState = viewModel.uiState.collectAsState()
@@ -260,10 +261,34 @@ fun rememberBrowserOptionsRegistry(
                 iconRes = R.drawable.ic_empty_logo,
                 contentDescription = R.string.desc_change_icon
             ) {
-                Log.w("mrcFe", "change browser icon ")
-
                 changeBrowserIcon()
             },
+
+            BrowserOption.LOGIN to OptionItem(
+                id = BrowserOption.LOGIN,
+                iconRes = if (viewModel.isLoggedIn()) R.drawable.ic_logout else R.drawable.ic_login,
+                contentDescription = R.string.desc_login // Make sure to add to strings.xml
+            ) {
+                if (viewModel.isLoggedIn()) {
+                    viewModel.logout()
+                } else {
+                    onLoginClick()
+                }
+            },
+
+            BrowserOption.SYNC to OptionItem(
+                id = BrowserOption.SYNC,
+                iconRes = if (settings.value.isSync) R.drawable.ic_sync else R.drawable.ic_sync_disabled,
+                contentDescription = R.string.desc_sync, // Make sure to add to strings.xml
+                enabled = viewModel.isLoggedIn() // Disable click if not logged in
+            ) {
+                if (viewModel.isLoggedIn()) {
+                    viewModel.updateSettings { it.copy(isSync = !it.isSync) }
+                } else {
+                    onLoginClick()
+                }
+            },
+
             BrowserOption.RESET_SETTINGS to OptionItem(
                 id = BrowserOption.RESET_SETTINGS,
                 iconRes = R.drawable.ic_reset_settings,
@@ -444,6 +469,7 @@ fun OptionsPanel(
     onCloseAllTabs: () -> Unit,
     confirmationPopup: (Int, String, () -> Unit, () -> Unit) -> Unit,
     changeBrowserIcon: () -> Unit,
+    onLoginClick: () -> Unit,
 ) {
     val viewModel = LocalBrowserViewModel.current
     val settings = viewModel.browserSettings.collectAsState()
@@ -484,6 +510,8 @@ fun OptionsPanel(
         onNavigateToSetting = {},
         confirmationPopup = confirmationPopup,
         changeBrowserIcon = changeBrowserIcon,
+        onLoginClick = onLoginClick,
+
     )
 
     // 4. Map IDs to UI Items
@@ -594,6 +622,7 @@ fun SettingsPanel(
     onCloseAllTabs: () -> Unit,
     targetSetting: SettingPanelView = SettingPanelView.MAIN,
     changeBrowserIcon: () -> Unit = {},
+    onLoginClick: () -> Unit = {},
     ) {
     val viewModel = LocalBrowserViewModel.current
     val uiState = viewModel.uiState.collectAsState()
@@ -658,7 +687,8 @@ fun SettingsPanel(
         onCloseAllTabs = onCloseAllTabs,
         onNavigateToSetting = { currentView = it },
         confirmationPopup = confirmationPopup,
-        changeBrowserIcon = changeBrowserIcon
+        changeBrowserIcon = changeBrowserIcon,
+        onLoginClick = onLoginClick
     )
     // 4. Map IDs to UI items
     val displayOptions = visibleIds.mapNotNull { registry[it] }

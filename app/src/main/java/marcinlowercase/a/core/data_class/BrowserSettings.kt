@@ -45,6 +45,8 @@ data class BrowserSettings(
     val optionsOrder: String,
     val settingsOrder: String,
     val hiddenOptions: String,
+    val isSync: Boolean,
+
 
     val isEnabledMediaControl: Boolean,
     val isEnabledOutSync: Boolean,
