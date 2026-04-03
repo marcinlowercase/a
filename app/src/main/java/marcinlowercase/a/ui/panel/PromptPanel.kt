@@ -115,6 +115,7 @@ fun PromptPanel(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = settings.value.padding.dp)
+                    .padding(horizontal = settings.value.padding.dp)
                     .padding(horizontal = settings.value.cornerRadiusForLayer(2).dp)
                     .clip(
                         RoundedCornerShape(
@@ -164,6 +165,7 @@ fun PromptPanel(
 
                 val textModifier = Modifier
                     .padding(vertical = settings.value.padding.dp)
+                    .padding(horizontal = settings.value.padding.dp)
                     .padding(horizontal = settings.value.cornerRadiusForLayer(3).dp)
 
 

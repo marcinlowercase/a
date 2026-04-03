@@ -197,6 +197,7 @@ fun VideoStatusPanel(
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .animateContentSize()
+                .padding(horizontal = settings.value.padding.dp)
                 .padding(horizontal = settings.value.cornerRadiusForLayer(1).dp)
         )
     }

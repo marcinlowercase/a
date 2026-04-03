@@ -329,6 +329,7 @@ fun ContextMenuPanel(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(bottom = settings.value.padding.dp)
+                            .padding(horizontal = settings.value.padding.dp)
                             .padding(horizontal = settings.value.cornerRadiusForLayer(1).dp)
                             .clip(
                                 RoundedCornerShape(

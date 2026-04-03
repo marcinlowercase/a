@@ -52,6 +52,7 @@ fun LoadingIndicator(
         LinearProgressIndicator(
             modifier = Modifier
                 .padding(top = settings.value.padding.dp)
+                .padding(horizontal = settings.value.padding.dp)
                 .padding(horizontal = settings.value.cornerRadiusForLayer(1).dp)
                 .fillMaxWidth()
             ,

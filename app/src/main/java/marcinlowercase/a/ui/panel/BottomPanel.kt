@@ -798,7 +798,7 @@ fun BottomPanel(
                                             settings.value.cornerRadiusForLayer(1).dp
                                         )
                                     ),
-                                contentPadding = PaddingValues(horizontal = settings.value.cornerRadiusForLayer(1).dp),
+                                contentPadding = PaddingValues(horizontal = settings.value.cornerRadiusForLayer(1).dp + settings.value.padding.dp),
                                 placeholder = {
                                     when {
                                         uiState.value.isEnteringEmail -> Text(stringResource(R.string.placeholder_email))
