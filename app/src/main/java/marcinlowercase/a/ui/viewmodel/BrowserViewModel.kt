@@ -177,7 +177,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             syncJob?.cancel()
             syncJob = viewModelScope.launch(Dispatchers.IO) {
                 // Wait 300ms for the user to finish dragging/typing before we do heavy disk reads
-                delay(300)
+                delay(1000)
 
                 // Do the heavy lifting on a background thread so the UI never drops a frame
                 val newSettings = loadSettingsFromPrefs(currentProfileId)
@@ -190,6 +190,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
                     siteSettings.clear()
                     siteSettings.putAll(newSiteSettings)
+                    triggerSyncEvent()
+
                 }
             }
         }
@@ -754,7 +756,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             apply()
         }
     }    //endregion
-
     //region UI State
     private val _uiState = MutableStateFlow(
         BrowserUIState(
@@ -805,7 +806,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 //    }
     //endregion
     //region Sync Logic
-// 1. Add Auth variables (put this near the top of the class)
+    // 1. Add Auth variables (put this near the top of the class)
     var userEmailToLogin = ""
     val syncAuthPrefs = application.getSharedPreferences("SyncAuthPrefs", Context.MODE_PRIVATE)
 
@@ -836,6 +837,162 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 onResult(false)
             }
         }
+    }
+    fun buildSyncPayload(): marcinlowercase.a.core.data_class.SyncPayload {
+        val allProfiles = profileManager.loadProfiles()
+        val context = getApplication<Application>()
+        val d = marcinlowercase.a.core.constant.DefaultSettingValues
+
+        val syncProfiles = allProfiles.map { profile ->
+            // 1. Get Pinned Apps for this profile
+            val apps = appManager.loadApps(profile.id).map { app ->
+                marcinlowercase.a.core.data_class.AppSyncDTO(
+                    id = app.id,
+                    label = app.label,
+                    url = app.url,
+                    iconUrl = app.iconUrl
+                )
+            }
+
+            // 2. Get Visited URLs (History) for this profile
+            val historyMap = visitedUrlManager.loadUrlMap(profile.id)
+            val historyList = historyMap.map {
+                marcinlowercase.a.core.data_class.VisitedUrlSyncDTO(url = it.key, title = it.value)
+            }
+
+            // 3. Get Profile-Specific Settings (Read directly from profile SharedPreferences)
+            val profilePrefs = context.getSharedPreferences("BrowserPrefs_${profile.id}", Context.MODE_PRIVATE)
+
+            val settings = marcinlowercase.a.core.data_class.ProfileSettingsSyncDTO(
+                defaultUrl = profilePrefs.getString("default_url", d.URL) ?: d.URL,
+                animationSpeed = profilePrefs.getFloat("animation_speed", d.ANIMATION_SPEED),
+                isSharpMode = profilePrefs.getBoolean("is_sharp_mode", d.IS_SHARP_MODE),
+                cursorContainerSize = profilePrefs.getFloat("cursor_container_size", d.CURSOR_CONTAINER_SIZE),
+                cursorPointerSize = profilePrefs.getFloat("cursor_pointer_size", d.CURSOR_POINTER_SIZE),
+                cursorTrackingSpeed = profilePrefs.getFloat("cursor_tracking_speed", d.CURSOR_TRACKING_SPEED),
+                showSuggestions = profilePrefs.getBoolean("show_suggestions", d.SHOW_SUGGESTIONS),
+                closedTabHistorySize = profilePrefs.getFloat("closed_tab_history_size", d.CLOSED_TAB_HISTORY_SIZE),
+                backSquareOffsetX = profilePrefs.getFloat("back_square_offset_x", -1f),
+                backSquareOffsetY = profilePrefs.getFloat("back_square_offset_y", -1f),
+                backSquareIdleOpacity = profilePrefs.getFloat("back_square_idle_opacity", d.BACK_SQUARE_IDLE_OPACITY),
+                searchEngine = profilePrefs.getInt("search_engine", d.SEARCH_ENGINE),
+                isFullscreenMode = profilePrefs.getBoolean("is_fullscreen_mode", d.IS_FULLSCREEN_MODE),
+                highlightColor = profilePrefs.getInt("highlight_color", d.HIGHLIGHT_COLOR),
+                isAdBlockEnabled = profilePrefs.getBoolean("is_ad_block_enabled", d.IS_AD_BLOCK_ENABLED),
+                isGuideModeEnabled = profilePrefs.getBoolean("is_guide_mode_enabled", true),
+                isDesktopMode = profilePrefs.getBoolean("is_desktop_mode", d.IS_DESKTOP_MODE),
+                isEnabledMediaControl = profilePrefs.getBoolean("is_enabled_media_control", d.IS_ENABLED_MEDIA_CONTROL),
+                isEnabledOutSync = profilePrefs.getBoolean("is_enabled_out_sync", d.IS_ENABLED_OUT_SYNC),
+                optionsOrder = profilePrefs.getString("options_order", d.OPTIONS_ORDER) ?: d.OPTIONS_ORDER,
+                settingsOrder = profilePrefs.getString("settings_order", d.SETTINGS_ORDER) ?: d.SETTINGS_ORDER,
+                hiddenOptions = profilePrefs.getString("hidden_options", d.HIDDEN_OPTIONS) ?: d.HIDDEN_OPTIONS
+            )
+
+            marcinlowercase.a.core.data_class.ProfileSyncDTO(
+                id = profile.id,
+                name = profile.name,
+                settings = settings,
+                pinnedApps = apps,
+                visitedUrls = historyList
+            )
+        }
+
+        return marcinlowercase.a.core.data_class.SyncPayload(
+            timestamp = System.currentTimeMillis(),
+            profiles = syncProfiles
+        )
+    }
+    fun triggerSyncEvent() {
+        // 1. Check if the user is actually allowed to sync
+        if (!_browserSettings.value.isSync) return
+        val token = syncAuthPrefs.getString("jwt_token", null) ?: return
+
+        // 2. Build the massive JSON payload
+        val payload = buildSyncPayload()
+
+        // 3. Send it to the server in a background coroutine
+        viewModelScope.launch(Dispatchers.IO) {
+            val success = marcinlowercase.a.core.api.SyncApi.pushSyncData(payload, token)
+            if (success) {
+                Log.d("BrowserSync", "✅ Data successfully pushed to server!")
+            } else {
+                Log.e("BrowserSync", "❌ Failed to push sync data.")
+                // Optional: You could show a tiny "Sync Failed" icon in the UI here
+            }
+        }
+    }
+
+    fun restoreAndMergeFromCloud(cloudData: marcinlowercase.a.core.data_class.SyncPayload) {
+        if (cloudData.profiles.isEmpty()) return
+
+        // 1. Overwrite Profiles
+        val newProfiles = cloudData.profiles.map {
+            marcinlowercase.a.core.data_class.Profile(id = it.id, name = it.name)
+        }
+        profileManager.saveProfiles(newProfiles)
+        profiles.clear()
+        profiles.addAll(newProfiles)
+
+        // 2. Loop through each cloud profile to save settings, merge apps, and merge history
+        cloudData.profiles.forEach { cloudProfile ->
+            val s = cloudProfile.settings
+
+            // Save Settings to SharedPreferences
+            val prefs = getApplication<Application>().getSharedPreferences("BrowserPrefs_${cloudProfile.id}", Context.MODE_PRIVATE)
+            prefs.edit().apply {
+                putString("default_url", s.defaultUrl)
+                putFloat("animation_speed", s.animationSpeed)
+                putBoolean("is_sharp_mode", s.isSharpMode)
+                putFloat("cursor_container_size", s.cursorContainerSize)
+                putFloat("cursor_pointer_size", s.cursorPointerSize)
+                putFloat("cursor_tracking_speed", s.cursorTrackingSpeed)
+                putBoolean("show_suggestions", s.showSuggestions)
+                putFloat("closed_tab_history_size", s.closedTabHistorySize)
+                putFloat("back_square_offset_x", s.backSquareOffsetX)
+                putFloat("back_square_offset_y", s.backSquareOffsetY)
+                putFloat("back_square_idle_opacity", s.backSquareIdleOpacity)
+                putInt("search_engine", s.searchEngine)
+                putBoolean("is_fullscreen_mode", s.isFullscreenMode)
+                putInt("highlight_color", s.highlightColor)
+                putBoolean("is_ad_block_enabled", s.isAdBlockEnabled)
+                putBoolean("is_guide_mode_enabled", s.isGuideModeEnabled)
+                putBoolean("is_desktop_mode", s.isDesktopMode)
+                putBoolean("is_enabled_media_control", s.isEnabledMediaControl)
+                putBoolean("is_enabled_out_sync", s.isEnabledOutSync)
+                putString("options_order", s.optionsOrder)
+                putString("settings_order", s.settingsOrder)
+                putString("hidden_options", s.hiddenOptions)
+                apply()
+            }
+
+            // Merge History (Add cloud history to local DB)
+            cloudProfile.visitedUrls.forEach { urlDto ->
+                visitedUrlManager.addUrl(cloudProfile.id, urlDto.url, urlDto.title)
+            }
+
+            // Merge Apps (Add cloud apps to local DB, avoiding duplicates by URL)
+            val localApps = appManager.loadApps(cloudProfile.id).toMutableList()
+            val localAppUrls = localApps.map { it.url }.toSet()
+
+            cloudProfile.pinnedApps.forEach { cloudApp ->
+                if (!localAppUrls.contains(cloudApp.url)) {
+                    localApps.add(marcinlowercase.a.core.data_class.App(
+                        id = cloudApp.id,
+                        label = cloudApp.label,
+                        url = cloudApp.url,
+                        iconUrl = cloudApp.iconUrl
+                    ))
+                }
+            }
+            appManager.saveApps(cloudProfile.id, localApps)
+        }
+
+        // 3. Switch to the first cloud profile to instantly refresh the UI!
+        val targetProfileId = newProfiles.firstOrNull()?.id ?: activeProfileId.value
+        switchProfile(targetProfileId)
+
+        // 4. Push the newly merged History & Apps BACK to the cloud!
+        triggerSyncEvent()
     }
 
     //endregion
@@ -1224,6 +1381,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         )
         apps.add(newApp)
         saveApps()
+        triggerSyncEvent()
     }
 
     fun removeApp(appId: Long) {
@@ -2026,6 +2184,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         if (title.isNotBlank()) {
             visitedUrlMap[url] = title
         }
+        triggerSyncEvent()
     }
 
     val clearDomainData = { domain: String ->
@@ -2355,5 +2514,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         geckoManager.setAdBlockEnabled(_browserSettings.value.isAdBlockEnabled)
         startDownloadPolling()
         setupPrefsListener(currentProfileId)
+        if (isLoggedIn() && _browserSettings.value.isSync) {
+            triggerSyncEvent()
+        }
     }
 }

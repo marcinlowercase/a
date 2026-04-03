@@ -101,9 +101,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import marcinlowercase.a.R
 import marcinlowercase.a.core.data_class.ConfirmationDialogState
 import marcinlowercase.a.core.data_class.DownloadItem
@@ -884,41 +886,65 @@ fun BottomPanel(
                                         uiState.value.isEnteringLoginCode -> {
                                             viewModel.updateUI { it.copy(isLoading = true) }
                                             viewModel.verifyLoginCode(input) { success ->
-                                                viewModel.updateUI { it.copy(isLoading = false) }
                                                 if (success) {
-                                                    viewModel.updateUI { it.copy(isEnteringLoginCode = false, isFocusOnUrlTextField = false) }
-                                                    textFieldState.setTextAndPlaceCursorAtEnd(resetUrl.toDomain())
+                                                    // LOGIN SUCCESS! Now we check the cloud BEFORE showing the sync popup
+                                                    val token = viewModel.syncAuthPrefs.getString("jwt_token", null)
+                                                    if (token != null) {
+                                                        coroutineScope.launch(Dispatchers.IO) {
+                                                            val cloudData = marcinlowercase.a.core.api.SyncApi.pullSyncData(token)
 
-                                                    // IMMEDIATELY show Sync confirmation!
-                                                    viewModel.confirmationState.value =
-                                                        ConfirmationDialogState(
-                                                            message = R.string.confirm_sync, // Create string: "sync ?"
-                                                            url = "",
-                                                            onConfirm = {
-                                                                viewModel.updateSettings {
-                                                                    it.copy(
-                                                                        isSync = true
+                                                            withContext(Dispatchers.Main) {
+                                                                viewModel.updateUI { it.copy(isLoading = false, isEnteringLoginCode = false, isFocusOnUrlTextField = false) }
+                                                                focusManager.clearFocus()
+                                                                keyboardController?.hide()
+                                                                textFieldState.setTextAndPlaceCursorAtEnd(resetUrl.toDomain())
+
+                                                                if (cloudData != null && cloudData.profiles.isNotEmpty()) {
+                                                                    // SCENARIO B: CLOUD HAS DATA! (Device B logging in)
+                                                                    // Ask user: Download Cloud, or Overwrite Cloud?
+                                                                    viewModel.confirmationState.value = ConfirmationDialogState(
+                                                                        message = R.string.confirm_cloud_conflict, // Add string: "Cloud backup found. Download cloud setup, or upload local?"
+                                                                        url = "Local History & Apps will be safely merged.",
+                                                                        onConfirm = {
+                                                                            // User clicked Download Cloud
+                                                                            viewModel.updateSettings { it.copy(isSync = true) }
+                                                                            viewModel.restoreAndMergeFromCloud(cloudData)
+                                                                            viewModel.confirmationState.value = null
+                                                                        },
+                                                                        onCancel = {
+                                                                            // User clicked Upload Local
+                                                                            viewModel.updateSettings { it.copy(isSync = true) }
+                                                                            viewModel.triggerSyncEvent() // Overwrites cloud
+                                                                            viewModel.confirmationState.value = null
+                                                                        }
+                                                                    )
+                                                                } else {
+                                                                    // SCENARIO A: CLOUD IS EMPTY (First time syncing)
+                                                                    // Standard "Turn on Sync?" popup
+                                                                    viewModel.confirmationState.value = ConfirmationDialogState(
+                                                                        message = R.string.confirm_sync,
+                                                                        url = "",
+                                                                        onConfirm = {
+                                                                            viewModel.updateSettings { it.copy(isSync = true) }
+                                                                            viewModel.triggerSyncEvent() // Push local data
+                                                                            viewModel.confirmationState.value = null
+                                                                        },
+                                                                        onCancel = {
+                                                                            viewModel.confirmationState.value = null
+                                                                        }
                                                                     )
                                                                 }
-                                                                viewModel.confirmationState.value =
-                                                                    null
-                                                            },
-                                                            onCancel = {
-                                                                viewModel.confirmationState.value =
-                                                                    null
+                                                                viewModel.confirmationDisplayState.value = viewModel.confirmationState.value
                                                             }
-                                                        )
-                                                    viewModel.confirmationDisplayState.value = viewModel.confirmationState.value
-                                                    focusManager.clearFocus()
-                                                    keyboardController?.hide()
-
+                                                        }
+                                                    }
                                                 } else {
+                                                    viewModel.updateUI { it.copy(isLoading = false) }
                                                     Toast.makeText(context, "Invalid Code", Toast.LENGTH_SHORT).show()
                                                 }
                                             }
                                             return@TextField
                                         }
-
                                         uiState.value.isRenamingProfile -> {
                                             viewModel.renameProfile(input)
                                             viewModel.updateUI { it.copy(isAppsPanelVisible = true) }

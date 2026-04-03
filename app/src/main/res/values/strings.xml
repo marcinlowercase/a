@@ -113,6 +113,7 @@
     <string name="confirm_beginning_of_history">reach the beginning of tab history ,\nclose tab ? </string>
     <string name="confirm_open_pop_up">open pop-up with url : </string>
     <string name="confirm_sync">sync ?</string>
+    <string name="confirm_cloud_conflict">cloud backup found. sync cloud setup ? if not the cloud backup will be replaced with local setup</string>
 
     <!-- Memory Setting -->
     <string name="memory_low">low memory</string>

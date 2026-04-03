@@ -4,8 +4,8 @@ import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import marcinlowercase.a.core.data_class.SyncPayload
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -35,8 +35,35 @@ object SyncApi {
         val payload = json.encodeToString(VerifyCodePayload(email, code))
         return makePostRequest("$BASE_URL/auth/verify-code", payload)
     }
+    suspend fun pushSyncData(payload: SyncPayload, token: String): Boolean {
+        val jsonPayload = json.encodeToString(payload)
+        return makePostRequest("$BASE_URL/sync/push", jsonPayload, token) != null
+    }
+    suspend fun pullSyncData(token: String): SyncPayload? {
+        return withContext(Dispatchers.IO) {
+            val url = URL("$BASE_URL/sync/pull")
+            val connection = url.openConnection() as HttpURLConnection
+            try {
+                connection.requestMethod = "GET"
+                connection.setRequestProperty("Accept", "application/json")
+                connection.setRequestProperty("Authorization", "Bearer $token")
+                connection.connectTimeout = 10000
+                connection.readTimeout = 10000
 
-    private suspend fun makePostRequest(urlString: String, jsonPayload: String): AuthResponse? {
+                if (connection.responseCode in 200..299) {
+                    val responseString = connection.inputStream.bufferedReader().use { it.readText() }
+                    json.decodeFromString<SyncPayload>(responseString)
+                } else {
+                    null
+                }
+            } catch (e: Exception) {
+                null
+            } finally {
+                connection.disconnect()
+            }
+        }
+    }
+    private suspend fun makePostRequest(urlString: String, jsonPayload: String, token: String? = null): AuthResponse? {
         Log.i("marcSync", "makePostRequest: $urlString")
         return withContext(Dispatchers.IO) {
             val url = URL(urlString)
@@ -45,6 +72,9 @@ object SyncApi {
                 connection.requestMethod = "POST"
                 connection.setRequestProperty("Content-Type", "application/json; utf-8")
                 connection.setRequestProperty("Accept", "application/json")
+                if (token != null) {
+                    connection.setRequestProperty("Authorization", "Bearer $token")
+                }
                 connection.doOutput = true
                 connection.connectTimeout = 10000
                 connection.readTimeout = 10000
