@@ -42,7 +42,26 @@ object SyncApi {
     }
 
     suspend fun deleteAccount(token: String): Boolean {
-        return makeRequest<AuthResponse>("$BASE_URL/sync/account", "DELETE", null, token) != null
+        // We bypass makeRequest and JSON parsing here because DELETE requests
+        // can cause stream parsing exceptions. We only care if the HTTP code is 200 OK!
+        return withContext(Dispatchers.IO) {
+            try {
+                val url = URL("$BASE_URL/sync/account")
+                val connection = url.openConnection() as HttpURLConnection
+                connection.requestMethod = "DELETE"
+                connection.setRequestProperty("Authorization", "Bearer $token")
+                connection.connectTimeout = 10000
+                connection.readTimeout = 10000
+
+                val responseCode = connection.responseCode
+                connection.disconnect()
+
+                // If the server returns 200, 201, or 204, it was successful!
+                responseCode in 200..299
+            } catch (e: Exception) {
+                false
+            }
+        }
     }
 
     // 100% Native Android HTTP Request Engine

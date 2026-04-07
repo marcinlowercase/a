@@ -8,9 +8,24 @@
     <string name="word_allow">allow</string>
     <string name="word_deny">deny</string>
     <string name="word_from">from</string>
+
+    <!-- Sync & Login -->
     <string name="desc_sync">sync</string>
     <string name="desc_login">login</string>
     <string name="desc_logout">logout</string>
+    <string name="desc_sync_push">backup</string>
+    <string name="desc_sync_merge">merge</string>
+    <string name="desc_sync_pull">restore</string>
+    <string name="desc_delete_account">delete account</string>
+
+    <string name="ui_sync_successful">sync successful</string>
+    <string name="ui_sync_failed">sync failed</string>
+    <string name="ui_login_successful">login successful</string>
+    <string name="ui_invalid_code">invalid code</string>
+    <string name="ui_code_resent">code resent</string>
+    <string name="ui_logged_out">logged out</string>
+    <string name="ui_account_deleted">account deleted</string>
+    <string name="ui_cloud_empty">cloud is empty</string>
 
     <!-- Content Descriptions & Options -->
     <string name="desc_tabs_panel">tabs panel</string>
@@ -45,13 +60,6 @@
     <string name="desc_out_sync">out sync</string>
     <string name="desc_optimize_memory">optimize memory</string>
     <string name="desc_memory_usage">memory usage</string>
-
-    <!-- Sync Panel Actions -->
-    <string name="desc_sync_push">backup to cloud</string>
-    <string name="desc_sync_merge">smart merge</string>
-    <string name="desc_sync_pull">restore from cloud</string>
-    <string name="desc_delete_account">delete account</string>
-
 
     <!-- Apps Panel & Profile Descriptions -->
     <string name="desc_move_button_left">move button left</string>
@@ -139,11 +147,12 @@
     <string name="placeholder_icon_link">custom icon url / svg code</string>
     <string name="placeholder_profile">profile</string>
 
-
-    <!-- Toast -->
+    <!-- Toast / Overlay -->
     <string name="toast_prepare_cloned">preparing custom browser…</string>
     <string name="toast_prepare_pwa">preparing web app installer…</string>
-
+    <string name="toast_failed_to_start_apk_installer">failed to start APK installer</string>
+    <string name="toast_failed_to_generate_apk">failed to generate web app installer</string>
+    <string name="toast_no_app_to_open_link">no app found to open this link</string>
 
     <!-- Error -->
     <string name="error_failed_to_load">failed to load</string>
@@ -151,7 +160,5 @@
     <string name="error_not_secure">this site is not secure</string>
     <string name="error_cannot_be_reached">this site cannot be reached</string>
     <string name="error_cannot_be_displayed">this site cannot be displayed</string>
-
-
 
 </resources>

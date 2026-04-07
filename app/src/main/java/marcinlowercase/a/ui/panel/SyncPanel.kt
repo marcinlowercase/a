@@ -159,7 +159,6 @@ fun SyncPanel(
                         .padding(end = halfPadding), // Align to left boundary
                     onTap = {
                         onPush()
-                        onDismiss()
                     },
                     buttonDescription = stringResource(R.string.desc_sync_push),
                     painterId = R.drawable.ic_arrow_upward
@@ -173,7 +172,6 @@ fun SyncPanel(
                         .padding(start = halfPadding, end = halfPadding), // Keep centered
                     onTap = {
                         onMerge()
-                        onDismiss()
                     },
                     buttonDescription = stringResource(R.string.desc_sync_merge),
                     painterId = R.drawable.ic_sync,
@@ -189,7 +187,6 @@ fun SyncPanel(
                         .padding(start = halfPadding), // Align to right boundary
                     onTap = {
                         onPull()
-                        onDismiss()
                     },
                     buttonDescription = stringResource(R.string.desc_sync_pull),
                     painterId = R.drawable.ic_arrow_downward

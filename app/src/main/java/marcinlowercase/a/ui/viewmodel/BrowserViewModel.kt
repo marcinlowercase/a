@@ -497,8 +497,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                     }
                 }
             } else {
-                Toast.makeText(activity, "No app found to open this link", Toast.LENGTH_SHORT)
-                    .show()
+                showCustomNotification(application.getString(R.string.toast_no_app_to_open_link))
             }
 
         } catch (e: Exception) {
@@ -928,9 +927,11 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     // --- ACTIONS ---
 
+
     fun triggerManualPush() {
         val token = syncAuthPrefs.getString("jwt_token", null) ?: return
         val payload = buildSyncPayload()
+        val context = getApplication<Application>()
 
         viewModelScope.launch(Dispatchers.IO) {
             updateUI { it.copy(isLoading = true) }
@@ -939,9 +940,9 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             withContext(Dispatchers.Main) {
                 updateUI { it.copy(isLoading = false) }
                 if (success) {
-                    Toast.makeText(getApplication(), "Backup successful", Toast.LENGTH_SHORT).show()
+                    showCustomNotification(context.getString(R.string.ui_sync_successful))
                 } else {
-                    Toast.makeText(getApplication(), "Failed to backup to cloud", Toast.LENGTH_SHORT).show()
+                    showCustomNotification(context.getString(R.string.ui_sync_failed))
                 }
             }
         }
@@ -949,6 +950,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     fun triggerManualPull() {
         val token = syncAuthPrefs.getString("jwt_token", null) ?: return
+        val context = getApplication<Application>()
 
         viewModelScope.launch(Dispatchers.IO) {
             updateUI { it.copy(isLoading = true) }
@@ -958,9 +960,9 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 if (cloudData != null && cloudData.profiles.isNotEmpty()) {
                     wipeAllLocalData() // 1. Nuke local data
                     restoreFromCloud(cloudData, isMerge = false) // 2. Insert cloud data
-                    Toast.makeText(getApplication(), "Restored from cloud", Toast.LENGTH_SHORT).show()
+                    showCustomNotification(context.getString(R.string.ui_sync_successful))
                 } else {
-                    Toast.makeText(getApplication(), "Cloud is empty or failed to pull", Toast.LENGTH_SHORT).show()
+                    showCustomNotification(context.getString(R.string.ui_cloud_empty))
                 }
                 updateUI { it.copy(isLoading = false) }
             }
@@ -969,6 +971,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     fun triggerSmartMerge() {
         val token = syncAuthPrefs.getString("jwt_token", null) ?: return
+        val context = getApplication<Application>()
 
         viewModelScope.launch(Dispatchers.IO) {
             updateUI { it.copy(isLoading = true) }
@@ -976,26 +979,34 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
             withContext(Dispatchers.Main) {
                 if (cloudData != null && cloudData.profiles.isNotEmpty()) {
-                    // 1. Combine Local and Cloud in RAM and Disk
+                    // 1. Combine Local and Cloud
                     restoreFromCloud(cloudData, isMerge = true)
 
                     // 2. Immediately build the new Super State and Push it back!
                     val mergedPayload = buildSyncPayload()
                     launch(Dispatchers.IO) {
-                        marcinlowercase.a.core.api.SyncApi.pushSyncData(mergedPayload, token)
+                        val success = marcinlowercase.a.core.api.SyncApi.pushSyncData(mergedPayload, token)
                         withContext(Dispatchers.Main) {
                             updateUI { it.copy(isLoading = false) }
-                            Toast.makeText(getApplication(), "Smart Merge successful", Toast.LENGTH_SHORT).show()
+                            if (success) {
+                                showCustomNotification(context.getString(R.string.ui_sync_successful))
+                            } else {
+                                showCustomNotification(context.getString(R.string.ui_sync_failed))
+                            }
                         }
                     }
                 } else {
-                    // Cloud is empty, fallback to just pushing Local Data to Cloud
+                    // Cloud is empty, fallback to pushing Local Data to Cloud
                     val localPayload = buildSyncPayload()
                     launch(Dispatchers.IO) {
-                        marcinlowercase.a.core.api.SyncApi.pushSyncData(localPayload, token)
+                        val success = marcinlowercase.a.core.api.SyncApi.pushSyncData(localPayload, token)
                         withContext(Dispatchers.Main) {
                             updateUI { it.copy(isLoading = false) }
-                            Toast.makeText(getApplication(), "Cloud was empty. Pushed local data.", Toast.LENGTH_SHORT).show()
+                            if (success) {
+                                showCustomNotification(context.getString(R.string.ui_cloud_empty))
+                            } else {
+                                showCustomNotification(context.getString(R.string.ui_sync_failed))
+                            }
                         }
                     }
                 }
@@ -1005,6 +1016,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     fun triggerDeleteAccount() {
         val token = syncAuthPrefs.getString("jwt_token", null) ?: return
+        val context = getApplication<Application>()
 
         viewModelScope.launch(Dispatchers.IO) {
             updateUI { it.copy(isLoading = true) }
@@ -1013,9 +1025,9 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             withContext(Dispatchers.Main) {
                 updateUI { it.copy(isLoading = false) }
                 if (success) {
-                    Toast.makeText(getApplication(), "Account and cloud data deleted", Toast.LENGTH_SHORT).show()
+                    showCustomNotification(context.getString(R.string.ui_account_deleted))
                 } else {
-                    Toast.makeText(getApplication(), "Failed to delete account", Toast.LENGTH_SHORT).show()
+                    showCustomNotification(context.getString(R.string.ui_sync_failed))
                 }
             }
         }
@@ -1568,14 +1580,9 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(
-                        context,
-                        if (isFullBrowser) context.getString(R.string.toast_prepare_cloned) else context.getString(
-                            R.string.toast_prepare_pwa
-                        ),
-                        Toast.LENGTH_SHORT
-                    )
-                        .show()
+                    showCustomNotification(if (isFullBrowser) context.getString(R.string.toast_prepare_cloned) else context.getString(
+                        R.string.toast_prepare_pwa
+                    ))
                 }
 
                 // Step 1: Generate or Download the APK
@@ -1597,11 +1604,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                     if (isGenerated && apkFile.exists()) {
                         installApkWithIntent(context, apkFile)
                     } else {
-                        Toast.makeText(
-                            context,
-                            "failed to generate web app installer . ",
-                            Toast.LENGTH_LONG
-                        ).show()
+                        showCustomNotification(context.getString(R.string.toast_failed_to_generate_apk))
                     }
                 }
 
@@ -2050,8 +2053,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
             context.startActivity(intent)
         } catch (e: Exception) {
-            Log.e("WebAPK", "Failed to start install intent", e)
-            Toast.makeText(context, "Failed to start APK installer.", Toast.LENGTH_SHORT).show()
+            showCustomNotification(context.getString(R.string.toast_failed_to_start_apk_installer))
         }
     }
 
@@ -2516,6 +2518,21 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     //endregion
     //region Single Purpose State
     val descriptionContent = mutableStateOf("")
+    private var descriptionJob: Job? = null
+
+    fun showCustomNotification(message: String) {
+        // Cancel any existing timer so they don't overlap if the user clicks quickly
+        descriptionJob?.cancel()
+        descriptionJob = viewModelScope.launch {
+            descriptionContent.value = message
+            delay(1000) // Wait 3 seconds
+            // Only clear it if a new message hasn't replaced it in the meantime
+            if (descriptionContent.value == message) {
+                descriptionContent.value = ""
+            }
+        }
+    }
+
     val resetBottomPanelTrigger = mutableStateOf(false)
     val isApplyImePaddingToWebView = mutableStateOf(true)
     val sessionRefreshTrigger = mutableIntStateOf(0)

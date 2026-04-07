@@ -385,7 +385,6 @@ fun BottomPanel(
                     },
                     onLogout = {
                         viewModel.logout()
-                        Toast.makeText(context, "Logged out", Toast.LENGTH_SHORT).show()
                     },
                     onDeleteAccount = {
                         confirmationPopup(
@@ -394,8 +393,7 @@ fun BottomPanel(
                             {
                                 viewModel.triggerDeleteAccount()
                                 viewModel.logout() // Log them out locally after deleting
-                                Toast.makeText(context, "Account deleted", Toast.LENGTH_SHORT).show()
-                            },
+                             },
                             {}
                         )
                     }
@@ -446,7 +444,7 @@ fun BottomPanel(
                     )
 
 
-                AnimatedVisibility(visible = viewModel.suggestions.isNotEmpty() && textFieldState.text.isNotEmpty() && uiState.value.isFocusOnUrlTextField) {
+                AnimatedVisibility(visible = viewModel.suggestions.isNotEmpty() && textFieldState.text.isNotEmpty() && uiState.value.isFocusOnUrlTextField && (!uiState.value.isPinningApp && !uiState.value.isCloningBrowser && !uiState.value.isRenamingProfile && !uiState.value.isCreatingProfile && !uiState.value.isEnteringEmail&& !uiState.value.isEnteringLoginCode)) {
                     LazyColumn(
                         modifier = Modifier
                             .padding(horizontal = settings.value.padding.dp)
