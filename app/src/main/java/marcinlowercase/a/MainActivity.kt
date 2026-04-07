@@ -1455,6 +1455,9 @@ fun BrowserScreen(
     LaunchedEffect(viewModel.suggestions) {
         if (viewModel.suggestions.isNotEmpty()) activeMainPanel = ActivePanel.SUGGESTIONS
     }
+    LaunchedEffect(uiState.value.isSyncPanelVisible) {
+        if (uiState.value.isSyncPanelVisible) activeMainPanel = ActivePanel.SYNC
+    }
 
     LaunchedEffect(uiState.value.isDownloadPanelVisible) {
         if (uiState.value.isDownloadPanelVisible) activeMainPanel = ActivePanel.DOWNLOADS
@@ -1502,6 +1505,11 @@ fun BrowserScreen(
         if (current != ActivePanel.DOWNLOADS && uiState.value.isDownloadPanelVisible) viewModel.updateUI {
             it.copy(
                 isDownloadPanelVisible = false
+            )
+        }
+        if (current != ActivePanel.SYNC && uiState.value.isSyncPanelVisible) viewModel.updateUI {
+            it.copy(
+                isSyncPanelVisible = false
             )
         }
 
@@ -1552,24 +1560,6 @@ fun BrowserScreen(
         LocalBrowserViewModel provides viewModel
     ) {
         //region LaunchedEffect
-
-        //TODO COMPALETE SYNC LOGIC
-        fun triggerSyncEvent() {
-            Log.d("BrowserSync", "Sync event triggered! Commencing background sync...")
-            // We will build the actual data sync logic here later.
-        }
-
-        var previousIsSync by remember { mutableStateOf(settings.isSync) }
-
-        LaunchedEffect(settings.isSync) {
-            if (!previousIsSync && settings.isSync) {
-                // Triggered from False -> True
-                triggerSyncEvent()
-            }
-            previousIsSync = settings.isSync
-        }
-
-        // Placeholder Sync Function
 
         LaunchedEffect(viewModel.activeProfileId.value) {
             if (viewModel.inspectingOption.value != null || viewModel.isSortingButtons.value) {
@@ -1671,6 +1661,7 @@ fun BrowserScreen(
             uiState.value.isOptionsPanelVisible,
             uiState.value.isAppsPanelVisible,
             uiState.value.isDownloadPanelVisible,
+            uiState.value.isSyncPanelVisible,
             uiState.value.isSettingsPanelVisible,
             uiState.value.isFindInPageVisible,
             uiState.value.isTabDataPanelVisible
@@ -1685,6 +1676,7 @@ fun BrowserScreen(
                         uiState.value.isDownloadPanelVisible ||
                         uiState.value.isSettingsPanelVisible ||
                         uiState.value.isFindInPageVisible ||
+                        uiState.value.isSyncPanelVisible ||
                         uiState.value.isTabDataPanelVisible
 
                 // If one did, forcefully shut them all down
@@ -1696,6 +1688,7 @@ fun BrowserScreen(
                             isOptionsPanelVisible = false,
                             isAppsPanelVisible = false,
                             isDownloadPanelVisible = false,
+                            isSyncPanelVisible = false,
                             isSettingsPanelVisible = false,
                             isFindInPageVisible = false,
                             isTabDataPanelVisible = false

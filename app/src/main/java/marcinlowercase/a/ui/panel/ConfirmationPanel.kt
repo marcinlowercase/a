@@ -24,9 +24,12 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -37,6 +40,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -68,27 +72,27 @@ fun ConfirmationPanel() {
                     top = settings.value.padding.dp,
                     bottom = if (uiState.value.isUrlBarVisible) 0.dp else settings.value.padding.dp
                 )
-                .background(
-                    Color.Black,
-                    shape = RoundedCornerShape(
-                        settings.value.cornerRadiusForLayer(2).dp
-                    )
-                )
+                .clip(RoundedCornerShape(
+                    settings.value.cornerRadiusForLayer(2).dp
+                ))
+
         ) {
 
             Column(
                 modifier = Modifier
-//                    .heightIn(min = settings.value.heightForLayer(3).dp)
+                    .padding(top = settings.value.padding.dp)
+                    .padding(horizontal = settings.value.padding.dp)
+                    .heightIn(min = settings.value.heightForLayer(3).dp)
+                    .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(3).dp))
+                    .background(Color(settings.value.backgroundForHighlightText()))
                     .padding(vertical = settings.value.padding.dp)
                     .padding(horizontal = settings.value.padding.dp)
-                    .padding(horizontal = settings.value.cornerRadiusForLayer(3).dp)
-//                    .background(Color.Cyan),
-
+                    .padding(horizontal = settings.value.cornerRadiusForLayer(3).dp),
+                verticalArrangement = Arrangement.Center
 
             ) {
                 Text(
                     text = stringResource(state.message),
-//                    color = Color.Yellow,
                     color = Color(settings.value.highlightColor),
                     modifier = Modifier
                         .fillMaxWidth()

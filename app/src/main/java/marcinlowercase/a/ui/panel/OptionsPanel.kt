@@ -264,26 +264,17 @@ fun rememberBrowserOptionsRegistry(
                 changeBrowserIcon()
             },
 
-            BrowserOption.LOGIN to OptionItem(
-                id = BrowserOption.LOGIN,
-                iconRes = if (viewModel.isLoggedIn()) R.drawable.ic_logout else R.drawable.ic_login,
-                contentDescription = R.string.desc_login // Make sure to add to strings.xml
-            ) {
-                if (viewModel.isLoggedIn()) {
-                    viewModel.logout()
-                } else {
-                    onLoginClick()
-                }
-            },
-
             BrowserOption.SYNC to OptionItem(
                 id = BrowserOption.SYNC,
-                iconRes = if (settings.value.isSync) R.drawable.ic_sync else R.drawable.ic_sync_disabled,
+                iconRes = R.drawable.ic_sync,
                 contentDescription = R.string.desc_sync, // Make sure to add to strings.xml
-                enabled = viewModel.isLoggedIn() // Disable click if not logged in
+                enabled = uiState.value.isSyncPanelVisible// Disable click if not logged in
             ) {
                 if (viewModel.isLoggedIn()) {
-                    viewModel.updateSettings { it.copy(isSync = !it.isSync) }
+                    viewModel.updateUI {
+                        it.copy(isSyncPanelVisible = !it.isSyncPanelVisible, isOptionsPanelVisible = false, isSettingsPanelVisible = false)
+                    }
+//                    viewModel.updateSettings { it.copy(isSync = !it.isSync) }
                 } else {
                     onLoginClick()
                 }
@@ -738,7 +729,8 @@ fun SettingsPanel(
                             modifier = Modifier.fillMaxWidth(),
                             userScrollEnabled = realPageCount > 1
                         ) { pageIndex ->
-                            val actualPageIndex = if (realPageCount > 0) pageIndex % realPageCount else 0
+                            val actualPageIndex =
+                                if (realPageCount > 0) pageIndex % realPageCount else 0
                             val pageOptions = optionPages[actualPageIndex]
 
                             LazyVerticalGrid(
@@ -810,9 +802,11 @@ fun SettingsPanel(
                                         count = remaining,
                                         key = { "spacer_${actualPageIndex}_$it" }
                                     ) {
-                                        Spacer(modifier = Modifier
-                                            .animateItem()
-                                            .fillMaxSize())
+                                        Spacer(
+                                            modifier = Modifier
+                                                .animateItem()
+                                                .fillMaxSize()
+                                        )
                                     }
                                 }
                             }
@@ -931,6 +925,7 @@ fun SettingsPanel(
                     afterDecimal = true,
                     field = BrowserSettingField.MAX_LIST_HEIGHT
                 )
+
                 SettingPanelView.MEMORY_USAGE -> {
                     val memoryLow = stringResource(R.string.memory_low)
                     val memoryStandard = stringResource(R.string.memory_standard)
@@ -956,6 +951,7 @@ fun SettingsPanel(
                         field = BrowserSettingField.MEMORY_USAGE
                     )
                 }
+
                 SettingPanelView.SEARCH_ENGINE -> SliderSetting(
                     textEnabled = false,
                     onBackClick = { currentView = SettingPanelView.MAIN },
@@ -970,15 +966,9 @@ fun SettingsPanel(
                 )
 
                 SettingPanelView.HIGHLIGHT_COLOR -> {
-                    // 1. Minimum Brightness to ensure visibility against a BLACK background
-                    val minBrightness = 0.35f
-
                     val initialHsv = remember(settings.value.highlightColor) {
                         val hsv = FloatArray(3)
                         AndroidColor.colorToHSV(settings.value.highlightColor, hsv)
-                        // Sanitize initial color based on the new logic
-                        val safeMaxV = (0.60f + hsv[1]).coerceAtMost(1f)
-                        hsv[2] = hsv[2].coerceIn(minBrightness, safeMaxV)
                         hsv
                     }
                     var hue by remember { mutableFloatStateOf(initialHsv[0]) }
@@ -992,7 +982,7 @@ fun SettingsPanel(
                         mutableStateOf(String.format("#%06X", 0xFFFFFF and selectedColorInt))
                     }
 
-                    // 2. Only auto-update the text when NOT typing (allows sliders to update text instantly)
+                    // Only auto-update the text when NOT typing (allows sliders to update text instantly)
                     LaunchedEffect(selectedColorInt) {
                         if (!uiState.value.isFocusOnSettingTextField) {
                             hexText = String.format("#%06X", 0xFFFFFF and selectedColorInt)
@@ -1035,26 +1025,27 @@ fun SettingsPanel(
                                     .background(Color(selectedColorInt)),
                                 contentAlignment = Alignment.Center
                             ) {
-                                val textColor = if (isColorDark(selectedColorInt)) Color.White else Color.Black
+                                val textColor =
+                                    if (isColorDark(selectedColorInt)) Color.White else Color.Black
                                 val keyboardController = LocalSoftwareKeyboardController.current
                                 val focusManager = LocalFocusManager.current
                                 BasicTextField(
                                     value = hexText,
                                     onValueChange = { newText ->
-                                        val filtered = newText.filter { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' || it == '#' }
+                                        val filtered =
+                                            newText.filter { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' || it == '#' }
                                         if (filtered.length <= 7) {
                                             hexText = filtered
                                             try {
-                                                val parsedColor = (if (filtered.startsWith("#")) filtered else "#$filtered").toColorInt()
+                                                val parsedColor =
+                                                    (if (filtered.startsWith("#")) filtered else "#$filtered").toColorInt()
                                                 val hsv = FloatArray(3)
                                                 AndroidColor.colorToHSV(parsedColor, hsv)
                                                 hue = hsv[0]
                                                 saturation = hsv[1]
-
-                                                // 3. New Math: Allows Pure Red/Green/Blue to have 1.0f Brightness
-                                                val safeMaxV = (0.60f + saturation).coerceAtMost(1f)
-                                                value = hsv[2].coerceIn(minBrightness, safeMaxV)
-                                            } catch (_: Exception) { }
+                                                value = hsv[2]
+                                            } catch (_: Exception) {
+                                            }
                                         }
                                     },
                                     modifier = Modifier
@@ -1066,7 +1057,7 @@ fun SettingsPanel(
                                             hexText = if (focusState.hasFocus) {
                                                 "" // Clear text so user can easily type
                                             } else {
-                                                // 4. THE FIX: The moment focus is lost, force text to match the real clamped color
+                                                // The moment focus is lost, force text to match the real color
                                                 String.format(
                                                     "#%06X",
                                                     0xFFFFFF and selectedColorInt
@@ -1135,14 +1126,7 @@ fun SettingsPanel(
 
                                 Slider(
                                     value = saturation,
-                                    onValueChange = { newSat ->
-                                        saturation = newSat
-                                        // Smart Link: Pulls Brightness down if user drags Saturation towards white
-                                        val safeMaxV = (0.60f + newSat).coerceAtMost(1f)
-                                        if (value > safeMaxV) {
-                                            value = safeMaxV
-                                        }
-                                    },
+                                    onValueChange = { saturation = it },
                                     valueRange = 0f..1f,
                                     colors = SliderDefaults.colors(
                                         thumbColor = Color.White,
@@ -1152,15 +1136,8 @@ fun SettingsPanel(
 
                                 Slider(
                                     value = value,
-                                    onValueChange = { newV ->
-                                        value = newV
-                                        // Smart Link: Pushes Saturation up if user drags Brightness towards white
-                                        val safeMinS = (newV - 0.60f).coerceAtLeast(0f)
-                                        if (saturation < safeMinS) {
-                                            saturation = safeMinS
-                                        }
-                                    },
-                                    valueRange = minBrightness..1f, // Brightness is allowed back up to 100%
+                                    onValueChange = { value = it },
+                                    valueRange = 0f..1f,
                                     colors = SliderDefaults.colors(
                                         thumbColor = Color.White,
                                         activeTrackColor = Color.White.copy(alpha = value)
@@ -1169,7 +1146,8 @@ fun SettingsPanel(
                             }
                         }
                     }
-                }            }
+                }
+            }
         }
     }
 }

@@ -8,6 +8,9 @@
     <string name="word_allow">allow</string>
     <string name="word_deny">deny</string>
     <string name="word_from">from</string>
+    <string name="desc_sync">sync</string>
+    <string name="desc_login">login</string>
+    <string name="desc_logout">logout</string>
 
     <!-- Content Descriptions & Options -->
     <string name="desc_tabs_panel">tabs panel</string>
@@ -42,8 +45,12 @@
     <string name="desc_out_sync">out sync</string>
     <string name="desc_optimize_memory">optimize memory</string>
     <string name="desc_memory_usage">memory usage</string>
-    <string name="desc_sync">sync</string>
-    <string name="desc_login">login</string>
+
+    <!-- Sync Panel Actions -->
+    <string name="desc_sync_push">backup to cloud</string>
+    <string name="desc_sync_merge">smart merge</string>
+    <string name="desc_sync_pull">restore from cloud</string>
+    <string name="desc_delete_account">delete account</string>
 
 
     <!-- Apps Panel & Profile Descriptions -->
@@ -114,6 +121,7 @@
     <string name="confirm_open_pop_up">open pop-up with url : </string>
     <string name="confirm_sync">sync ?</string>
     <string name="confirm_cloud_conflict">cloud backup found. sync cloud setup ? if not the cloud backup will be replaced with local setup</string>
+    <string name="confirm_delete_account">delete sync account ?</string>
 
     <!-- Memory Setting -->
     <string name="memory_low">low memory</string>

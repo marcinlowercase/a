@@ -35,6 +35,7 @@ data class BrowserUIState(
     val isPermissionPanelVisible: Boolean = false,
     val isPromptPanelVisible: Boolean = false,
     val isOptionsPanelVisible: Boolean = false,
+    val isSyncPanelVisible: Boolean = false,
 
     // Tabs
     val isTabsPanelVisible: Boolean = false,

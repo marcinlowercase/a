@@ -21,6 +21,7 @@ import android.content.Context
 import androidx.core.content.edit
 import kotlinx.serialization.json.Json
 import marcinlowercase.a.core.data_class.Profile
+import java.util.UUID
 
 class ProfileManager(private val context: Context) {
     private val prefs = context.getSharedPreferences("BrowserProfiles", Context.MODE_PRIVATE)
@@ -42,7 +43,14 @@ class ProfileManager(private val context: Context) {
     }
 
     fun getActiveProfileId(): String {
-        return prefs.getString(activeProfileKey, "profile_1") ?: "profile_1"
+        val activeId = prefs.getString(activeProfileKey, null)
+        if (activeId == null) {
+            val profiles = loadProfiles()
+            val newId = profiles.first().id
+            saveActiveProfileId(newId)
+            return newId
+        }
+        return activeId
     }
 
     fun saveActiveProfileId(id: String) {
@@ -50,8 +58,13 @@ class ProfileManager(private val context: Context) {
     }
 
     private fun createDefaultProfile(): List<Profile> {
-        val defaultProfile = Profile(id = "profile_1", "${context.getString(R.string.placeholder_profile)} 1")
+        val uniqueId = "profile_${UUID.randomUUID().toString().replace("-", "")}"
+        val defaultProfile = Profile(
+            id = uniqueId,
+            name = "${context.getString(R.string.placeholder_profile)} 1"
+        )
         saveProfiles(listOf(defaultProfile))
+        saveActiveProfileId(uniqueId)
         return listOf(defaultProfile)
     }
 }

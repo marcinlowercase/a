@@ -16,7 +16,7 @@
  */
 package marcinlowercase.a.core.data_class
 
-import marcinlowercase.a.core.constant.DefaultSettingValues
+import marcinlowercase.a.ui.panel.isColorDark
 import kotlin.math.roundToInt
 
 data class BrowserSettings(
@@ -45,7 +45,6 @@ data class BrowserSettings(
     val optionsOrder: String,
     val settingsOrder: String,
     val hiddenOptions: String,
-    val isSync: Boolean,
 
 
     val isEnabledMediaControl: Boolean,
@@ -77,5 +76,8 @@ data class BrowserSettings(
     fun animationSpeedForLayer(layer: Int): Int {
         val adjusted = animationSpeed - 50f * layer
         return adjusted.coerceAtLeast(0f).roundToInt()
+    }
+    fun backgroundForHighlightText(): Int {
+        return if (isColorDark(highlightColor)) 0xFFFFFFFF.toInt() else 0xFF000000.toInt()
     }
 }

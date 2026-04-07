@@ -25,5 +25,6 @@ enum class ActivePanel {
     SETTINGS,
     TABS,
     PERMISSION,
-    SUGGESTIONS
+    SUGGESTIONS,
+    SYNC,
 }

@@ -16,6 +16,7 @@
  */
 package marcinlowercase.a.ui.component
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
@@ -44,6 +45,7 @@ import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 @Composable
 fun CustomIconButton(
     modifier: Modifier = Modifier,
+    otherColor: Color = Color.Transparent,
     isLandscape : Boolean = false,
     layer: Int,
     onTap: (() -> Unit),
@@ -87,7 +89,9 @@ fun CustomIconButton(
                 onLongPress = onLongPress,
                 useLongPress = useLongPress,
 
-            ),
+            )
+            .background(otherColor)
+        ,
         contentAlignment = Alignment.Center
     ) {
         if (textIcon != null) {

@@ -60,6 +60,5 @@ enum class BrowserOption(val type: OptionType) {
     OPTIMIZE_MEMORY(OptionType.TOGGLE_ACTION),
     MEMORY_USAGE(OptionType.OPENS_SETTING),
     CHANGE_ICON(OptionType.TOGGLE_ACTION),
-    LOGIN(OptionType.TOGGLE_ACTION),
     SYNC(OptionType.TOGGLE_ACTION),
 }

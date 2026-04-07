@@ -552,7 +552,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             singleLineHeight = globalPrefs.getFloat("single_line_height", d.SINGLE_LINE_HEIGHT),
             maxListHeight = globalPrefs.getFloat("max_list_height", d.MAX_LIST_HEIGHT),
             memoryUsage = globalPrefs.getInt("memory_usage", d.MEMORY_USAGE),
-            isSync = globalPrefs.getBoolean("is_sync", d.IS_SYNC),
 
 
             // --- PROFILE-SPECIFIC SETTINGS ---
@@ -724,7 +723,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             putFloat("single_line_height", settings.singleLineHeight)
             putFloat("max_list_height", settings.maxListHeight)
             putInt("memory_usage", settings.memoryUsage)
-            putBoolean("is_sync", settings.isSync)
 
             apply()
         }
@@ -816,7 +814,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     fun logout() {
         syncAuthPrefs.edit { remove("jwt_token") }
-        updateSettings { it.copy(isSync = false) } // Turn off sync on logout
     }
 
     // 2. Add API Wrapper functions
@@ -827,11 +824,19 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun getLoggedInEmail(): String {
+        return syncAuthPrefs.getString("email", "Unknown User") ?: "Unknown User"
+    }
+
     fun verifyLoginCode(code: String, onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
             val response = marcinlowercase.a.core.api.SyncApi.verifyCode(userEmailToLogin, code)
             if (response?.token != null) {
-                syncAuthPrefs.edit { putString("jwt_token", response.token) }
+                // SAVE THE EMAIL HERE TOO!
+                syncAuthPrefs.edit()
+                    .putString("jwt_token", response.token)
+                    .putString("email", userEmailToLogin)
+                    .apply()
                 onResult(true)
             } else {
                 onResult(false)
@@ -904,7 +909,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     }
     fun triggerSyncEvent() {
         // 1. Check if the user is actually allowed to sync
-        if (!_browserSettings.value.isSync) return
         val token = syncAuthPrefs.getString("jwt_token", null) ?: return
 
         // 2. Build the massive JSON payload
@@ -922,23 +926,159 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun restoreAndMergeFromCloud(cloudData: marcinlowercase.a.core.data_class.SyncPayload) {
-        if (cloudData.profiles.isEmpty()) return
+    // --- ACTIONS ---
 
-        // 1. Overwrite Profiles
+    fun triggerManualPush() {
+        val token = syncAuthPrefs.getString("jwt_token", null) ?: return
+        val payload = buildSyncPayload()
+
+        viewModelScope.launch(Dispatchers.IO) {
+            updateUI { it.copy(isLoading = true) }
+            val success = marcinlowercase.a.core.api.SyncApi.pushSyncData(payload, token)
+
+            withContext(Dispatchers.Main) {
+                updateUI { it.copy(isLoading = false) }
+                if (success) {
+                    Toast.makeText(getApplication(), "Backup successful", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(getApplication(), "Failed to backup to cloud", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    fun triggerManualPull() {
+        val token = syncAuthPrefs.getString("jwt_token", null) ?: return
+
+        viewModelScope.launch(Dispatchers.IO) {
+            updateUI { it.copy(isLoading = true) }
+            val cloudData = marcinlowercase.a.core.api.SyncApi.pullSyncData(token)
+
+            withContext(Dispatchers.Main) {
+                if (cloudData != null && cloudData.profiles.isNotEmpty()) {
+                    wipeAllLocalData() // 1. Nuke local data
+                    restoreFromCloud(cloudData, isMerge = false) // 2. Insert cloud data
+                    Toast.makeText(getApplication(), "Restored from cloud", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(getApplication(), "Cloud is empty or failed to pull", Toast.LENGTH_SHORT).show()
+                }
+                updateUI { it.copy(isLoading = false) }
+            }
+        }
+    }
+
+    fun triggerSmartMerge() {
+        val token = syncAuthPrefs.getString("jwt_token", null) ?: return
+
+        viewModelScope.launch(Dispatchers.IO) {
+            updateUI { it.copy(isLoading = true) }
+            val cloudData = marcinlowercase.a.core.api.SyncApi.pullSyncData(token)
+
+            withContext(Dispatchers.Main) {
+                if (cloudData != null && cloudData.profiles.isNotEmpty()) {
+                    // 1. Combine Local and Cloud in RAM and Disk
+                    restoreFromCloud(cloudData, isMerge = true)
+
+                    // 2. Immediately build the new Super State and Push it back!
+                    val mergedPayload = buildSyncPayload()
+                    launch(Dispatchers.IO) {
+                        marcinlowercase.a.core.api.SyncApi.pushSyncData(mergedPayload, token)
+                        withContext(Dispatchers.Main) {
+                            updateUI { it.copy(isLoading = false) }
+                            Toast.makeText(getApplication(), "Smart Merge successful", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } else {
+                    // Cloud is empty, fallback to just pushing Local Data to Cloud
+                    val localPayload = buildSyncPayload()
+                    launch(Dispatchers.IO) {
+                        marcinlowercase.a.core.api.SyncApi.pushSyncData(localPayload, token)
+                        withContext(Dispatchers.Main) {
+                            updateUI { it.copy(isLoading = false) }
+                            Toast.makeText(getApplication(), "Cloud was empty. Pushed local data.", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fun triggerDeleteAccount() {
+        val token = syncAuthPrefs.getString("jwt_token", null) ?: return
+
+        viewModelScope.launch(Dispatchers.IO) {
+            updateUI { it.copy(isLoading = true) }
+            val success = marcinlowercase.a.core.api.SyncApi.deleteAccount(token)
+
+            withContext(Dispatchers.Main) {
+                updateUI { it.copy(isLoading = false) }
+                if (success) {
+                    Toast.makeText(getApplication(), "Account and cloud data deleted", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(getApplication(), "Failed to delete account", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    // --- HELPER LOGIC ---
+
+    private fun wipeAllLocalData() {
+        val context = getApplication<Application>()
+        // Wipe global lists
+        context.getSharedPreferences("BrowserProfiles", Context.MODE_PRIVATE).edit().clear().apply()
+        context.getSharedPreferences("BrowserHistory", Context.MODE_PRIVATE).edit().clear().apply()
+        context.getSharedPreferences("BrowserApps", Context.MODE_PRIVATE).edit().clear().apply()
+        context.getSharedPreferences("BrowserSiteSettings", Context.MODE_PRIVATE).edit().clear().apply()
+
+        // Wipe specific settings for all existing profiles
+        profiles.forEach { profile ->
+            context.getSharedPreferences("BrowserPrefs_${profile.id}", Context.MODE_PRIVATE).edit().clear().apply()
+            context.getSharedPreferences("BrowserTabs", Context.MODE_PRIVATE).edit()
+                .remove("tabs_list_json_${profile.id}")
+                .remove("active_tab_index_${profile.id}")
+                .apply()
+        }
+
+        // Clear RAM structures
+        profiles.clear()
+        visitedUrlMap.clear()
+        apps.clear()
+        siteSettings.clear()
+    }
+
+    private fun restoreFromCloud(cloudData: marcinlowercase.a.core.data_class.SyncPayload, isMerge: Boolean) {
+        if (cloudData.profiles.isEmpty()) return
+        val context = getApplication<Application>()
+
+        // 1. Profiles List Union
+        val localProfileIds = profiles.map { it.id }.toSet()
         val newProfiles = cloudData.profiles.map {
             marcinlowercase.a.core.data_class.Profile(id = it.id, name = it.name)
         }
-        profileManager.saveProfiles(newProfiles)
-        profiles.clear()
-        profiles.addAll(newProfiles)
 
-        // 2. Loop through each cloud profile to save settings, merge apps, and merge history
+        if (!isMerge) {
+            profiles.clear()
+            profiles.addAll(newProfiles)
+            profileManager.saveProfiles(profiles)
+        } else {
+            val mergedProfiles = profiles.toMutableList()
+            newProfiles.forEach { cp ->
+                if (!localProfileIds.contains(cp.id)) {
+                    mergedProfiles.add(cp)
+                }
+            }
+            profiles.clear()
+            profiles.addAll(mergedProfiles)
+            profileManager.saveProfiles(profiles)
+        }
+
+        // 2. Loop through cloud profiles and apply Data
         cloudData.profiles.forEach { cloudProfile ->
             val s = cloudProfile.settings
 
-            // Save Settings to SharedPreferences
-            val prefs = getApplication<Application>().getSharedPreferences("BrowserPrefs_${cloudProfile.id}", Context.MODE_PRIVATE)
+            // Settings: Cloud always wins (even in merge)
+            val prefs = context.getSharedPreferences("BrowserPrefs_${cloudProfile.id}", Context.MODE_PRIVATE)
             prefs.edit().apply {
                 putString("default_url", s.defaultUrl)
                 putFloat("animation_speed", s.animationSpeed)
@@ -965,13 +1105,13 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 apply()
             }
 
-            // Merge History (Add cloud history to local DB)
+            // History: Union
             cloudProfile.visitedUrls.forEach { urlDto ->
                 visitedUrlManager.addUrl(cloudProfile.id, urlDto.url, urlDto.title)
             }
 
-            // Merge Apps (Add cloud apps to local DB, avoiding duplicates by URL)
-            val localApps = appManager.loadApps(cloudProfile.id).toMutableList()
+            // Apps: Union
+            val localApps = if (isMerge) appManager.loadApps(cloudProfile.id).toMutableList() else mutableListOf()
             val localAppUrls = localApps.map { it.url }.toSet()
 
             cloudProfile.pinnedApps.forEach { cloudApp ->
@@ -987,12 +1127,23 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             appManager.saveApps(cloudProfile.id, localApps)
         }
 
-        // 3. Switch to the first cloud profile to instantly refresh the UI!
-        val targetProfileId = newProfiles.firstOrNull()?.id ?: activeProfileId.value
-        switchProfile(targetProfileId)
+        // 3. Refresh RAM so the UI instantly updates without restarting!
+        val targetProfileId = if (!isMerge) newProfiles.firstOrNull()?.id ?: activeProfileId.value else activeProfileId.value
 
-        // 4. Push the newly merged History & Apps BACK to the cloud!
-        triggerSyncEvent()
+        if (activeProfileId.value == targetProfileId) {
+            // Force current profile reload since files changed under its feet
+            _browserSettings.value = loadSettingsFromPrefs(targetProfileId)
+            geckoManager.setAdBlockEnabled(_browserSettings.value.isAdBlockEnabled)
+            apps.clear()
+            apps.addAll(appManager.loadApps(targetProfileId))
+            visitedUrlMap.clear()
+            visitedUrlMap.putAll(visitedUrlManager.loadUrlMap(targetProfileId))
+            siteSettings.clear()
+            siteSettings.putAll(siteSettingsManager.loadSettings(targetProfileId))
+            sessionRefreshTrigger.intValue++ // Tells Gecko to refresh
+        } else {
+            switchProfile(targetProfileId)
+        }
     }
 
     //endregion
@@ -2514,8 +2665,5 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         geckoManager.setAdBlockEnabled(_browserSettings.value.isAdBlockEnabled)
         startDownloadPolling()
         setupPrefsListener(currentProfileId)
-        if (isLoggedIn() && _browserSettings.value.isSync) {
-            triggerSyncEvent()
-        }
     }
 }
