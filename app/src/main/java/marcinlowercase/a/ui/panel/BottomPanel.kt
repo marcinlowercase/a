@@ -388,12 +388,12 @@ fun BottomPanel(
                     },
                     onDeleteAccount = {
                         confirmationPopup(
-                             R.string.confirm_delete_account,
+                            R.string.confirm_delete_account,
                             viewModel.getLoggedInEmail(), // Shows the email they are about to delete
                             {
                                 viewModel.triggerDeleteAccount()
                                 viewModel.logout() // Log them out locally after deleting
-                             },
+                            },
                             {}
                         )
                     }
@@ -444,7 +444,7 @@ fun BottomPanel(
                     )
 
 
-                AnimatedVisibility(visible = viewModel.suggestions.isNotEmpty() && textFieldState.text.isNotEmpty() && uiState.value.isFocusOnUrlTextField && (!uiState.value.isPinningApp && !uiState.value.isCloningBrowser && !uiState.value.isRenamingProfile && !uiState.value.isCreatingProfile && !uiState.value.isEnteringEmail&& !uiState.value.isEnteringLoginCode)) {
+                AnimatedVisibility(visible = viewModel.suggestions.isNotEmpty() && textFieldState.text.isNotEmpty() && uiState.value.isFocusOnUrlTextField && (!uiState.value.isPinningApp && !uiState.value.isCloningBrowser && !uiState.value.isRenamingProfile && !uiState.value.isCreatingProfile && !uiState.value.isEnteringEmail && !uiState.value.isEnteringLoginCode)) {
                     LazyColumn(
                         modifier = Modifier
                             .padding(horizontal = settings.value.padding.dp)
@@ -614,7 +614,7 @@ fun BottomPanel(
                                                         val currentState = viewModel.uiState.value
                                                         // Protect UI from tearing down if picker is open
                                                         if (!currentState.isFocusOnIconUrlTextField && !currentState.isEnteringLoginCode && !currentState.isFocusOnUrlTextField && !isPickingImage.value) {
-                                                            if (currentState.isEnteringEmail ) viewModel.updateUI {
+                                                            if (currentState.isEnteringEmail) viewModel.updateUI {
                                                                 it.copy(
                                                                     isEnteringEmail = false
                                                                 )
@@ -669,7 +669,10 @@ fun BottomPanel(
                                             },
                                         state = customIconUrlState,
                                         placeholder = {
-                                            Text(stringResource(R.string.placeholder_icon_link), color = Color.Gray)
+                                            Text(
+                                                stringResource(R.string.placeholder_icon_link),
+                                                color = Color.Gray
+                                            )
                                         },
                                         textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Start),
                                         lineLimits = TextFieldLineLimits.SingleLine,
@@ -765,7 +768,7 @@ fun BottomPanel(
                                                 val currentState = viewModel.uiState.value
                                                 // Protect the UI from tearing down if the picker is open
                                                 if (!currentState.isFocusOnIconUrlTextField && !currentState.isEnteringLoginCode && !currentState.isFocusOnUrlTextField && !isPickingImage.value) {
-                                                    if (currentState.isEnteringEmail ) viewModel.updateUI {
+                                                    if (currentState.isEnteringEmail) viewModel.updateUI {
                                                         it.copy(
                                                             isEnteringEmail = false
                                                         )
@@ -822,7 +825,11 @@ fun BottomPanel(
                                             settings.value.cornerRadiusForLayer(1).dp
                                         )
                                     ),
-                                contentPadding = PaddingValues(horizontal = settings.value.cornerRadiusForLayer(1).dp + settings.value.padding.dp),
+                                contentPadding = PaddingValues(
+                                    horizontal = settings.value.cornerRadiusForLayer(
+                                        1
+                                    ).dp + settings.value.padding.dp
+                                ),
                                 placeholder = {
                                     when {
                                         uiState.value.isEnteringEmail -> Text(stringResource(R.string.placeholder_email))
@@ -841,7 +848,27 @@ fun BottomPanel(
                                 ),
                                 //                        state = rememberTextFieldState("Hello"),
                                 lineLimits = TextFieldLineLimits.SingleLine,
-                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = when {
+                                        uiState.value.isEnteringLoginCode -> androidx.compose.ui.text.input.KeyboardType.NumberPassword
+                                        uiState.value.isRenamingProfile
+                                                || uiState.value.isCreatingProfile
+                                                || uiState.value.isEnteringLoginCode
+                                                || uiState.value.isPinningApp
+                                                || uiState.value.isCloningBrowser
+                                            -> androidx.compose.ui.text.input.KeyboardType.Text
+                                        else -> androidx.compose.ui.text.input.KeyboardType.Uri
+                                    },
+                                    imeAction = when {
+                                        uiState.value.isRenamingProfile
+                                                || uiState.value.isCreatingProfile
+                                                || uiState.value.isEnteringLoginCode
+                                                || uiState.value.isPinningApp
+                                                || uiState.value.isCloningBrowser
+                                                    -> ImeAction.Done
+                                        else -> ImeAction.Go
+                                    }
+                                ),
                                 onKeyboardAction = {
                                     val input = (textFieldState.text as String).trim()
                                     val resetUrl = viewModel.activeTab!!.currentURL
@@ -854,6 +881,7 @@ fun BottomPanel(
                                             uiState.value.isEnteringLoginCode -> {
                                                 viewModel.showCustomNotification(invalidCodeText)
                                             }
+
                                             uiState.value.isCreatingProfile -> {
                                                 viewModel.createNewProfile()
                                                 viewModel.updateUI { it.copy(isAppsPanelVisible = true) }
@@ -868,6 +896,7 @@ fun BottomPanel(
                                                 )
                                                 viewModel.updateUI { it.copy(isPinningApp = false) }
                                             }
+
                                             uiState.value.isCloningBrowser -> {
                                                 viewModel.generateAndInstallWebApk(
                                                     context = context,
@@ -899,19 +928,34 @@ fun BottomPanel(
 
                                         uiState.value.isEnteringEmail -> {
                                             viewModel.userEmailToLogin = input
-                                            viewModel.updateUI { it.copy(isEnteringLoginCode = true)}
-                                            viewModel.updateUI { it.copy(isEnteringEmail = false, isLoading = true) }
+                                            viewModel.updateUI { it.copy(isEnteringLoginCode = true) }
+                                            viewModel.updateUI {
+                                                it.copy(
+                                                    isEnteringEmail = false,
+                                                    isLoading = true
+                                                )
+                                            }
                                             viewModel.requestLoginCode(input) { success ->
                                                 viewModel.updateUI { it.copy(isLoading = false) }
                                                 if (success) {
                                                     textFieldState.setTextAndPlaceCursorAtEnd("")
                                                 } else {
-                                                    viewModel.updateUI { it.copy(isEnteringEmail = false, isEnteringLoginCode = false) }
-                                                    Toast.makeText(context, "Failed to send code", Toast.LENGTH_SHORT).show()
+                                                    viewModel.updateUI {
+                                                        it.copy(
+                                                            isEnteringEmail = false,
+                                                            isEnteringLoginCode = false
+                                                        )
+                                                    }
+                                                    Toast.makeText(
+                                                        context,
+                                                        "Failed to send code",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
                                                 }
                                             }
                                             return@TextField
                                         }
+
                                         uiState.value.isEnteringLoginCode -> {
                                             viewModel.updateUI { it.copy(isLoading = true) }
                                             viewModel.verifyLoginCode(input) { success ->
@@ -926,13 +970,16 @@ fun BottomPanel(
                                                     }
                                                     focusManager.clearFocus()
                                                     keyboardController?.hide()
-                                                    textFieldState.setTextAndPlaceCursorAtEnd(resetUrl.toDomain())
+                                                    textFieldState.setTextAndPlaceCursorAtEnd(
+                                                        resetUrl.toDomain()
+                                                    )
                                                 } else {
                                                     viewModel.showCustomNotification(invalidCodeText)
                                                 }
                                             }
                                             return@TextField
                                         }
+
                                         uiState.value.isRenamingProfile -> {
                                             viewModel.renameProfile(input)
                                             viewModel.updateUI { it.copy(isAppsPanelVisible = true) }
@@ -958,6 +1005,7 @@ fun BottomPanel(
                                             )
                                             viewModel.updateUI { it.copy(isPinningApp = false) }
                                         }
+
                                         uiState.value.isCloningBrowser -> {
                                             val customIconInput =
                                                 (customIconUrlState.text).toString().trim()
@@ -1295,17 +1343,21 @@ fun BottomPanel(
                             uiState.value.isCloningBrowser ||
                             (uiState.value.isFocusOnUrlTextField && textFieldState.text.isBlank()),
                     onCopyClick = {
-                        val clipData = ClipData.newPlainText("url", viewModel.activeTab!!.currentURL)
+                        val clipData =
+                            ClipData.newPlainText("url", viewModel.activeTab!!.currentURL)
                         clipboard.nativeClipboard.setPrimaryClip(clipData)
                     },
                     onEditClick = {
                         textFieldState.setTextAndPlaceCursorAtEnd(
                             when {
                                 uiState.value.isCreatingProfile -> "$profileText "
-                                uiState.value.isRenamingProfile -> viewModel.profiles.find { it.id == viewModel.activeProfileId.value }?.name ?: ""
+                                uiState.value.isRenamingProfile -> viewModel.profiles.find { it.id == viewModel.activeProfileId.value }?.name
+                                    ?: ""
+
                                 uiState.value.isPinningApp -> viewModel.activeTab!!.currentTitle
                                 uiState.value.isCloningBrowser -> browserName
-                                else -> viewModel.activeTab!!.errorState?.failingUrl ?: viewModel.activeTab!!.currentURL
+                                else -> viewModel.activeTab!!.errorState?.failingUrl
+                                    ?: viewModel.activeTab!!.currentURL
                             }
                         )
                         urlBarFocusRequester.requestFocus()
@@ -1315,19 +1367,31 @@ fun BottomPanel(
                         when {
                             uiState.value.isEnteringLoginCode -> {
                                 // Step back to Email
-                                viewModel.updateUI { it.copy(isEnteringLoginCode = false, isEnteringEmail = true) }
+                                viewModel.updateUI {
+                                    it.copy(
+                                        isEnteringLoginCode = false,
+                                        isEnteringEmail = true
+                                    )
+                                }
                                 textFieldState.setTextAndPlaceCursorAtEnd(viewModel.userEmailToLogin)
                                 urlBarFocusRequester.requestFocus()
                                 keyboardController?.show()
                             }
+
                             uiState.value.isEnteringEmail -> {
                                 // Cancel login entirely
-                                viewModel.updateUI { it.copy(isEnteringEmail = false, isFocusOnUrlTextField = false) }
+                                viewModel.updateUI {
+                                    it.copy(
+                                        isEnteringEmail = false,
+                                        isFocusOnUrlTextField = false
+                                    )
+                                }
                                 viewModel.userEmailToLogin = ""
                                 focusManager.clearFocus()
                                 keyboardController?.hide()
                                 textFieldState.setTextAndPlaceCursorAtEnd(viewModel.activeTab!!.currentURL.toDomain())
                             }
+
                             else -> {
                                 // Default dismiss
                                 viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
@@ -1340,7 +1404,8 @@ fun BottomPanel(
                         val input = (textFieldState.text).toString().trim()
                         val finalTitle = input.ifEmpty { viewModel.activeTab!!.currentTitle }
                         val customIconInput = (customIconUrlState.text).toString().trim()
-                        val finalIconUrl = customIconInput.ifEmpty { viewModel.activeTab!!.currentFaviconUrl }
+                        val finalIconUrl =
+                            customIconInput.ifEmpty { viewModel.activeTab!!.currentFaviconUrl }
                         viewModel.generateAndInstallWebApk(
                             context = context,
                             title = finalTitle,
@@ -1358,15 +1423,21 @@ fun BottomPanel(
                         viewModel.requestLoginCode(viewModel.userEmailToLogin) { success ->
                             viewModel.updateUI { it.copy(isLoading = false) }
                             if (success) {
-                                Toast.makeText(context, "Code resent to ${viewModel.userEmailToLogin}", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(
+                                    context,
+                                    "Code resent to ${viewModel.userEmailToLogin}",
+                                    Toast.LENGTH_SHORT
+                                ).show()
                             } else {
-                                Toast.makeText(context, "Failed to resend code", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Failed to resend code", Toast.LENGTH_SHORT)
+                                    .show()
                             }
                         }
                         urlBarFocusRequester.requestFocus()
                         keyboardController?.show()
                     }
-                )            }
+                )
+            }
         }
 
     }
