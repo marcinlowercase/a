@@ -1295,6 +1295,7 @@ fun BrowserScreen(
                                     it.copy(
                                         isUrlBarVisible = true,
                                         isDownloadPanelVisible = true,
+                                        isSyncPanelVisible = false,
                                         isTabsPanelVisible = false,
                                         isTabsPanelLock = false,
                                         isSettingsPanelVisible = false,
@@ -2290,6 +2291,7 @@ fun BrowserScreen(
                         isTabDataPanelVisible = false,
                         isTabsPanelVisible = false,
                         isDownloadPanelVisible = false,
+                        isSyncPanelVisible = false
                     )
                 }
                 if (!viewModel.isSortingButtons.value) {
