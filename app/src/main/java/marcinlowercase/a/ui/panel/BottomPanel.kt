@@ -711,6 +711,7 @@ fun BottomPanel(
                                 }
                             }
                             val defaultIconUrl = stringResource(R.string.bold_icon_url)
+                            val invalidCodeText = stringResource(R.string.ui_invalid_code)
                             TextField(
                                 modifier = Modifier
                                     .heightIn(
@@ -850,6 +851,9 @@ fun BottomPanel(
 
                                         when {
 
+                                            uiState.value.isEnteringLoginCode -> {
+                                                viewModel.showCustomNotification(invalidCodeText)
+                                            }
                                             uiState.value.isCreatingProfile -> {
                                                 viewModel.createNewProfile()
                                                 viewModel.updateUI { it.copy(isAppsPanelVisible = true) }
@@ -878,12 +882,14 @@ fun BottomPanel(
                                             else -> activeSession.reload()
                                         }
 
-                                        focusManager.clearFocus()
-                                        keyboardController?.hide()
-                                        textFieldState.setTextAndPlaceCursorAtEnd(resetUrl.toDomain())
+                                        if (!uiState.value.isEnteringLoginCode) {
+                                            focusManager.clearFocus()
+                                            keyboardController?.hide()
+                                            textFieldState.setTextAndPlaceCursorAtEnd(resetUrl.toDomain())
 
-                                        viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
-                                        return@TextField
+                                            viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
+                                            return@TextField
+                                        }
                                     }
 
 
@@ -922,7 +928,7 @@ fun BottomPanel(
                                                     keyboardController?.hide()
                                                     textFieldState.setTextAndPlaceCursorAtEnd(resetUrl.toDomain())
                                                 } else {
-                                                    Toast.makeText(context, "Invalid Code", Toast.LENGTH_SHORT).show()
+                                                    viewModel.showCustomNotification(invalidCodeText)
                                                 }
                                             }
                                             return@TextField
