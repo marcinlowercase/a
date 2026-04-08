@@ -28,6 +28,7 @@ enum class BrowserOption(val type: OptionType) {
     FIND_IN_PAGE(OptionType.OPENS_PANEL),
     DOWNLOAD_PANEL(OptionType.OPENS_PANEL),
     SETTINGS(OptionType.OPENS_PANEL),
+    SYNC(OptionType.OPENS_PANEL),
 
     // Settings Panel Exclusives
     SEARCH_ENGINE(OptionType.OPENS_SETTING),
@@ -60,5 +61,4 @@ enum class BrowserOption(val type: OptionType) {
     OPTIMIZE_MEMORY(OptionType.TOGGLE_ACTION),
     MEMORY_USAGE(OptionType.OPENS_SETTING),
     CHANGE_ICON(OptionType.TOGGLE_ACTION),
-    SYNC(OptionType.TOGGLE_ACTION),
 }
