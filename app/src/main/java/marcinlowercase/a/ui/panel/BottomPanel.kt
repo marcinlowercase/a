@@ -267,7 +267,7 @@ fun BottomPanel(
                         orientation = Orientation.Vertical,
                         flingBehavior = flingBehavior,
 //                                            enabled = !isFocusOnTextField && contextMenuData == null && !isPromptPanelVisible  && (!isPermissionPanelVisible || (isPermissionPanelVisible &&  isUrlBarVisible) )
-                        enabled = uiState.value.isUrlBarVisible && (!uiState.value.isFocusOnTextField && viewModel.contextMenuData.value == null && !uiState.value.isPromptPanelVisible && (!uiState.value.isPermissionPanelVisible))
+                        enabled = uiState.value.isUrlBarVisible && (!uiState.value.isFocusOnTextField && viewModel.contextMenuData.value == null && !uiState.value.isPromptPanelVisible && !uiState.value.isPermissionPanelVisible && !uiState.value.isEnteringLoginCode)
                     )
 
             ) {
