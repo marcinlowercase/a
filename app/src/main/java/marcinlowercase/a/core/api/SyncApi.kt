@@ -19,7 +19,7 @@ data class VerifyCodePayload(val email: String, val code: String)
 data class AuthResponse(val token: String? = null, val message: String)
 
 object SyncApi {
-    private const val BASE_URL = "http://40.233.118.232:8080/api/v1"
+    private const val BASE_URL = "https://browser-sync.oo1.studio/api/v1"
     private val json = Json { ignoreUnknownKeys = true }
 
     suspend fun requestCode(email: String): Boolean {
