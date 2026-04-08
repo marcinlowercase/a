@@ -26,6 +26,8 @@
     <string name="ui_logged_out">logged out</string>
     <string name="ui_account_deleted">account deleted</string>
     <string name="ui_cloud_empty">cloud is empty</string>
+    <string name="ui_invalid_email">invalid email format</string>
+
 
     <!-- Content Descriptions & Options -->
     <string name="desc_tabs_panel">tabs panel</string>

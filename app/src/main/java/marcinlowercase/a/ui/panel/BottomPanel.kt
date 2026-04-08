@@ -927,6 +927,11 @@ fun BottomPanel(
                                     when {
 
                                         uiState.value.isEnteringEmail -> {
+                                            if (!Patterns.EMAIL_ADDRESS.matcher(input).matches()) {
+                                                viewModel.showCustomNotification(context.getString(R.string.ui_invalid_email))
+                                                return@TextField // Stop here and keep keyboard open!
+                                            }
+
                                             viewModel.userEmailToLogin = input
                                             viewModel.updateUI { it.copy(isEnteringLoginCode = true) }
                                             viewModel.updateUI {
