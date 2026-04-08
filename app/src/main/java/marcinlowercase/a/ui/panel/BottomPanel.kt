@@ -375,16 +375,44 @@ fun BottomPanel(
                     isVisible = uiState.value.isSyncPanelVisible,
                     onDismiss = { viewModel.updateUI { it.copy(isSyncPanelVisible = false) } },
                     onPush = {
-                        viewModel.triggerManualPush()
+                        confirmationPopup(
+                            R.string.confirm_push,
+                            "",
+                            {
+                                viewModel.triggerManualPush()
+                            },
+                            {}
+                        )
                     },
                     onPull = {
-                        viewModel.triggerManualPull()
+                        confirmationPopup(
+                            R.string.confirm_pull,
+                            "",
+                            {
+                                viewModel.triggerManualPull()
+                            },
+                            {}
+                        )
                     },
                     onMerge = {
-                        viewModel.triggerSmartMerge()
+                        confirmationPopup(
+                            R.string.confirm_merge,
+                            "",
+                            {
+                                viewModel.triggerSmartMerge()
+                            },
+                            {}
+                        )
                     },
                     onLogout = {
-                        viewModel.logout()
+                        confirmationPopup(
+                            R.string.confirm_logout,
+                            viewModel.getLoggedInEmail(),
+                            {
+                                viewModel.logout()
+                            },
+                            {}
+                        )
                     },
                     onDeleteAccount = {
                         confirmationPopup(

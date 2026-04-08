@@ -131,7 +131,11 @@
     <string name="confirm_open_pop_up">open pop-up with url : </string>
     <string name="confirm_sync">sync ?</string>
     <string name="confirm_cloud_conflict">cloud backup found. sync cloud setup ? if not the cloud backup will be replaced with local setup</string>
-    <string name="confirm_delete_account">delete sync account ?</string>
+    <string name="confirm_delete_account">delete account and wipe cloud data ?</string>
+    <string name="confirm_logout">log out ?</string>
+    <string name="confirm_merge">merge local and cloud data ?</string>
+    <string name="confirm_pull">overwrite local data with cloud ?</string>
+    <string name="confirm_push">overwrite cloud data with local ?</string>
 
     <!-- Memory Setting -->
     <string name="memory_low">low memory</string>
