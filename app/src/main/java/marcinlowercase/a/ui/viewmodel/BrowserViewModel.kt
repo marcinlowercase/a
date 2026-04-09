@@ -590,6 +590,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             ),
             isEnabledOutSync = prefsToUse.getBoolean("is_enabled_out_sync", d.IS_ENABLED_OUT_SYNC),
             isEnabledConfirmation = prefsToUse.getBoolean("is_enabled_confirmation", d.IS_ENABLED_CONFIRMATION),
+            isEnabledBackgroundPlayback = prefsToUse.getBoolean("is_enabled_background_playback", d.IS_ENABLED_BACKGROUND_PLAYBACK),
 
 
 
@@ -697,6 +698,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 isEnabledOutSync = d.IS_ENABLED_OUT_SYNC,
                 memoryUsage = d.MEMORY_USAGE,
                 isEnabledConfirmation = d.IS_ENABLED_CONFIRMATION,
+                isEnabledBackgroundPlayback = d.IS_ENABLED_BACKGROUND_PLAYBACK
             )
         }
     }
@@ -752,6 +754,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             putBoolean("is_enabled_media_control", settings.isEnabledMediaControl)
             putBoolean("is_enabled_out_sync", settings.isEnabledOutSync)
             putBoolean("is_enabled_confirmation", settings.isEnabledConfirmation)
+            putBoolean("is_enabled_background_playback", settings.isEnabledBackgroundPlayback)
             putString("options_order", settings.optionsOrder)
             putString("settings_order", settings.settingsOrder)
             putString("hidden_options", settings.hiddenOptions)

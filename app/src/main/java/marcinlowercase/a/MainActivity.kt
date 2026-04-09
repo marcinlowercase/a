@@ -660,7 +660,7 @@ fun BrowserScreen(
 
     val activeSession =
         remember(viewModel.activeTab!!.id, viewModel.sessionRefreshTrigger.intValue) {
-            viewModel.geckoManager.getSession(viewModel.activeTab!!, settings.isDesktopMode)
+            viewModel.geckoManager.getSession(viewModel.activeTab!!, settings.isDesktopMode,  settings.isEnabledBackgroundPlayback)
         }
 
 
@@ -1871,6 +1871,15 @@ fun BrowserScreen(
                 activeSession.flushSessionState()
             }
         }
+        LaunchedEffect(settings.isEnabledBackgroundPlayback, activeSession) {
+            val targetSuspend = !settings.isEnabledBackgroundPlayback
+
+            // Instantly apply the setting to the live engine
+            if (activeSession.settings.suspendMediaWhenInactive != targetSuspend) {
+                activeSession.settings.suspendMediaWhenInactive = targetSuspend
+            }
+        }
+
         val errorTitle = stringResource(R.string.error_failed_to_load)
 
         LaunchedEffect(activeSession) {

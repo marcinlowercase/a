@@ -430,9 +430,9 @@ class GeckoManager(private val context: Context) {
         }
     }
 
-    fun getSession(tab: Tab, isDesktopMode: Boolean = false): GeckoSession {
+    fun getSession(tab: Tab, isDesktopMode: Boolean = false, isEnabledBackgroundPlayback: Boolean = true): GeckoSession {
         val session = sessionPool.getOrPut(tab.id) {
-            createAndConfigureSession(tab, isDesktopMode)
+            createAndConfigureSession(tab, isDesktopMode, isEnabledBackgroundPlayback)
         }
 
         if (!session.isOpen) {
@@ -481,20 +481,20 @@ class GeckoManager(private val context: Context) {
         engineManagedSessionIds.remove(tab.id)
     }
 
-    private fun getSessionSettings(tab: Tab, isDesktopMode: Boolean): GeckoSessionSettings {
+    private fun getSessionSettings(tab: Tab, isDesktopMode: Boolean, isEnabledBackgroundPlayback: Boolean): GeckoSessionSettings {
         return GeckoSessionSettings.Builder()
             .usePrivateMode(false) // Set based on your Incognito logic
             .userAgentMode(if (isDesktopMode) GeckoSessionSettings.USER_AGENT_MODE_DESKTOP else GeckoSessionSettings.USER_AGENT_MODE_MOBILE)
             .viewportMode(if (isDesktopMode) GeckoSessionSettings.VIEWPORT_MODE_DESKTOP else GeckoSessionSettings.VIEWPORT_MODE_MOBILE)
-            .suspendMediaWhenInactive(false)
+            .suspendMediaWhenInactive(!isEnabledBackgroundPlayback)
             .allowJavascript(true)
             .contextId(tab.profileId)
             .build()
     }
 
-    private fun createAndConfigureSession(tab: Tab, isDesktopMode: Boolean): GeckoSession {
+    private fun createAndConfigureSession(tab: Tab, isDesktopMode: Boolean,isEnabledBackgroundPlayback: Boolean): GeckoSession {
 
-        val session = GeckoSession(getSessionSettings(tab, isDesktopMode))
+        val session = GeckoSession(getSessionSettings(tab, isDesktopMode, isEnabledBackgroundPlayback))
 
 
         // RESTORE STATE - Only do this ONCE upon session creation
@@ -826,7 +826,7 @@ class GeckoManager(private val context: Context) {
                 val newTabId = System.currentTimeMillis()
 
                 val newSession =
-                    GeckoSession(getSessionSettings(tab.value, browserSettings.value.isDesktopMode))
+                    GeckoSession(getSessionSettings(tab.value, browserSettings.value.isDesktopMode,  browserSettings.value.isEnabledBackgroundPlayback))
 
                 // This ensures that even if the UI is slow to load the new tab,
                 // the session can still close itself.

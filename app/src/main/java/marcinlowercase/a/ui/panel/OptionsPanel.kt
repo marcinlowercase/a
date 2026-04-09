@@ -274,7 +274,7 @@ fun rememberBrowserOptionsRegistry(
                 id = BrowserOption.CONFIRMATION,
                 iconRes = R.drawable.ic_warning,
                 enabled = settings.value.isEnabledConfirmation,
-                contentDescription = R.string.desc_change_icon
+                contentDescription = R.string.desc_disable_confirmation
             ) {
                 if (settings.value.isEnabledConfirmation) {
                     confirmationPopup(
@@ -285,9 +285,15 @@ fun rememberBrowserOptionsRegistry(
                     )
                 } else {
                     viewModel.updateSettings { it.copy(isEnabledConfirmation = true) }
-
                 }
-
+            },
+            BrowserOption.BACKGROUND_PLAYBACK to OptionItem(
+                id = BrowserOption.BACKGROUND_PLAYBACK,
+                iconRes = R.drawable.ic_background_playback,
+                contentDescription = R.string.desc_background_playback,
+                enabled = settings.value.isEnabledBackgroundPlayback
+            ) {
+                viewModel.updateSettings { it.copy(isEnabledBackgroundPlayback = !it.isEnabledBackgroundPlayback) }
             },
 
             BrowserOption.SYNC to OptionItem(

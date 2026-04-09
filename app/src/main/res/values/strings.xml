@@ -49,6 +49,8 @@
     <string name="desc_privacy_policy">privacy policy</string>
     <string name="desc_reset_settings">reset settings</string>
     <string name="desc_change_icon">change icon</string>
+    <string name="desc_disable_confirmation">confirmation popup</string>
+    <string name="desc_background_playback">background playback</string>
     <string name="desc_sort_buttons">sort buttons</string>
     <string name="desc_sharp_mode">sharp mode</string>
     <string name="desc_reopen_tab">reopen closed tab</string>
