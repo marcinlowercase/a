@@ -90,6 +90,13 @@ import marcinlowercase.a.ui.component.CustomIconButton
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import kotlin.math.roundToInt
 import android.graphics.Color as AndroidColor
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 
 
 enum class SettingPanelView {
@@ -708,9 +715,8 @@ fun SettingsPanel(
         enter = expandVertically(tween(settings.value.animationSpeedForLayer(1))),
         exit = shrinkVertically(
             tween(
-                if (settings.value.isFirstAppLoad) settings.value.animationSpeedForLayer(
-                    0
-                ) * 6 else settings.value.animationSpeedForLayer(1)
+                if (settings.value.isFirstAppLoad) settings.value.animationSpeedForLayer(0) * 6
+                else settings.value.animationSpeedForLayer(1)
             )
         )
     ) {
@@ -721,428 +727,420 @@ fun SettingsPanel(
                 .fillMaxWidth()
                 .animateContentSize(tween(settings.value.animationSpeedForLayer(1)))
         ) {
-            when (currentView) {
-                SettingPanelView.MAIN -> {
-                    if (displayOptions.isNotEmpty()) {
-                        HorizontalPager(
-                            state = pagerState,
-                            modifier = Modifier.fillMaxWidth(),
-                            userScrollEnabled = realPageCount > 1
-                        ) { pageIndex ->
-                            val actualPageIndex =
-                                if (realPageCount > 0) pageIndex % realPageCount else 0
-                            val pageOptions = optionPages[actualPageIndex]
 
-                            LazyVerticalGrid(
-                                columns = GridCells.Fixed(4),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(settings.value.heightForLayer(2).dp) // EXACT height of 1 row
-                                    .background(
-                                        Color.Black.copy(alpha = 0.3f),
-                                        shape = RoundedCornerShape(
-                                            settings.value.cornerRadiusForLayer(2).dp
-                                        )
-                                    ),
-                                horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp),
-                                userScrollEnabled = false
-                            ) {
-                                items(
-                                    items = pageOptions,
-                                    key = { it.id }
-                                ) { option ->
-                                    val isHidden =
-                                        viewModel.isOptionHidden(option.id, settings.value)
-                                    val isInspecting = viewModel.inspectingOption.value == option.id
+            // --- NEW: AnimatedContent wrapper ---
+            AnimatedContent(
+                targetState = currentView,
+                transitionSpec = {
+                    val speed = settings.value.animationSpeedForLayer(1)
+                    if (targetState != SettingPanelView.MAIN && initialState == SettingPanelView.MAIN) {
+                        // Sliding IN to a setting (Content moves Left)
+                        (slideInHorizontally(tween(speed)) { it / 4 } + fadeIn(tween(speed))) togetherWith
+                                (slideOutHorizontally(tween(speed)) { -it / 4 } + fadeOut(tween(speed)))
+                    } else {
+                        // Sliding BACK to MAIN (Content moves Right)
+                        (slideInHorizontally(tween(speed)) { -it / 4 } + fadeIn(tween(speed))) togetherWith
+                                (slideOutHorizontally(tween(speed)) { it / 4 } + fadeOut(tween(speed)))
+                    }.using(SizeTransform(clip = false)) // Let the parent's animateContentSize handle the height!
+                },
+                label = "SettingsViewTransition"
+            ) { targetView ->
+                when (targetView) {
+                    SettingPanelView.MAIN -> {
+                        if (displayOptions.isNotEmpty()) {
+                            HorizontalPager(
+                                state = pagerState,
+                                modifier = Modifier.fillMaxWidth(),
+                                userScrollEnabled = realPageCount > 1
+                            ) { pageIndex ->
+                                val actualPageIndex = if (realPageCount > 0) pageIndex % realPageCount else 0
+                                val pageOptions = optionPages[actualPageIndex]
 
-                                    Box(
-                                        modifier = Modifier
-                                            .animateItem() // <-- THE MAGIC ANIMATION MODIFIER
-                                            .fillMaxSize()
-                                            .alpha(if (isHidden) 0.3f else 1f)
-                                            .clip(
-                                                RoundedCornerShape(
-                                                    settings.value.cornerRadiusForLayer(
-                                                        2
-                                                    ).dp
-                                                )
-                                            )
-                                            .border(
-                                                width = if (isInspecting) 2.dp else 0.dp,
-                                                color = if (isInspecting) Color(settings.value.highlightColor) else Color.Transparent,
-                                                shape = RoundedCornerShape(
-                                                    settings.value.cornerRadiusForLayer(
-                                                        2
-                                                    ).dp
-                                                )
-                                            )
-                                    ) {
-                                        CustomIconButton(
-                                            layer = 2,
-                                            modifier = Modifier.fillMaxSize(),
-                                            onTap = {
-                                                if (viewModel.isSortingButtons.value) {
-                                                    viewModel.inspectingOption.value = option.id
-                                                    viewModel.updateUI { it.copy(isAppsPanelVisible = true) }
-                                                } else {
-                                                    if (!pagerState.isScrollInProgress) option.onClick()
-                                                }
-                                            },
-                                            textIcon = option.textIcon,
-                                            buttonDescription = stringResource(option.contentDescription),
-                                            painterId = option.iconRes,
-                                            isWhite = option.enabled,
-                                        )
-                                    }
-                                }
+                                LazyVerticalGrid(
+                                    columns = GridCells.Fixed(4),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(settings.value.heightForLayer(2).dp)
+                                        .background(
+                                            Color.Black.copy(alpha = 0.3f),
+                                            shape = RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp)
+                                        ),
+                                    horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp),
+                                    userScrollEnabled = false
+                                ) {
+                                    items(items = pageOptions, key = { it.id }) { option ->
+                                        val isHidden = viewModel.isOptionHidden(option.id, settings.value)
+                                        val isInspecting = viewModel.inspectingOption.value == option.id
 
-                                val remaining = 4 - pageOptions.size
-                                if (remaining > 0) {
-                                    items(
-                                        count = remaining,
-                                        key = { "spacer_${actualPageIndex}_$it" }
-                                    ) {
-                                        Spacer(
+                                        Box(
                                             modifier = Modifier
                                                 .animateItem()
                                                 .fillMaxSize()
-                                        )
+                                                .alpha(if (isHidden) 0.3f else 1f)
+                                                .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp))
+                                                .border(
+                                                    width = if (isInspecting) 2.dp else 0.dp,
+                                                    color = if (isInspecting) Color(settings.value.highlightColor) else Color.Transparent,
+                                                    shape = RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp)
+                                                )
+                                        ) {
+                                            CustomIconButton(
+                                                layer = 2,
+                                                modifier = Modifier.fillMaxSize(),
+                                                onTap = {
+                                                    if (viewModel.isSortingButtons.value) {
+                                                        viewModel.inspectingOption.value = option.id
+                                                        viewModel.updateUI { it.copy(isAppsPanelVisible = true) }
+                                                    } else {
+                                                        if (!pagerState.isScrollInProgress) option.onClick()
+                                                    }
+                                                },
+                                                textIcon = option.textIcon,
+                                                buttonDescription = stringResource(option.contentDescription),
+                                                painterId = option.iconRes,
+                                                isWhite = option.enabled,
+                                            )
+                                        }
+                                    }
+
+                                    val remaining = 4 - pageOptions.size
+                                    if (remaining > 0) {
+                                        items(count = remaining, key = { "spacer_${actualPageIndex}_$it" }) {
+                                            Spacer(modifier = Modifier.animateItem().fillMaxSize())
+                                        }
                                     }
                                 }
                             }
                         }
                     }
-                }
 
-                // --- ALL OTHER SETTINGS VIEWS ---
-                SettingPanelView.CORNER_RADIUS -> SliderSetting(
-                    onBackClick = onBackClick,
-                    valueRange = 0f..55f,
-                    steps = 5499,
-                    textFieldValueFun = { src -> src.take(2) + "." + src.substring(2, 4) },
-                    iconID = R.drawable.ic_adjust_corner_radius,
-                    field = BrowserSettingField.CORNER_RADIUS
-                )
-
-                SettingPanelView.ANIMATION_SPEED -> SliderSetting(
-                    onBackClick = onBackClick,
-                    valueRange = 0f..1000f,
-                    steps = 999,
-                    textFieldValueFun = { it },
-                    afterDecimal = false,
-                    iconID = R.drawable.ic_animation,
-                    field = BrowserSettingField.ANIMATION_SPEED
-                )
-
-                SettingPanelView.SINGLE_LINE_HEIGHT -> SliderSetting(
-                    onBackClick = onBackClick,
-                    valueRange = 90f..110f,
-                    steps = 19,
-                    textFieldValueFun = { it },
-                    afterDecimal = false,
-                    iconID = R.drawable.ic_expand,
-                    field = BrowserSettingField.SINGLE_LINE_HEIGHT
-                )
-
-                SettingPanelView.PADDING -> SliderSetting(
-                    onBackClick = onBackClick,
-                    valueRange = 2f..8f,
-                    steps = 5,
-                    textFieldValueFun = { it },
-                    afterDecimal = false,
-                    iconID = R.drawable.ic_padding,
-                    digitCount = 2,
-                    field = BrowserSettingField.PADDING
-                )
-
-                SettingPanelView.CURSOR_CONTAINER_SIZE -> SliderSetting(
-                    onBackClick = onBackClick,
-                    valueRange = 20f..70f,
-                    steps = 49,
-                    textFieldValueFun = { it },
-                    afterDecimal = false,
-                    iconID = R.drawable.ic_cursor_size,
-                    digitCount = 2,
-                    field = BrowserSettingField.CURSOR_CONTAINER_SIZE
-                )
-
-                SettingPanelView.CURSOR_TRACKING_SPEED -> SliderSetting(
-                    onBackClick = onBackClick,
-                    valueRange = 0.5f..2f,
-                    steps = 29,
-                    textFieldValueFun = { src -> src[1] + "." + src.substring(2, 4) },
-                    afterDecimal = true,
-                    iconID = R.drawable.ic_cursor_speed,
-                    digitCount = 4,
-                    field = BrowserSettingField.CURSOR_TRACKING_SPEED
-                )
-
-                SettingPanelView.DEFAULT_URL -> TextSetting(
-                    onBackClick = onBackClick,
-                    iconID = R.drawable.ic_link,
-                    currentSettingOriginalValue = settings.value.defaultUrl,
-                    field = BrowserSettingField.DEFAULT_URL
-                )
-
-                SettingPanelView.INFO -> Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(settings.value.heightForLayer(2).dp),
-                    contentAlignment = Alignment.Center
-                ) { Text("make by marcinlowercase") }
-
-                SettingPanelView.CLOSED_TAB_HISTORY_SIZE -> SliderSetting(
-                    onBackClick = onBackClick,
-                    valueRange = 0f..30f,
-                    steps = 29,
-                    textFieldValueFun = { it },
-                    afterDecimal = false,
-                    iconID = R.drawable.ic_history,
-                    digitCount = 2,
-                    field = BrowserSettingField.CLOSED_TAB_HISTORY_SIZE
-                )
-
-                SettingPanelView.BACK_SQUARE_OPACITY -> SliderSetting(
-                    onBackClick = onBackClick,
-                    valueRange = 0f..1f,
-                    steps = 19,
-                    textFieldValueFun = { src -> src[1] + "." + src.substring(2, 4) },
-                    iconID = R.drawable.ic_opacity,
-                    digitCount = 4,
-                    afterDecimal = true,
-                    field = BrowserSettingField.BACK_SQUARE_OPACITY
-                )
-
-                SettingPanelView.MAX_LIST_HEIGHT -> SliderSetting(
-                    onBackClick = {
-                        currentView = SettingPanelView.MAIN
-                    },
-                    valueRange = 0f..10f,
-                    steps = 99,
-                    textFieldValueFun = { src -> src.take(2) + "." + src.substring(2, 4) },
-                    iconID = R.drawable.ic_max_list_height,
-                    digitCount = 4,
-                    afterDecimal = true,
-                    field = BrowserSettingField.MAX_LIST_HEIGHT
-                )
-
-                SettingPanelView.MEMORY_USAGE -> {
-                    val memoryLow = stringResource(R.string.memory_low)
-                    val memoryStandard = stringResource(R.string.memory_standard)
-                    val memoryHigh = stringResource(R.string.memory_high)
-                    SliderSetting(
-
-                        textEnabled = false,
-                        onBackClick = { currentView = SettingPanelView.MAIN },
-                        valueRange = 0f..2f,
-                        steps = 1,
-                        textFieldValueFun = { src ->
-                            when (src[1].digitToInt()) {
-                                0 -> memoryLow
-                                1 -> memoryStandard
-                                2 -> memoryHigh
-                                else -> memoryStandard
-                            }
-                        },
-                        storeValueFun = { src -> src[1].digitToInt().toFloat() },
-                        iconID = R.drawable.ic_memory,
-                        digitCount = 4,
-                        afterDecimal = true,
-                        field = BrowserSettingField.MEMORY_USAGE
+                    // --- ALL OTHER SETTINGS VIEWS ---
+                    SettingPanelView.CORNER_RADIUS -> SliderSetting(
+                        onBackClick = onBackClick,
+                        valueRange = 0f..55f,
+                        steps = 5499,
+                        textFieldValueFun = { src -> src.take(2) + "." + src.substring(2, 4) },
+                        iconID = R.drawable.ic_adjust_corner_radius,
+                        field = BrowserSettingField.CORNER_RADIUS
                     )
-                }
 
-                SettingPanelView.SEARCH_ENGINE -> SliderSetting(
-                    textEnabled = false,
-                    onBackClick = { currentView = SettingPanelView.MAIN },
-                    valueRange = 0f..SearchEngine.entries.lastIndex.toFloat(),
-                    steps = SearchEngine.entries.lastIndex - 1,
-                    textFieldValueFun = { src -> SearchEngine.entries[src[1].digitToInt()].title },
-                    storeValueFun = { src -> src[1].digitToInt().toFloat() },
-                    iconID = R.drawable.ic_search,
-                    digitCount = 4,
-                    afterDecimal = true,
-                    field = BrowserSettingField.SEARCH_ENGINE
-                )
+                    SettingPanelView.ANIMATION_SPEED -> SliderSetting(
+                        onBackClick = onBackClick,
+                        valueRange = 0f..1000f,
+                        steps = 999,
+                        textFieldValueFun = { it },
+                        afterDecimal = false,
+                        iconID = R.drawable.ic_animation,
+                        field = BrowserSettingField.ANIMATION_SPEED
+                    )
 
-                SettingPanelView.HIGHLIGHT_COLOR -> {
-                    val initialHsv = remember(settings.value.highlightColor) {
-                        val hsv = FloatArray(3)
-                        AndroidColor.colorToHSV(settings.value.highlightColor, hsv)
-                        hsv
-                    }
-                    var hue by remember { mutableFloatStateOf(initialHsv[0]) }
-                    var saturation by remember { mutableFloatStateOf(initialHsv[1]) }
-                    var value by remember { mutableFloatStateOf(initialHsv[2]) }
+                    SettingPanelView.SINGLE_LINE_HEIGHT -> SliderSetting(
+                        onBackClick = onBackClick,
+                        valueRange = 90f..110f,
+                        steps = 19,
+                        textFieldValueFun = { it },
+                        afterDecimal = false,
+                        iconID = R.drawable.ic_expand,
+                        field = BrowserSettingField.SINGLE_LINE_HEIGHT
+                    )
 
-                    val selectedColorInt = remember(hue, saturation, value) {
-                        AndroidColor.HSVToColor(floatArrayOf(hue, saturation, value))
-                    }
-                    var hexText by remember {
-                        mutableStateOf(String.format("#%06X", 0xFFFFFF and selectedColorInt))
-                    }
+                    SettingPanelView.PADDING -> SliderSetting(
+                        onBackClick = onBackClick,
+                        valueRange = 2f..8f,
+                        steps = 5,
+                        textFieldValueFun = { it },
+                        afterDecimal = false,
+                        iconID = R.drawable.ic_padding,
+                        digitCount = 2,
+                        field = BrowserSettingField.PADDING
+                    )
 
-                    // Only auto-update the text when NOT typing (allows sliders to update text instantly)
-                    LaunchedEffect(selectedColorInt) {
-                        if (!uiState.value.isFocusOnSettingTextField) {
-                            hexText = String.format("#%06X", 0xFFFFFF and selectedColorInt)
-                        }
-                        viewModel.updateSettings { it.copy(highlightColor = selectedColorInt) }
-                    }
+                    SettingPanelView.CURSOR_CONTAINER_SIZE -> SliderSetting(
+                        onBackClick = onBackClick,
+                        valueRange = 20f..70f,
+                        steps = 49,
+                        textFieldValueFun = { it },
+                        afterDecimal = false,
+                        iconID = R.drawable.ic_cursor_size,
+                        digitCount = 2,
+                        field = BrowserSettingField.CURSOR_CONTAINER_SIZE
+                    )
 
-                    Column(
+                    SettingPanelView.CURSOR_TRACKING_SPEED -> SliderSetting(
+                        onBackClick = onBackClick,
+                        valueRange = 0.5f..2f,
+                        steps = 29,
+                        textFieldValueFun = { src -> src[1] + "." + src.substring(2, 4) },
+                        afterDecimal = true,
+                        iconID = R.drawable.ic_cursor_speed,
+                        digitCount = 4,
+                        field = BrowserSettingField.CURSOR_TRACKING_SPEED
+                    )
+
+                    SettingPanelView.DEFAULT_URL -> TextSetting(
+                        onBackClick = onBackClick,
+                        iconID = R.drawable.ic_link,
+                        currentSettingOriginalValue = settings.value.defaultUrl,
+                        field = BrowserSettingField.DEFAULT_URL
+                    )
+
+                    SettingPanelView.INFO -> Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(settings.value.padding.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Row(
+                            .height(settings.value.heightForLayer(2).dp),
+                        contentAlignment = Alignment.Center
+                    ) { Text("make by marcinlowercase", color = Color.White) }
+
+                    SettingPanelView.CLOSED_TAB_HISTORY_SIZE -> SliderSetting(
+                        onBackClick = onBackClick,
+                        valueRange = 0f..30f,
+                        steps = 29,
+                        textFieldValueFun = { it },
+                        afterDecimal = false,
+                        iconID = R.drawable.ic_history,
+                        digitCount = 2,
+                        field = BrowserSettingField.CLOSED_TAB_HISTORY_SIZE
+                    )
+
+                    SettingPanelView.BACK_SQUARE_OPACITY -> SliderSetting(
+                        onBackClick = onBackClick,
+                        valueRange = 0f..1f,
+                        steps = 19,
+                        textFieldValueFun = { src -> src[1] + "." + src.substring(2, 4) },
+                        iconID = R.drawable.ic_opacity,
+                        digitCount = 4,
+                        afterDecimal = true,
+                        field = BrowserSettingField.BACK_SQUARE_OPACITY
+                    )
+
+                    SettingPanelView.MAX_LIST_HEIGHT -> SliderSetting(
+                        onBackClick = { currentView = SettingPanelView.MAIN },
+                        valueRange = 0f..10f,
+                        steps = 99,
+                        textFieldValueFun = { src -> src.take(2) + "." + src.substring(2, 4) },
+                        iconID = R.drawable.ic_max_list_height,
+                        digitCount = 4,
+                        afterDecimal = true,
+                        field = BrowserSettingField.MAX_LIST_HEIGHT
+                    )
+
+                    SettingPanelView.MEMORY_USAGE -> {
+                        val memoryLow = stringResource(R.string.memory_low)
+                        val memoryStandard = stringResource(R.string.memory_standard)
+                        val memoryHigh = stringResource(R.string.memory_high)
+                        SliderSetting(
+                            textEnabled = false,
+                            onBackClick = { currentView = SettingPanelView.MAIN },
+                            valueRange = 0f..2f,
+                            steps = 1,
+                            textFieldValueFun = { src ->
+                                when (src[1].digitToInt()) {
+                                    0 -> memoryLow
+                                    1 -> memoryStandard
+                                    2 -> memoryHigh
+                                    else -> memoryStandard
+                                }
+                            },
+                            storeValueFun = { src -> src[1].digitToInt().toFloat() },
+                            iconID = R.drawable.ic_memory,
+                            digitCount = 4,
+                            afterDecimal = true,
+                            field = BrowserSettingField.MEMORY_USAGE
+                        )
+                    }
+
+                    SettingPanelView.SEARCH_ENGINE -> SliderSetting(
+                        textEnabled = false,
+                        onBackClick = { currentView = SettingPanelView.MAIN },
+                        valueRange = 0f..SearchEngine.entries.lastIndex.toFloat(),
+                        steps = SearchEngine.entries.lastIndex - 1,
+                        textFieldValueFun = { src -> SearchEngine.entries[src[1].digitToInt()].title },
+                        storeValueFun = { src -> src[1].digitToInt().toFloat() },
+                        iconID = R.drawable.ic_search,
+                        digitCount = 4,
+                        afterDecimal = true,
+                        field = BrowserSettingField.SEARCH_ENGINE
+                    )
+
+                    SettingPanelView.HIGHLIGHT_COLOR -> {
+                        val initialHsv = remember(settings.value.highlightColor) {
+                            val hsv = FloatArray(3)
+                            AndroidColor.colorToHSV(settings.value.highlightColor, hsv)
+                            hsv
+                        }
+                        var hue by remember { mutableFloatStateOf(initialHsv[0]) }
+                        var saturation by remember { mutableFloatStateOf(initialHsv[1]) }
+                        var value by remember { mutableFloatStateOf(initialHsv[2]) }
+
+                        val selectedColorInt = remember(hue, saturation, value) {
+                            AndroidColor.HSVToColor(floatArrayOf(hue, saturation, value))
+                        }
+                        var hexText by remember {
+                            mutableStateOf(String.format("#%06X", 0xFFFFFF and selectedColorInt))
+                        }
+
+                        // Only auto-update the text when NOT typing (allows sliders to update text instantly)
+                        LaunchedEffect(selectedColorInt) {
+                            if (!uiState.value.isFocusOnSettingTextField) {
+                                hexText = String.format("#%06X", 0xFFFFFF and selectedColorInt)
+                            }
+                            viewModel.updateSettings { it.copy(highlightColor = selectedColorInt) }
+                        }
+
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(settings.value.heightForLayer(3).dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
+                                .padding(settings.value.padding.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            IconButton(
-                                onClick = onBackClick,
+                            Row(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(3).dp))
-                                    .fillMaxHeight()
-                                    .background(Color.White)
-                                    .defaultMinSize(minWidth = settings.value.heightForLayer(3).dp)
+                                    .fillMaxWidth()
+                                    .height(settings.value.heightForLayer(3).dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
                             ) {
-                                Icon(
-                                    painter = painterResource(id = if (settings.value.isFirstAppLoad) R.drawable.ic_check else R.drawable.ic_arrow_back),
-                                    contentDescription = "Back to Settings",
-                                    tint = Color.Black
-                                )
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight()
-                                    .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(3).dp))
-                                    .background(Color(selectedColorInt)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                val textColor =
-                                    if (isColorDark(selectedColorInt)) Color.White else Color.Black
-                                val keyboardController = LocalSoftwareKeyboardController.current
-                                val focusManager = LocalFocusManager.current
-                                BasicTextField(
-                                    value = hexText,
-                                    onValueChange = { newText ->
-                                        val filtered =
-                                            newText.filter { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' || it == '#' }
-                                        if (filtered.length <= 7) {
-                                            hexText = filtered
-                                            try {
-                                                val parsedColor =
-                                                    (if (filtered.startsWith("#")) filtered else "#$filtered").toColorInt()
-                                                val hsv = FloatArray(3)
-                                                AndroidColor.colorToHSV(parsedColor, hsv)
-                                                hue = hsv[0]
-                                                saturation = hsv[1]
-                                                value = hsv[2]
-                                            } catch (_: Exception) {
-                                            }
-                                        }
-                                    },
+                                IconButton(
+                                    onClick = onBackClick,
                                     modifier = Modifier
-                                        .fillMaxWidth()
-                                        .onFocusChanged { focusState ->
-                                            viewModel.updateUI {
-                                                it.copy(isFocusOnSettingTextField = focusState.hasFocus)
-                                            }
-                                            hexText = if (focusState.hasFocus) {
-                                                "" // Clear text so user can easily type
-                                            } else {
-                                                // The moment focus is lost, force text to match the real color
-                                                String.format(
-                                                    "#%06X",
-                                                    0xFFFFFF and selectedColorInt
-                                                )
-                                            }
-                                        },
-                                    cursorBrush = SolidColor(Color.Transparent),
-                                    textStyle = TextStyle(
-                                        color = textColor,
-                                        fontFamily = FontFamily.Monospace,
-                                        textAlign = TextAlign.Center
-                                    ),
-                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                                    keyboardActions = KeyboardActions(onDone = {
-                                        // Clearing focus will trigger onFocusChanged(false), auto-formatting the text for us!
-                                        focusManager.clearFocus()
-                                        keyboardController?.hide()
-                                    }),
-                                    singleLine = true
-                                )
-                            }
-                            IconButton(
-                                onClick = { },
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(3).dp))
-                                    .fillMaxHeight()
-                                    .defaultMinSize(minWidth = settings.value.heightForLayer(3).dp)
-                            ) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.ic_colors),
-                                    contentDescription = "Highlight Color",
-                                    tint = Color.White
-                                )
-                            }
-                        }
-                        AnimatedVisibility(
-                            visible = !uiState.value.isFocusOnSettingTextField,
-                            enter = expandVertically(tween(settings.value.animationSpeedForLayer(1))),
-                            exit = shrinkVertically(tween(settings.value.animationSpeedForLayer(1)))
-                        ) {
-                            Column {
-                                val rainbowBrush = remember {
-                                    Brush.horizontalGradient(
-                                        listOf(Color.Red, Color.Yellow, Color.Green, Color.Cyan, Color.Blue, Color.Magenta, Color.Red)
+                                        .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(3).dp))
+                                        .fillMaxHeight()
+                                        .background(Color.White)
+                                        .defaultMinSize(minWidth = settings.value.heightForLayer(3).dp)
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = if (settings.value.isFirstAppLoad) R.drawable.ic_check else R.drawable.ic_arrow_back),
+                                        contentDescription = "Back to Settings",
+                                        tint = Color.Black
                                     )
                                 }
-                                Box(contentAlignment = Alignment.Center) {
-                                    Box(
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight()
+                                        .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(3).dp))
+                                        .background(Color(selectedColorInt)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    val textColor =
+                                        if (isColorDark(selectedColorInt)) Color.White else Color.Black
+                                    val keyboardController = LocalSoftwareKeyboardController.current
+                                    val focusManager = LocalFocusManager.current
+                                    BasicTextField(
+                                        value = hexText,
+                                        onValueChange = { newText ->
+                                            val filtered =
+                                                newText.filter { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' || it == '#' }
+                                            if (filtered.length <= 7) {
+                                                hexText = filtered
+                                                try {
+                                                    val parsedColor =
+                                                        (if (filtered.startsWith("#")) filtered else "#$filtered").toColorInt()
+                                                    val hsv = FloatArray(3)
+                                                    AndroidColor.colorToHSV(parsedColor, hsv)
+                                                    hue = hsv[0]
+                                                    saturation = hsv[1]
+                                                    value = hsv[2]
+                                                } catch (_: Exception) {
+                                                }
+                                            }
+                                        },
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .height(sliderHeight.dp)
-                                            .clip(CircleShape)
-                                            .background(rainbowBrush)
+                                            .onFocusChanged { focusState ->
+                                                viewModel.updateUI {
+                                                    it.copy(isFocusOnSettingTextField = focusState.hasFocus)
+                                                }
+                                                hexText = if (focusState.hasFocus) {
+                                                    "" // Clear text so user can easily type
+                                                } else {
+                                                    // The moment focus is lost, force text to match the real color
+                                                    String.format(
+                                                        "#%06X",
+                                                        0xFFFFFF and selectedColorInt
+                                                    )
+                                                }
+                                            },
+                                        cursorBrush = SolidColor(Color.Transparent),
+                                        textStyle = TextStyle(
+                                            color = textColor,
+                                            fontFamily = FontFamily.Monospace,
+                                            textAlign = TextAlign.Center
+                                        ),
+                                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                                        keyboardActions = KeyboardActions(onDone = {
+                                            // Clearing focus will trigger onFocusChanged(false), auto-formatting the text for us!
+                                            focusManager.clearFocus()
+                                            keyboardController?.hide()
+                                        }),
+                                        singleLine = true
                                     )
+                                }
+                                IconButton(
+                                    onClick = { },
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(3).dp))
+                                        .fillMaxHeight()
+                                        .defaultMinSize(minWidth = settings.value.heightForLayer(3).dp)
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_colors),
+                                        contentDescription = "Highlight Color",
+                                        tint = Color.White
+                                    )
+                                }
+                            }
+                            AnimatedVisibility(
+                                visible = !uiState.value.isFocusOnSettingTextField,
+                                enter = expandVertically(tween(settings.value.animationSpeedForLayer(1))),
+                                exit = shrinkVertically(tween(settings.value.animationSpeedForLayer(1)))
+                            ) {
+                                Column {
+                                    val rainbowBrush = remember {
+                                        Brush.horizontalGradient(
+                                            listOf(Color.Red, Color.Yellow, Color.Green, Color.Cyan, Color.Blue, Color.Magenta, Color.Red)
+                                        )
+                                    }
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(sliderHeight.dp)
+                                                .clip(CircleShape)
+                                                .background(rainbowBrush)
+                                        )
+                                        Slider(
+                                            value = hue,
+                                            onValueChange = { hue = it },
+                                            valueRange = 0f..360f,
+                                            colors = SliderDefaults.colors(
+                                                thumbColor = Color.White,
+                                                activeTrackColor = Color.Transparent,
+                                                inactiveTrackColor = Color.Transparent
+                                            )
+                                        )
+                                    }
+
                                     Slider(
-                                        value = hue,
-                                        onValueChange = { hue = it },
-                                        valueRange = 0f..360f,
+                                        value = saturation,
+                                        onValueChange = { saturation = it },
+                                        valueRange = 0f..1f,
                                         colors = SliderDefaults.colors(
                                             thumbColor = Color.White,
-                                            activeTrackColor = Color.Transparent,
-                                            inactiveTrackColor = Color.Transparent
+                                            activeTrackColor = Color(selectedColorInt).copy(alpha = 1f)
+                                        )
+                                    )
+
+                                    Slider(
+                                        value = value,
+                                        onValueChange = { value = it },
+                                        valueRange = 0f..1f,
+                                        colors = SliderDefaults.colors(
+                                            thumbColor = Color.White,
+                                            activeTrackColor = Color.White.copy(alpha = value)
                                         )
                                     )
                                 }
-
-                                Slider(
-                                    value = saturation,
-                                    onValueChange = { saturation = it },
-                                    valueRange = 0f..1f,
-                                    colors = SliderDefaults.colors(
-                                        thumbColor = Color.White,
-                                        activeTrackColor = Color(selectedColorInt).copy(alpha = 1f)
-                                    )
-                                )
-
-                                Slider(
-                                    value = value,
-                                    onValueChange = { value = it },
-                                    valueRange = 0f..1f,
-                                    colors = SliderDefaults.colors(
-                                        thumbColor = Color.White,
-                                        activeTrackColor = Color.White.copy(alpha = value)
-                                    )
-                                )
                             }
                         }
                     }
