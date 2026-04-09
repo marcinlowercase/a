@@ -169,7 +169,6 @@ import marcinlowercase.a.ui.panel.ChoicePanel
 import marcinlowercase.a.ui.panel.ColorPickerPanel
 import marcinlowercase.a.ui.panel.DateTimePickerPanel
 import marcinlowercase.a.ui.panel.MediaControlPanel
-import marcinlowercase.a.ui.panel.SettingPanelView
 import marcinlowercase.a.ui.panel.SettingsPanel
 import marcinlowercase.a.ui.panel.VideoStatusPanel
 import marcinlowercase.a.ui.screen.ErrorScreen
@@ -188,6 +187,7 @@ import kotlin.math.ceil
 import kotlin.math.roundToInt
 import kotlin.system.exitProcess
 import androidx.compose.ui.res.stringResource
+import marcinlowercase.a.core.enum_class.SettingPanelView
 import marcinlowercase.a.ui.component.BackSquare
 
 

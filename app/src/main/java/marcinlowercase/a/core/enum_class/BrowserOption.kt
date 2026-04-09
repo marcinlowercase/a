@@ -23,6 +23,23 @@ enum class OptionType {
 }
 
 enum class BrowserOption(val type: OptionType) {
+
+    // Settings Panel Exclusives
+    CORNER_RADIUS(OptionType.OPENS_SETTING),
+    PADDING(OptionType.OPENS_SETTING),
+    ANIMATION_SPEED(OptionType.OPENS_SETTING),
+    CURSOR_SIZE(OptionType.OPENS_SETTING),
+    CURSOR_SPEED(OptionType.OPENS_SETTING),
+    BACK_SQUARE_OPACITY(OptionType.OPENS_SETTING),
+    DEFAULT_URL(OptionType.OPENS_SETTING),
+    SEARCH_ENGINE(OptionType.OPENS_SETTING),
+    HISTORY_SIZE(OptionType.OPENS_SETTING),
+    SINGLE_LINE_HEIGHT(OptionType.OPENS_SETTING),
+    MAX_LIST_HEIGHT(OptionType.OPENS_SETTING),
+    HIGHLIGHT_COLOR(OptionType.OPENS_SETTING),
+    RESET_SETTINGS(OptionType.OPENS_SETTING),
+    PRIVACY_POLICY(OptionType.OPENS_SETTING),
+
     // Options Panel Exclusives
     TABS_PANEL(OptionType.OPENS_PANEL),
     FIND_IN_PAGE(OptionType.OPENS_PANEL),
@@ -30,24 +47,10 @@ enum class BrowserOption(val type: OptionType) {
     SETTINGS(OptionType.OPENS_PANEL),
     SYNC(OptionType.OPENS_PANEL),
 
-    // Settings Panel Exclusives
-    SEARCH_ENGINE(OptionType.OPENS_SETTING),
-    DEFAULT_URL(OptionType.OPENS_SETTING),
-    HISTORY_SIZE(OptionType.OPENS_SETTING),
-    CORNER_RADIUS(OptionType.OPENS_SETTING),
-    PADDING(OptionType.OPENS_SETTING),
-    SINGLE_LINE_HEIGHT(OptionType.OPENS_SETTING),
-    MAX_LIST_HEIGHT(OptionType.OPENS_SETTING),
-    HIGHLIGHT_COLOR(OptionType.OPENS_SETTING),
-    ANIMATION_SPEED(OptionType.OPENS_SETTING),
-    CURSOR_SIZE(OptionType.OPENS_SETTING),
-    CURSOR_SPEED(OptionType.OPENS_SETTING),
-    BACK_SQUARE_OPACITY(OptionType.OPENS_SETTING),
-    RESET_SETTINGS(OptionType.OPENS_SETTING),
-    PRIVACY_POLICY(OptionType.OPENS_SETTING),
-    SORT_BUTTONS(OptionType.OPENS_SETTING),
+
 
     // Toggles (Movable anywhere!)
+    SORT_BUTTONS(OptionType.TOGGLE_ACTION),
     SHARP_MODE(OptionType.TOGGLE_ACTION),
     REOPEN_TAB(OptionType.TOGGLE_ACTION),
     FULLSCREEN(OptionType.TOGGLE_ACTION),

@@ -231,7 +231,7 @@ fun AppsPanel(
                             onClick = {
                                 viewModel.isSortingButtons.value = false
                                 viewModel.inspectingOption.value = null
-                                viewModel.updateUI { it.copy(isAppsPanelVisible = false) }
+                                viewModel.updateUI { it.copy(isAppsPanelVisible = false, isOptionsPanelVisible = false) }
                             },
                             buttonDescription = stringResource(R.string.desc_done_sorting),
                             otherColor = Color(settings.value.highlightColor)

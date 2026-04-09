@@ -1,0 +1,20 @@
+package marcinlowercase.a.core.enum_class
+
+enum class SettingPanelView {
+    CORNER_RADIUS,
+    PADDING,
+    ANIMATION_SPEED,
+    CURSOR_CONTAINER_SIZE,
+    CURSOR_TRACKING_SPEED,
+    BACK_SQUARE_OPACITY,
+    DEFAULT_URL,
+    SEARCH_ENGINE,
+    CLOSED_TAB_HISTORY_SIZE,
+    MAX_LIST_HEIGHT,
+    SINGLE_LINE_HEIGHT,
+    HIGHLIGHT_COLOR,
+    MEMORY_USAGE,
+    MAIN,
+    INFO,
+    NONE,
+}

@@ -17,6 +17,7 @@
 package marcinlowercase.a.core.data_class
 
 import marcinlowercase.a.core.enum_class.BrowserOption
+import marcinlowercase.a.core.enum_class.SettingPanelView
 
 data class OptionItem(
     val id: BrowserOption,
@@ -24,6 +25,7 @@ data class OptionItem(
     val contentDescription: Int,
     val enabled: Boolean = false,
     val textIcon: String? = null,
+    val settingView: SettingPanelView = SettingPanelView.NONE,
 
     val onClick: () -> Unit,
 
