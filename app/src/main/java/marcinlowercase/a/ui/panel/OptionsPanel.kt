@@ -928,46 +928,6 @@ fun SettingsPanel(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
                             ) {
-//                                IconButton(
-//                                    onClick = onBackClick,
-//                                    modifier = Modifier
-//                                        .clip(
-//                                            RoundedCornerShape(
-//                                                settings.value.cornerRadiusForLayer(
-//                                                    3
-//                                                ).dp
-//                                            )
-//                                        )
-//                                        .fillMaxHeight()
-//                                        .background(Color.White)
-//                                        .defaultMinSize(minWidth = settings.value.heightForLayer(3).dp)
-//                                ) {
-//                                    Icon(
-//                                        painter = painterResource(id = if (settings.value.isFirstAppLoad) R.drawable.ic_check else R.drawable.ic_arrow_back),
-//                                        contentDescription = "Back to Settings",
-//                                        tint = Color.Black
-//                                    )
-//                                }
-//                                IconButton(
-//                                    onClick = { },
-//                                    modifier = Modifier
-//                                        .clip(
-//                                            RoundedCornerShape(
-//                                                settings.value.cornerRadiusForLayer(
-//                                                    3
-//                                                ).dp
-//                                            )
-//                                        )
-//                                        .fillMaxHeight()
-//                                        .defaultMinSize(minWidth = settings.value.heightForLayer(3).dp)
-//                                ) {
-//                                    Icon(
-//                                        painter = painterResource(id = R.drawable.ic_colors),
-//                                        contentDescription = "Highlight Color",
-//                                        tint = Color.White
-//                                    )
-//                                }
-//
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
