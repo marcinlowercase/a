@@ -947,7 +947,7 @@ fun BrowserScreen(
     }
 
 
-    //region OptionsPanel Drag State
+//region OptionsPanel Drag State
     val optionsPanelHeight = (settings.heightForLayer(2) + settings.padding).dp
 
     val appsPanelHeight =
@@ -965,16 +965,36 @@ fun BrowserScreen(
         )
     }
 
-    // define anchors for options panel
-    val anchors = remember(uiState.value.optionsPanelHeightPx, uiState.value.totalRevealHeightPx) {
+    // 1. Keep track of where the panel actually is physically
+    var lastSettledState by remember { mutableStateOf(RevealState.Hidden) }
+
+    // 2. Define anchors dynamically
+    val anchors = remember(
+        uiState.value.optionsPanelHeightPx,
+        uiState.value.totalRevealHeightPx,
+        uiState.value.isOptionsPanelVisible,
+        uiState.value.isAppsPanelVisible,
+        lastSettledState // <-- ADD THIS to trigger recomposition when settled state changes
+    ) {
         DraggableAnchors {
             RevealState.Hidden at 0f
             RevealState.Visible at -uiState.value.optionsPanelHeightPx
-            RevealState.Expanded at -uiState.value.totalRevealHeightPx
+
+            // Keep the 'Expanded' anchor available so the panel can ANIMATE down smoothly.
+            // It will only be removed once the panel has safely settled at 'Hidden'.
+            if (uiState.value.isOptionsPanelVisible ||
+                uiState.value.isAppsPanelVisible ||
+                lastSettledState == RevealState.Visible ||
+                lastSettledState == RevealState.Expanded
+            ) {
+                RevealState.Expanded at -uiState.value.totalRevealHeightPx
+            }
         }
     }
+
+    // 3. Pass 'lastSettledState' as the initialValue.
     val draggableState = rememberAnchoredDraggableState(
-        initialValue = RevealState.Hidden,
+        initialValue = lastSettledState,
         anchors = anchors
     )
 
@@ -984,20 +1004,13 @@ fun BrowserScreen(
     )
 
     LaunchedEffect(draggableState.targetValue) {
-        hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove) // Or HapticFeedbackType.LongPress
+        hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
     }
 
-//    LaunchedEffect(draggableState.settledValue) {
-//        val isVisible = draggableState.settledValue == RevealState.Visible
-//
-//        if (uiState.value.isOptionsPanelVisible != isVisible) {
-//            viewModel.updateUI { it.copy(isOptionsPanelVisible = isVisible) }
-//        }
-//    }
-//
-//
-
     LaunchedEffect(draggableState.settledValue) {
+        // Update our tracker variable as soon as the panel stops moving
+        lastSettledState = draggableState.settledValue
+
         val isOptionsVisible =
             draggableState.settledValue == RevealState.Visible || draggableState.settledValue == RevealState.Expanded
         val isAppsVisible = draggableState.settledValue == RevealState.Expanded
@@ -1012,7 +1025,6 @@ fun BrowserScreen(
         }
     }
     //endregion
-
 
     fun confirmationPopup(
         message: Int,

@@ -233,7 +233,8 @@ fun AppsPanel(
                                 viewModel.inspectingOption.value = null
                                 viewModel.updateUI { it.copy(isAppsPanelVisible = false) }
                             },
-                            buttonDescription = stringResource(R.string.desc_done_sorting)
+                            buttonDescription = stringResource(R.string.desc_done_sorting),
+                            otherColor = Color(settings.value.highlightColor)
                         )
                     }
                     visualItemCount++
@@ -496,6 +497,7 @@ fun PlaceholderIcon(
     text: String? = null,
     iconRes: Int? = null,
     onClick: (() -> Unit)? = null,
+    otherColor: Color? = null
 ) {
     val viewModel = LocalBrowserViewModel.current
     val settings = viewModel.browserSettings.collectAsState()
@@ -505,7 +507,7 @@ fun PlaceholderIcon(
         modifier = modifier
             .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(3).dp))
             .heightIn(min = settings.value.heightForLayer(3).dp)
-            .background(Color.Black.copy(settings.value.backSquareIdleOpacity * 0.2f))
+            .background(otherColor ?: Color.Black.copy(settings.value.backSquareIdleOpacity * 0.2f))
             .then(
                 if (onClick != null && buttonDescription != null)
                     Modifier.pointerInput(buttonDescription) {
@@ -553,10 +555,8 @@ fun PlaceholderIcon(
                 else Modifier
             )
             .padding(settings.value.padding.dp)
-//            .padding(
-//                start = if (text != null) settings.value.cornerRadiusForLayer(3).dp else 0.dp
-//            )
-            .fillMaxWidth(),
+            .fillMaxWidth()
+        ,
         contentAlignment = Alignment.Center
     ) {
         if (text != null) {
@@ -574,7 +574,7 @@ fun PlaceholderIcon(
             Icon(
                 painter = painterResource(id = iconRes),
                 contentDescription = null,
-                tint = Color.Black,
+                tint = if (otherColor!= null) Color(settings.value.backgroundForHighlightText()) else Color.Black,
                 modifier = Modifier.size(24.dp)
             )
         }

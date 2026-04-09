@@ -246,22 +246,6 @@ fun BottomPanel(
                     .background(
                         Color.Black,
                     )
-//                    .pointerInput(Unit) {
-//                        awaitEachGesture {
-//                            // Wait for the first touch-down event
-//                            awaitFirstDown(requireUnconsumed = false)
-//
-//                            // Update the trigger. This causes the LaunchedEffect above to RESTART.
-//                            interactionTrigger = System.currentTimeMillis()
-//
-//                            // We do NOT consume the event.
-//                            // The click will pass through to buttons/pagers below normally.
-//                        }
-//                    }
-//                    .graphicsLayer {
-//                        scaleX = ghostPressScale.value
-//                        scaleY = ghostPressScale.value
-//                    }
                     .anchoredDraggable(
                         state = draggableState,
                         orientation = Orientation.Vertical,
