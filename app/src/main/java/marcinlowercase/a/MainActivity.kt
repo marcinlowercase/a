@@ -1032,19 +1032,24 @@ fun BrowserScreen(
         onConfirm: () -> Unit,
         onCancel: () -> Unit = {}
     ) {
-        viewModel.confirmationState.value = ConfirmationDialogState(
-            message = message,
-            url = url,
-            onConfirm = {
-                onConfirm()
-                viewModel.confirmationState.value = null // Automatically dismiss after action
-            },
-            onCancel = {
-                onCancel()
-                viewModel.confirmationState.value = null // Automatically dismiss after action
-            }
-        )
-        viewModel.confirmationDisplayState.value = viewModel.confirmationState.value
+        if (settings.isEnabledConfirmation) {
+            viewModel.confirmationState.value = ConfirmationDialogState(
+                message = message,
+                url = url,
+                onConfirm = {
+                    onConfirm()
+                    viewModel.confirmationState.value = null // Automatically dismiss after action
+                },
+                onCancel = {
+                    onCancel()
+                    viewModel.confirmationState.value = null // Automatically dismiss after action
+                }
+            )
+            viewModel.confirmationDisplayState.value = viewModel.confirmationState.value
+        } else {
+            onConfirm()
+        }
+
     }
 
 

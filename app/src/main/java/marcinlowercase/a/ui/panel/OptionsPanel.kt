@@ -270,6 +270,25 @@ fun rememberBrowserOptionsRegistry(
             ) {
                 changeBrowserIcon()
             },
+            BrowserOption.CONFIRMATION to OptionItem(
+                id = BrowserOption.CONFIRMATION,
+                iconRes = R.drawable.ic_warning,
+                enabled = settings.value.isEnabledConfirmation,
+                contentDescription = R.string.desc_change_icon
+            ) {
+                if (settings.value.isEnabledConfirmation) {
+                    confirmationPopup(
+                        R.string.confirm_disable_confirmation,
+                        "",
+                        { viewModel.updateSettings { it.copy(isEnabledConfirmation = false) } },
+                        {}
+                    )
+                } else {
+                    viewModel.updateSettings { it.copy(isEnabledConfirmation = true) }
+
+                }
+
+            },
 
             BrowserOption.SYNC to OptionItem(
                 id = BrowserOption.SYNC,

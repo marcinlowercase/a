@@ -136,6 +136,7 @@
     <string name="confirm_merge">merge local and cloud data ?</string>
     <string name="confirm_pull">overwrite local data with cloud ?</string>
     <string name="confirm_push">overwrite cloud data with local ?</string>
+    <string name="confirm_disable_confirmation">disable all confirmation popup ?</string>
 
     <!-- Memory Setting -->
     <string name="memory_low">low memory</string>
