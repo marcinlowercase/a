@@ -13,9 +13,9 @@
     <string name="desc_sync">sync</string>
     <string name="desc_login">login</string>
     <string name="desc_logout">logout</string>
-    <string name="desc_sync_push">backup</string>
+    <string name="desc_sync_push">push</string>
     <string name="desc_sync_merge">merge</string>
-    <string name="desc_sync_pull">restore</string>
+    <string name="desc_sync_pull">pull</string>
     <string name="desc_delete_account">delete account</string>
 
     <string name="ui_sync_successful">sync successful</string>
