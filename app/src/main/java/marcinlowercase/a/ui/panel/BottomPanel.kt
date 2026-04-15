@@ -922,6 +922,9 @@ fun BottomPanel(
                                                 )
                                                 viewModel.updateUI { it.copy(isCloningBrowser = false) }
                                             }
+                                            uiState.value.isRenamingProfile -> {
+
+                                            }
 
                                             else -> activeSession.reload()
                                         }
