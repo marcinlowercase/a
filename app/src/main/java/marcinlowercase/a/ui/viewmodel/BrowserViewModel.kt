@@ -872,36 +872,12 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
             // 3. Get Profile-Specific Settings (Read directly from profile SharedPreferences)
             val profilePrefs = context.getSharedPreferences("BrowserPrefs_${profile.id}", Context.MODE_PRIVATE)
-
-            val settings = marcinlowercase.a.core.data_class.ProfileSettingsSyncDTO(
-                defaultUrl = profilePrefs.getString("default_url", d.URL) ?: d.URL,
-                animationSpeed = profilePrefs.getFloat("animation_speed", d.ANIMATION_SPEED),
-                isSharpMode = profilePrefs.getBoolean("is_sharp_mode", d.IS_SHARP_MODE),
-                cursorContainerSize = profilePrefs.getFloat("cursor_container_size", d.CURSOR_CONTAINER_SIZE),
-                cursorPointerSize = profilePrefs.getFloat("cursor_pointer_size", d.CURSOR_POINTER_SIZE),
-                cursorTrackingSpeed = profilePrefs.getFloat("cursor_tracking_speed", d.CURSOR_TRACKING_SPEED),
-                showSuggestions = profilePrefs.getBoolean("show_suggestions", d.SHOW_SUGGESTIONS),
-                closedTabHistorySize = profilePrefs.getFloat("closed_tab_history_size", d.CLOSED_TAB_HISTORY_SIZE),
-                backSquareOffsetX = profilePrefs.getFloat("back_square_offset_x", -1f),
-                backSquareOffsetY = profilePrefs.getFloat("back_square_offset_y", -1f),
-                backSquareIdleOpacity = profilePrefs.getFloat("back_square_idle_opacity", d.BACK_SQUARE_IDLE_OPACITY),
-                searchEngine = profilePrefs.getInt("search_engine", d.SEARCH_ENGINE),
-                isFullscreenMode = profilePrefs.getBoolean("is_fullscreen_mode", d.IS_FULLSCREEN_MODE),
-                highlightColor = profilePrefs.getInt("highlight_color", d.HIGHLIGHT_COLOR),
-                isAdBlockEnabled = profilePrefs.getBoolean("is_ad_block_enabled", d.IS_AD_BLOCK_ENABLED),
-                isGuideModeEnabled = profilePrefs.getBoolean("is_guide_mode_enabled", true),
-                isDesktopMode = profilePrefs.getBoolean("is_desktop_mode", d.IS_DESKTOP_MODE),
-                isEnabledMediaControl = profilePrefs.getBoolean("is_enabled_media_control", d.IS_ENABLED_MEDIA_CONTROL),
-                isEnabledOutSync = profilePrefs.getBoolean("is_enabled_out_sync", d.IS_ENABLED_OUT_SYNC),
-                optionsOrder = profilePrefs.getString("options_order", d.OPTIONS_ORDER) ?: d.OPTIONS_ORDER,
-                settingsOrder = profilePrefs.getString("settings_order", d.SETTINGS_ORDER) ?: d.SETTINGS_ORDER,
-                hiddenOptions = profilePrefs.getString("hidden_options", d.HIDDEN_OPTIONS) ?: d.HIDDEN_OPTIONS
-            )
+            val settingsJsonString = org.json.JSONObject(profilePrefs.all).toString()
 
             marcinlowercase.a.core.data_class.ProfileSyncDTO(
                 id = profile.id,
                 name = profile.name,
-                settings = settings,
+                settings = settingsJsonString,
                 pinnedApps = apps,
                 visitedUrls = historyList
             )
@@ -1078,30 +1054,24 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
             // Settings: Cloud always wins (even in merge)
             val prefs = context.getSharedPreferences("BrowserPrefs_${cloudProfile.id}", Context.MODE_PRIVATE)
-            prefs.edit().apply {
-                putString("default_url", s.defaultUrl)
-                putFloat("animation_speed", s.animationSpeed)
-                putBoolean("is_sharp_mode", s.isSharpMode)
-                putFloat("cursor_container_size", s.cursorContainerSize)
-                putFloat("cursor_pointer_size", s.cursorPointerSize)
-                putFloat("cursor_tracking_speed", s.cursorTrackingSpeed)
-                putBoolean("show_suggestions", s.showSuggestions)
-                putFloat("closed_tab_history_size", s.closedTabHistorySize)
-                putFloat("back_square_offset_x", s.backSquareOffsetX)
-                putFloat("back_square_offset_y", s.backSquareOffsetY)
-                putFloat("back_square_idle_opacity", s.backSquareIdleOpacity)
-                putInt("search_engine", s.searchEngine)
-                putBoolean("is_fullscreen_mode", s.isFullscreenMode)
-                putInt("highlight_color", s.highlightColor)
-                putBoolean("is_ad_block_enabled", s.isAdBlockEnabled)
-                putBoolean("is_guide_mode_enabled", s.isGuideModeEnabled)
-                putBoolean("is_desktop_mode", s.isDesktopMode)
-                putBoolean("is_enabled_media_control", s.isEnabledMediaControl)
-                putBoolean("is_enabled_out_sync", s.isEnabledOutSync)
-                putString("options_order", s.optionsOrder)
-                putString("settings_order", s.settingsOrder)
-                putString("hidden_options", s.hiddenOptions)
-                apply()
+            val editor = prefs.edit()
+
+            try {
+                val jsonObject = org.json.JSONObject(cloudProfile.settings)
+                jsonObject.keys().forEach { key ->
+                    when (val value = jsonObject.get(key)) {
+                        is String -> editor.putString(key, value)
+                        is Boolean -> editor.putBoolean(key, value)
+                        is Int -> editor.putInt(key, value)
+                        is Long -> editor.putLong(key, value)
+                        // JSON parsers convert all decimals to Doubles. We cast back to Float for Android Prefs.
+                        is Double -> editor.putFloat(key, value.toFloat())
+                        is Float -> editor.putFloat(key, value)
+                    }
+                }
+                editor.apply()
+            } catch (e: Exception) {
+                Log.e("BrowserSync", "Failed to parse cloud settings", e)
             }
 
             // History: Union
