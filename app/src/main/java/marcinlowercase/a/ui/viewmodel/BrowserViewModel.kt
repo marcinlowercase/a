@@ -17,8 +17,6 @@
 package marcinlowercase.a.ui.viewmodel
 
 import android.Manifest
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import android.app.Activity
 import android.app.Application
 import android.app.DownloadManager
@@ -31,7 +29,6 @@ import android.media.MediaScannerConnection
 import android.os.Environment
 import android.util.Log
 import android.webkit.URLUtil
-import android.widget.Toast
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -42,6 +39,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.IntSize
+import androidx.core.content.edit
 import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.application
@@ -96,7 +94,6 @@ import java.net.URLDecoder
 import java.net.URLEncoder
 import java.util.Collections
 import java.util.regex.Pattern
-import androidx.core.content.edit
 
 val LocalBrowserViewModel = staticCompositionLocalOf<BrowserViewModel> {
     error("No BrowserViewModel provided! Check your root Composable.")
@@ -704,17 +701,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun refreshSettings() {
-        // Force the ViewModel to re-read the disk.
-        // This ensures the PWA instantly adopts any changes made in the Main Browser!
-        _browserSettings.value = loadSettingsFromPrefs(currentProfileId)
-        geckoManager.setAdBlockEnabled(_browserSettings.value.isAdBlockEnabled)
-
-        val updatedSiteSettings = siteSettingsManager.loadSettings(currentProfileId)
-        siteSettings.clear()
-        siteSettings.putAll(updatedSiteSettings)
-    }
-
     private fun saveSettingsToPrefs(profileId: String, settings: BrowserSettings) {
         val context = getApplication<Application>()
         val globalPrefs = context.getSharedPreferences("BrowserPrefs", Context.MODE_PRIVATE)
@@ -841,10 +827,10 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             val response = marcinlowercase.a.core.api.SyncApi.verifyCode(userEmailToLogin, code)
             if (response?.token != null) {
                 // SAVE THE EMAIL HERE TOO!
-                syncAuthPrefs.edit()
-                    .putString("jwt_token", response.token)
-                    .putString("email", userEmailToLogin)
-                    .apply()
+                syncAuthPrefs.edit {
+                    putString("jwt_token", response.token)
+                        .putString("email", userEmailToLogin)
+                }
                 onResult(true)
             } else {
                 onResult(false)
@@ -1005,15 +991,15 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         context.getSharedPreferences("BrowserProfiles", Context.MODE_PRIVATE).edit().clear().apply()
         context.getSharedPreferences("BrowserHistory", Context.MODE_PRIVATE).edit().clear().apply()
         context.getSharedPreferences("BrowserApps", Context.MODE_PRIVATE).edit().clear().apply()
-        context.getSharedPreferences("BrowserSiteSettings", Context.MODE_PRIVATE).edit().clear().apply()
+        context.getSharedPreferences("BrowserSiteSettings", Context.MODE_PRIVATE).edit { clear() }
 
         // Wipe specific settings for all existing profiles
         profiles.forEach { profile ->
-            context.getSharedPreferences("BrowserPrefs_${profile.id}", Context.MODE_PRIVATE).edit().clear().apply()
-            context.getSharedPreferences("BrowserTabs", Context.MODE_PRIVATE).edit()
-                .remove("tabs_list_json_${profile.id}")
-                .remove("active_tab_index_${profile.id}")
-                .apply()
+            context.getSharedPreferences("BrowserPrefs_${profile.id}", Context.MODE_PRIVATE).edit { clear() }
+            context.getSharedPreferences("BrowserTabs", Context.MODE_PRIVATE).edit {
+                remove("tabs_list_json_${profile.id}")
+                    .remove("active_tab_index_${profile.id}")
+            }
         }
 
         // Clear RAM structures
