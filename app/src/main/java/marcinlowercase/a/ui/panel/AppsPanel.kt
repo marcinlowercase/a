@@ -117,7 +117,9 @@ fun AppsPanel(
     // Helper: Only allow clicks if the panel is fully resting in the "Revealed" state
     // and not currently being swiped/dragged or scrolling.
     val isInteractive: () -> Boolean = {
-        uiState.value.isAppsPanelVisible && !draggableState.isAnimationRunning
+        uiState.value.isAppsPanelVisible
+                && !draggableState.isAnimationRunning
+                && !pagerState.isScrollInProgress
     }
 
     // Pager Logic
@@ -552,8 +554,7 @@ fun PlaceholderIcon(
                 else Modifier
             )
             .padding(settings.value.padding.dp)
-            .fillMaxWidth()
-        ,
+            .fillMaxWidth(),
         contentAlignment = Alignment.Center
     ) {
         if (text != null) {
@@ -571,7 +572,7 @@ fun PlaceholderIcon(
             Icon(
                 painter = painterResource(id = iconRes),
                 contentDescription = null,
-                tint = if (otherColor!= null) Color(settings.value.backgroundForHighlightText()) else Color.Black,
+                tint = if (otherColor != null) Color(settings.value.backgroundForHighlightText()) else Color.Black,
                 modifier = Modifier.size(24.dp)
             )
         }
