@@ -318,13 +318,11 @@ class MainActivity : ComponentActivity() {
     )
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge(
-            statusBarStyle = SystemBarStyle.auto(
+            statusBarStyle = SystemBarStyle.dark(
                 android.graphics.Color.TRANSPARENT,
-                android.graphics.Color.TRANSPARENT
             ),
-            navigationBarStyle = SystemBarStyle.auto(
+            navigationBarStyle = SystemBarStyle.dark(
                 android.graphics.Color.TRANSPARENT,
-                android.graphics.Color.TRANSPARENT
             )
         )
         window.isNavigationBarContrastEnforced = false
@@ -1784,6 +1782,7 @@ fun BrowserScreen(
                 // 1. Make the status bar transparent
 
                 // 2. FORCE White Icons (set to false)
+                insetsController.isAppearanceLightNavigationBars = false
                 insetsController.isAppearanceLightStatusBars = false
             }
         }
@@ -2475,16 +2474,6 @@ fun BrowserScreen(
                 squareAlpha.animateTo(settings.backSquareIdleOpacity)
             }
         }
-        // This effect runs once and whenever isDarkTheme changes.
-        LaunchedEffect(isDarkTheme) {
-            val window = (view.context as Activity).window
-            val insetsController = WindowCompat.getInsetsController(window, view)
-
-            // true for light theme (dark icons), false for dark theme (light icons)
-            insetsController.isAppearanceLightStatusBars = !isDarkTheme
-            insetsController.isAppearanceLightNavigationBars = !isDarkTheme
-        }
-
         LaunchedEffect(viewModel.overlayHeightPx.floatValue) {
             // We only want to act the first time the height is measured (it changes from 0f to a positive value).
             // The `offsetY.value == 0f` check is an extra safeguard to ensure we only do this once on startup.
