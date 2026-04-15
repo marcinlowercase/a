@@ -190,8 +190,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
                     siteSettings.clear()
                     siteSettings.putAll(newSiteSettings)
-                    triggerSyncEvent()
-
                 }
             }
         }
@@ -914,25 +912,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             profiles = syncProfiles
         )
     }
-    fun triggerSyncEvent() {
-        // 1. Check if the user is actually allowed to sync
-        val token = syncAuthPrefs.getString("jwt_token", null) ?: return
-
-        // 2. Build the massive JSON payload
-        val payload = buildSyncPayload()
-
-        // 3. Send it to the server in a background coroutine
-        viewModelScope.launch(Dispatchers.IO) {
-            val success = marcinlowercase.a.core.api.SyncApi.pushSyncData(payload, token)
-            if (success) {
-                Log.d("BrowserSync", "✅ Data successfully pushed to server!")
-            } else {
-                Log.e("BrowserSync", "❌ Failed to push sync data.")
-                // Optional: You could show a tiny "Sync Failed" icon in the UI here
-            }
-        }
-    }
-
     // --- ACTIONS ---
 
 
@@ -1552,7 +1531,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         )
         apps.add(newApp)
         saveApps()
-        triggerSyncEvent()
     }
 
     fun removeApp(appId: Long) {
@@ -2345,7 +2323,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         if (title.isNotBlank()) {
             visitedUrlMap[url] = title
         }
-        triggerSyncEvent()
     }
 
     val clearDomainData = { domain: String ->
