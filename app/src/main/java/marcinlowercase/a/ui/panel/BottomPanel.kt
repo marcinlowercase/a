@@ -656,6 +656,7 @@ fun BottomPanel(
                                                                 viewModel.updateUI {
                                                                     it.copy(
                                                                         isOptionsPanelVisible = savedState.options,
+                                                                        isAppsPanelVisible = savedState.apps,
                                                                         isDownloadPanelVisible = savedState.downloads,
                                                                         isTabDataPanelVisible = false,
                                                                         isNavPanelVisible = savedState.nav,
@@ -748,7 +749,8 @@ fun BottomPanel(
                                                 viewModel.updateUI {
                                                     it.copy(
                                                         savedPanelState = PanelVisibilityState(
-                                                            options = draggableState.currentValue == RevealState.Visible,
+                                                            options = uiState.value.isOptionsPanelVisible,
+                                                            apps = uiState.value.isAppsPanelVisible,
                                                             tabs = uiState.value.isTabsPanelVisible,
                                                             downloads = uiState.value.isDownloadPanelVisible,
                                                             tabData = isTabDataPanelVisible,
@@ -810,6 +812,7 @@ fun BottomPanel(
                                                         viewModel.updateUI {
                                                             it.copy(
                                                                 isOptionsPanelVisible = savedState.options,
+                                                                isAppsPanelVisible = savedState.apps, // RESTORE APPS
                                                                 isDownloadPanelVisible = savedState.downloads,
                                                                 isTabDataPanelVisible = false,
                                                                 isNavPanelVisible = savedState.nav,

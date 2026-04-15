@@ -2318,7 +2318,8 @@ fun BrowserScreen(
                         isTabDataPanelVisible = false,
                         isTabsPanelVisible = false,
                         isDownloadPanelVisible = false,
-                        isSyncPanelVisible = false
+                        isSyncPanelVisible = false,
+                        savedPanelState = null
                     )
                 }
                 if (!viewModel.isSortingButtons.value) {

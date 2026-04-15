@@ -91,6 +91,7 @@ fun AppsPanel(
 
     ) {
     val viewModel = LocalBrowserViewModel.current
+    val uiState = viewModel.uiState.collectAsState()
     val settings = viewModel.browserSettings.collectAsState()
 
     // Panel Height Calculation
@@ -116,11 +117,7 @@ fun AppsPanel(
     // Helper: Only allow clicks if the panel is fully resting in the "Revealed" state
     // and not currently being swiped/dragged or scrolling.
     val isInteractive: () -> Boolean = {
-        !draggableState.isAnimationRunning &&
-                !pagerState.isScrollInProgress &&
-                draggableState.currentValue == RevealState.Expanded &&
-                draggableState.targetValue == RevealState.Expanded &&
-                draggableState.settledValue == RevealState.Expanded
+        uiState.value.isAppsPanelVisible && !draggableState.isAnimationRunning
     }
 
     // Pager Logic
