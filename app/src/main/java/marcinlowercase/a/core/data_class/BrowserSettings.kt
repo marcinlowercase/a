@@ -16,9 +16,11 @@
  */
 package marcinlowercase.a.core.data_class
 
+import kotlinx.serialization.Serializable
 import marcinlowercase.a.ui.panel.isColorDark
 import kotlin.math.roundToInt
 
+@Serializable
 data class BrowserSettings(
     val isFirstAppLoad: Boolean,
     val padding: Float,

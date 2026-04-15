@@ -17,6 +17,8 @@
 package marcinlowercase.a.ui.viewmodel
 
 import android.Manifest
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import android.app.Activity
 import android.app.Application
 import android.app.DownloadManager
@@ -102,6 +104,7 @@ val LocalBrowserViewModel = staticCompositionLocalOf<BrowserViewModel> {
 
 class BrowserViewModel(application: Application) : AndroidViewModel(application) {
     //region Manager
+    private val jsonParser = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
     val tabManager = TabManager(application)
     val geckoManager = (application as CustomApplication).geckoManager
     val appManager = AppManager(application)
@@ -850,8 +853,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     }
     fun buildSyncPayload(): marcinlowercase.a.core.data_class.SyncPayload {
         val allProfiles = profileManager.loadProfiles()
-        val context = getApplication<Application>()
-        val d = marcinlowercase.a.core.constant.DefaultSettingValues
 
         val syncProfiles = allProfiles.map { profile ->
             // 1. Get Pinned Apps for this profile
@@ -871,8 +872,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             }
 
             // 3. Get Profile-Specific Settings (Read directly from profile SharedPreferences)
-            val profilePrefs = context.getSharedPreferences("BrowserPrefs_${profile.id}", Context.MODE_PRIVATE)
-            val settingsJsonString = org.json.JSONObject(profilePrefs.all).toString()
+            val settingsObj = loadSettingsFromPrefs(profile.id)
+            val settingsJsonString = jsonParser.encodeToString(settingsObj)
 
             marcinlowercase.a.core.data_class.ProfileSyncDTO(
                 id = profile.id,
@@ -1024,7 +1025,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     private fun restoreFromCloud(cloudData: marcinlowercase.a.core.data_class.SyncPayload, isMerge: Boolean) {
         if (cloudData.profiles.isEmpty()) return
-        val context = getApplication<Application>()
 
         // 1. Profiles List Union
         val localProfileIds = profiles.map { it.id }.toSet()
@@ -1053,23 +1053,12 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             val s = cloudProfile.settings
 
             // Settings: Cloud always wins (even in merge)
-            val prefs = context.getSharedPreferences("BrowserPrefs_${cloudProfile.id}", Context.MODE_PRIVATE)
-            val editor = prefs.edit()
-
             try {
-                val jsonObject = org.json.JSONObject(cloudProfile.settings)
-                jsonObject.keys().forEach { key ->
-                    when (val value = jsonObject.get(key)) {
-                        is String -> editor.putString(key, value)
-                        is Boolean -> editor.putBoolean(key, value)
-                        is Int -> editor.putInt(key, value)
-                        is Long -> editor.putLong(key, value)
-                        // JSON parsers convert all decimals to Doubles. We cast back to Float for Android Prefs.
-                        is Double -> editor.putFloat(key, value.toFloat())
-                        is Float -> editor.putFloat(key, value)
-                    }
-                }
-                editor.apply()
+                // Decode the strongly typed object from JSON
+                val s = jsonParser.decodeFromString<BrowserSettings>(cloudProfile.settings)
+
+                // Use your existing save function to put everything back into SharedPreferences safely!
+                saveSettingsToPrefs(cloudProfile.id, s)
             } catch (e: Exception) {
                 Log.e("BrowserSync", "Failed to parse cloud settings", e)
             }
