@@ -16,14 +16,10 @@
  */
 package marcinlowercase.a.core.function
 
-import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.content.Intent
-import android.net.Uri
 import android.util.Base64
-import android.widget.Toast
 
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.Dispatchers

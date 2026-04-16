@@ -90,7 +90,7 @@ class TabManager(private val context: Context) {
             ?: profilePrefs.getString("default_url", null)
             ?: globalPrefs.getString("default_url", DefaultSettingValues.URL)
             ?: DefaultSettingValues.URL
-        val actualUrl = if (customUrl.isBlank()) "about:blank" else customUrl
+        val actualUrl = customUrl.ifBlank { "about:blank" }
         Log.d("marcBlank", "load blank from create default, $actualUrl")
 
         // CRITICAL: We pass the profileId into the new Tab so GeckoView can isolate cookies!

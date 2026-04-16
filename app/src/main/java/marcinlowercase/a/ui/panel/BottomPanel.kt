@@ -175,6 +175,10 @@ fun BottomPanel(
     val uiState = viewModel.uiState.collectAsState()
     val settings = viewModel.browserSettings.collectAsState()
 
+    //string
+    val invalidEmailText = stringResource(R.string.ui_invalid_email)
+
+
     AnimatedVisibility(
         modifier = modifier,
         visible = uiState.value.isBottomPanelVisible,
@@ -904,7 +908,6 @@ fun BottomPanel(
 
                                             uiState.value.isPinningApp -> {
                                                 viewModel.pinApp(
-                                                    context = context,
                                                     title = viewModel.activeTab!!.currentTitle,
                                                     url = resetUrl,
                                                     iconUrl = viewModel.activeTab!!.currentFaviconUrl,
@@ -946,7 +949,7 @@ fun BottomPanel(
 
                                         uiState.value.isEnteringEmail -> {
                                             if (!Patterns.EMAIL_ADDRESS.matcher(input).matches()) {
-                                                viewModel.showCustomNotification(context.getString(R.string.ui_invalid_email))
+                                                viewModel.showCustomNotification(invalidEmailText)
                                                 return@TextField // Stop here and keep keyboard open!
                                             }
 
@@ -1021,7 +1024,6 @@ fun BottomPanel(
                                                 customIconInput.ifEmpty { viewModel.activeTab!!.currentFaviconUrl }
 
                                             viewModel.pinApp(
-                                                context = context,
                                                 title = input,
                                                 url = resetUrl,
                                                 iconUrl = finalIconUrl,
@@ -1316,7 +1318,7 @@ fun BottomPanel(
 
                         AppsPanel(
                             onAppClick = { app ->
-                                webViewLoad(activeSession, app.url, settings.value)
+                                webViewLoad(activeSession, app.url)
                                 viewModel.updateUI { it.copy(isSettingsPanelVisible = false) }
                                 viewModel.updateUI { it.copy(isUrlBarVisible = false) }
                             },

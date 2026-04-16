@@ -19,21 +19,12 @@ package marcinlowercase.a.core.manager
 import android.app.Activity
 import android.content.Context
 import android.media.AudioManager
-import android.view.WindowManager
 
 class MediaGestureManager(private val activity: Activity) {
     private val audioManager = activity.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
     // BRIGHTNESS
 
-    fun ensureFullscreenBrightness() {
-        val params = activity.window.attributes
-        // If brightness is currently Auto (-1.0), snap it to 0.5 (50%)
-        if (params.screenBrightness < 0) {
-            params.screenBrightness = 0.5f
-            activity.window.attributes = params
-        }
-    }
     fun setBrightness(stepChange: Int) {
         val params = activity.window.attributes
 
@@ -63,13 +54,6 @@ class MediaGestureManager(private val activity: Activity) {
         val currentStep = (currentFloat * 100).toInt()
         return Pair(currentStep, 100)
     }
-    fun resetBrightness() {
-        val params = activity.window.attributes
-        // -1.0f tells Android: "Stop overriding, use system setting"
-        params.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
-        activity.window.attributes = params
-    }
-
 
 
     // VOLUME: 0 to Max

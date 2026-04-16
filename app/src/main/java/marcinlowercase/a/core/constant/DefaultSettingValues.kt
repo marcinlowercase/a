@@ -43,5 +43,4 @@ object DefaultSettingValues {
     const val IS_ENABLED_CONFIRMATION = true
     const val IS_ENABLED_BACKGROUND_PLAYBACK = true
     const val MEMORY_USAGE = 1
-    const val IS_SYNC = false
 }

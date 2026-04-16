@@ -62,8 +62,6 @@ import marcinlowercase.a.R
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.GeckoView
-import org.mozilla.geckoview.PanZoomController
-import org.mozilla.geckoview.ScreenLength
 import kotlin.math.roundToInt
 
 
@@ -276,7 +274,7 @@ fun CursorPad(
 
                                     var horizontalOverscrollAccumulator = 0f
                                     var hasNavigatedInThisGesture = false
-                                    val navThreshold = with(density) { 70.dp.toPx() }
+                                    val navThreshold = 70.dp.toPx()
                                     // This is the high-level function that consumes the rest of the drag gesture.
                                     // It will finish when the user lifts their finger.
                                     drag(drag.id) { change ->

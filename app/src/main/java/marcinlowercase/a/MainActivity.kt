@@ -16,7 +16,6 @@
  */
 package marcinlowercase.a
 
-import CursorPointer
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
@@ -45,7 +44,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.core.animateDpAsState
@@ -57,15 +55,10 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.AnchoredDraggableDefaults
 import androidx.compose.foundation.gestures.DraggableAnchors
 import androidx.compose.foundation.gestures.animateTo
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
-import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -76,15 +69,12 @@ import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -108,12 +98,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
@@ -123,8 +109,6 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
@@ -185,10 +169,11 @@ import org.mozilla.geckoview.StorageController
 import java.io.File
 import java.io.FileOutputStream
 import kotlin.math.ceil
-import kotlin.math.roundToInt
 import kotlin.system.exitProcess
 import androidx.compose.ui.res.stringResource
 import marcinlowercase.a.ui.component.BackSquare
+import marcinlowercase.a.ui.component.CursorPointer
+import org.mozilla.geckoview.GeckoRuntime
 
 
 //region Composable
@@ -245,7 +230,7 @@ class MainActivity : ComponentActivity() {
                     withContext(Dispatchers.Main) {
                         geckoResult.complete(response)
                     }
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     withContext(Dispatchers.Main) {
                         geckoResult.complete(prompt.dismiss())
                     }
@@ -273,7 +258,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
             Uri.fromFile(tempFile)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             null
         }
     }
@@ -416,7 +401,7 @@ class MainActivity : ComponentActivity() {
                     intent.getParcelableExtra("web_notification", org.mozilla.geckoview.WebNotification::class.java)
                 } else {
                     @Suppress("DEPRECATION")
-                    intent.getParcelableExtra<org.mozilla.geckoview.WebNotification>("web_notification")
+                    intent.getParcelableExtra("web_notification")
                 }
 
                 // This natively triggers the JavaScript `notification.onclick` event!
@@ -494,7 +479,7 @@ class MainActivity : ComponentActivity() {
 
     //region Pip
     // currently not working for YouTube yet, other platform work fine
-    fun updatePipParams(isDataFullscreen: Boolean) {
+//    fun updatePipParams(isDataFullscreen: Boolean) {
 //        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
 //            isEnteringPip = true
 //            val params = android.app.PictureInPictureParams.Builder()
@@ -504,7 +489,7 @@ class MainActivity : ComponentActivity() {
 //                .build()
 //            setPictureInPictureParams(params)
 //        }
-    }
+//    }
 
     var isCurrentlyFullscreen by mutableStateOf(false)
     var isEnteringPip by mutableStateOf(false)
@@ -522,7 +507,7 @@ class MainActivity : ComponentActivity() {
 
             // 3. Give focus to the root layout so GeckoView stops trying to talk to the IME
             view.clearFocus()
-        } catch (e: Exception) {
+        } catch (_: Exception) {
         }
     }
 
@@ -823,40 +808,38 @@ fun BrowserScreen(
 
     //region Permissions Handle
 
-    val pendingWebAuthnResult = remember { mutableStateOf<GeckoResult<Intent>?>(null) }
-    val webAuthnLauncher = rememberLauncherForActivityResult(
+    val pendingWebAuthenticationResult = remember { mutableStateOf<GeckoResult<Intent>?>(null) }
+    val webAuthenticationLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult(),
         onResult = { result ->
             if (result.resultCode == Activity.RESULT_OK && result.data != null) {
                 // Pass the FIDO payload back to GeckoView
-                pendingWebAuthnResult.value?.complete(result.data)
+                pendingWebAuthenticationResult.value?.complete(result.data)
             } else {
-                // Fails the Javascript Promise if the user cancels the FIDO prompt
-                pendingWebAuthnResult.value?.completeExceptionally(Exception("WebAuthn canceled or failed"))
+                // Fails the JavaScript Promise if the user cancels the FIDO prompt
+                pendingWebAuthenticationResult.value?.completeExceptionally(Exception("WebAuthentication canceled or failed"))
             }
-            pendingWebAuthnResult.value = null
+            pendingWebAuthenticationResult.value = null
         }
     )
 
     // Attach the ActivityDelegate to your GeckoRuntime so it can launch the FIDO Intents
     LaunchedEffect(viewModel.geckoManager.runtime) {
-        viewModel.geckoManager.runtime.setActivityDelegate(object : org.mozilla.geckoview.GeckoRuntime.ActivityDelegate {
-            override fun onStartActivityForResult(intent: android.app.PendingIntent): GeckoResult<Intent>? {
-                val geckoResult = GeckoResult<Intent>()
-                pendingWebAuthnResult.value = geckoResult
+        viewModel.geckoManager.runtime.activityDelegate = GeckoRuntime.ActivityDelegate { intent ->
+            val geckoResult = GeckoResult<Intent>()
+            pendingWebAuthenticationResult.value = geckoResult
 
-                try {
-                    // Start the Google Play Services FIDO dialog
-                    val request = androidx.activity.result.IntentSenderRequest.Builder(intent.intentSender).build()
-                    webAuthnLauncher.launch(request)
-                } catch (e: Exception) {
-                    geckoResult.completeExceptionally(e)
-                    pendingWebAuthnResult.value = null
-                }
-
-                return geckoResult
+            try {
+                // Start the Google Play Services FIDO dialog
+                val request = androidx.activity.result.IntentSenderRequest.Builder(intent.intentSender).build()
+                webAuthenticationLauncher.launch(request)
+            } catch (e: Exception) {
+                geckoResult.completeExceptionally(e)
+                pendingWebAuthenticationResult.value = null
             }
-        })
+
+            geckoResult
+        }
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -895,7 +878,7 @@ fun BrowserScreen(
 
     val activity = context as Activity
     val gestureManager = remember { MediaGestureManager(activity) }
-    val isDarkTheme = isSystemInDarkTheme()
+    isSystemInDarkTheme()
     val view = LocalView.current
     val density = LocalDensity.current
 
@@ -1255,34 +1238,24 @@ fun BrowserScreen(
 
                             // 3. Write directly to the Downloads folder
                             var fileSize = 0L
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                                val resolver = context.contentResolver
-                                val contentValues = android.content.ContentValues().apply {
-                                    put(MediaStore.Downloads.DISPLAY_NAME, fileName)
-                                    put(
-                                        MediaStore.Downloads.MIME_TYPE,
-                                        mimeType ?: "application/octet-stream"
-                                    )
-                                    put(
-                                        MediaStore.Downloads.RELATIVE_PATH,
-                                        Environment.DIRECTORY_DOWNLOADS
-                                    )
-                                }
-                                val uri = resolver.insert(
-                                    MediaStore.Downloads.EXTERNAL_CONTENT_URI,
-                                    contentValues
+                            val resolver = context.contentResolver
+                            val contentValues = android.content.ContentValues().apply {
+                                put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+                                put(
+                                    MediaStore.Downloads.MIME_TYPE,
+                                    mimeType ?: "application/octet-stream"
                                 )
-                                if (uri != null) {
-                                    resolver.openOutputStream(uri)?.use { output ->
-                                        stream.use { input -> fileSize = input.copyTo(output) }
-                                    }
-                                }
-                            } else {
-                                val downloadsDir =
-                                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-                                if (!downloadsDir.exists()) downloadsDir.mkdirs()
-                                val file = File(downloadsDir, fileName)
-                                FileOutputStream(file).use { output ->
+                                put(
+                                    MediaStore.Downloads.RELATIVE_PATH,
+                                    Environment.DIRECTORY_DOWNLOADS
+                                )
+                            }
+                            val uri = resolver.insert(
+                                MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                                contentValues
+                            )
+                            if (uri != null) {
+                                resolver.openOutputStream(uri)?.use { output ->
                                     stream.use { input -> fileSize = input.copyTo(output) }
                                 }
                             }
@@ -1293,7 +1266,7 @@ fun BrowserScreen(
                                 val completedItem = DownloadItem(
                                     id = downloadId,
                                     url = url,
-                                    filename = fileName, // <-- Now guarantees "hima.gif"
+                                    filename = fileName,
                                     mimeType = mimeType ?: "application/octet-stream",
                                     status = DownloadStatus.SUCCESSFUL,
                                     progress = 100,
@@ -1322,7 +1295,7 @@ fun BrowserScreen(
                                     )
                                 }
                             }
-                        } catch (e: Exception) {
+                        } catch (_: Exception) {
                             withContext(Dispatchers.Main) {
                                 Toast.makeText(context, "Blob download failed", Toast.LENGTH_SHORT)
                                     .show()
@@ -1330,7 +1303,7 @@ fun BrowserScreen(
                         } finally {
                             try {
                                 stream.close()
-                            } catch (e: Exception) {
+                            } catch (_: Exception) {
                             }
                         }
                     }
@@ -1623,7 +1596,6 @@ fun BrowserScreen(
 
         LaunchedEffect(viewModel.activeTab?.id, viewModel.activeProfileId.value) {
             val currentUrl = viewModel.activeTab?.currentURL ?: ""
-            Log.i("marcUrl", "current ${currentUrl}")
             if (!uiState.value.isFocusOnUrlTextField) {
                 textFieldState.setTextAndPlaceCursorAtEnd(currentUrl.toDomain())
             }
@@ -1887,7 +1859,7 @@ fun BrowserScreen(
             if (!activeSession.isOpen) {
                 try {
                     activeSession.open(viewModel.geckoManager.runtime)
-                } catch (e: Exception) {
+                } catch (_: Exception) {
 
                 }
             }
@@ -2116,7 +2088,6 @@ fun BrowserScreen(
                     }
                 },
                 siteSettings = viewModel.siteSettings,
-                siteSettingsManager = viewModel.siteSettingsManager,
 
 
                 onFullScreenFun = { isFullscreen ->
@@ -2131,11 +2102,11 @@ fun BrowserScreen(
                     val inPip = mainActivity.isPipMode || mainActivity.isEnteringPip
 
                     if (inPip && !isFullscreen) {
-
+                        // just nothing right now
                     } else {
                         // Normal behavior for all other cases
                         mainActivity.isCurrentlyFullscreen = isFullscreen
-                        mainActivity.updatePipParams(isFullscreen)
+//                        mainActivity.updatePipParams(isFullscreen)
 
                         if (isFullscreen) {
                             activity.requestedOrientation =
@@ -2150,7 +2121,7 @@ fun BrowserScreen(
                             }
                         } else {
                             // Only exit landscape/immersive if NOT in PiP
-                            if (!inPip) {
+//                            if (!inPip) {
 
                                 if (uiState.value.isLandscapeByButton) viewModel.updateUI {
                                     it.copy(
@@ -2169,7 +2140,7 @@ fun BrowserScreen(
                                 coroutineScope.launch {
                                     hideBackSquare(true)
                                 }
-                            }
+//                            }
                         }
                     }
                 },
@@ -2197,7 +2168,7 @@ fun BrowserScreen(
             )
 
             if (!uiState.value.initialLoadDone && initialIntentUrl != null && viewModel.activeTab!!.currentURL == initialIntentUrl) {
-                webViewLoad(activeSession, initialIntentUrl, settings)
+                webViewLoad(activeSession, initialIntentUrl)
                 viewModel.updateUI { it.copy(initialLoadDone = true) }
             } else {
                 val stateToRestore = viewModel.activeTab!!.savedState?.let {
@@ -2207,8 +2178,8 @@ fun BrowserScreen(
                     val baseLoad = viewModel.activeTab!!.currentURL.ifBlank { settings.defaultUrl }
 
                     val urlToLoad = baseLoad.ifBlank { "about:blank" }
-                    Log.d("marcBlank", "load blank from lanched effect, $urlToLoad")
-                    webViewLoad(activeSession, urlToLoad, settings)
+                    Log.d("marcBlank", "load blank from launched effect, $urlToLoad")
+                    webViewLoad(activeSession, urlToLoad)
                 }
             }
         }
@@ -2951,18 +2922,7 @@ fun BrowserScreen(
                             ErrorScreen(
                                 modifier = Modifier
                                     .padding(webViewPaddingValue),
-                                errorState = targetState, // Safe, no !! needed
-                                onRetry = {
-                                    val urlToReload = targetState.failingUrl
-                                    webViewLoad(activeSession, urlToReload, settings)
-                                },
-                                onHome = {
-                                    webViewLoad(
-                                        activeSession,
-                                        settings.defaultUrl,
-                                        settings
-                                    )
-                                }
+                                errorState = targetState // Safe, no !! needed
                             )
                         }
                         BottomPanel(
@@ -3014,7 +2974,7 @@ fun BrowserScreen(
                                 )
                             },
                             onSuggestionClick = { suggestion ->
-                                webViewLoad(activeSession, suggestion.url, settings)
+                                webViewLoad(activeSession, suggestion.url)
 
                                 focusManager.clearFocus()
                                 keyboardController?.hide()
@@ -3064,7 +3024,7 @@ fun BrowserScreen(
                             focusManager = focusManager,
                             keyboardController = keyboardController,
                             onNewUrl = { newUrl ->
-                                webViewLoad(activeSession, newUrl, settings)
+                                webViewLoad(activeSession, newUrl)
                             },
 
                             )

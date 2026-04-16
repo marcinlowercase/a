@@ -17,7 +17,6 @@
 package marcinlowercase.a.ui.panel
 
 import android.annotation.SuppressLint
-import android.util.Log
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring

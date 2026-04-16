@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
 
     <string name="bold_icon_url" translatable="false">https://browser.oo1.studio/data/img/logo_bold.svg</string>
 
@@ -11,7 +11,6 @@
 
     <!-- Sync & Login -->
     <string name="desc_sync">sync</string>
-    <string name="desc_login">login</string>
     <string name="desc_logout">logout</string>
     <string name="desc_sync_push">push</string>
     <string name="desc_sync_merge">merge</string>
@@ -20,10 +19,7 @@
 
     <string name="ui_sync_successful">sync successful</string>
     <string name="ui_sync_failed">sync failed</string>
-    <string name="ui_login_successful">login successful</string>
     <string name="ui_invalid_code">invalid code</string>
-    <string name="ui_code_resent">code resent</string>
-    <string name="ui_logged_out">logged out</string>
     <string name="ui_account_deleted">account deleted</string>
     <string name="ui_cloud_empty">cloud is empty</string>
     <string name="ui_invalid_email">invalid email format</string>
@@ -81,7 +77,7 @@
     <string name="desc_delete_profile">delete profile</string>
 
     <!-- Text Edit Panel -->
-    <string name="desc_cancel">cancel</string>
+    <string name="desc_cancel" tools:ignore="ButtonCase">cancel</string>
     <string name="desc_install_web_app">install web app</string>
     <string name="desc_edit_app_name">edit app name</string>
     <string name="desc_copy_current_url">copy current url</string>
@@ -131,8 +127,6 @@
     <string name="confirm_remove_suggestion">remove suggestion from history ?</string>
     <string name="confirm_beginning_of_history">reach the beginning of tab history ,\nclose tab ? </string>
     <string name="confirm_open_pop_up">open pop-up with url : </string>
-    <string name="confirm_sync">sync ?</string>
-    <string name="confirm_cloud_conflict">cloud backup found. sync cloud setup ? if not the cloud backup will be replaced with local setup</string>
     <string name="confirm_delete_account">delete account and wipe cloud data ?</string>
     <string name="confirm_logout">log out ?</string>
     <string name="confirm_merge">merge local and cloud data ?</string>

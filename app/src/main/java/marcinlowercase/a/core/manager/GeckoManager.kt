@@ -26,7 +26,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
-import android.graphics.BitmapFactory
 import android.os.Build
 import android.util.Log
 import androidx.compose.runtime.MutableState
@@ -132,7 +131,7 @@ class GeckoManager(private val context: Context) {
                         intent.getParcelableExtra("web_notification", WebNotification::class.java)
                     } else {
                         @Suppress("DEPRECATION")
-                        intent.getParcelableExtra<WebNotification>("web_notification")
+                        intent.getParcelableExtra("web_notification")
                     }
                     // Tells the website JavaScript that the user dismissed/swiped it away
                     notification?.dismiss()
@@ -174,7 +173,7 @@ class GeckoManager(private val context: Context) {
             @SuppressLint("WrongThread")
             override fun onShowNotification(notification: WebNotification) {
                 // Ensure a unique tag/ID for stacking notifications
-                val tag = notification.tag?.ifEmpty { notification.title } ?: notification.title
+                val tag = notification.tag.ifEmpty { notification.title } ?: notification.title
                 val notifId = tag.hashCode()
 
                 // 1. Click Intent (Launches MainActivity)
@@ -207,7 +206,7 @@ class GeckoManager(private val context: Context) {
 
                 // 3. Build the Android Notification
                 val builder = NotificationCompat.Builder(context, "web_notifications")
-                    .setSmallIcon(marcinlowercase.a.R.drawable.ic_empty_logo) // Use your icon here
+                    .setSmallIcon(R.drawable.ic_empty_logo) // Use your icon here
                     .setContentTitle(notification.title)
                     .setContentText(notification.text)
                     .setContentIntent(pendingClick)
@@ -224,24 +223,24 @@ class GeckoManager(private val context: Context) {
                     manager.notify(tag, notifId, builder.build())
                     try {
                         notification.show() // VERY IMPORTANT: Tells JS the notification successfully appeared
-                    } catch (e: Exception) {}
+                    } catch (_: Exception) {}
                 } else {
                     try {
                         notification.dismiss() // Tells JS the notification was blocked by OS
-                    } catch (e: Exception) {}
+                    } catch (_: Exception) {}
                 }
             }
 
             @SuppressLint("WrongThread")
             override fun onCloseNotification(notification: WebNotification) {
                 // Fires if the website's JS calls `notification.close()`
-                val tag = notification.tag?.ifEmpty { notification.title } ?: notification.title
+                val tag = notification.tag.ifEmpty { notification.title } ?: notification.title
                 val manager = NotificationManagerCompat.from(context)
                 manager.cancel(tag, tag.hashCode()) // Close the native Android popup
 
                 try {
                     notification.dismiss() // Clean up the GeckoView IPC resource
-                } catch (e: Exception) {}
+                } catch (_: Exception) {}
             }
         }
     }
@@ -340,7 +339,7 @@ class GeckoManager(private val context: Context) {
     }
 
     private fun setupExtensionPrompts() {
-        runtime.webExtensionController.setPromptDelegate(object :
+        runtime.webExtensionController.promptDelegate = object :
             WebExtensionController.PromptDelegate {
 
             // 1. MATCHING THE NEW SIGNATURE
@@ -352,11 +351,11 @@ class GeckoManager(private val context: Context) {
             ): GeckoResult<WebExtension.PermissionPromptResponse> {
 
                 //Log.i(
-//                    "GeckoExt", "Auto-confirming install for: ${
-//                        extension.metaData
-//                            .name
-//                    }"
-//                )
+    //                    "GeckoExt", "Auto-confirming install for: ${
+    //                        extension.metaData
+    //                            .name
+    //                    }"
+    //                )
 
                 // 2. BUILD THE RESPONSE
                 // true = Allow installation
@@ -383,7 +382,7 @@ class GeckoManager(private val context: Context) {
                 val result = AllowOrDeny.ALLOW
                 return GeckoResult.fromValue(result)  // 1 = Allow
             }
-        })
+        }
 
     }
 
@@ -458,13 +457,7 @@ class GeckoManager(private val context: Context) {
 
     fun pauseSessionIfExists(tabId: Long) {
         val session = sessionPool[tabId]
-        if (session != null) {
-            session.setActive(false)
-//            TODO make this take a value of isUseBackground AUDIO
-//            if (activeMediaGeckoSession == session) {
-//                activeGeckoMediaSession?.pause()
-//            }
-        }
+        session?.setActive(false)
     }
 
     fun closeSession(tab: Tab) {
@@ -632,7 +625,6 @@ class GeckoManager(private val context: Context) {
         session: GeckoSession,
         tab: MutableState<Tab>,
         isStandaloneMode: Boolean,
-        siteSettingsManager: SiteSettingsManager,
         siteSettings: Map<String, SiteSettings>,
         browserSettings: androidx.compose.runtime.State<BrowserSettings>,
         onFaviconChanged: (Long, String) -> Unit,
@@ -1143,7 +1135,6 @@ class GeckoManager(private val context: Context) {
             },
             tab = tab,
             siteSettings = siteSettings,
-            siteSettingsManager = siteSettingsManager,
         )
 
         session.promptDelegate = object : GeckoSession.PromptDelegate {
@@ -1169,7 +1160,7 @@ class GeckoManager(private val context: Context) {
                             result.complete(prompt.confirm(AllowOrDeny.ALLOW))
                         } else {
                             // 2. User typed a custom URL!
-                            // We DENY the native popup, and trick the app into opening a brand new tab with their URL.
+                            // We DENY the native popup, and trick the app into opening a brand-new tab with their URL.
                             result.complete(prompt.confirm(AllowOrDeny.DENY))
 
                             val dummyId = System.currentTimeMillis()

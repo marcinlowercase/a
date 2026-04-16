@@ -27,7 +27,6 @@ import marcinlowercase.a.core.data_class.CustomPermissionRequest
 import marcinlowercase.a.core.data_class.SiteSettings
 import marcinlowercase.a.core.data_class.Tab
 import marcinlowercase.a.core.function.toDomain
-import marcinlowercase.a.core.manager.SiteSettingsManager
 import org.mozilla.geckoview.GeckoResult
 import org.mozilla.geckoview.GeckoSession
 
@@ -36,7 +35,6 @@ class CustomPermissionDelegate(
     val context: android.content.Context,
     val tab: MutableState<Tab>,
     private val onShowRequest: (CustomPermissionRequest) -> Unit,
-    private val siteSettingsManager: SiteSettingsManager,
     private val siteSettings: Map<String, SiteSettings>,
 ) : GeckoSession.PermissionDelegate {
 
@@ -355,8 +353,8 @@ class CustomPermissionDelegate(
 
 
 
-        var isRequestingVideo = !video.isNullOrEmpty()
-        var isRequestingAudio = !audio.isNullOrEmpty()
+        val isRequestingVideo = !video.isNullOrEmpty()
+        val isRequestingAudio = !audio.isNullOrEmpty()
 
 //        if ( isRequestingVideo && isRequestingAudio && videoDecision == true && audioDecision == true) {
 //            callback.grant(video?.first(), audio?.first())

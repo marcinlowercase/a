@@ -16,12 +16,9 @@
  */
 package marcinlowercase.a.core.function
 
-import android.util.Log
-import marcinlowercase.a.core.custom_class.CustomWebView
-import marcinlowercase.a.core.data_class.BrowserSettings
 import org.mozilla.geckoview.GeckoSession
 
-fun webViewLoad(session: GeckoSession?, url: String, browserSettings: BrowserSettings) {
+fun webViewLoad(session: GeckoSession?, url: String) {
     session?.load(GeckoSession.Loader()
         .uri(url)
         .flags(GeckoSession.LOAD_FLAGS_NONE)

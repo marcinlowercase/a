@@ -16,19 +16,4 @@
  */
 package marcinlowercase.a.core.function
 
-import android.content.Context
-import android.content.Intent
-import android.graphics.Bitmap
-import android.graphics.drawable.BitmapDrawable
-import androidx.core.content.pm.ShortcutInfoCompat
-import androidx.core.content.pm.ShortcutManagerCompat
-import androidx.core.graphics.drawable.IconCompat
-import androidx.core.net.toUri
-import coil.ImageLoader
-import coil.request.ImageRequest
-import coil.request.SuccessResult
-import kotlinx.coroutines.Dispatchers
-import marcinlowercase.a.MainActivity
-import androidx.lifecycle.viewModelScope
-
 

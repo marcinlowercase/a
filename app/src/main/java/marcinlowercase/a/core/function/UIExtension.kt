@@ -20,7 +20,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
-import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.MutableState
@@ -37,48 +36,10 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import marcinlowercase.a.core.data_class.BrowserSettings
-import marcinlowercase.a.core.enum_class.DragDirection
 
 import java.net.URL
 import java.util.Locale
-import kotlin.math.abs
 
-fun Modifier.consumeChangePointerInput(dragDirection: DragDirection = DragDirection.Both) : Modifier = this.then(
-    Modifier.pointerInput(Unit) {
-        awaitEachGesture {
-            val down = awaitFirstDown(requireUnconsumed = false)
-            val drag =
-                awaitTouchSlopOrCancellation(down.id) { change, _ ->
-                    change.consume()
-                }
-            if (drag != null) {
-                var horizontalDragAccumulator = 0f
-                var verticalDragAccumulator = 0f
-
-                drag(drag.id) { change ->
-
-                    horizontalDragAccumulator += change.position.x - change.previousPosition.x
-                    verticalDragAccumulator += change.position.y - change.previousPosition.y
-
-                    val condition =
-                        when(dragDirection) {
-                            DragDirection.Horizontal -> abs(horizontalDragAccumulator) > abs(
-                                verticalDragAccumulator
-                            )
-                            DragDirection.Vertical -> abs(verticalDragAccumulator) > abs(
-                                horizontalDragAccumulator
-                            )
-                            DragDirection.Both -> true
-                        }
-
-
-                    if (condition) change.consume()
-                }
-            }
-        }
-    }
-
-)
 fun Modifier.buttonSettingsForLayer(
     layer: Int,
     browserSettings: BrowserSettings,

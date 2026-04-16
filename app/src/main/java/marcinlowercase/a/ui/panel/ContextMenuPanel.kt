@@ -93,13 +93,6 @@ fun ContextMenuPanel(
 
         val data = viewModel.contextMenuDisplayData.value?: return@AnimatedVisibility
 
-        // Determine if the target is an image (IMAGE_TYPE) or a Link (SRC_ANCHOR / SRC_IMAGE_ANCHOR)
-        // Note: SRC_IMAGE_ANCHOR usually provides the Link URL in 'extra', not the image source.
-        // Pure images return IMAGE_TYPE.
-//        val isImage = data.type == WebView.HitTestResult.IMAGE_TYPE
-
-        data.type == ContextMenuType.LINK
-
         Column(
             modifier = Modifier
                 .padding(top = settings.value.padding.dp)

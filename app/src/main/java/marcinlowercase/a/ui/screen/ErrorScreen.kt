@@ -44,9 +44,7 @@ import org.mozilla.geckoview.WebRequestError
 @Composable
 fun ErrorScreen(
     modifier: Modifier = Modifier,
-    errorState: ErrorState,
-    onRetry: () -> Unit,
-    onHome: () -> Unit
+    errorState: ErrorState
 ) {
 
     val viewModel = LocalBrowserViewModel.current
@@ -87,16 +85,6 @@ fun ErrorScreen(
                 .padding(32.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-//            // Icon
-//            Icon(
-//                painter = painterResource(id = errorIcon), // Need an icon
-//                contentDescription = null,
-//                tint = Color.Black,
-//                modifier = Modifier.size(64.dp)
-//            )
-//
-//            Spacer(modifier = Modifier.height(16.dp))
-
 
             // Message
             Text(

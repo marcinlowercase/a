@@ -23,6 +23,7 @@ import android.app.DownloadManager
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
 import android.media.MediaScannerConnection
@@ -95,6 +96,8 @@ import java.net.URLDecoder
 import java.net.URLEncoder
 import java.util.Collections
 import java.util.regex.Pattern
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.toColorInt
 
 val LocalBrowserViewModel = staticCompositionLocalOf<BrowserViewModel> {
     error("No BrowserViewModel provided! Check your root Composable.")
@@ -168,12 +171,12 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         get() = if (isStandaloneMode.value && pwaProfileId.value.isNotEmpty()) pwaProfileId.value else activeProfileId.value
 
     // --- ON-THE-FLY SYNC ---
-    private var globalPrefs: android.content.SharedPreferences? = null
-    private var currentProfilePrefs: android.content.SharedPreferences? = null
+    private var globalPrefs: SharedPreferences? = null
+    private var currentProfilePrefs: SharedPreferences? = null
     private var syncJob: Job? = null // The debounce tracker
 
     private val prefsListener =
-        android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
+        SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
             // DEBOUNCE: Cancel the previous job if the user is still actively dragging a slider!
             syncJob?.cancel()
             syncJob = viewModelScope.launch(Dispatchers.IO) {
@@ -198,11 +201,11 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     private fun setupPrefsListener(profileId: String) {
         val context = getApplication<Application>()
 
-        // Listen to Global Prefs (Corner Radius, Padding, etc)
+        // Listen to Global Prefs (Corner Radius, Padding, etc.)
         globalPrefs = context.getSharedPreferences("BrowserPrefs", Context.MODE_PRIVATE)
         globalPrefs?.registerOnSharedPreferenceChangeListener(prefsListener)
 
-        // Listen to Profile Prefs (AdBlock, Theme, etc)
+        // Listen to Profile Prefs (AdBlock, Theme, etc.)
         currentProfilePrefs?.unregisterOnSharedPreferenceChangeListener(prefsListener)
         currentProfilePrefs =
             context.getSharedPreferences("BrowserPrefs_$profileId", Context.MODE_PRIVATE)
@@ -451,7 +454,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                     intent.addCategory(Intent.CATEGORY_BROWSABLE)
                     intent.component = null
                     intent.selector = null
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     //Log.e("Intent", "Bad intent URI: $url", e)
                     return
                 }
@@ -490,7 +493,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                         marketIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         try {
                             activity.startActivity(marketIntent)
-                        } catch (e: Exception) {
+                        } catch (_: Exception) {
                             //Log.e("Intent", "Play Store not found", e)
                         }
                     }
@@ -499,7 +502,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 showCustomNotification(application.getString(R.string.toast_no_app_to_open_link))
             }
 
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             //Log.e("Intent", "Failed to handle intent", e)
         }
     }
@@ -801,14 +804,14 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     //region Sync Logic
     // 1. Add Auth variables (put this near the top of the class)
     var userEmailToLogin = ""
-    val syncAuthPrefs = application.getSharedPreferences("SyncAuthPrefs", Context.MODE_PRIVATE)
+    val syncAuthPrefs: SharedPreferences? = application.getSharedPreferences("SyncAuthPrefs", Context.MODE_PRIVATE)
 
     fun isLoggedIn(): Boolean {
-        return syncAuthPrefs.getString("jwt_token", null) != null
+        return syncAuthPrefs?.getString("jwt_token", null) != null
     }
 
     fun logout() {
-        syncAuthPrefs.edit { remove("jwt_token") }
+        syncAuthPrefs?.edit { remove("jwt_token") }
     }
 
     // 2. Add API Wrapper functions
@@ -820,7 +823,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun getLoggedInEmail(): String {
-        return syncAuthPrefs.getString("email", "Unknown User") ?: "Unknown User"
+        return syncAuthPrefs?.getString("email", "Unknown User") ?: "Unknown User"
     }
 
     fun verifyLoginCode(code: String, onResult: (Boolean) -> Unit) {
@@ -828,7 +831,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             val response = marcinlowercase.a.core.api.SyncApi.verifyCode(userEmailToLogin, code)
             if (response?.token != null) {
                 // SAVE THE EMAIL HERE TOO!
-                syncAuthPrefs.edit {
+                syncAuthPrefs?.edit {
                     putString("jwt_token", response.token)
                         .putString("email", userEmailToLogin)
                 }
@@ -838,7 +841,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             }
         }
     }
-    fun buildSyncPayload(): marcinlowercase.a.core.data_class.SyncPayload {
+    fun buildSyncPayload(): SyncPayload {
         val allProfiles = profileManager.loadProfiles()
 
         val syncProfiles = allProfiles.map { profile ->
@@ -871,7 +874,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             )
         }
 
-        return marcinlowercase.a.core.data_class.SyncPayload(
+        return SyncPayload(
             timestamp = System.currentTimeMillis(),
             profiles = syncProfiles
         )
@@ -880,7 +883,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
 
     fun triggerManualPush() {
-        val token = syncAuthPrefs.getString("jwt_token", null) ?: return
+        val token = syncAuthPrefs?.getString("jwt_token", null) ?: return
         val payload = buildSyncPayload()
         val context = getApplication<Application>()
 
@@ -900,7 +903,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun triggerManualPull() {
-        val token = syncAuthPrefs.getString("jwt_token", null) ?: return
+        val token = syncAuthPrefs?.getString("jwt_token", null) ?: return
         val context = getApplication<Application>()
 
         viewModelScope.launch(Dispatchers.IO) {
@@ -921,7 +924,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun triggerSmartMerge() {
-        val token = syncAuthPrefs.getString("jwt_token", null) ?: return
+        val token = syncAuthPrefs?.getString("jwt_token", null) ?: return
         val context = getApplication<Application>()
 
         viewModelScope.launch(Dispatchers.IO) {
@@ -966,7 +969,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun triggerDeleteAccount() {
-        val token = syncAuthPrefs.getString("jwt_token", null) ?: return
+        val token = syncAuthPrefs?.getString("jwt_token", null) ?: return
         val context = getApplication<Application>()
 
         viewModelScope.launch(Dispatchers.IO) {
@@ -989,9 +992,9 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     private fun wipeAllLocalData() {
         val context = getApplication<Application>()
         // Wipe global lists
-        context.getSharedPreferences("BrowserProfiles", Context.MODE_PRIVATE).edit().clear().apply()
-        context.getSharedPreferences("BrowserHistory", Context.MODE_PRIVATE).edit().clear().apply()
-        context.getSharedPreferences("BrowserApps", Context.MODE_PRIVATE).edit().clear().apply()
+        context.getSharedPreferences("BrowserProfiles", Context.MODE_PRIVATE).edit { clear() }
+        context.getSharedPreferences("BrowserHistory", Context.MODE_PRIVATE).edit { clear() }
+        context.getSharedPreferences("BrowserApps", Context.MODE_PRIVATE).edit {clear()}
         context.getSharedPreferences("BrowserSiteSettings", Context.MODE_PRIVATE).edit { clear() }
 
         // Wipe specific settings for all existing profiles
@@ -1071,12 +1074,14 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
             cloudProfile.pinnedApps.forEach { cloudApp ->
                 if (!localAppUrls.contains(cloudApp.url)) {
-                    localApps.add(marcinlowercase.a.core.data_class.App(
-                        id = cloudApp.id,
-                        label = cloudApp.label,
-                        url = cloudApp.url,
-                        iconUrl = cloudApp.iconUrl
-                    ))
+                    localApps.add(
+                        App(
+                            id = cloudApp.id,
+                            label = cloudApp.label,
+                            url = cloudApp.url,
+                            iconUrl = cloudApp.iconUrl
+                        )
+                    )
                 }
             }
             appManager.saveApps(cloudProfile.id, localApps)
@@ -1489,7 +1494,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     }
     val inspectingAppId = mutableLongStateOf(0L)
 
-    fun pinApp(context: Context, title: String, url: String, iconUrl: String) {
+    fun pinApp(title: String, url: String, iconUrl: String) {
         val newApp = App(
             id = System.currentTimeMillis(),
             label = title,
@@ -1575,8 +1580,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         outFile: File,
         isFullBrowser: Boolean
     ): Boolean {
-
-        Log.i("WebAPK", "iconURl: ${iconUrl}")
         return withContext(Dispatchers.IO) {
             try {
                 val unsignedApk =
@@ -1621,7 +1624,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                                 val width = drawable.intrinsicWidth.takeIf { it > 0 } ?: 192
                                 val height = drawable.intrinsicHeight.takeIf { it > 0 } ?: 192
                                 val bitmap =
-                                    Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                                    createBitmap(width, height)
                                 val canvas = android.graphics.Canvas(bitmap)
                                 drawable.setBounds(0, 0, canvas.width, canvas.height)
                                 drawable.draw(canvas)
@@ -1639,12 +1642,12 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 // dynamically generate a beautiful Monogram letter icon!
                 if (iconBitmap == null) {
                     val size = 192
-                    val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+                    val bitmap = createBitmap(size, size)
                     val canvas = android.graphics.Canvas(bitmap)
                     val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
 
-                    // Draw a sleek dark grey background
-                    paint.color = android.graphics.Color.parseColor("#252526")
+                    // Draw a sleek dark gray background
+                    paint.color = "#252526".toColorInt()
                     canvas.drawRect(0f, 0f, size.toFloat(), size.toFloat(), paint)
 
                     // Draw the first letter of the App Title
@@ -1718,17 +1721,13 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                                         val stream = java.io.ByteArrayOutputStream()
 
                                         // PREVENT STRETCHING: Draw the loaded image onto a perfect 192x192 square Canvas
-                                        val original = iconBitmap!!
+                                        val original = iconBitmap
                                         val targetSize = 192
                                         val scaled =
                                             if (original.width == targetSize && original.height == targetSize) {
                                                 original
                                             } else {
-                                                val square = Bitmap.createBitmap(
-                                                    targetSize,
-                                                    targetSize,
-                                                    Bitmap.Config.ARGB_8888
-                                                )
+                                                val square = createBitmap(targetSize, targetSize)
                                                 val canvas = android.graphics.Canvas(square)
 
                                                 // Calculate the scale to maintain aspect ratio
@@ -2005,7 +2004,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             }
 
             context.startActivity(intent)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             showCustomNotification(context.getString(R.string.toast_failed_to_start_apk_installer))
         }
     }
@@ -2123,7 +2122,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                                     }
                                 }
                             }
-                        } catch (e: Exception) {
+                        } catch (_: Exception) {
                             //Log.e("Download", "Error querying download", e)
                         }
                     }
@@ -2175,7 +2174,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             )
             downloads.add(0, newDownload)
             downloadTracker.saveDownloads(downloads)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             //Log.e("Download", "Failed to enqueue", e)
             // Ideally, emit a UI Event here to show a Toast
         }
@@ -2445,7 +2444,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                         )
                     }
                 }
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 //Log.e("Suggestions", "Network fetch failed", e)
             }
 

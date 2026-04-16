@@ -17,8 +17,8 @@ private const val ACTION_PLAY = "marcinlowercase.a.PLAY"
 private const val ACTION_PAUSE = "marcinlowercase.a.PAUSE"
 
 class MediaPlaybackService : Service() {
-    private val CHANNEL_ID = "media_playback_channel"
-    private val NOTIFICATION_ID = 101
+    private val channelId = "media_playback_channel"
+    private val notificationId = 101
     private var mediaSession: MediaSessionCompat? = null
 
     private var currentTitle = "Browser Video"
@@ -36,7 +36,7 @@ class MediaPlaybackService : Service() {
 
         val pendingIntent = PendingIntent.getActivity(
             this, 0, activityIntent,
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
+            PendingIntent.FLAG_IMMUTABLE
         )
 
         mediaSession = MediaSessionCompat(this, "BrowserMedia").apply {
@@ -61,7 +61,7 @@ class MediaPlaybackService : Service() {
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
-                CHANNEL_ID, "Media Controls", NotificationManager.IMPORTANCE_LOW
+                channelId, "Media Controls", NotificationManager.IMPORTANCE_LOW
             ).apply {
                 description = "Shows what is playing in the browser"
                 setShowBadge(false)
@@ -104,11 +104,13 @@ class MediaPlaybackService : Service() {
 
         val playIntent = PendingIntent.getService(this, 1,
             Intent(this, MediaPlaybackService::class.java).apply { action = ACTION_PLAY },
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+            PendingIntent.FLAG_IMMUTABLE
+        )
 
         val pauseIntent = PendingIntent.getService(this, 2,
             Intent(this, MediaPlaybackService::class.java).apply { action = ACTION_PAUSE },
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+            PendingIntent.FLAG_IMMUTABLE
+        )
 
         val toggleAction = if (isPaused) {
             NotificationCompat.Action(marcinlowercase.a.R.drawable.ic_play_arrow, "Play", playIntent)
@@ -116,7 +118,7 @@ class MediaPlaybackService : Service() {
             NotificationCompat.Action(marcinlowercase.a.R.drawable.ic_pause, "Pause", pauseIntent)
         }
 
-        val notificationBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
+        val notificationBuilder = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(marcinlowercase.a.R.drawable.ic_video_camera_back)
             .setContentTitle(title) // Only the Title is shown now
             .setOngoing(!isPaused)
@@ -132,9 +134,9 @@ class MediaPlaybackService : Service() {
         val notification = notificationBuilder.build()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+            startForeground(notificationId, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
         } else {
-            startForeground(NOTIFICATION_ID, notification)
+            startForeground(notificationId, notification)
         }
     }
 
