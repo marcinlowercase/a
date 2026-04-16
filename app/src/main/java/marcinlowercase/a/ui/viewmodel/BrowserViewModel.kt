@@ -1038,13 +1038,25 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         cloudData.profiles.forEach { cloudProfile ->
             val s = cloudProfile.settings
 
-            // Settings: Cloud always wins (even in merge)
+            // Settings: Cloud profile settings win, but Local global settings are protected!
             try {
-                // Decode the strongly typed object from JSON
-                val s = jsonParser.decodeFromString<BrowserSettings>(cloudProfile.settings)
+                val cloudSettings = jsonParser.decodeFromString<BrowserSettings>(cloudProfile.settings)
 
-                // Use your existing save function to put everything back into SharedPreferences safely!
-                saveSettingsToPrefs(cloudProfile.id, s)
+                // 1. Read the device's current settings so we know its physical configuration
+                val localSettings = loadSettingsFromPrefs(cloudProfile.id)
+
+                // 2. Merge them! Keep all the cloud's profile settings, but restore the 6 global settings
+                val safeMergedSettings = cloudSettings.copy(
+                    isFirstAppLoad = localSettings.isFirstAppLoad,
+                    padding = localSettings.padding,
+                    deviceCornerRadius = localSettings.deviceCornerRadius,
+                    singleLineHeight = localSettings.singleLineHeight,
+                    maxListHeight = localSettings.maxListHeight,
+                    memoryUsage = localSettings.memoryUsage
+                )
+
+                // 3. Save the safely merged settings back to disk!
+                saveSettingsToPrefs(cloudProfile.id, safeMergedSettings)
             } catch (e: Exception) {
                 Log.e("BrowserSync", "Failed to parse cloud settings", e)
             }
