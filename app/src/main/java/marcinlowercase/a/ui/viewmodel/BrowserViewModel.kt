@@ -75,6 +75,7 @@ import marcinlowercase.a.core.data_class.PollData
 import marcinlowercase.a.core.data_class.Profile
 import marcinlowercase.a.core.data_class.SiteSettings
 import marcinlowercase.a.core.data_class.Suggestion
+import marcinlowercase.a.core.data_class.SyncPayload
 import marcinlowercase.a.core.data_class.Tab
 import marcinlowercase.a.core.enum_class.BrowserOption
 import marcinlowercase.a.core.enum_class.BrowserSettingField
@@ -1009,13 +1010,13 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         siteSettings.clear()
     }
 
-    private fun restoreFromCloud(cloudData: marcinlowercase.a.core.data_class.SyncPayload, isMerge: Boolean) {
+    private fun restoreFromCloud(cloudData: SyncPayload, isMerge: Boolean) {
         if (cloudData.profiles.isEmpty()) return
 
         // 1. Profiles List Union
         val localProfileIds = profiles.map { it.id }.toSet()
         val newProfiles = cloudData.profiles.map {
-            marcinlowercase.a.core.data_class.Profile(id = it.id, name = it.name)
+            Profile(id = it.id, name = it.name)
         }
 
         if (!isMerge) {
@@ -1036,8 +1037,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
         // 2. Loop through cloud profiles and apply Data
         cloudData.profiles.forEach { cloudProfile ->
-            val s = cloudProfile.settings
-
             // Settings: Cloud profile settings win, but Local global settings are protected!
             try {
                 val cloudSettings = jsonParser.decodeFromString<BrowserSettings>(cloudProfile.settings)
@@ -1084,7 +1083,19 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         }
 
         // 3. Refresh RAM so the UI instantly updates without restarting!
-        val targetProfileId = if (!isMerge) newProfiles.firstOrNull()?.id ?: activeProfileId.value else activeProfileId.value
+        val currentActiveId = activeProfileId.value
+
+        val targetProfileId = if (isMerge) {
+            currentActiveId // Merge never deletes profiles, so the current one is always safe
+        } else {
+            // PULL: Check if the profile the user was just using exists in the downloaded cloud data
+            val existsInCloud = newProfiles.any { it.id == currentActiveId }
+            if (existsInCloud) {
+                currentActiveId // Keep them in their current profile!
+            } else {
+                newProfiles.firstOrNull()?.id ?: currentActiveId // Fallback to the first cloud profile
+            }
+        }
 
         if (activeProfileId.value == targetProfileId) {
             // Force current profile reload since files changed under its feet
@@ -1101,7 +1112,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             switchProfile(targetProfileId)
         }
     }
-
     //endregion
     //region Tab logic
 
