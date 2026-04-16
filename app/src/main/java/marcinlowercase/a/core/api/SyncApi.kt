@@ -57,7 +57,7 @@ object SyncApi {
 
                 // If the server returns 200, 201, or 204, it was successful!
                 responseCode in 200..299
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 false
             }
         }
@@ -99,7 +99,7 @@ object SyncApi {
                 } else {
                     null
                 }
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 null
             } finally {
                 connection.disconnect()

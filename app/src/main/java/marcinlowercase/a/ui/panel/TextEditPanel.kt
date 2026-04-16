@@ -114,7 +114,7 @@ fun TextEditPanel(
                                 }
                                 try {
                                     context.startActivity(intent)
-                                } catch (e: Exception) {
+                                } catch (_: Exception) {
                                     // Fallback if no specific email app is found
                                     val fallbackIntent = Intent(Intent.ACTION_VIEW,
                                         "mailto:".toUri())

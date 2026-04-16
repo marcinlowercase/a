@@ -59,15 +59,13 @@ class MediaPlaybackService : Service() {
     }
 
     private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                channelId, "Media Controls", NotificationManager.IMPORTANCE_LOW
-            ).apply {
-                description = "Shows what is playing in the browser"
-                setShowBadge(false)
-            }
-            getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+        val channel = NotificationChannel(
+            channelId, "Media Controls", NotificationManager.IMPORTANCE_LOW
+        ).apply {
+            description = "Shows what is playing in the browser"
+            setShowBadge(false)
         }
+        getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
