@@ -168,7 +168,6 @@ import org.mozilla.geckoview.GeckoView
 import org.mozilla.geckoview.StorageController
 import java.io.File
 import java.io.FileOutputStream
-import kotlin.math.ceil
 import kotlin.system.exitProcess
 import androidx.compose.ui.res.stringResource
 import marcinlowercase.a.ui.component.BackSquare
