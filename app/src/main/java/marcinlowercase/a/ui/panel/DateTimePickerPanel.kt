@@ -194,7 +194,7 @@ fun DateTimePickerPanel() {
                             title = null, // Removes "Select date"
                             modifier = Modifier
                                 .padding(top = settings.value.padding.dp)
-                                .padding(horizontal = settings.value.padding.dp)
+
                         )
                     } else {
                         // --- TIME PICKER ---
