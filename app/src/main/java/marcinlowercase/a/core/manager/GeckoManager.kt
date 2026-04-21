@@ -718,6 +718,10 @@ class GeckoManager(private val context: Context) {
                                     "color",
                                     formatArgbToCss(browserSettings.value.highlightColor.toHexString())
                                 )
+                                put(
+                                    "contrastColor",
+                                    formatArgbToCss(browserSettings.value.backgroundForHighlightText().toHexString())
+                                )
                                 put("isDesktop", browserSettings.value.isDesktopMode)
                                 // Send the LIVE width to JavaScript
                                 put("screenWidth", liveScreenWidthDp)
@@ -907,66 +911,7 @@ class GeckoManager(private val context: Context) {
             // EQUIVALENT TO onPageFinished
             override fun onPageStop(session: GeckoSession, success: Boolean) {
 
-//                Log.d("marcW", "highlightColor ${browserSettings.value.highlightColor.toHexString()}")
-//
-//                if (browserSettings.value.isEnabledOutSync && success) {
-//                    // inject js for design value
-////                    val js = """
-////                            javascript:void((function(){
-////                            document.documentElement.style.setProperty('--device-corner-radius', '${browserSettings.value.deviceCornerRadius}px');
-////                            document.documentElement.style.setProperty('--padding', '${browserSettings.value.padding}px');
-////                            document.documentElement.style.setProperty('--single-line-height', '${browserSettings.value.singleLineHeight}px');
-////                            document.documentElement.style.setProperty('--highlight-color', '${formatArgbToCss(browserSettings.value.highlightColor.toHexString())}');
-////                            window.deviceCornerRadius = ${browserSettings.value.deviceCornerRadius};
-////                            if (typeof window.render === 'function') window.render(${browserSettings.value.deviceCornerRadius});
-////
-////
-////                            console.log("Injection Success! Radius is " + window.deviceCornerRadius);
-////                            })());
-////                            """
-////                        .trimIndent()
-////                        .replace("\n", " ")
-////                    session.loadUri(js)
-//
-//                    val js = """
-//                            javascript:void((function(){
-//                                let scale = 1.0;
-//                                let isDesktop = ${browserSettings.value.isDesktopMode};
-//
-//                                if (isDesktop) {
-//
-//                                    let screenW = window.screen.width;
-//                                    if (!screenW || screenW >= 980) { screenW = 390; }
-//
-//                                    let viewportW = document.documentElement.clientWidth || window.innerWidth || 980;
-//
-//                                    if (viewportW > screenW) {
-//                                        scale = viewportW / screenW;
-//                                    }
-//                                }
-//
-//                                let scaledRadius = ${browserSettings.value.deviceCornerRadius} * scale;
-//                                let scaledPadding = ${browserSettings.value.padding} * scale;
-//                                let scaledLineHeight = ${browserSettings.value.singleLineHeight} * scale;
-//
-//                                document.documentElement.style.setProperty('--device-corner-radius', scaledRadius + 'px');
-//                                document.documentElement.style.setProperty('--padding', scaledPadding + 'px');
-//                                document.documentElement.style.setProperty('--single-line-height', scaledLineHeight + 'px');
-//                                document.documentElement.style.setProperty('--highlight-color', '${formatArgbToCss(browserSettings.value.highlightColor.toHexString())}');
-//
-//                                window.deviceCornerRadius = scaledRadius;
-//                                if (typeof window.render === 'function') window.render(scaledRadius);
-//
-//                                console.log("Injection Success! Scaled Radius is " + scaledRadius + "px (Scale: " + scale + ")");
-//                            })());
-//                            """
-//                        .trimIndent()
-//                        .replace("\n", " ")
-//                    session.loadUri(js)
-//                }
-
                 onPageStopFun(session, success)
-                //Log.d("GeckoView", "Page Finished. Success: $success")
 
             }
 
