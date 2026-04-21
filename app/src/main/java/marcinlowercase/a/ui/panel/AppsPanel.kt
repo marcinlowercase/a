@@ -77,6 +77,7 @@ import marcinlowercase.a.core.data_class.App
 import marcinlowercase.a.core.enum_class.RevealState
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import kotlin.math.ceil
+import kotlin.math.round
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -97,7 +98,7 @@ fun AppsPanel(
     val maxPanelHeight =
         (settings.value.heightForLayer(3).dp * settings.value.maxListHeight) +
                 (settings.value.padding.dp * 2) +
-                (if (ceil(settings.value.maxListHeight).toInt() > 1) settings.value.padding.dp else 0.dp)
+                (round(settings.value.maxListHeight).toInt() * settings.value.padding).dp
 
     val profiles = viewModel.profiles
     val realPageCount = profiles.size
