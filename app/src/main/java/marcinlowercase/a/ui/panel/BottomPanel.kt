@@ -225,18 +225,13 @@ fun BottomPanel(
 
         }
 
-        val isDragEnabled by remember {
-            androidx.compose.runtime.derivedStateOf {
-                val safeOffset = if (draggableState.offset.isNaN()) 0f else draggableState.offset
-                uiState.value.isUrlBarVisible &&
-                        !uiState.value.isFocusOnTextField &&
-                        viewModel.contextMenuData.value == null &&
-                        !uiState.value.isPromptPanelVisible &&
-                        !uiState.value.isPermissionPanelVisible &&
-                        !uiState.value.isEnteringLoginCode &&
-                        (uiState.value.isOptionsPanelVisible || uiState.value.isAppsPanelVisible || safeOffset > -10f)
-            }
-        }
+        // --- REMOVE the derivedStateOf and safeOffset hack ---
+        val isDragEnabled = uiState.value.isUrlBarVisible &&
+                !uiState.value.isFocusOnTextField &&
+                viewModel.contextMenuData.value == null &&
+                !uiState.value.isPromptPanelVisible &&
+                !uiState.value.isPermissionPanelVisible &&
+                !uiState.value.isEnteringLoginCode
 
         // Automatically clear the custom URL text box when the user finishes pinning or cancels
         LaunchedEffect(uiState.value.isPinningApp, uiState.value.isCloningBrowser) {
