@@ -19,6 +19,7 @@ package marcinlowercase.a.core.custom_class
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
+import android.util.Log
 import androidx.compose.runtime.MutableState
 import androidx.core.content.ContextCompat
 import marcinlowercase.a.R
@@ -44,17 +45,67 @@ class CustomPermissionDelegate(
     ): GeckoResult<Int?>? {
 
 
-
         if (perm.permission == GeckoSession.PermissionDelegate.PERMISSION_GEOLOCATION) {
+            val domain = perm.uri.toDomain()
+            Log.e("marcPerm", "domain : $domain")
+            val decision = siteSettings[domain]?.permissionDecisions?.get(generic_location_permission)
 
-            val decision = siteSettings[perm.uri.toDomain()]?.permissionDecisions?.get(generic_location_permission)
+            Log.e("marcPerm", "decision : $decision")
 
             if (decision == false) {
                 return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY)
-
+            } else if (decision == true) {
+                return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW)
             }
-            return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW)
+
+            // Create an asynchronous result to wait for the user's interaction
+            val result = GeckoResult<Int?>()
+            val permissionName = context.getString(R.string.desc_permission_location)
+
+            val customRequest = CustomPermissionRequest(
+                origin = perm.uri,
+                title = permissionName,
+                rationale = "This site wants to use your device's location.",
+                iconResAllow = R.drawable.ic_location_on,
+                iconResDeny = R.drawable.ic_location_off,
+                permissionsToRequest = listOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                ),
+                onResult = { permissionsMap, pendingRequest ->
+
+                    // The user clicked Allow/Deny and Android system permission (if needed) was handled.
+                    // The MainActivity automatically updates the ViewModel based on this map.
+                    val isGranted = permissionsMap[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+                            permissionsMap[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+
+                    if (isGranted) {
+                        result.complete(GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW)
+                    } else {
+                        result.complete(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY)
+                    }
+
+                    pendingRequest.value = null
+                },
+                isSystemRequest = false
+            )
+
+            // Trigger the Compose panel to slide up
+            onShowRequest(customRequest)
+            return result
         }
+//        if (perm.permission == GeckoSession.PermissionDelegate.PERMISSION_GEOLOCATION) {
+//
+//            Log.e("marcPerm", "domain : ${perm.uri.toDomain()}")
+//            val decision = siteSettings[perm.uri.toDomain()]?.permissionDecisions?.get(generic_location_permission)
+//
+//            Log.e("marcPerm", "decision : $decision")
+//
+//            if (decision == false) {
+//                return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY)
+//            }
+//            return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW)
+//        }
 
         if (perm.permission == GeckoSession.PermissionDelegate.PERMISSION_DESKTOP_NOTIFICATION) {
             val domain = perm.uri.toDomain()
@@ -234,8 +285,10 @@ class CustomPermissionDelegate(
                 "android.permission.ACCESS_COARSE_LOCATION"
             )
         ) {
+
 //            checkSavedSiteSettings("android.permission.CAMERA")
             decision = siteSettings[domain]?.permissionDecisions?.get(generic_location_permission)
+            Log.i("marcPerm", "location decision: ${decision}")
 
 
             // Show the UI that will eventually trigger the system permission launcher
@@ -272,6 +325,7 @@ class CustomPermissionDelegate(
 
 
         if (decision == true && allGranted) { // && is granted android already
+            Log.i("marcPerm", "onAndroidPermissionsRequest: granted")
             callback.grant()
             return
         }
@@ -293,6 +347,7 @@ class CustomPermissionDelegate(
                 if (permissionsMap.any { it.value }) {
                     // Tell GeckoView the app permission was granted.
                     callback.grant()
+                    Log.i("marcPerm", "onAndroidPermissionsRequest: granted")
 
                 } else {
                     // Tell GeckoView the app permission was denied.
