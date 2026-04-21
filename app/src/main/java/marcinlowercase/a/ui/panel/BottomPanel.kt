@@ -75,6 +75,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -223,6 +224,20 @@ fun BottomPanel(
             }
 
         }
+
+        val isDragEnabled by remember {
+            androidx.compose.runtime.derivedStateOf {
+                val safeOffset = if (draggableState.offset.isNaN()) 0f else draggableState.offset
+                uiState.value.isUrlBarVisible &&
+                        !uiState.value.isFocusOnTextField &&
+                        viewModel.contextMenuData.value == null &&
+                        !uiState.value.isPromptPanelVisible &&
+                        !uiState.value.isPermissionPanelVisible &&
+                        !uiState.value.isEnteringLoginCode &&
+                        (uiState.value.isOptionsPanelVisible || uiState.value.isAppsPanelVisible || safeOffset > -10f)
+            }
+        }
+
         // Automatically clear the custom URL text box when the user finishes pinning or cancels
         LaunchedEffect(uiState.value.isPinningApp, uiState.value.isCloningBrowser) {
             if (!uiState.value.isPinningApp && !uiState.value.isCloningBrowser) {
@@ -254,8 +269,8 @@ fun BottomPanel(
                         state = draggableState,
                         orientation = Orientation.Vertical,
                         flingBehavior = flingBehavior,
-//                                            enabled = !isFocusOnTextField && contextMenuData == null && !isPromptPanelVisible  && (!isPermissionPanelVisible || (isPermissionPanelVisible &&  isUrlBarVisible) )
-                        enabled = uiState.value.isUrlBarVisible && (!uiState.value.isFocusOnTextField && viewModel.contextMenuData.value == null && !uiState.value.isPromptPanelVisible && !uiState.value.isPermissionPanelVisible && !uiState.value.isEnteringLoginCode)
+//                        enabled = uiState.value.isUrlBarVisible && (!uiState.value.isFocusOnTextField && viewModel.contextMenuData.value == null && !uiState.value.isPromptPanelVisible && !uiState.value.isPermissionPanelVisible && !uiState.value.isEnteringLoginCode)
+                        enabled = isDragEnabled
                     )
 
             ) {
@@ -759,23 +774,23 @@ fun BottomPanel(
                                         viewModel.updateUI { it.copy(isFocusOnUrlTextField = focusState.isFocused) }
 
                                         if (focusState.isFocused) {
-
                                             if (!(uiState.value.isPinningApp || uiState.value.isCloningBrowser)) {
-                                                viewModel.updateUI {
-                                                    it.copy(
-                                                        savedPanelState = PanelVisibilityState(
-                                                            options = uiState.value.isOptionsPanelVisible,
-                                                            apps = uiState.value.isAppsPanelVisible,
-                                                            tabs = uiState.value.isTabsPanelVisible,
-                                                            downloads = uiState.value.isDownloadPanelVisible,
-                                                            tabData = isTabDataPanelVisible,
-                                                            nav = uiState.value.isNavPanelVisible
-                                                        )
-                                                    )
-                                                }
+                                                viewModel.updateUI { state ->
+                                                    // STRICT EVALUATION: If an exclusive panel is active, Options CANNOT be saved as visible!
+                                                    val isAnyExclusivePanelOpen = state.isFindInPageVisible || state.isDownloadPanelVisible || state.isSettingsPanelVisible || state.isSyncPanelVisible || state.isTabDataPanelVisible
 
-                                                viewModel.updateUI {
-                                                    it.copy(
+                                                    val realOptionsVisible = state.isOptionsPanelVisible && !isAnyExclusivePanelOpen
+                                                    val realAppsVisible = state.isAppsPanelVisible && !isAnyExclusivePanelOpen
+
+                                                    state.copy(
+                                                        savedPanelState = PanelVisibilityState(
+                                                            options = realOptionsVisible,
+                                                            apps = realAppsVisible,
+                                                            tabs = state.isTabsPanelVisible,
+                                                            downloads = state.isDownloadPanelVisible,
+                                                            tabData = state.isTabDataPanelVisible,
+                                                            nav = state.isNavPanelVisible
+                                                        ),
                                                         isOptionsPanelVisible = false,
                                                         isTabsPanelVisible = false,
                                                         isDownloadPanelVisible = false,

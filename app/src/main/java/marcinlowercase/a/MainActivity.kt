@@ -996,6 +996,11 @@ fun BrowserScreen(
         val isAppsVisible = draggableState.settledValue == RevealState.Expanded
 
         if (uiState.value.isOptionsPanelVisible != isOptionsVisible || uiState.value.isAppsPanelVisible != isAppsVisible) {
+
+            if ((isOptionsVisible || isAppsVisible) && uiState.value.isFocusOnUrlTextField) {
+                return@LaunchedEffect
+            }
+
             viewModel.updateUI {
                 it.copy(
                     isOptionsPanelVisible = isOptionsVisible,
@@ -1056,45 +1061,18 @@ fun BrowserScreen(
         squareAlpha.animateTo(idle, animationSpec = tween(400))
 
     }
-
-
-//    val setIsOptionsPanelVisible = { setToVisible: Boolean ->
-//
-//        coroutineScope.launch {
-//            if (setToVisible) {
-//                draggableState.animateTo(
-//                    targetValue = RevealState.Visible,
-//                    animationSpec = tween(
-//                        durationMillis = settings.animationSpeedForLayer(1),
-//                    )
-//                )
-//            } else {
-//                draggableState.animateTo(
-//                    targetValue = RevealState.Hidden,
-//                    animationSpec = tween(
-//                        durationMillis = settings.animationSpeedForLayer(1),
-//                    )
-//                )
-//            }
-//            delay((settings.animationSpeedForLayer(1) * 2).toLong())
-//
-//        }
-//
-//    }
-//    LaunchedEffect(uiState.value.isOptionsPanelVisible) {
-//        setIsOptionsPanelVisible(uiState.value.isOptionsPanelVisible)
-//    }
 // This effect acts as the "Engine" that moves the panel whenever the ViewModel state changes programmatically
     // (e.g., clicking a button to open Apps Panel, or URL bar forcing the panel to close).
-    LaunchedEffect(uiState.value.isOptionsPanelVisible, uiState.value.isAppsPanelVisible) {
+    LaunchedEffect(uiState.value.isOptionsPanelVisible, uiState.value.isAppsPanelVisible, uiState.value.isFocusOnUrlTextField) {
         val targetState = when {
+            uiState.value.isFocusOnUrlTextField -> RevealState.Hidden
             uiState.value.isAppsPanelVisible -> RevealState.Expanded
             uiState.value.isOptionsPanelVisible -> RevealState.Visible
             else -> RevealState.Hidden
         }
 
         // Only animate if the panel is not already at the target destination
-        if (draggableState.currentValue != targetState) {
+        if (draggableState.currentValue != targetState || draggableState.targetValue != targetState) {
             coroutineScope.launch {
                 draggableState.animateTo(
                     targetValue = targetState,
