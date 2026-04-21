@@ -43,6 +43,7 @@ import marcinlowercase.a.R
 import marcinlowercase.a.ui.component.CustomIconButton
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import androidx.compose.runtime.collectAsState
+import marcinlowercase.a.ui.component.ScaleToFit
 import org.mozilla.geckoview.GeckoSession.PromptDelegate.DateTimePrompt
 import java.time.Instant
 import java.time.LocalDate
@@ -171,6 +172,7 @@ fun DateTimePickerPanel() {
                             }
                         }
 
+                        ScaleToFit(modifier = Modifier.fillMaxWidth()) {
                         DatePicker(
                             state = datePickerState,
                             colors = DatePickerDefaults.colors(
@@ -195,7 +197,7 @@ fun DateTimePickerPanel() {
                             modifier = Modifier
                                 .padding(top = settings.value.padding.dp)
 
-                        )
+                        )}
                     } else {
                         // --- TIME PICKER ---
                         val timePickerState = rememberTimePickerState(
