@@ -2289,6 +2289,7 @@ fun BrowserScreen(
                         isTabsPanelVisible = false,
                         isDownloadPanelVisible = false,
                         isSyncPanelVisible = false,
+                        isNavPanelVisible = false,
                         savedPanelState = null
                     )
                 }

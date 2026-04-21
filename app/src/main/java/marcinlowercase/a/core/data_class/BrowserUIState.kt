@@ -21,10 +21,7 @@ data class BrowserUIState(
     val isUrlBarVisible: Boolean = true,
     val isUrlOverlayBoxVisible: Boolean = true,
     val isBottomPanelVisible: Boolean = true,
-
     val isOtherPanelVisible: Boolean = false,
-
-
 
     // Specific Panels
     val isAppsPanelVisible: Boolean = false,
@@ -36,6 +33,7 @@ data class BrowserUIState(
     val isPromptPanelVisible: Boolean = false,
     val isOptionsPanelVisible: Boolean = false,
     val isSyncPanelVisible: Boolean = false,
+
 
     // Tabs
     val isTabsPanelVisible: Boolean = false,
@@ -89,4 +87,9 @@ data class BrowserUIState(
     // State Restoration (used when focusing URL bar)
     val savedPanelState: PanelVisibilityState? = null,
 
-    )
+    ) {
+    fun isIndependentPanelVisible(): Boolean {
+        return isFindInPageVisible || isPermissionPanelVisible || isPromptPanelVisible
+    }
+
+}

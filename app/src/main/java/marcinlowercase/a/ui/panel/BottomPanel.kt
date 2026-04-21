@@ -543,12 +543,23 @@ fun BottomPanel(
 
                         },
                     visible = uiState.value.isUrlBarVisible && !viewModel.isStandaloneMode.value,
-                    enter = fadeIn(
-                        tween(
-                            settings.value.animationSpeedForLayer(1)
+                    enter =
+                        if (uiState.value.isIndependentPanelVisible())
+                            expandVertically(tween(settings.value.animationSpeedForLayer(1)))
+                                    + fadeIn(
+                                tween(settings.value.animationSpeedForLayer(1))
+                            )
+                        else
+                            fadeIn(
+                                tween(
+                                    settings.value.animationSpeedForLayer(1)
+                                )
+                            ),
+                    exit = if (uiState.value.isIndependentPanelVisible())
+                        shrinkVertically(tween(settings.value.animationSpeedForLayer(1))) + fadeOut(
+                            tween(settings.value.animationSpeedForLayer(1))
                         )
-                    ),
-                    exit = fadeOut(
+                    else fadeOut(
                         tween(
                             settings.value.animationSpeedForLayer(1)
                         )
@@ -876,6 +887,7 @@ fun BottomPanel(
                                                 || uiState.value.isPinningApp
                                                 || uiState.value.isCloningBrowser
                                             -> androidx.compose.ui.text.input.KeyboardType.Text
+
                                         else -> androidx.compose.ui.text.input.KeyboardType.Uri
                                     },
                                     imeAction = when {
@@ -884,7 +896,8 @@ fun BottomPanel(
                                                 || uiState.value.isEnteringLoginCode
                                                 || uiState.value.isPinningApp
                                                 || uiState.value.isCloningBrowser
-                                                    -> ImeAction.Done
+                                            -> ImeAction.Done
+
                                         else -> ImeAction.Go
                                     }
                                 ),
@@ -925,6 +938,7 @@ fun BottomPanel(
                                                 )
                                                 viewModel.updateUI { it.copy(isCloningBrowser = false) }
                                             }
+
                                             uiState.value.isRenamingProfile -> {
 
                                             }
