@@ -310,7 +310,9 @@ class MainActivity : ComponentActivity() {
                 android.graphics.Color.TRANSPARENT,
             )
         )
-        window.isNavigationBarContrastEnforced = false
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+        }
 
 
         super.onCreate(savedInstanceState)
@@ -1179,6 +1181,8 @@ fun BrowserScreen(
             }
         )
     }
+    var pendingBlobAction by remember { mutableStateOf<((Boolean) -> Unit)?>(null) }
+
     val storagePermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -1189,108 +1193,131 @@ fun BrowserScreen(
         } else {
             Toast.makeText(context, "Storage permission denied", Toast.LENGTH_LONG).show()
         }
-        // not use but still need to keep here to reset the pending download
+
+        // Execute the pending blob action (if any) and clear it
+        pendingBlobAction?.invoke(isGranted)
+        pendingBlobAction = null
+
         viewModel.pendingDownload = null
     }
     val startDownload =
         { url: String, userAgent: String, contentDisposition: String?, mimeType: String?, stream: java.io.InputStream? ->
             if (url.startsWith("blob:") || url.startsWith("data:")) {
                 if (stream != null) {
-                    coroutineScope.launch(Dispatchers.IO) {
-                        try {
-                            // 1. Let Android automatically extract the name AND append the correct extension!
-                            var fileName = android.webkit.URLUtil.guessFileName(
-                                url,
-                                contentDisposition,
-                                mimeType
-                            )
+                    // 1. Guess the file name
+                    var fileName = android.webkit.URLUtil.guessFileName(url, contentDisposition, mimeType)
+                    if (fileName.startsWith("downloadfile")) {
+                        val ext = android.webkit.MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType) ?: "bin"
+                        fileName = "download_${System.currentTimeMillis()}.$ext"
+                    }
 
-                            // 2. If it couldn't find a name and defaulted to "downloadfile.bin", make it unique
-                            if (fileName.startsWith("downloadfile")) {
-                                val ext = android.webkit.MimeTypeMap.getSingleton()
-                                    .getExtensionFromMimeType(mimeType) ?: "bin"
-                                fileName = "download_${System.currentTimeMillis()}.$ext"
-                            }
-
-                            // 3. Write directly to the Downloads folder
+                    // 2. Wrap the core writing logic in a lambda
+                    val performBlobWrite = {
+                        coroutineScope.launch(Dispatchers.IO) {
                             var fileSize = 0L
-                            val resolver = context.contentResolver
-                            val contentValues = android.content.ContentValues().apply {
-                                put(MediaStore.Downloads.DISPLAY_NAME, fileName)
-                                put(
-                                    MediaStore.Downloads.MIME_TYPE,
-                                    mimeType ?: "application/octet-stream"
-                                )
-                                put(
-                                    MediaStore.Downloads.RELATIVE_PATH,
-                                    Environment.DIRECTORY_DOWNLOADS
-                                )
-                            }
-                            val uri = resolver.insert(
-                                MediaStore.Downloads.EXTERNAL_CONTENT_URI,
-                                contentValues
-                            )
-                            if (uri != null) {
-                                resolver.openOutputStream(uri)?.use { output ->
-                                    stream.use { input -> fileSize = input.copyTo(output) }
-                                }
-                            }
-
-                            // 4. Finished! Now update the ViewModel and pull up the Download Panel
-                            withContext(Dispatchers.Main) {
-                                val downloadId = System.currentTimeMillis()
-                                val completedItem = DownloadItem(
-                                    id = downloadId,
-                                    url = url,
-                                    filename = fileName,
-                                    mimeType = mimeType ?: "application/octet-stream",
-                                    status = DownloadStatus.SUCCESSFUL,
-                                    progress = 100,
-                                    totalBytes = fileSize,
-                                    downloadedBytes = fileSize,
-                                    isBlobDownload = true
-                                )
-
-                                // Add to list and persist
-                                viewModel.downloads.add(0, completedItem)
-                                viewModel.downloadTracker.saveDownloads(viewModel.downloads)
-
-                                // Open the Download Panel
-                                viewModel.updateUI {
-                                    it.copy(
-                                        isUrlBarVisible = true,
-                                        isDownloadPanelVisible = true,
-                                        isSyncPanelVisible = false,
-                                        isTabsPanelVisible = false,
-                                        isTabsPanelLock = false,
-                                        isSettingsPanelVisible = false,
-                                        isAppsPanelVisible = false,
-                                        isFindInPageVisible = false,
-                                        isNavPanelVisible = false,
-                                        savedPanelState = null
-                                    )
-                                }
-                            }
-                        } catch (_: Exception) {
-                            withContext(Dispatchers.Main) {
-                                Toast.makeText(context, "Blob download failed", Toast.LENGTH_SHORT)
-                                    .show()
-                            }
-                        } finally {
                             try {
-                                stream.close()
-                            } catch (_: Exception) {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                    val resolver = context.contentResolver
+                                    val contentValues = android.content.ContentValues().apply {
+                                        put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+                                        put(MediaStore.Downloads.MIME_TYPE, mimeType ?: "application/octet-stream")
+                                        put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                                    }
+                                    val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+                                    if (uri != null) {
+                                        resolver.openOutputStream(uri)?.use { output ->
+                                            stream.use { input -> fileSize = input.copyTo(output) }
+                                        }
+                                    }
+                                } else {
+                                    val targetDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                                    if (!targetDir.exists()) targetDir.mkdirs()
+
+                                    val file = File(targetDir, fileName)
+                                    FileOutputStream(file).use { output ->
+                                        stream.use { input -> fileSize = input.copyTo(output) }
+                                    }
+
+                                    android.media.MediaScannerConnection.scanFile(context, arrayOf(file.absolutePath), arrayOf(mimeType), null)
+                                }
+
+                                // 3. Update UI on success
+                                withContext(Dispatchers.Main) {
+                                    val downloadId = System.currentTimeMillis()
+                                    val completedItem = DownloadItem(
+                                        id = downloadId,
+                                        url = url,
+                                        filename = fileName,
+                                        mimeType = mimeType ?: "application/octet-stream",
+                                        status = DownloadStatus.SUCCESSFUL,
+                                        progress = 100,
+                                        totalBytes = fileSize,
+                                        downloadedBytes = fileSize,
+                                        isBlobDownload = true
+                                    )
+
+                                    viewModel.downloads.add(0, completedItem)
+                                    viewModel.downloadTracker.saveDownloads(viewModel.downloads)
+
+                                    viewModel.updateUI {
+                                        it.copy(
+                                            isUrlBarVisible = true,
+                                            isDownloadPanelVisible = true,
+                                            isSyncPanelVisible = false,
+                                            isTabsPanelVisible = false,
+                                            isTabsPanelLock = false,
+                                            isSettingsPanelVisible = false,
+                                            isAppsPanelVisible = false,
+                                            isFindInPageVisible = false,
+                                            isNavPanelVisible = false,
+                                            savedPanelState = null
+                                        )
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(context, "Blob download failed", Toast.LENGTH_SHORT).show()
+                                }
+                            } finally {
+                                // Important: Only close the stream AFTER writing finishes
+                                try { stream.close() } catch (_: Exception) {}
                             }
                         }
                     }
+
+                    // 4. Check permissions and run
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                        val hasPermission = ContextCompat.checkSelfPermission(
+                            context, Manifest.permission.WRITE_EXTERNAL_STORAGE
+                        ) == PackageManager.PERMISSION_GRANTED
+
+                        if (!hasPermission) {
+                            // Delay the execution until permission is granted
+                            pendingBlobAction = { isGranted ->
+                                if (isGranted) {
+                                    performBlobWrite()
+                                } else {
+                                    // If user denied permission, discard and close the stream safely
+                                    try { stream.close() } catch (_: Exception) {}
+                                }
+                            }
+                            storagePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                        } else {
+                            performBlobWrite()
+                        }
+                    } else {
+                        performBlobWrite()
+                    }
+
                 } else {
-                    Toast.makeText(context, "Error: Data stream is empty", Toast.LENGTH_SHORT)
-                        .show()
+                    Toast.makeText(context, "Error: Data stream is empty", Toast.LENGTH_SHORT).show()
                 }
             } else {
-                // Standard HTTP/HTTPS download using Android's DownloadManager
+                // Standard HTTP/HTTPS download
                 val params = DownloadParams(url, userAgent, contentDisposition, mimeType)
-                val needsPermission = false
+
+                val needsPermission = Build.VERSION.SDK_INT <= Build.VERSION_CODES.P
                 val hasPermission = ContextCompat.checkSelfPermission(
                     context, Manifest.permission.WRITE_EXTERNAL_STORAGE
                 ) == PackageManager.PERMISSION_GRANTED
@@ -1349,8 +1376,11 @@ fun BrowserScreen(
                 addCategory(Intent.CATEGORY_OPENABLE)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
-                setDataAndType(MediaStore.Downloads.EXTERNAL_CONTENT_URI, "*/*")
-            }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    setDataAndType(MediaStore.Downloads.EXTERNAL_CONTENT_URI, "*/*")
+                } else {
+                    type = "*/*"
+                }            }
             try {
                 context.startActivity(genericFileManagerIntent)
             } catch (_: ActivityNotFoundException) {
