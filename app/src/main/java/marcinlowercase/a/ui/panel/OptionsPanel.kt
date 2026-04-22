@@ -940,8 +940,8 @@ fun SettingsPanel(
 
                     SettingPanelView.MAX_LIST_HEIGHT -> SliderSetting(
                         onBackClick = { currentView = SettingPanelView.MAIN },
-                        valueRange = 0f..10f,
-                        steps = 99,
+                        valueRange = 0f..5f,
+                        steps = 49,
                         textFieldValueFun = { src -> src.take(2) + "." + src.substring(2, 4) },
                         iconID = R.drawable.ic_max_list_height,
                         digitCount = 4,
