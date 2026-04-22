@@ -173,6 +173,7 @@ import androidx.compose.ui.res.stringResource
 import marcinlowercase.a.ui.component.BackSquare
 import marcinlowercase.a.ui.component.CursorPointer
 import org.mozilla.geckoview.GeckoRuntime
+import kotlin.math.ceil
 import kotlin.math.round
 
 
@@ -933,9 +934,13 @@ fun BrowserScreen(
 //region OptionsPanel Drag State
     val optionsPanelHeight = (settings.heightForLayer(2) + settings.padding).dp
 
+    val fullyDisplayRow = round(settings.maxListHeight)
+    val numberOfPaddings =fullyDisplayRow + if (ceil(settings.maxListHeight) > settings.maxListHeight) + 2
+        else + 1
     val appsPanelHeight =
-        (settings.heightForLayer(3).dp * settings.maxListHeight) + (settings.padding.dp * 2) +
-                (round(settings.maxListHeight).toInt() * settings.padding).dp
+        (
+                (settings.heightForLayer(3) * settings.maxListHeight) + settings.padding * numberOfPaddings
+                ).dp
 
     val totalRevealHeight = optionsPanelHeight + settings.padding.dp + appsPanelHeight
     viewModel.updateUI {
