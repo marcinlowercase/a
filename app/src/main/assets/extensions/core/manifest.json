@@ -18,7 +18,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js":["theme_injector.js"],
+      "js":["theme_injector.js", "save_file.js"],
       "run_at": "document_start",
       "all_frames": true
     },

@@ -71,6 +71,7 @@
       document.documentElement.style.setProperty('--single-line-height', scaledLineHeight + 'px');
       document.documentElement.style.setProperty('--highlight-color', response.color);
       document.documentElement.style.setProperty('--highlight-contrast-color', response.contrastColor);
+      document.documentElement.style.setProperty('--animation-speed', response.animationSpeed);
 
       window.deviceCornerRadius = scaledRadius;
       if (typeof window.render === 'function') window.render(scaledRadius);

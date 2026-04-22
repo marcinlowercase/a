@@ -53,6 +53,7 @@ import marcinlowercase.a.core.data_class.SiteSettings
 import marcinlowercase.a.core.data_class.Tab
 import marcinlowercase.a.core.enum_class.ContextMenuType
 import marcinlowercase.a.core.function.formatArgbToCss
+import marcinlowercase.a.core.function.saveBase64ToStorage
 import marcinlowercase.a.core.function.toDomain
 import marcinlowercase.a.core.service.MediaPlaybackService
 import org.json.JSONObject
@@ -725,10 +726,43 @@ class GeckoManager(private val context: Context) {
                                 put("isDesktop", browserSettings.value.isDesktopMode)
                                 // Send the LIVE width to JavaScript
                                 put("screenWidth", liveScreenWidthDp)
+                                put("animationSpeed", browserSettings.value.animationSpeed.toInt())
                             }
 
                             val responseString = responseObj.toString()
                             return GeckoResult.fromValue(responseString)
+                        } else if (type == "saveFile") {
+                            val filename = (when (message) {
+                                is JSONObject -> message.optString("filename")
+                                is Map<*, *> -> message["filename"] as? String
+                                else -> null
+                            } ?: "download").replace("/", "_") // Prevent path traversal
+
+                            // Ensure base64Data is strictly a non-null String by adding ?: "" to the Map cast
+                            val base64Data = when (message) {
+                                is JSONObject -> message.optString("base64Data")
+                                is Map<*, *> -> message["base64Data"] as? String ?: ""
+                                else -> ""
+                            }
+
+                            val mimeType = when (message) {
+                                is JSONObject -> message.optString("mimeType")
+                                is Map<*, *> -> message["mimeType"] as? String ?: "application/octet-stream"
+                                else -> "application/octet-stream"
+                            }
+
+                            val folder = when (message) {
+                                is JSONObject -> message.optString("folder")
+                                is Map<*, *> -> message["folder"] as? String ?: "DOWNLOADS"
+                                else -> "DOWNLOADS"
+                            }
+
+                            return if (base64Data.isNotEmpty()) {
+                                val success = saveBase64ToStorage(context, filename, base64Data, mimeType, folder)
+                                GeckoResult.fromValue(if (success) "SUCCESS" else "ERROR_SAVING")
+                            } else {
+                                GeckoResult.fromValue("ERROR_EMPTY_DATA")
+                            }
                         }
 
                     } catch (e: Exception) {
