@@ -11,10 +11,10 @@ android {
 
     ndkVersion = "29.0.14206865"
     defaultConfig {
-        minSdk = 26 // android 10
+        minSdk = 26 // android 8
         targetSdk = 36
-        versionCode = 45
-        versionName = "0.17.2"
+        versionCode = 46
+        versionName = "0.18.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
