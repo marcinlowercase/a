@@ -691,77 +691,81 @@ class GeckoManager(private val context: Context) {
                             else -> null
                         }
 
-                        if (type == "favicon") {
-                            val iconUrl = when (message) {
-                                is JSONObject -> message.optString("url")
-                                is Map<*, *> -> message["url"] as? String
-                                else -> ""
+                        when (type) {
+                            "favicon" -> {
+                                val iconUrl = when (message) {
+                                    is JSONObject -> message.optString("url")
+                                    is Map<*, *> -> message["url"] as? String
+                                    else -> ""
+                                }
+                                if (!iconUrl.isNullOrEmpty()) {
+                                    onFaviconChanged(eventTabId, iconUrl)
+                                }
+                                // BYPASS BUG: Return a simple primitive String
+                                return GeckoResult.fromValue("OK")
                             }
-                            if (!iconUrl.isNullOrEmpty()) {
-                                onFaviconChanged(eventTabId, iconUrl)
+                            "getSettings" -> {
+                                // BYPASS THE STALE CONTEXT:
+                                // Get the absolute LIVE screen dimensions from the Android System
+                                val displayMetrics =
+                                    android.content.res.Resources.getSystem().displayMetrics
+                                val liveScreenWidthDp =
+                                    displayMetrics.widthPixels / displayMetrics.density.toDouble()
+
+                                val responseObj = JSONObject().apply {
+                                    put("enabled", browserSettings.value.isEnabledOutSync)
+                                    put("radius", browserSettings.value.deviceCornerRadius.toDouble())
+                                    put("padding", browserSettings.value.padding.toDouble())
+                                    put("lineHeight", browserSettings.value.singleLineHeight.toDouble())
+                                    put(
+                                        "color",
+                                        formatArgbToCss(browserSettings.value.highlightColor.toHexString())
+                                    )
+                                    put(
+                                        "contrastColor",
+                                        formatArgbToCss(browserSettings.value.backgroundForHighlightText().toHexString())
+                                    )
+                                    put("isDesktop", browserSettings.value.isDesktopMode)
+                                    // Send the LIVE width to JavaScript
+                                    put("screenWidth", liveScreenWidthDp)
+                                    put("animationSpeed", browserSettings.value.animationSpeed.toInt())
+                                }
+
+                                val responseString = responseObj.toString()
+                                return GeckoResult.fromValue(responseString)
                             }
-                            // BYPASS BUG: Return a simple primitive String
-                            return GeckoResult.fromValue("OK")
-                        } else if (type == "getSettings") {
-                            // BYPASS THE STALE CONTEXT:
-                            // Get the absolute LIVE screen dimensions from the Android System
-                            val displayMetrics =
-                                android.content.res.Resources.getSystem().displayMetrics
-                            val liveScreenWidthDp =
-                                displayMetrics.widthPixels / displayMetrics.density.toDouble()
+                            "saveFile" -> {
+                                val filename = (when (message) {
+                                    is JSONObject -> message.optString("filename")
+                                    is Map<*, *> -> message["filename"] as? String
+                                    else -> null
+                                } ?: "download").replace("/", "_") // Prevent path traversal
 
-                            val responseObj = JSONObject().apply {
-                                put("enabled", browserSettings.value.isEnabledOutSync)
-                                put("radius", browserSettings.value.deviceCornerRadius.toDouble())
-                                put("padding", browserSettings.value.padding.toDouble())
-                                put("lineHeight", browserSettings.value.singleLineHeight.toDouble())
-                                put(
-                                    "color",
-                                    formatArgbToCss(browserSettings.value.highlightColor.toHexString())
-                                )
-                                put(
-                                    "contrastColor",
-                                    formatArgbToCss(browserSettings.value.backgroundForHighlightText().toHexString())
-                                )
-                                put("isDesktop", browserSettings.value.isDesktopMode)
-                                // Send the LIVE width to JavaScript
-                                put("screenWidth", liveScreenWidthDp)
-                                put("animationSpeed", browserSettings.value.animationSpeed.toInt())
-                            }
+                                // Ensure base64Data is strictly a non-null String by adding ?: "" to the Map cast
+                                val base64Data = when (message) {
+                                    is JSONObject -> message.optString("base64Data")
+                                    is Map<*, *> -> message["base64Data"] as? String ?: ""
+                                    else -> ""
+                                }
 
-                            val responseString = responseObj.toString()
-                            return GeckoResult.fromValue(responseString)
-                        } else if (type == "saveFile") {
-                            val filename = (when (message) {
-                                is JSONObject -> message.optString("filename")
-                                is Map<*, *> -> message["filename"] as? String
-                                else -> null
-                            } ?: "download").replace("/", "_") // Prevent path traversal
+                                val mimeType = when (message) {
+                                    is JSONObject -> message.optString("mimeType")
+                                    is Map<*, *> -> message["mimeType"] as? String ?: "application/octet-stream"
+                                    else -> "application/octet-stream"
+                                }
 
-                            // Ensure base64Data is strictly a non-null String by adding ?: "" to the Map cast
-                            val base64Data = when (message) {
-                                is JSONObject -> message.optString("base64Data")
-                                is Map<*, *> -> message["base64Data"] as? String ?: ""
-                                else -> ""
-                            }
+                                val folder = when (message) {
+                                    is JSONObject -> message.optString("folder")
+                                    is Map<*, *> -> message["folder"] as? String ?: "DOWNLOADS"
+                                    else -> "DOWNLOADS"
+                                }
 
-                            val mimeType = when (message) {
-                                is JSONObject -> message.optString("mimeType")
-                                is Map<*, *> -> message["mimeType"] as? String ?: "application/octet-stream"
-                                else -> "application/octet-stream"
-                            }
-
-                            val folder = when (message) {
-                                is JSONObject -> message.optString("folder")
-                                is Map<*, *> -> message["folder"] as? String ?: "DOWNLOADS"
-                                else -> "DOWNLOADS"
-                            }
-
-                            return if (base64Data.isNotEmpty()) {
-                                val success = saveBase64ToStorage(context, filename, base64Data, mimeType, folder)
-                                GeckoResult.fromValue(if (success) "SUCCESS" else "ERROR_SAVING")
-                            } else {
-                                GeckoResult.fromValue("ERROR_EMPTY_DATA")
+                                return if (base64Data.isNotEmpty()) {
+                                    val success = saveBase64ToStorage(context, filename, base64Data, mimeType, folder)
+                                    GeckoResult.fromValue(if (success) "SUCCESS" else "ERROR_SAVING")
+                                } else {
+                                    GeckoResult.fromValue("ERROR_EMPTY_DATA")
+                                }
                             }
                         }
 
