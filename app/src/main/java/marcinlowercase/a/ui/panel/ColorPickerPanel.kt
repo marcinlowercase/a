@@ -32,6 +32,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.runtime.Composable
@@ -111,7 +112,7 @@ fun ColorPickerPanel() {
             .padding(settings.value.padding.dp)
             .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp))
 
-            .background(Color.Black)
+            .background(MaterialTheme.colorScheme.surfaceContainer)
 
 
     ) {
@@ -128,7 +129,7 @@ fun ColorPickerPanel() {
                     .background(Color(selectedColorInt)),
                 contentAlignment = Alignment.Center
             ) {
-                val textColor = if (isColorDark(selectedColorInt)) Color.White else Color.Black
+                val textColor = if (isColorDark(selectedColorInt)) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.surfaceContainer
 
                 BasicTextField(
                     value = hexText,
@@ -200,7 +201,7 @@ fun ColorPickerPanel() {
                             value = hue,
                             onValueChange = { hue = it },
                             valueRange = 0f..360f,
-                            colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = Color.Transparent, inactiveTrackColor = Color.Transparent)
+                            colors = SliderDefaults.colors(thumbColor = MaterialTheme.colorScheme.onSurface, activeTrackColor = Color.Transparent, inactiveTrackColor = Color.Transparent)
                         )
                     }
 
@@ -209,7 +210,7 @@ fun ColorPickerPanel() {
                         onValueChange = { saturation = it },
                         valueRange = 0f..1f,
                         colors = SliderDefaults.colors(
-                            thumbColor = Color.White,
+                            thumbColor = MaterialTheme.colorScheme.onSurface,
                             activeTrackColor = Color(selectedColorInt).copy(alpha = 1f)
                         )
                     )
@@ -219,8 +220,8 @@ fun ColorPickerPanel() {
                         onValueChange = { value = it },
                         valueRange = 0f..1f,
                         colors = SliderDefaults.colors(
-                            thumbColor = Color.White,
-                            activeTrackColor = Color.White.copy(alpha = value)
+                            thumbColor = MaterialTheme.colorScheme.onSurface,
+                            activeTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = value)
                         )
                     )
                 }

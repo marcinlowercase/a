@@ -40,6 +40,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
@@ -447,13 +448,13 @@ fun CursorPad(
                             settings.value.cornerRadiusForLayer(1).dp
                         )
                     )
-                    .background(Color.Black.copy(alpha = 0.4f)),
+                    .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.4f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     painter = painterResource(R.drawable.ic_trackpad_input),
                     contentDescription = "Back",
-                    tint = Color.White
+                    tint = MaterialTheme.colorScheme.onSurface
                 )
             }
         }

@@ -39,6 +39,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
@@ -117,7 +118,7 @@ fun PromptPanel(
                         )
                     )
                     .background(
-                        Color.Black
+                        MaterialTheme.colorScheme.surfaceContainer
                     ),
 
                 verticalAlignment = Alignment.CenterVertically // Keeps text aligned nicely
@@ -125,7 +126,7 @@ fun PromptPanel(
                 // "from" Text - Fixed Size
                 Text(
                     text = "${stringResource(R.string.word_from)} ", // Added a space for better readability
-                    color = Color.White.copy(alpha = 0.7f), // Subtly de-emphasize
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f), // Subtly de-emphasize
                     maxLines = 1, // Ensure it doesn't wrap
                 )
 
@@ -135,7 +136,7 @@ fun PromptPanel(
                 ) {
                     Text(
                         text = viewModel.activeTab!!.currentURL, // Safely handle null URL
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1, // Crucial for horizontal scrolling
                         overflow = TextOverflow.Ellipsis, // Good practice, though scrolling will hide it
                         modifier = Modifier
@@ -149,7 +150,7 @@ fun PromptPanel(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(
-                        Color.Black,
+                        MaterialTheme.colorScheme.surfaceContainer,
                         shape = RoundedCornerShape(
                             settings.value.cornerRadiusForLayer(2).dp
                         )
@@ -175,27 +176,27 @@ fun PromptPanel(
                             settings.value.heightForLayer(3).dp
                         )
                         .background(
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onSurface,
                         ),
                     verticalArrangement = Arrangement.Center
                 ) {
                     when (displayState) {
                         is JsAlert -> Text(
                             text = displayState.message,
-                            color = Color.Black,
+                            color = MaterialTheme.colorScheme.surfaceContainer,
                             modifier = textModifier
                         )
 
                         is JsConfirm -> Text(
                             text = displayState.message,
-                            color = Color.Black,
+                            color = MaterialTheme.colorScheme.surfaceContainer,
                             modifier = textModifier
                         )
 
                         is JsPrompt -> {
                             Text(
                                 text = displayState.message,
-                                color = Color.Black,
+                                color = MaterialTheme.colorScheme.surfaceContainer,
                                 modifier = textModifier
                             )
                             BasicTextField(
@@ -211,7 +212,7 @@ fun PromptPanel(
                                     .heightIn(min = settings.value.heightForLayer(4).dp)
                                     // 3. Container background and shape (replaces TextFieldDefaults container colors)
                                     .background(
-                                        color = Color.Black.copy(alpha = 0.1f),
+                                        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.1f),
                                         shape = RoundedCornerShape(
                                             settings.value.cornerRadiusForLayer(
                                                 4
@@ -228,9 +229,9 @@ fun PromptPanel(
                                 ),
                                 // Text and cursor styling
                                 textStyle = LocalTextStyle.current.copy(
-                                    color = Color.Black
+                                    color = MaterialTheme.colorScheme.surfaceContainer
                                 ),
-                                cursorBrush = SolidColor(Color.Black),
+                                cursorBrush = SolidColor(MaterialTheme.colorScheme.surfaceContainer),
 
                                 // 4. The decorationBox allows us to define the vertical centering
                                 decorationBox = { innerTextField ->
@@ -273,7 +274,7 @@ fun PromptPanel(
                                 )
                                 .weight(1f),
 //                                .border(
-//                                    1.dp, Color.White, shape = RoundedCornerShape(
+//                                    1.dp, MaterialTheme.colorScheme.onSurface, shape = RoundedCornerShape(
 //                                        cornerRadiusForLayer(
 //                                            3,
 //                                            settings.value.deviceCornerRadius,
@@ -282,7 +283,7 @@ fun PromptPanel(
 //                                    )
 //                                )
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color.Black
+                                containerColor = MaterialTheme.colorScheme.surfaceContainer
                             ),
                             shape = RoundedCornerShape(
                                 settings.value.cornerRadiusForLayer(
@@ -303,7 +304,7 @@ fun PromptPanel(
                             ) {
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_close),
-                                tint = Color.White,
+                                tint = MaterialTheme.colorScheme.onSurface,
                                 contentDescription = "Dismiss",
                             )
                         }
@@ -319,7 +320,7 @@ fun PromptPanel(
                             )
                             .weight(1f)
                             .background(
-                                Color.White, shape = RoundedCornerShape(
+                                MaterialTheme.colorScheme.onSurface, shape = RoundedCornerShape(
                                     settings.value.cornerRadiusForLayer(3).dp
                                 )
                             ),
@@ -327,7 +328,7 @@ fun PromptPanel(
                             settings.value.cornerRadiusForLayer(2).dp
                         ),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.White
+                            containerColor = MaterialTheme.colorScheme.onSurface
                         ),
                         onClick = {
                             geckoViewRef.value?.requestFocus()
@@ -347,7 +348,7 @@ fun PromptPanel(
                         Icon(
                             painter = painterResource(id = R.drawable.ic_check),
                             contentDescription = "Confirm",
-                            tint = Color.Black
+                            tint = MaterialTheme.colorScheme.surfaceContainer
                         )
                     }
                 }

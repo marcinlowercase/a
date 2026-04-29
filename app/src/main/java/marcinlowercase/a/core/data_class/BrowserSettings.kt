@@ -17,6 +17,9 @@
 package marcinlowercase.a.core.data_class
 
 import android.os.Build
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.toArgb
 import kotlinx.serialization.Serializable
 import marcinlowercase.a.ui.panel.isColorDark
 import kotlin.math.roundToInt
@@ -93,4 +96,23 @@ data class BrowserSettings(
         return isEnabledMaterialYou && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     }
 
+}
+@Composable
+fun BrowserSettings.activeOnHighlight(): Int {
+    return if (isMaterialYou()) {
+        MaterialTheme.colorScheme.surface.toArgb()
+    } else {
+        // Fallback to your custom math
+        onHighlight()
+    }
+}
+
+@Composable
+fun BrowserSettings.activeOffHighlight(): Int {
+    return if (isMaterialYou()) {
+        MaterialTheme.colorScheme.onSurface.toArgb()
+    } else {
+        // Fallback to your custom math
+        offHighlight()
+    }
 }

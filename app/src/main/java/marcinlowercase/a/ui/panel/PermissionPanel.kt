@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -91,7 +92,7 @@ fun PermissionPanel(
 
 
                 .background(
-                    color = Color.Black.copy(0.3f),
+                    color = MaterialTheme.colorScheme.surfaceContainer.copy(0.3f),
                     shape = RoundedCornerShape(
                         settings.value.cornerRadiusForLayer(2).dp
                     )

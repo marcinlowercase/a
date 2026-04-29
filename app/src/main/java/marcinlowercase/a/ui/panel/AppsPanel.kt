@@ -29,6 +29,7 @@ import androidx.compose.foundation.gestures.AnchoredDraggableState
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -47,6 +48,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -74,6 +76,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import marcinlowercase.a.R
 import marcinlowercase.a.core.data_class.App
+import marcinlowercase.a.core.data_class.activeOnHighlight
 import marcinlowercase.a.core.enum_class.RevealState
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import kotlin.math.ceil
@@ -170,7 +173,7 @@ fun AppsPanel(
                     .height(maxPanelHeight)
                     .padding(horizontal = settings.value.padding.dp)
                     .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp))
-                    .background(Color.White)
+                    .background(MaterialTheme.colorScheme.onSurface)
                     .padding(settings.value.padding.dp)
                     .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(3).dp)),
                 horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp),
@@ -509,7 +512,7 @@ fun PlaceholderIcon(
         modifier = modifier
             .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(3).dp))
             .heightIn(min = settings.value.heightForLayer(3).dp)
-            .background(otherColor ?: Color.Black.copy(settings.value.backSquareIdleOpacity * 0.2f))
+            .background(otherColor ?: MaterialTheme.colorScheme.surfaceContainer.copy(settings.value.backSquareIdleOpacity * 0.2f))
             .then(
                 if (onClick != null && buttonDescription != null)
                     Modifier.pointerInput(buttonDescription) {
@@ -563,7 +566,7 @@ fun PlaceholderIcon(
         if (text != null) {
             Text(
                 text = text,
-                color = Color.Black,
+                color = MaterialTheme.colorScheme.surfaceContainer,
                 maxLines = 1,
                 overflow = TextOverflow.Visible,
                 textAlign = TextAlign.Center,
@@ -575,7 +578,8 @@ fun PlaceholderIcon(
             Icon(
                 painter = painterResource(id = iconRes),
                 contentDescription = null,
-                tint = if (otherColor != null) Color(settings.value.onHighlight()) else Color.Black,
+                tint = if (otherColor != null) Color(settings.value.activeOnHighlight()
+                ) else MaterialTheme.colorScheme.surfaceContainer,
                 modifier = Modifier.size(24.dp)
             )
         }
@@ -597,7 +601,7 @@ fun AppIcon(
         modifier = modifier
             .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(3).dp))
             .heightIn(min = settings.value.heightForLayer(3).dp)
-            .background(Color.Black.copy(settings.value.backSquareIdleOpacity * 0.2f))
+            .background(if (!isSystemInDarkTheme() && settings.value.isMaterialYou())MaterialTheme.colorScheme.surfaceContainer  else MaterialTheme.colorScheme.surfaceContainer.copy(settings.value.backSquareIdleOpacity * 0.2f))
             .padding(2.dp)
             .fillMaxWidth()
             .combinedClickable(

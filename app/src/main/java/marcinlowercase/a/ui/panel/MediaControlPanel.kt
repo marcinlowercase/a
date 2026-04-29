@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
@@ -111,7 +112,7 @@ fun MediaControlPanel(
                         if (!uiState.value.isMediaControlPanelVisible) viewModel.updateUI { it.copy(isMediaControlPanelVisible = true) }
                     }
                 )
-                .background(Color.Black)
+                .background(MaterialTheme.colorScheme.surfaceContainer)
                 .width(settings.value.heightForLayer(1).dp)
                 .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
             ,

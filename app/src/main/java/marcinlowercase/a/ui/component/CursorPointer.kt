@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -182,12 +183,12 @@ fun CursorPointer(
                     }
                     .size(cursorContainerSize)
                     .scale(pointerScale) // <--- APPLIES SQUEEZE/POP ANIMATION
-                    .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.5f), CircleShape)
             ) {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_dot),
                     contentDescription = "Quick Cursor",
-                    tint = Color.White,
+                    tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier
                         .align(Alignment.Center)
                         .size(settings.value.cursorPointerSize.dp)

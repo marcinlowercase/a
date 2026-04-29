@@ -43,7 +43,7 @@ fun Theme(
             dynamicDarkColorScheme(context)
         } else {
             dynamicLightColorScheme(context).copy(
-                surfaceVariant = Color.White
+//                surfaceVariant = Color.White
             )
         }
     } else {

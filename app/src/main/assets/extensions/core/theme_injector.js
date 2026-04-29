@@ -94,4 +94,15 @@
     }, 250);
   });
 
+    window.addEventListener('update_theme_from_kotlin', async () => {
+      // 1. Clear the signature so the SPAM PREVENTION allows the update
+      lastInjectedSignature = "";
+
+      // 2. Wait 50ms to ensure Jetpack Compose has finished updating
+      // the dynamic Material You colors in the background before we fetch
+      setTimeout(async () => {
+        await applyTheme();
+      }, 50);
+    });
+
 })();

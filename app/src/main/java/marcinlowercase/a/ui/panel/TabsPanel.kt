@@ -27,6 +27,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -40,6 +41,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -87,7 +89,7 @@ fun NewTabButton(
                     )
                 )
                 .clickable(onClick = onClick)
-                .background(Color.Black.copy(alpha = 0.2f))
+                .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.2f))
                 .height(
                     settings.value.heightForLayer(3).dp
                 )
@@ -97,7 +99,7 @@ fun NewTabButton(
             Icon(
                 painter = painterResource(id = R.drawable.ic_add),
                 contentDescription = "New Tab",
-                tint = Color.White,
+                tint = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.size(32.dp)
             )
         }
@@ -146,7 +148,15 @@ fun TabItem(
                         settings.value.cornerRadiusForLayer(3).dp
                     )
                 )
-                .background(if (isActive) Color.White else Color.White.copy(alpha = 0.5f)) // Different background for inactive
+                .background(
+                    if (isActive) {
+                        if (!isSystemInDarkTheme() && settings.value.isMaterialYou()) MaterialTheme.colorScheme.surfaceVariant
+                        else MaterialTheme.colorScheme.onSurface
+                    } else {
+                        if (!isSystemInDarkTheme() && settings.value.isMaterialYou()) MaterialTheme.colorScheme.surfaceVariant.copy(0.5f)
+                        else MaterialTheme.colorScheme.onSurface.copy(0.5f)
+                    }
+                ) // Different background for inactive
 //                .padding(horizontal = settings.value.padding.dp)
             ,
             verticalAlignment = Alignment.CenterVertically
@@ -198,7 +208,10 @@ fun TabItem(
 
                 Text(
                     text = title,
-                    color = if (isActive) Color.Black else Color.Black.copy(alpha = 0.7f), // Dim the text for inactive
+                    color = if (isActive) {
+                        if (!isSystemInDarkTheme() && settings.value.isMaterialYou()) MaterialTheme.colorScheme.onSurface
+                        else MaterialTheme.colorScheme.surfaceContainer
+                    } else MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.7f), // Dim the text for inactive
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier

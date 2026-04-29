@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -82,7 +83,7 @@ fun ChoicePanel() {
             .fillMaxWidth()
             .padding(horizontal = settings.value.padding.dp)
             .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
-            .background(Color.Black)
+            .background(MaterialTheme.colorScheme.surfaceContainer)
             .padding(settings.value.padding.dp)
     ) {
         Column(
@@ -115,7 +116,7 @@ fun ChoicePanel() {
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp))
                             .heightIn(min = settings.value.heightForLayer(2).dp)
-                            .background(if (isCurrentlySelected) Color.White.copy(0.5f) else Color.Transparent)
+                            .background(if (isCurrentlySelected) MaterialTheme.colorScheme.onSurface.copy(0.5f) else Color.Transparent)
                             .clickable {
                                 if (prompt.type == GeckoSession.PromptDelegate.ChoicePrompt.Type.MULTIPLE) {
                                     selectedIds = if (selectedIds.contains(choice.id)) {
@@ -134,7 +135,7 @@ fun ChoicePanel() {
                     ) {
                         Text(
                             text = choice.label,
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.weight(1f)
                         )
                     }

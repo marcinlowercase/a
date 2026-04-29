@@ -75,6 +75,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -99,6 +100,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -170,6 +172,8 @@ import java.io.File
 import java.io.FileOutputStream
 import kotlin.system.exitProcess
 import androidx.compose.ui.res.stringResource
+import marcinlowercase.a.core.data_class.activeOffHighlight
+import marcinlowercase.a.core.data_class.activeOnHighlight
 import marcinlowercase.a.ui.component.BackSquare
 import marcinlowercase.a.ui.component.CursorPointer
 import org.mozilla.geckoview.GeckoRuntime
@@ -630,6 +634,21 @@ fun BrowserScreen(
 
     val settingsState = viewModel.browserSettings.collectAsState()
     val settings = settingsState.value
+
+    // 1. Grab the active primary color from the Theme
+    val currentPrimaryColor = MaterialTheme.colorScheme.primary.toArgb()
+
+    // 2. Automatically sync it to your settings whenever the OS theme changes!
+    LaunchedEffect(currentPrimaryColor, settings.isEnabledMaterialYou) {
+        // Only override the color if Material You is turned ON
+        // AND the current highlight color doesn't match the new OS color
+        if (settings.isEnabledMaterialYou && settings.highlightColor != currentPrimaryColor) {
+            viewModel.updateSettings {
+                it.copy(highlightColor = currentPrimaryColor)
+            }
+        }
+    }
+
     val uiState = viewModel.uiState.collectAsState()
 
     viewModel.initializeTabs(initialIntentUrl)
@@ -1863,6 +1882,9 @@ fun BrowserScreen(
 
         val errorTitle = stringResource(R.string.error_failed_to_load)
 
+        val onHighlightState = rememberUpdatedState(settings.activeOnHighlight())
+        val offHighlightState = rememberUpdatedState(settings.activeOffHighlight())
+
         LaunchedEffect(activeSession) {
             activeSession.setActive(true)
 
@@ -1890,6 +1912,8 @@ fun BrowserScreen(
                 },
                 isStandaloneMode = viewModel.isStandaloneMode.value,
                 browserSettings = settingsState,
+                activeOnHighlight = onHighlightState,
+                activeOffHighlight = offHighlightState,
                 onTitleChangeFun = { eventTabId, _, title ->
 
                     viewModel.updateTabById(eventTabId) { it.copy(currentTitle = title) }
@@ -2583,13 +2607,13 @@ fun BrowserScreen(
                                 settings.cornerRadiusForLayer(0).dp
                             )
                         )
-                        .background(Color.White),
+                        .background(MaterialTheme.colorScheme.onSurface),
                     contentAlignment = Alignment.Center
 
                 ) {
                     Text(
                         text = "adjust device corner radius",
-                        color = Color.Black
+                        color = MaterialTheme.colorScheme.surfaceContainer
                     )
                 }
             }
@@ -2615,7 +2639,7 @@ fun BrowserScreen(
                         .fillMaxWidth()
                         .align(Alignment.BottomCenter)
 
-                        .background(Color.Black)
+                        .background(MaterialTheme.colorScheme.surfaceContainer)
                         .padding(bottom = settings.padding.dp)
                 ) {
                     SettingsPanel(
@@ -2679,7 +2703,6 @@ fun BrowserScreen(
                                                 animatedCornerRadius
                                             )
                                         )
-                                        //                            .background(color = Color.White)
                                         .testTag("WebViewContainer")
 
 
@@ -2782,7 +2805,7 @@ fun BrowserScreen(
                                                 Box(
                                                     modifier = Modifier
                                                         .fillMaxSize()
-                                                        .background(Color.White),
+                                                        .background(MaterialTheme.colorScheme.onSurface),
                                                     contentAlignment = Alignment.Center
                                                 ) {
                                                     // Grab the exact high-res URL passed from the WebAPK shell

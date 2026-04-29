@@ -68,6 +68,7 @@ import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -258,7 +259,7 @@ fun BottomPanel(
                     )
 
                     .background(
-                        Color.Black,
+                        MaterialTheme.colorScheme.surfaceContainer,
                     )
                     .anchoredDraggable(
                         state = draggableState,
@@ -512,7 +513,7 @@ fun BottomPanel(
                                 Icon(
                                     painter = painterResource(id = iconRes), // Make sure you have this drawable
                                     contentDescription = "Search suggestion",
-                                    tint = Color.White,
+                                    tint = MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.size(24.dp) // Give the icon a suitable size
                                 )
 
@@ -522,7 +523,7 @@ fun BottomPanel(
                                 // 4. Add the Text, which now takes the remaining space
                                 Text(
                                     text = suggestion.text,
-                                    color = Color.White,
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier.weight(1f) // Ensures text fills available space
@@ -721,11 +722,11 @@ fun BottomPanel(
                                             ).dp
                                         ),
                                         colors = TextFieldDefaults.colors(
-                                            focusedContainerColor = Color.White,
-                                            unfocusedContainerColor = Color.White,
-                                            cursorColor = Color.Black,
-                                            focusedTextColor = Color.Black,
-                                            unfocusedTextColor = Color.Black,
+                                            focusedContainerColor = MaterialTheme.colorScheme.onSurface,
+                                            unfocusedContainerColor = MaterialTheme.colorScheme.onSurface,
+                                            cursorColor = MaterialTheme.colorScheme.surfaceContainer,
+                                            focusedTextColor = MaterialTheme.colorScheme.surfaceContainer,
+                                            unfocusedTextColor = MaterialTheme.colorScheme.surfaceContainer,
                                             focusedIndicatorColor = Color.Transparent,
                                             unfocusedIndicatorColor = Color.Transparent,
                                             disabledIndicatorColor = Color.Transparent,
@@ -1147,11 +1148,11 @@ fun BottomPanel(
                                     settings.value.cornerRadiusForLayer(2).dp
                                 ),
                                 colors = TextFieldDefaults.colors(
-                                    focusedContainerColor = Color.Black,
-                                    unfocusedContainerColor = Color.Black,
-                                    cursorColor = Color.White,
-                                    focusedTextColor = Color.White,
-                                    unfocusedTextColor = Color.White,
+                                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                                    cursorColor = MaterialTheme.colorScheme.onSurface,
+                                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
                                     focusedIndicatorColor = Color.Transparent,
                                     unfocusedIndicatorColor = Color.Transparent,
                                     disabledIndicatorColor = Color.Transparent,

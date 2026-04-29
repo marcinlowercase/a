@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -85,7 +86,7 @@ fun CustomIconButton(
                 onLongPress = onLongPress,
                 useLongPress = useLongPress,
 
-            )
+                )
             .background(otherColor)
         ,
         contentAlignment = Alignment.Center
@@ -95,7 +96,8 @@ fun CustomIconButton(
             Text(
                 text = textIcon,
                 fontFamily = FontFamily.Monospace,
-                color = if (isWhite) Color.Black else Color.White,
+                color = if(otherColor != Color.Transparent && settings.value.isMaterialYou()) MaterialTheme.colorScheme.onPrimary
+                else { if (isWhite) MaterialTheme.colorScheme.surfaceContainer else MaterialTheme.colorScheme.onSurface },
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Black,
                 textDecoration = TextDecoration.Underline
@@ -107,7 +109,8 @@ fun CustomIconButton(
             ,
             painter = painterResource(id = painterId),
             contentDescription = buttonDescription,
-            tint = if (isWhite) Color.Black else Color.White
+            tint = if(otherColor != Color.Transparent && settings.value.isMaterialYou()) MaterialTheme.colorScheme.onPrimary
+            else { if (isWhite) MaterialTheme.colorScheme.surfaceContainer else MaterialTheme.colorScheme.onSurface}
         )
     }
 }

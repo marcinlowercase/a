@@ -46,6 +46,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -225,7 +226,7 @@ fun DownloadRow(
             .clickable(enabled = item.status == DownloadStatus.SUCCESSFUL) {
                 onClick()
             }
-            .background(Color.Black.copy(alpha = 0.5f))
+            .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.5f))
 
             .pointerInput(item.status) { // Re-read when status changes
                 detectTapGestures(
@@ -262,7 +263,7 @@ fun DownloadRow(
                 Box(
                     modifier = Modifier
                         .clip(CircleShape)
-                        .background(Color.White)
+                        .background(MaterialTheme.colorScheme.onSurface)
                         .fillMaxHeight(),
                     contentAlignment = Alignment.Center
                 ) {
@@ -288,7 +289,7 @@ fun DownloadRow(
                         ),
                         contentDescription = stringResource(R.string.desc_download_icon),
                         // Change the tint based on status for better visual feedback
-                        tint = if (item.status == DownloadStatus.RUNNING) Color(settings.value.highlightColor) else Color.Black,
+                        tint = if (item.status == DownloadStatus.RUNNING) Color(settings.value.highlightColor) else MaterialTheme.colorScheme.surfaceContainer,
                         modifier = Modifier
                             .size(24.dp)
                             .padding(4.dp)
@@ -301,7 +302,7 @@ fun DownloadRow(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         item.filename,
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier
@@ -333,7 +334,7 @@ fun DownloadRow(
                     if (statusText.isNotBlank()) {
                         Text(
                             statusText,
-                            color = Color.White.copy(alpha = 0.7f),
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                             maxLines = 1
                         )
                     }
@@ -374,7 +375,7 @@ fun DownloadRow(
                 Icon(
                     painter = painterResource(id = R.drawable.ic_delete_forever),
                     contentDescription = stringResource(R.string.desc_confirm_delete),
-                    tint = Color.White,
+                    tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(32.dp)
                 )
             }

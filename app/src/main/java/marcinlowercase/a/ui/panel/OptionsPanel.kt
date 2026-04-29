@@ -17,6 +17,7 @@
 package marcinlowercase.a.ui.panel
 
 import android.annotation.SuppressLint
+import android.os.Build
 import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -97,6 +98,12 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
 
 
 enum class SettingPanelView {
@@ -118,12 +125,23 @@ fun rememberBrowserOptionsRegistry(
     val viewModel = LocalBrowserViewModel.current
     val uiState = viewModel.uiState.collectAsState()
     val settings = viewModel.browserSettings.collectAsState()
-
+    val context = LocalContext.current
+    val isDark = isSystemInDarkTheme()
+    val dynamicPrimaryColor = remember(isDark) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (isDark) dynamicDarkColorScheme(context).primary.toArgb()
+            else dynamicLightColorScheme(context).primary.toArgb()
+        } else {
+            settings.value.highlightColor // Fallback for older Androids
+        }
+    }
+    val disabledHighlightColorText = stringResource(R.string.toast_highlight_color_setting_disabled)
     return remember(
         uiState.value,
         settings.value,
         viewModel.recentlyClosedTabs.size,
-        viewModel.isSortingButtons.value
+        viewModel.isSortingButtons.value,
+        dynamicPrimaryColor
     ) {
         mapOf(
             // --- Options Panel Exclusives ---
@@ -229,7 +247,13 @@ fun rememberBrowserOptionsRegistry(
                 id = BrowserOption.HIGHLIGHT_COLOR,
                 iconRes = R.drawable.ic_colors,
                 contentDescription = R.string.desc_highlight_color
-            ) { onNavigateToSetting(SettingPanelView.HIGHLIGHT_COLOR) },
+            ) {
+                if (settings.value.isEnabledMaterialYou) {
+                    viewModel.showCustomNotification(disabledHighlightColorText)
+                } else {
+                    onNavigateToSetting(SettingPanelView.HIGHLIGHT_COLOR)
+                }
+              },
             BrowserOption.ANIMATION_SPEED to OptionItem(
                 id = BrowserOption.ANIMATION_SPEED,
                 iconRes = R.drawable.ic_animation,
@@ -301,7 +325,17 @@ fun rememberBrowserOptionsRegistry(
                 contentDescription = R.string.desc_material_you,
                 enabled = settings.value.isEnabledMaterialYou
             ) {
-                viewModel.updateSettings { it.copy(isEnabledMaterialYou = !it.isEnabledMaterialYou) }
+                val isTurningOn = !settings.value.isEnabledMaterialYou
+
+                viewModel.updateSettings {
+                    it.copy(
+                        isEnabledMaterialYou = isTurningOn,
+                        // If turning on, force the highlight color to the true Material You primary
+                        highlightColor = if (isTurningOn) dynamicPrimaryColor else it.highlightColor
+                    )
+                }
+                if (isTurningOn)  viewModel.toggleOptionVisibility(BrowserOption.HIGHLIGHT_COLOR, true)
+                else viewModel.toggleOptionVisibility(BrowserOption.HIGHLIGHT_COLOR, false)
             },
 
             BrowserOption.SYNC to OptionItem(
@@ -585,7 +619,7 @@ fun OptionsPanel(
 //                        .padding(bottom = settings.value.padding.dp)
                         .height(settings.value.heightForLayer(2).dp) // EXACT height of 1 row
                         .background(
-                            Color.Black.copy(alpha = 0.3f),
+                            MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.3f),
                             shape = RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp)
                         ),
                     horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp),
@@ -796,7 +830,7 @@ fun SettingsPanel(
                                         .fillMaxWidth()
                                         .height(settings.value.heightForLayer(2).dp)
                                         .background(
-                                            Color.Black.copy(alpha = 0.3f),
+                                            MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.3f),
                                             shape = RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp)
                                         ),
                                     horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp),
@@ -923,7 +957,7 @@ fun SettingsPanel(
                             .fillMaxWidth()
                             .height(settings.value.heightForLayer(2).dp),
                         contentAlignment = Alignment.Center
-                    ) { Text("make by marcinlowercase", color = Color.White) }
+                    ) { Text("make by marcinlowercase", color = MaterialTheme.colorScheme.onSurface) }
 
                     SettingPanelView.CLOSED_TAB_HISTORY_SIZE -> SliderSetting(
                         onBackClick = onBackClick,
@@ -1039,13 +1073,13 @@ fun SettingsPanel(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(3).dp))
                                         .fillMaxHeight()
-                                        .background(Color.White)
+                                        .background(MaterialTheme.colorScheme.onSurface)
                                         .defaultMinSize(minWidth = settings.value.heightForLayer(3).dp)
                                 ) {
                                     Icon(
                                         painter = painterResource(id = if (settings.value.isFirstAppLoad) R.drawable.ic_check else R.drawable.ic_arrow_back),
                                         contentDescription = "Back to Settings",
-                                        tint = Color.Black
+                                        tint = MaterialTheme.colorScheme.surfaceContainer
                                     )
                                 }
                                 Box(
@@ -1120,7 +1154,7 @@ fun SettingsPanel(
                                     Icon(
                                         painter = painterResource(id = R.drawable.ic_colors),
                                         contentDescription = "Highlight Color",
-                                        tint = Color.White
+                                        tint = MaterialTheme.colorScheme.onSurface
                                     )
                                 }
                             }
@@ -1148,7 +1182,7 @@ fun SettingsPanel(
                                             onValueChange = { hue = it },
                                             valueRange = 0f..360f,
                                             colors = SliderDefaults.colors(
-                                                thumbColor = Color.White,
+                                                thumbColor = MaterialTheme.colorScheme.onSurface,
                                                 activeTrackColor = Color.Transparent,
                                                 inactiveTrackColor = Color.Transparent
                                             )
@@ -1160,7 +1194,7 @@ fun SettingsPanel(
                                         onValueChange = { saturation = it },
                                         valueRange = 0f..1f,
                                         colors = SliderDefaults.colors(
-                                            thumbColor = Color.White,
+                                            thumbColor = MaterialTheme.colorScheme.onSurface,
                                             activeTrackColor = Color(selectedColorInt).copy(alpha = 1f)
                                         )
                                     )
@@ -1170,8 +1204,8 @@ fun SettingsPanel(
                                         onValueChange = { value = it },
                                         valueRange = 0f..1f,
                                         colors = SliderDefaults.colors(
-                                            thumbColor = Color.White,
-                                            activeTrackColor = Color.White.copy(alpha = value)
+                                            thumbColor = MaterialTheme.colorScheme.onSurface,
+                                            activeTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = value)
                                         )
                                     )
                                 }

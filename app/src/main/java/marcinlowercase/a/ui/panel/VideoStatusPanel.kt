@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -156,7 +157,7 @@ fun VideoStatusPanel(
             .heightIn(min = settings.value.heightForLayer(1).dp)
             .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
             .alpha(opacity)
-            .background(Color.Black)
+            .background(MaterialTheme.colorScheme.surfaceContainer)
             .clickable {
                 if (uiState.value.isMediaControlPanelVisible) {
                     onSwapLayout()
@@ -191,7 +192,7 @@ fun VideoStatusPanel(
     ){
         Text(
             text = displayStatus,
-            color = Color.White,
+            color = MaterialTheme.colorScheme.onSurface,
             fontFamily = FontFamily.Monospace,
             textAlign = TextAlign.Center,
             modifier = Modifier

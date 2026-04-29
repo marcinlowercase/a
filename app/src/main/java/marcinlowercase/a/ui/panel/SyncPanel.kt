@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -90,7 +91,7 @@ fun SyncPanel(
                         .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(3).dp))
                         .border(
                             width = 1.dp,
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onSurface,
                             shape = RoundedCornerShape(settings.value.cornerRadiusForLayer(3).dp)
                         ),
                     horizontalArrangement = Arrangement.spacedBy(padding), // Inside spacing is fine
@@ -107,7 +108,7 @@ fun SyncPanel(
                     ) {
                         Text(
                             text = viewModel.getLoggedInEmail(),
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier

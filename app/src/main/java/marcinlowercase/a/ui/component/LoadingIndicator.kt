@@ -24,6 +24,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
@@ -56,8 +57,8 @@ fun LoadingIndicator(
                 .padding(horizontal = settings.value.cornerRadiusForLayer(1).dp)
                 .fillMaxWidth()
             ,
-            color = Color.White,
-            trackColor = Color.White.copy(0.3f),
+            color = MaterialTheme.colorScheme.onSurface,
+            trackColor = MaterialTheme.colorScheme.onSurface.copy(0.3f),
         )
     }
 }

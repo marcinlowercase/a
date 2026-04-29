@@ -16,6 +16,7 @@
  */
 package marcinlowercase.a.ui.panel
 
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
@@ -31,6 +32,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -43,6 +45,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import marcinlowercase.a.R
+import marcinlowercase.a.core.data_class.activeOnHighlight
 import marcinlowercase.a.ui.component.CustomIconButton
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 
@@ -72,7 +75,7 @@ fun ConfirmationPanel() {
                         settings.value.cornerRadiusForLayer(2).dp
                     )
                 )
-                .background(Color(settings.value.onHighlight()))
+                .background(Color(settings.value.activeOnHighlight()))
 //                .border(
 //                    width = 2.dp, color = Color(settings.value.highlightColor),
 //                    shape = RoundedCornerShape(
@@ -88,7 +91,7 @@ fun ConfirmationPanel() {
                     .padding(horizontal = settings.value.padding.dp)
                     .heightIn(min = settings.value.heightForLayer(3).dp)
                     .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(3).dp))
-                    .background(Color(settings.value.onHighlight()))
+                    .background(Color(settings.value.activeOnHighlight()))
 //                    .border(width = 2.dp, color = Color(settings.value.highlightColor), shape = RoundedCornerShape(settings.value.cornerRadiusForLayer(3).dp))
 //                    .padding(vertical = settings.value.padding.dp)
                     .padding(horizontal = settings.value.padding.dp)
@@ -126,6 +129,7 @@ fun ConfirmationPanel() {
                 horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
             ) {
                 // Cancel Button
+                Log.i("helloT", "${!isColorDark(settings.value.highlightColor)}")
 
                 CustomIconButton(
                     modifier = Modifier.weight(2f),
@@ -144,7 +148,7 @@ fun ConfirmationPanel() {
                     painterId = R.drawable.ic_check,
                     onTap = state.onConfirm,
                     buttonDescription = "confirm",
-                    otherColor = Color.Black.copy(settings.value.backSquareIdleOpacity * 0.2f)
+                    otherColor = MaterialTheme.colorScheme.surfaceContainer.copy(settings.value.backSquareIdleOpacity * 0.2f)
                 )
             }
         }

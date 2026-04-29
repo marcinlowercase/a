@@ -34,6 +34,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.TextField
@@ -148,7 +149,7 @@ fun SliderSetting(
         modifier = Modifier
             .fillMaxWidth()
             .background(
-                Color.Black.copy(alpha = 0.3f),
+                MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.3f),
                 shape = RoundedCornerShape(
                     settings.value.cornerRadiusForLayer(2).dp
                 )
@@ -177,7 +178,7 @@ fun SliderSetting(
                         )
                     )
                     .fillMaxHeight()
-                    .background(Color.White)
+                    .background(MaterialTheme.colorScheme.onSurface)
                     .defaultMinSize(
                         minWidth = settings.value.heightForLayer(3).dp
                     )
@@ -187,7 +188,7 @@ fun SliderSetting(
                 Icon(
                     painter = painterResource(id = if(settings.value.isFirstAppLoad) R.drawable.ic_check else R.drawable.ic_arrow_back),
                     contentDescription = "Back to Settings",
-                    tint = Color.Black
+                    tint = MaterialTheme.colorScheme.surfaceContainer
                 )
             }
 
@@ -241,7 +242,7 @@ fun SliderSetting(
                     cursorBrush = SolidColor(Color.Transparent),
 
                     textStyle = LocalTextStyle.current.copy(
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                         textAlign = TextAlign.Center
                     ),
                     keyboardOptions = KeyboardOptions(
@@ -276,7 +277,7 @@ fun SliderSetting(
                 Icon(
                     painter = painterResource(id = iconID),
                     contentDescription = "Back to Settings",
-                    tint = Color.White
+                    tint = MaterialTheme.colorScheme.onSurface
                 )
             }
         }
@@ -306,11 +307,11 @@ fun SliderSetting(
                 )
                 .padding(settings.value.padding.dp),
             colors = SliderDefaults.colors(
-                thumbColor = Color.White,
-                activeTrackColor = Color.White,
-                inactiveTrackColor = Color.Black,
-                inactiveTickColor = Color.White,
-                activeTickColor = Color.Black,
+                thumbColor = MaterialTheme.colorScheme.onSurface,
+                activeTrackColor = MaterialTheme.colorScheme.onSurface,
+                inactiveTrackColor = MaterialTheme.colorScheme.surfaceContainer,
+                inactiveTickColor = MaterialTheme.colorScheme.onSurface,
+                activeTickColor = MaterialTheme.colorScheme.surfaceContainer,
 
 
                 )
@@ -339,7 +340,7 @@ fun TextSetting(
         modifier = Modifier
             .fillMaxWidth()
             .background(
-                Color.Black.copy(alpha = 0.3f),
+                MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.3f),
                 shape = RoundedCornerShape(
                     settings.value.cornerRadiusForLayer(2).dp
                 )
@@ -366,7 +367,7 @@ fun TextSetting(
                         )
                     )
                     .fillMaxHeight()
-                    .background(Color.White)
+                    .background(MaterialTheme.colorScheme.onSurface)
                     .defaultMinSize(
                         minWidth = settings.value.heightForLayer(3).dp
                     )
@@ -374,7 +375,7 @@ fun TextSetting(
                 Icon(
                     painter = painterResource(id = R.drawable.ic_arrow_back),
                     contentDescription = "Back to Settings",
-                    tint = Color.Black
+                    tint = MaterialTheme.colorScheme.surfaceContainer
                 )
             }
 
@@ -398,7 +399,7 @@ fun TextSetting(
                 Icon(
                     painter = painterResource(id = iconID),
                     contentDescription = "Setting Icon",
-                    tint = Color.White
+                    tint = MaterialTheme.colorScheme.onSurface
                 )
             }
         }
@@ -420,11 +421,11 @@ fun TextSetting(
                 settings.value.cornerRadiusForLayer(3).dp
             ),
             colors = TextFieldDefaults.colors(
-                focusedContainerColor = Color.Black,
-                unfocusedContainerColor = Color.Black,
-                cursorColor = Color.White,
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White,
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                cursorColor = MaterialTheme.colorScheme.onSurface,
+                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
 
                 // 3. This is the key to removing the underline
                 focusedIndicatorColor = Color.Transparent,

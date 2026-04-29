@@ -142,6 +142,19 @@ class GeckoManager(private val context: Context) {
             }
         }
     }
+    fun notifyThemeChanged() {
+        // This payload fires the custom event in the DOM.
+        // Using void() ensures the browser doesn't try to navigate away.
+        val jsPayload = "javascript:void(window.dispatchEvent(new Event('update_theme_from_kotlin')));"
+
+        // Broadcast to every open tab
+        sessionPool.values.forEach { session ->
+            if (session.isOpen) {
+                session.load(GeckoSession.Loader().uri(jsPayload))
+            }
+        }
+    }
+
     init {
 
         ContextCompat.registerReceiver(
@@ -628,6 +641,8 @@ class GeckoManager(private val context: Context) {
         isStandaloneMode: Boolean,
         siteSettings: Map<String, SiteSettings>,
         browserSettings: androidx.compose.runtime.State<BrowserSettings>,
+        activeOnHighlight: androidx.compose.runtime.State<Int>,
+        activeOffHighlight: androidx.compose.runtime.State<Int>,
         onFaviconChanged: (Long, String) -> Unit,
         onTitleChangeFun: (Long, GeckoSession, String) -> Unit,
         onNewSessionFunWithId: (id: Long, uri: String) -> Unit,
@@ -723,11 +738,11 @@ class GeckoManager(private val context: Context) {
                                     )
                                     put(
                                         "onHighlight",
-                                        formatArgbToCss(browserSettings.value.onHighlight().toHexString())
+                                        formatArgbToCss(activeOnHighlight.value.toHexString())
                                     )
                                     put(
                                         "offHighlight",
-                                        formatArgbToCss(browserSettings.value.offHighlight().toHexString())
+                                        formatArgbToCss(activeOffHighlight.value.toHexString())
                                     )
                                     put("isDesktop", browserSettings.value.isDesktopMode)
                                     // Send the LIVE width to JavaScript

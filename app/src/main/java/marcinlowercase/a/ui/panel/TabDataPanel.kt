@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -99,7 +100,7 @@ fun TabDataPanel(
                     .fillMaxWidth()
                     .heightIn(max = 450.dp)
                     .clip(RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(2).dp))
-                    .background(Color.Black)
+                    .background(MaterialTheme.colorScheme.surfaceContainer)
             ) {
 
                 Box(

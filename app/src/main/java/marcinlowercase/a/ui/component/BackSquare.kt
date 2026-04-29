@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
@@ -279,10 +280,10 @@ fun BackSquare(
                     .clip(RoundedCornerShape(settings.cornerRadiusForLayer(1).dp))
                     .border(
                         width = 2.dp,
-                        color = Color.White.copy(alpha = 0.4f),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
                         shape = RoundedCornerShape(settings.cornerRadiusForLayer(1).dp)
                     )
-                    .background(Color.Black.copy(alpha = 0.6f)),
+                    .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.6f)),
                 contentAlignment = Alignment.Center
             ) {
                 // Animate the appearance and disappearance of the overlay.
@@ -291,13 +292,13 @@ fun BackSquare(
 //                        .padding(settings.padding.dp * 2)
 //                        .size(settings.heightForLayer(3).dp)
 //                        .clip(CircleShape)
-//                        .background(Color.White.copy(0.3f))
+//                        .background(MaterialTheme.colorScheme.onSurface.copy(0.3f))
 //
 //                ){
 //                    Icon(
 //                        painter = painterResource(id = R.drawable.ic_search),
 //                        contentDescription = "Open Menu",
-//                        tint = Color.White.copy(alpha = 0.5f), // Subtle tint so it blends well
+//                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), // Subtle tint so it blends well
 //                        modifier = Modifier.size(24.dp)
 //                    )
 //                }
@@ -309,7 +310,7 @@ fun BackSquare(
                     Icon(
                         painter = painterResource(id = R.drawable.ic_logo_bold),
                         contentDescription = "Open Menu",
-                        tint = Color.White.copy(alpha = 0.5f), // Subtle tint so it blends well
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), // Subtle tint so it blends well
                         modifier = Modifier.size(settings.heightForLayer(3).dp)
                     )
                 }
@@ -324,7 +325,7 @@ fun BackSquare(
                         modifier = Modifier
                             .padding(settings.padding.dp)
                             .size(settings.heightForLayer(4).dp),
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                         strokeWidth = 2.dp
                     )
                 }

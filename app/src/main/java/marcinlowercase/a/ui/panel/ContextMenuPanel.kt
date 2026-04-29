@@ -45,6 +45,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
@@ -252,7 +253,7 @@ fun ContextMenuPanel(
                                 .size(30.dp)
                                 .clip(CircleShape)
                                 .background(
-                                    color = if (contextMenuPanelPagerState.currentPage == 0) Color.White else Color.Black,
+                                    color = if (contextMenuPanelPagerState.currentPage == 0) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.surfaceContainer,
                                     shape = CircleShape
                                 )
                                 .clickable(onClick = {
@@ -266,7 +267,7 @@ fun ContextMenuPanel(
                         ) {
                             Icon(
                                 painter = painterResource(R.drawable.ic_link),
-                                tint = if (contextMenuPanelPagerState.currentPage == 1) Color.White else Color.Black,
+                                tint = if (contextMenuPanelPagerState.currentPage == 1) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.surfaceContainer,
                                 contentDescription = null,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -286,7 +287,7 @@ fun ContextMenuPanel(
                                 .clip(CircleShape)
 
                                 .background(
-                                    color = if (contextMenuPanelPagerState.currentPage == 1) Color.White else Color.Black,
+                                    color = if (contextMenuPanelPagerState.currentPage == 1) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.surfaceContainer,
                                     shape = CircleShape
                                 )
                                 .clickable(onClick = {
@@ -299,7 +300,7 @@ fun ContextMenuPanel(
                         ) {
                             Icon(
                                 painter = painterResource(actionIcon),
-                                tint = if (contextMenuPanelPagerState.currentPage == 0) Color.White else Color.Black,
+                                tint = if (contextMenuPanelPagerState.currentPage == 0) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.surfaceContainer,
                                 contentDescription = null,
                                 modifier = Modifier.size(20.dp)
 
@@ -342,14 +343,14 @@ fun ContextMenuPanel(
                                 painter = painterResource(actionIcon),
                                 //                    painter = painterResource(if(isImage) R.drawable.ic_image else R.drawable.ic_link),
                                 contentDescription = null,
-                                tint = Color.White,
+                                tint = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(Modifier.width(settings.value.padding.dp))
                         }
                         Text(
                             text = urlSrc,
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier
@@ -384,7 +385,7 @@ fun ContextMenuPanel(
                                             settings.value.cornerRadiusForLayer(2).dp
                                         )
                                     )
-                                    .background(Color.White)
+                                    .background(MaterialTheme.colorScheme.onSurface)
                                     //                            .clickable(onClick = action)
                                     .pointerInput(Unit) {
                                         // 1. CAPTURE the CoroutineScope provided by pointerInput
@@ -437,7 +438,7 @@ fun ContextMenuPanel(
                                 Icon(
                                     painter = painterResource(icon),
                                     contentDescription = desc,
-                                    tint = Color.Black
+                                    tint = MaterialTheme.colorScheme.surfaceContainer
                                 )
                             }
                         }

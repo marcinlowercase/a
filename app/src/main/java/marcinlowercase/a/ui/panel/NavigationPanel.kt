@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -94,7 +95,7 @@ fun NavigationPanel(
                             settings.value.cornerRadiusForLayer(2).dp
                         )
                     )
-                    .background(Color.Black.copy(0.3f)),
+                    .background(MaterialTheme.colorScheme.surfaceContainer.copy(0.3f)),
 
                 ) {
                 Row(
@@ -192,7 +193,7 @@ fun NavigationItem(
     val activity = context as Activity
 
     // Cancel Icon
-    val refreshColor by animateColorAsState(if (viewModel.activeNavAction.value == gestureNavAction) Color.White else Color.Transparent)
+    val refreshColor by animateColorAsState(if (viewModel.activeNavAction.value == gestureNavAction) MaterialTheme.colorScheme.onSurface else Color.Transparent)
     Box(
         modifier = modifier
             .height(
@@ -241,7 +242,7 @@ fun NavigationItem(
                 actionIcon,
                 "Refresh",
                 Modifier.align(Alignment.Center),
-                tint = if (viewModel.activeNavAction.value == gestureNavAction) Color.Black else Color.White
+                tint = if (viewModel.activeNavAction.value == gestureNavAction) MaterialTheme.colorScheme.surfaceContainer else MaterialTheme.colorScheme.onSurface
             )
         }
 

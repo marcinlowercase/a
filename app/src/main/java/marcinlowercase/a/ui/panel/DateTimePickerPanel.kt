@@ -129,7 +129,7 @@ fun DateTimePickerPanel() {
             .fillMaxWidth()
             .padding(horizontal = settings.value.padding.dp)
             .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
-            .background(Color.Black)
+            .background(MaterialTheme.colorScheme.surfaceContainer)
             .padding(settings.value.padding.dp)
     ) {
         Column(
@@ -176,20 +176,20 @@ fun DateTimePickerPanel() {
                         DatePicker(
                             state = datePickerState,
                             colors = DatePickerDefaults.colors(
-                                containerColor = Color.Black,
-                                titleContentColor = Color.White,
-                                headlineContentColor = Color.White,
+                                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                                titleContentColor = MaterialTheme.colorScheme.onSurface,
+                                headlineContentColor = MaterialTheme.colorScheme.onSurface,
                                 weekdayContentColor = Color.Gray,
-                                subheadContentColor = Color.White,
-                                yearContentColor = Color.White,
-                                currentYearContentColor = Color.White,
-                                selectedYearContentColor = Color.Black,
-                                selectedYearContainerColor = Color.White,
-                                dayContentColor = Color.White,
-                                selectedDayContainerColor = Color.White,
-                                selectedDayContentColor = Color.Black,
-                                todayContentColor = Color.White,
-                                todayDateBorderColor = Color.White,
+                                subheadContentColor = MaterialTheme.colorScheme.onSurface,
+                                yearContentColor = MaterialTheme.colorScheme.onSurface,
+                                currentYearContentColor = MaterialTheme.colorScheme.onSurface,
+                                selectedYearContentColor = MaterialTheme.colorScheme.surfaceContainer,
+                                selectedYearContainerColor = MaterialTheme.colorScheme.onSurface,
+                                dayContentColor = MaterialTheme.colorScheme.onSurface,
+                                selectedDayContainerColor = MaterialTheme.colorScheme.onSurface,
+                                selectedDayContentColor = MaterialTheme.colorScheme.surfaceContainer,
+                                todayContentColor = MaterialTheme.colorScheme.onSurface,
+                                todayDateBorderColor = MaterialTheme.colorScheme.onSurface,
                                 dividerColor = Color.Transparent
                             ),
                             showModeToggle = false,
@@ -216,17 +216,17 @@ fun DateTimePickerPanel() {
                             state = timePickerState,
                             colors = TimePickerDefaults.colors(
                                 clockDialColor = Color.DarkGray,
-                                clockDialSelectedContentColor = Color.Black,
-                                clockDialUnselectedContentColor = Color.White,
-                                selectorColor = Color.White,
-                                periodSelectorBorderColor = Color.White,
-                                periodSelectorSelectedContainerColor = Color.White,
-                                periodSelectorSelectedContentColor = Color.Black,
+                                clockDialSelectedContentColor = MaterialTheme.colorScheme.surfaceContainer,
+                                clockDialUnselectedContentColor = MaterialTheme.colorScheme.onSurface,
+                                selectorColor = MaterialTheme.colorScheme.onSurface,
+                                periodSelectorBorderColor = MaterialTheme.colorScheme.onSurface,
+                                periodSelectorSelectedContainerColor = MaterialTheme.colorScheme.onSurface,
+                                periodSelectorSelectedContentColor = MaterialTheme.colorScheme.surfaceContainer,
                                 periodSelectorUnselectedContentColor = Color.Gray,
-                                timeSelectorSelectedContainerColor = Color.White,
-                                timeSelectorSelectedContentColor = Color.Black,
+                                timeSelectorSelectedContainerColor = MaterialTheme.colorScheme.onSurface,
+                                timeSelectorSelectedContentColor = MaterialTheme.colorScheme.surfaceContainer,
                                 timeSelectorUnselectedContainerColor = Color.DarkGray,
-                                timeSelectorUnselectedContentColor = Color.White
+                                timeSelectorUnselectedContentColor = MaterialTheme.colorScheme.onSurface
                             ),
                             modifier = Modifier.padding(vertical = settings.value.padding.dp)
                         )

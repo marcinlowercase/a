@@ -31,6 +31,7 @@ import android.os.Build
 import android.os.Environment
 import android.util.Log
 import android.webkit.URLUtil
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -610,6 +611,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         _browserSettings.update(mutation)
         // Persist the resulting value after the update for the CURRENT active profile
         saveSettingsToPrefs(currentProfileId, _browserSettings.value)
+        geckoManager.notifyThemeChanged()
+
     }
 
     fun updateField(field: BrowserSettingField, value: Any) {
@@ -702,7 +705,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 isEnabledOutSync = d.IS_ENABLED_OUT_SYNC,
                 memoryUsage = d.MEMORY_USAGE,
                 isEnabledConfirmation = d.IS_ENABLED_CONFIRMATION,
-                isEnabledBackgroundPlayback = d.IS_ENABLED_BACKGROUND_PLAYBACK
+                isEnabledBackgroundPlayback = d.IS_ENABLED_BACKGROUND_PLAYBACK,
+                isEnabledMaterialYou = d.IS_ENABLED_MATERIAL_YOU
             )
         }
     }
@@ -2619,8 +2623,9 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         updateField(BrowserSettingField.SETTINGS_ORDER, sets.joinToString(","))
     }
 
-    fun toggleOptionVisibility() {
-        val option = inspectingOption.value ?: return
+    fun toggleOptionVisibility(option: BrowserOption? =  inspectingOption.value, isHidden: Boolean? = null) {
+        if (option == null) return
+//        val option = inspectingOption.value ?: return
         if (option == BrowserOption.SETTINGS ||
             option == BrowserOption.SORT_BUTTONS
         ) {
@@ -2629,8 +2634,13 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         val hidden = _browserSettings.value.hiddenOptions.split(",").filter { it.isNotBlank() }
             .toMutableSet()
 
-        if (hidden.contains(option.name)) hidden.remove(option.name)
-        else hidden.add(option.name)
+        val shouldBeHidden = isHidden ?: !hidden.contains(option.name)
+
+        if (shouldBeHidden) {
+            hidden.add(option.name)
+        } else {
+            hidden.remove(option.name)
+        }
 
         updateField(BrowserSettingField.HIDDEN_OPTIONS, hidden.joinToString(","))
     }

@@ -22,6 +22,8 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,6 +42,7 @@ import marcinlowercase.a.core.data_class.BrowserSettings
 import java.net.URL
 import java.util.Locale
 
+@Composable
 fun Modifier.buttonSettingsForLayer(
     layer: Int,
     browserSettings: BrowserSettings,
@@ -52,7 +55,7 @@ fun Modifier.buttonSettingsForLayer(
             )
         )
         .height(browserSettings.heightForLayer(layer).dp)
-        .background(if (white) Color.White else Color.Transparent)
+        .background(if (white) MaterialTheme.colorScheme.onSurface else Color.Transparent)
 )
 
 fun Modifier.buttonPointerInput(

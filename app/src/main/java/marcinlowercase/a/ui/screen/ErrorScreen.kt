@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -77,7 +78,7 @@ fun ErrorScreen(
             .fillMaxSize()
             .clickable(enabled = false) {} // Prevent clicking through to WebView
             .clip(RoundedCornerShape(settings.value.deviceCornerRadius.dp))
-            .background(Color.White) // Or dynamic theme color
+            .background(MaterialTheme.colorScheme.onSurface) // Or dynamic theme color
     ) {
         Column(
             modifier = Modifier
@@ -90,7 +91,7 @@ fun ErrorScreen(
             Text(
                 text = userMessage,
 //                style = MaterialTheme.typography.bodyMedium,
-                color = Color.Black,
+                color = MaterialTheme.colorScheme.surfaceContainer,
                 textAlign = TextAlign.Center
             )
 
@@ -100,7 +101,7 @@ fun ErrorScreen(
             Text(
                 text = errorState.failingUrl,
 //                style = MaterialTheme.typography.labelSmall,
-                color = Color.Black,
+                color = MaterialTheme.colorScheme.surfaceContainer,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
