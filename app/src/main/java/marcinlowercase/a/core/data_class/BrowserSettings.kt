@@ -16,6 +16,7 @@
  */
 package marcinlowercase.a.core.data_class
 
+import android.os.Build
 import kotlinx.serialization.Serializable
 import marcinlowercase.a.ui.panel.isColorDark
 import kotlin.math.roundToInt
@@ -49,6 +50,7 @@ data class BrowserSettings(
     val hiddenOptions: String,
     val isEnabledConfirmation: Boolean,
     val isEnabledBackgroundPlayback: Boolean,
+    val isEnabledMaterialYou: Boolean,
 
     val isEnabledMediaControl: Boolean,
     val isEnabledOutSync: Boolean,
@@ -86,4 +88,9 @@ data class BrowserSettings(
     fun offHighlight(): Int {
         return if (!isColorDark(highlightColor)) 0xFFFFFFFF.toInt() else 0xFF000000.toInt()
     }
+
+    fun isMaterialYou() : Boolean {
+        return isEnabledMaterialYou && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    }
+
 }

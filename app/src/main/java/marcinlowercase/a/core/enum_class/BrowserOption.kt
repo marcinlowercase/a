@@ -63,4 +63,5 @@ enum class BrowserOption(val type: OptionType) {
     CHANGE_ICON(OptionType.TOGGLE_ACTION),
     CONFIRMATION(OptionType.TOGGLE_ACTION),
     BACKGROUND_PLAYBACK(OptionType.TOGGLE_ACTION),
+    MATERIAL_YOU(OptionType.TOGGLE_ACTION),
 }

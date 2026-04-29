@@ -353,10 +353,9 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            Theme {
-
-                val viewModel: BrowserViewModel = viewModel()
-
+            val viewModel: BrowserViewModel = viewModel()
+            val settings by viewModel.browserSettings.collectAsState()
+            Theme (dynamicColor = settings.isEnabledMaterialYou) {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     BrowserScreen(
                         innerPadding = innerPadding,
@@ -932,7 +931,7 @@ fun BrowserScreen(
 
 
 //region OptionsPanel Drag State
-    val optionsPanelHeight = (settings.heightForLayer(2) + settings.padding).dp
+    val optionsPanelHeight = (settings.heightForLayer(2) + settings.padding * 2).dp
 
     val fullyDisplayRow = round(settings.maxListHeight)
     val numberOfPaddings =fullyDisplayRow + if (ceil(settings.maxListHeight) > settings.maxListHeight) + 2

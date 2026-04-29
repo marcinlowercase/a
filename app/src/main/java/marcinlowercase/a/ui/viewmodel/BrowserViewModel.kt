@@ -27,6 +27,7 @@ import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
 import android.media.MediaScannerConnection
+import android.os.Build
 import android.os.Environment
 import android.util.Log
 import android.webkit.URLUtil
@@ -593,6 +594,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             isEnabledOutSync = prefsToUse.getBoolean("is_enabled_out_sync", d.IS_ENABLED_OUT_SYNC),
             isEnabledConfirmation = prefsToUse.getBoolean("is_enabled_confirmation", d.IS_ENABLED_CONFIRMATION),
             isEnabledBackgroundPlayback = prefsToUse.getBoolean("is_enabled_background_playback", d.IS_ENABLED_BACKGROUND_PLAYBACK),
+            isEnabledMaterialYou = prefsToUse.getBoolean("is_enabled_material_you", d.IS_ENABLED_MATERIAL_YOU),
 
 
 
@@ -746,12 +748,17 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             putBoolean("is_enabled_out_sync", settings.isEnabledOutSync)
             putBoolean("is_enabled_confirmation", settings.isEnabledConfirmation)
             putBoolean("is_enabled_background_playback", settings.isEnabledBackgroundPlayback)
+            putBoolean("is_enabled_material_you", settings.isEnabledMaterialYou)
             putString("options_order", settings.optionsOrder)
             putString("settings_order", settings.settingsOrder)
             putString("hidden_options", settings.hiddenOptions)
             apply()
         }
-    }    //endregion
+    }
+
+
+
+    //endregion
     //region UI State
     private val _uiState = MutableStateFlow(
         BrowserUIState(

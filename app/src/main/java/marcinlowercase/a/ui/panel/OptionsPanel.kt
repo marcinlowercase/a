@@ -295,6 +295,14 @@ fun rememberBrowserOptionsRegistry(
             ) {
                 viewModel.updateSettings { it.copy(isEnabledBackgroundPlayback = !it.isEnabledBackgroundPlayback) }
             },
+            BrowserOption.MATERIAL_YOU to OptionItem(
+                id = BrowserOption.MATERIAL_YOU,
+                iconRes = R.drawable.ic_material_design,
+                contentDescription = R.string.desc_material_you,
+                enabled = settings.value.isEnabledMaterialYou
+            ) {
+                viewModel.updateSettings { it.copy(isEnabledMaterialYou = !it.isEnabledMaterialYou) }
+            },
 
             BrowserOption.SYNC to OptionItem(
                 id = BrowserOption.SYNC,
@@ -572,8 +580,9 @@ fun OptionsPanel(
                     columns = GridCells.Fixed(4),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = settings.value.padding.dp)
-                        .padding(bottom = settings.value.padding.dp)
+                        .padding(settings.value.padding.dp)
+//                        .padding(horizontal = settings.value.padding.dp)
+//                        .padding(bottom = settings.value.padding.dp)
                         .height(settings.value.heightForLayer(2).dp) // EXACT height of 1 row
                         .background(
                             Color.Black.copy(alpha = 0.3f),
