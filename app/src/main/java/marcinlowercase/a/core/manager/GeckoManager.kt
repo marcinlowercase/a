@@ -722,8 +722,12 @@ class GeckoManager(private val context: Context) {
                                         formatArgbToCss(browserSettings.value.highlightColor.toHexString())
                                     )
                                     put(
-                                        "contrastColor",
-                                        formatArgbToCss(browserSettings.value.backgroundForHighlightText().toHexString())
+                                        "onHighlight",
+                                        formatArgbToCss(browserSettings.value.onHighlight().toHexString())
+                                    )
+                                    put(
+                                        "offHighlight",
+                                        formatArgbToCss(browserSettings.value.offHighlight().toHexString())
                                     )
                                     put("isDesktop", browserSettings.value.isDesktopMode)
                                     // Send the LIVE width to JavaScript

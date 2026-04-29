@@ -70,7 +70,8 @@
       document.documentElement.style.setProperty('--padding', scaledPadding + 'px');
       document.documentElement.style.setProperty('--single-line-height', scaledLineHeight + 'px');
       document.documentElement.style.setProperty('--highlight-color', response.color);
-      document.documentElement.style.setProperty('--highlight-contrast-color', response.contrastColor);
+      document.documentElement.style.setProperty('--on-highlight', response.onHighlight);
+      document.documentElement.style.setProperty('--off-highlight', response.offHighlight);
       document.documentElement.style.setProperty('--animation-speed', response.animationSpeed);
 
       window.deviceCornerRadius = scaledRadius;

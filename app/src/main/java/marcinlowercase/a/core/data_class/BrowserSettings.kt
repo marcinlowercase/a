@@ -80,7 +80,10 @@ data class BrowserSettings(
         val adjusted = animationSpeed - 50f * layer
         return adjusted.coerceAtLeast(0f).roundToInt()
     }
-    fun backgroundForHighlightText(): Int {
+    fun onHighlight(): Int {
         return if (isColorDark(highlightColor)) 0xFFFFFFFF.toInt() else 0xFF000000.toInt()
+    }
+    fun offHighlight(): Int {
+        return if (!isColorDark(highlightColor)) 0xFFFFFFFF.toInt() else 0xFF000000.toInt()
     }
 }

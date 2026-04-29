@@ -72,7 +72,7 @@ fun ConfirmationPanel() {
                         settings.value.cornerRadiusForLayer(2).dp
                     )
                 )
-                .background(Color(settings.value.backgroundForHighlightText()))
+                .background(Color(settings.value.onHighlight()))
 //                .border(
 //                    width = 2.dp, color = Color(settings.value.highlightColor),
 //                    shape = RoundedCornerShape(
@@ -88,7 +88,7 @@ fun ConfirmationPanel() {
                     .padding(horizontal = settings.value.padding.dp)
                     .heightIn(min = settings.value.heightForLayer(3).dp)
                     .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(3).dp))
-                    .background(Color(settings.value.backgroundForHighlightText()))
+                    .background(Color(settings.value.onHighlight()))
 //                    .border(width = 2.dp, color = Color(settings.value.highlightColor), shape = RoundedCornerShape(settings.value.cornerRadiusForLayer(3).dp))
 //                    .padding(vertical = settings.value.padding.dp)
                     .padding(horizontal = settings.value.padding.dp)

@@ -575,7 +575,7 @@ fun PlaceholderIcon(
             Icon(
                 painter = painterResource(id = iconRes),
                 contentDescription = null,
-                tint = if (otherColor != null) Color(settings.value.backgroundForHighlightText()) else Color.Black,
+                tint = if (otherColor != null) Color(settings.value.onHighlight()) else Color.Black,
                 modifier = Modifier.size(24.dp)
             )
         }
