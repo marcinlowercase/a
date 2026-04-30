@@ -136,7 +136,7 @@ fun rememberBrowserOptionsRegistry(
         }
     }
     val disabledHighlightColorText = stringResource(R.string.toast_highlight_color_setting_disabled)
-    val materialYouNotSupportText = stringResource(R.string.toast_highlight_color_setting_disabled)
+    val materialYouNotSupportText = stringResource(R.string.toast_material_you_not_support)
     return remember(
         uiState.value,
         settings.value,

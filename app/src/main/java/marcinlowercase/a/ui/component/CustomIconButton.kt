@@ -43,7 +43,7 @@ import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 fun CustomIconButton(
     modifier: Modifier = Modifier,
     otherColor: Color = Color.Transparent,
-    isLandscape : Boolean = false,
+    isLandscape: Boolean = false,
     layer: Int,
     onTap: (() -> Unit),
     onLongPress: () -> Boolean = {
@@ -61,7 +61,7 @@ fun CustomIconButton(
     val settings = viewModel.browserSettings.collectAsState()
 
 
-    val  hapticFeedback = LocalHapticFeedback.current
+    val hapticFeedback = LocalHapticFeedback.current
     val sizeModifier = if (isLandscape) {
         Modifier.width(settings.value.heightForLayer(layer).dp)
     } else {
@@ -87,8 +87,7 @@ fun CustomIconButton(
                 useLongPress = useLongPress,
 
                 )
-            .background(otherColor)
-        ,
+            .background(otherColor),
         contentAlignment = Alignment.Center
     ) {
         if (textIcon != null) {
@@ -96,8 +95,10 @@ fun CustomIconButton(
             Text(
                 text = textIcon,
                 fontFamily = FontFamily.Monospace,
-                color = if(otherColor != Color.Transparent && settings.value.isMaterialYou()) MaterialTheme.colorScheme.onPrimary
-                else { if (isWhite) MaterialTheme.colorScheme.surfaceContainer else MaterialTheme.colorScheme.onSurface },
+                color = if (otherColor != Color.Transparent && settings.value.isMaterialYou()) MaterialTheme.colorScheme.onPrimary
+                else {
+                    if (isWhite) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
+                },
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Black,
                 textDecoration = TextDecoration.Underline
@@ -109,8 +110,10 @@ fun CustomIconButton(
             ,
             painter = painterResource(id = painterId),
             contentDescription = buttonDescription,
-            tint = if(otherColor != Color.Transparent && settings.value.isMaterialYou()) MaterialTheme.colorScheme.onPrimary
-            else { if (isWhite) MaterialTheme.colorScheme.surfaceContainer else MaterialTheme.colorScheme.onSurface}
+            tint = if (otherColor != Color.Transparent && settings.value.isMaterialYou()) MaterialTheme.colorScheme.onPrimary
+            else {
+                if (isWhite) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
+            }
         )
     }
 }

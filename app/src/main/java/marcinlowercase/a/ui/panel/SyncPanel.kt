@@ -130,7 +130,7 @@ fun SyncPanel(
                         buttonDescription = stringResource(R.string.desc_delete_account),
                         painterId = R.drawable.ic_account_circle_off,
                         isWhite = !isColorDark(Color.Red.toArgb()),
-                        otherColor = Color.Red
+                        otherColor = if(settings.value.isMaterialYou()) MaterialTheme.colorScheme.error else Color.Red
                     )
                 }
 

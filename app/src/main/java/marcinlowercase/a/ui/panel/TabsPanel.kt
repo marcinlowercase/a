@@ -150,10 +150,10 @@ fun TabItem(
                 )
                 .background(
                     if (isActive) {
-                        if (!isSystemInDarkTheme() && settings.value.isMaterialYou()) MaterialTheme.colorScheme.surfaceVariant
+                        if (!isSystemInDarkTheme() && settings.value.isMaterialYou()) MaterialTheme.colorScheme.inverseSurface
                         else MaterialTheme.colorScheme.onSurface
                     } else {
-                        if (!isSystemInDarkTheme() && settings.value.isMaterialYou()) MaterialTheme.colorScheme.surfaceVariant.copy(0.5f)
+                        if (!isSystemInDarkTheme() && settings.value.isMaterialYou()) MaterialTheme.colorScheme.inverseSurface.copy(0.5f)
                         else MaterialTheme.colorScheme.onSurface.copy(0.5f)
                     }
                 ) // Different background for inactive

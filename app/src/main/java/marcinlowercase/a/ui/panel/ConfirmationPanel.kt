@@ -76,13 +76,6 @@ fun ConfirmationPanel() {
                     )
                 )
                 .background(Color(settings.value.activeOnHighlight()))
-//                .border(
-//                    width = 2.dp, color = Color(settings.value.highlightColor),
-//                    shape = RoundedCornerShape(
-//                        settings.value.cornerRadiusForLayer(2).dp
-//                    )
-//                )
-
         ) {
 
             Column(
@@ -92,8 +85,6 @@ fun ConfirmationPanel() {
                     .heightIn(min = settings.value.heightForLayer(3).dp)
                     .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(3).dp))
                     .background(Color(settings.value.activeOnHighlight()))
-//                    .border(width = 2.dp, color = Color(settings.value.highlightColor), shape = RoundedCornerShape(settings.value.cornerRadiusForLayer(3).dp))
-//                    .padding(vertical = settings.value.padding.dp)
                     .padding(horizontal = settings.value.padding.dp)
                     .padding(horizontal = settings.value.cornerRadiusForLayer(3).dp),
                 verticalArrangement = Arrangement.Center
@@ -129,8 +120,6 @@ fun ConfirmationPanel() {
                 horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
             ) {
                 // Cancel Button
-                Log.i("helloT", "${!isColorDark(settings.value.highlightColor)}")
-
                 CustomIconButton(
                     modifier = Modifier.weight(2f),
                     layer = 3,
@@ -148,7 +137,6 @@ fun ConfirmationPanel() {
                     painterId = R.drawable.ic_check,
                     onTap = state.onConfirm,
                     buttonDescription = "confirm",
-                    otherColor = MaterialTheme.colorScheme.surfaceContainer.copy(settings.value.backSquareIdleOpacity * 0.2f)
                 )
             }
         }

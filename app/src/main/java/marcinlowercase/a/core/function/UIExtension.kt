@@ -46,7 +46,7 @@ import java.util.Locale
 fun Modifier.buttonSettingsForLayer(
     layer: Int,
     browserSettings: BrowserSettings,
-    white: Boolean = true
+    enabled: Boolean = true
 ): Modifier = this.then(
     Modifier
         .clip(
@@ -55,7 +55,7 @@ fun Modifier.buttonSettingsForLayer(
             )
         )
         .height(browserSettings.heightForLayer(layer).dp)
-        .background(if (white) MaterialTheme.colorScheme.onSurface else Color.Transparent)
+        .background(if (enabled) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
 )
 
 fun Modifier.buttonPointerInput(

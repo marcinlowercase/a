@@ -89,7 +89,6 @@ fun NavigationPanel(
         ) {
             Column(
                 modifier = modifier
-
                     .clip(
                         RoundedCornerShape(
                             settings.value.cornerRadiusForLayer(2).dp
@@ -105,7 +104,7 @@ fun NavigationPanel(
                         .padding(horizontal = settings.value.padding.dp),
 
 
-                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
 

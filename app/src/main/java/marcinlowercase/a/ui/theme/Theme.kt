@@ -43,17 +43,19 @@ fun Theme(
             dynamicDarkColorScheme(context)
         } else {
             dynamicLightColorScheme(context).copy(
-//                surfaceVariant = Color.White
+                surfaceVariant = Color.White,
+                inverseSurface = dynamicLightColorScheme(context).surface,
             )
         }
     } else {
         // 2. IF DISABLED: Use default scheme but override exactly the 5 colors you requested
         darkColorScheme().copy(
             surfaceContainer = Color.Black,
-            surfaceVariant = Color.Black,
+            surfaceVariant = Color.Transparent,
             onSurface = Color.White,
             secondaryContainer = Color.White,
-            onSecondaryContainer = Color.Black
+            onSecondaryContainer = Color.Black,
+            inverseSurface = Color.White
         )
     }
 

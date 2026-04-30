@@ -173,7 +173,7 @@ fun AppsPanel(
                     .height(maxPanelHeight)
                     .padding(horizontal = settings.value.padding.dp)
                     .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp))
-                    .background(MaterialTheme.colorScheme.onSurface)
+                    .background(MaterialTheme.colorScheme.inverseSurface)
                     .padding(settings.value.padding.dp)
                     .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(3).dp)),
                 horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp),
@@ -512,7 +512,12 @@ fun PlaceholderIcon(
         modifier = modifier
             .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(3).dp))
             .heightIn(min = settings.value.heightForLayer(3).dp)
-            .background(otherColor ?: MaterialTheme.colorScheme.surfaceContainer.copy(settings.value.backSquareIdleOpacity * 0.2f))
+            .background(
+                otherColor
+                    ?: if (!isSystemInDarkTheme() && settings.value.isMaterialYou()) MaterialTheme.colorScheme.surfaceContainer else MaterialTheme.colorScheme.surfaceContainer.copy(
+                        settings.value.backSquareIdleOpacity * 0.2f
+                    )
+            )
             .then(
                 if (onClick != null && buttonDescription != null)
                     Modifier.pointerInput(buttonDescription) {
@@ -553,7 +558,8 @@ fun PlaceholderIcon(
                                 }
 
                                 // Always clear the description on release or cancellation
-                                if (viewModel.descriptionContent.value == buttonDescription)  viewModel.descriptionContent.value = ""
+                                if (viewModel.descriptionContent.value == buttonDescription) viewModel.descriptionContent.value =
+                                    ""
                             }
                         }
                     }
@@ -566,7 +572,11 @@ fun PlaceholderIcon(
         if (text != null) {
             Text(
                 text = text,
-                color = MaterialTheme.colorScheme.surfaceContainer,
+                color = if (otherColor != null) Color(settings.value.activeOnHighlight()
+                ) else {
+                    if (!isSystemInDarkTheme() && settings.value.isMaterialYou())MaterialTheme.colorScheme.onSurface  else
+                        MaterialTheme.colorScheme.surfaceContainer
+                },
                 maxLines = 1,
                 overflow = TextOverflow.Visible,
                 textAlign = TextAlign.Center,
@@ -579,7 +589,10 @@ fun PlaceholderIcon(
                 painter = painterResource(id = iconRes),
                 contentDescription = null,
                 tint = if (otherColor != null) Color(settings.value.activeOnHighlight()
-                ) else MaterialTheme.colorScheme.surfaceContainer,
+                ) else {
+                    if (!isSystemInDarkTheme() && settings.value.isMaterialYou())MaterialTheme.colorScheme.onSurface  else
+                    MaterialTheme.colorScheme.surfaceContainer
+                },
                 modifier = Modifier.size(24.dp)
             )
         }
@@ -601,7 +614,11 @@ fun AppIcon(
         modifier = modifier
             .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(3).dp))
             .heightIn(min = settings.value.heightForLayer(3).dp)
-            .background(if (!isSystemInDarkTheme() && settings.value.isMaterialYou())MaterialTheme.colorScheme.surfaceContainer  else MaterialTheme.colorScheme.surfaceContainer.copy(settings.value.backSquareIdleOpacity * 0.2f))
+            .background(
+                if (!isSystemInDarkTheme() && settings.value.isMaterialYou()) MaterialTheme.colorScheme.surfaceContainer else MaterialTheme.colorScheme.surfaceContainer.copy(
+                    settings.value.backSquareIdleOpacity * 0.2f
+                )
+            )
             .padding(2.dp)
             .fillMaxWidth()
             .combinedClickable(

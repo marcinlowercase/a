@@ -100,7 +100,7 @@ data class BrowserSettings(
 @Composable
 fun BrowserSettings.activeOnHighlight(): Int {
     return if (isMaterialYou()) {
-        MaterialTheme.colorScheme.surface.toArgb()
+        MaterialTheme.colorScheme.background.toArgb()
     } else {
         // Fallback to your custom math
         onHighlight()
@@ -110,7 +110,7 @@ fun BrowserSettings.activeOnHighlight(): Int {
 @Composable
 fun BrowserSettings.activeOffHighlight(): Int {
     return if (isMaterialYou()) {
-        MaterialTheme.colorScheme.onSurface.toArgb()
+        MaterialTheme.colorScheme.onBackground.toArgb()
     } else {
         // Fallback to your custom math
         offHighlight()
