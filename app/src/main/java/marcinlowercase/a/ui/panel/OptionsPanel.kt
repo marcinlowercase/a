@@ -110,7 +110,7 @@ enum class SettingPanelView {
     MAIN, CORNER_RADIUS, PADDING, ANIMATION_SPEED, CURSOR_CONTAINER_SIZE,
     CURSOR_TRACKING_SPEED, BACK_SQUARE_OPACITY, DEFAULT_URL, INFO,
     CLOSED_TAB_HISTORY_SIZE, MAX_LIST_HEIGHT, SEARCH_ENGINE,
-    SINGLE_LINE_HEIGHT, HIGHLIGHT_COLOR,MEMORY_USAGE
+    SINGLE_LINE_HEIGHT, HIGHLIGHT_COLOR, MEMORY_USAGE
 }
 
 // --- MASTER REGISTRY OF ALL BUTTONS ---
@@ -136,6 +136,7 @@ fun rememberBrowserOptionsRegistry(
         }
     }
     val disabledHighlightColorText = stringResource(R.string.toast_highlight_color_setting_disabled)
+    val materialYouNotSupportText = stringResource(R.string.toast_highlight_color_setting_disabled)
     return remember(
         uiState.value,
         settings.value,
@@ -253,7 +254,7 @@ fun rememberBrowserOptionsRegistry(
                 } else {
                     onNavigateToSetting(SettingPanelView.HIGHLIGHT_COLOR)
                 }
-              },
+            },
             BrowserOption.ANIMATION_SPEED to OptionItem(
                 id = BrowserOption.ANIMATION_SPEED,
                 iconRes = R.drawable.ic_animation,
@@ -325,17 +326,25 @@ fun rememberBrowserOptionsRegistry(
                 contentDescription = R.string.desc_material_you,
                 enabled = settings.value.isEnabledMaterialYou
             ) {
-                val isTurningOn = !settings.value.isEnabledMaterialYou
+                Log.i("mrcFF", "${Build.VERSION.SDK_INT >= Build.VERSION_CODES.S}")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    val isTurningOn = !settings.value.isEnabledMaterialYou
 
-                viewModel.updateSettings {
-                    it.copy(
-                        isEnabledMaterialYou = isTurningOn,
-                        // If turning on, force the highlight color to the true Material You primary
-                        highlightColor = if (isTurningOn) dynamicPrimaryColor else it.highlightColor
+                    viewModel.updateSettings {
+                        it.copy(
+                            isEnabledMaterialYou = isTurningOn,
+                            // If turning on, force the highlight color to the true Material You primary
+                            highlightColor = if (isTurningOn) dynamicPrimaryColor else it.highlightColor
+                        )
+                    }
+                    if (isTurningOn) viewModel.toggleOptionVisibility(
+                        BrowserOption.HIGHLIGHT_COLOR,
+                        true
                     )
+                    else viewModel.toggleOptionVisibility(BrowserOption.HIGHLIGHT_COLOR, false)
+                } else {
+                    viewModel.showCustomNotification(materialYouNotSupportText)
                 }
-                if (isTurningOn)  viewModel.toggleOptionVisibility(BrowserOption.HIGHLIGHT_COLOR, true)
-                else viewModel.toggleOptionVisibility(BrowserOption.HIGHLIGHT_COLOR, false)
             },
 
             BrowserOption.SYNC to OptionItem(
@@ -346,7 +355,11 @@ fun rememberBrowserOptionsRegistry(
             ) {
                 if (viewModel.isLoggedIn()) {
                     viewModel.updateUI {
-                        it.copy(isSyncPanelVisible = !it.isSyncPanelVisible, isOptionsPanelVisible = false, isSettingsPanelVisible = false)
+                        it.copy(
+                            isSyncPanelVisible = !it.isSyncPanelVisible,
+                            isOptionsPanelVisible = false,
+                            isSettingsPanelVisible = false
+                        )
                     }
 //                    viewModel.updateSettings { it.copy(isSync = !it.isSync) }
                 } else {
@@ -359,7 +372,11 @@ fun rememberBrowserOptionsRegistry(
                 iconRes = R.drawable.ic_reset_settings,
                 contentDescription = R.string.desc_reset_settings
             ) {
-                confirmationPopup(R.string.confirm_reset_setting, "", { viewModel.resetSettings() }, {})
+                confirmationPopup(
+                    R.string.confirm_reset_setting,
+                    "",
+                    { viewModel.resetSettings() },
+                    {})
             },
             BrowserOption.SORT_BUTTONS to OptionItem(
                 id = BrowserOption.SORT_BUTTONS,
@@ -435,11 +452,11 @@ fun rememberBrowserOptionsRegistry(
             ) {
                 onCloseAllTabs()
                 viewModel.updateUI {
-                it.copy(
-                    isOptionsPanelVisible = false,
-                    isAppsPanelVisible = false
-                )
-            }
+                    it.copy(
+                        isOptionsPanelVisible = false,
+                        isAppsPanelVisible = false
+                    )
+                }
             },
             BrowserOption.ADBLOCK to OptionItem(
                 id = BrowserOption.ADBLOCK,
@@ -498,11 +515,11 @@ fun rememberBrowserOptionsRegistry(
             },
             BrowserOption.OPTIMIZE_MEMORY to OptionItem(
                 id = BrowserOption.OPTIMIZE_MEMORY,
-                iconRes = if (viewModel.tabs.size > 1 || viewModel.geckoManager.sessionPoolSize > 1 ) R.drawable.ic_rocket_launch else R.drawable.ic_rocket,
+                iconRes = if (viewModel.tabs.size > 1 || viewModel.geckoManager.sessionPoolSize > 1) R.drawable.ic_rocket_launch else R.drawable.ic_rocket,
                 contentDescription = R.string.desc_optimize_memory,
                 enabled = viewModel.tabs.size > 1 || viewModel.geckoManager.sessionPoolSize > 1
             ) {
-               if (viewModel.tabs.size > 1 || viewModel.geckoManager.sessionPoolSize > 1) confirmationPopup(
+                if (viewModel.tabs.size > 1 || viewModel.geckoManager.sessionPoolSize > 1) confirmationPopup(
                     R.string.confirm_optimize_memory,
                     "",
                     {
@@ -577,7 +594,7 @@ fun OptionsPanel(
         changeBrowserIcon = changeBrowserIcon,
         onLoginClick = onLoginClick,
 
-    )
+        )
 
     // 4. Map IDs to UI Items
     val displayOptions = visibleIds.mapNotNull { registry[it] }
@@ -670,9 +687,11 @@ fun OptionsPanel(
                             count = remaining,
                             key = { "spacer_${actualPageIndex}_$it" }
                         ) {
-                            Spacer(modifier = Modifier
-                                .animateItem()
-                                .fillMaxSize())
+                            Spacer(
+                                modifier = Modifier
+                                    .animateItem()
+                                    .fillMaxSize()
+                            )
                         }
                     }
                 }
@@ -689,7 +708,7 @@ fun SettingsPanel(
     targetSetting: SettingPanelView = SettingPanelView.MAIN,
     changeBrowserIcon: () -> Unit = {},
     onLoginClick: () -> Unit = {},
-    ) {
+) {
     val viewModel = LocalBrowserViewModel.current
     val uiState = viewModel.uiState.collectAsState()
     val settings = viewModel.browserSettings.collectAsState()
@@ -704,8 +723,12 @@ fun SettingsPanel(
         if (currentView == SettingPanelView.CORNER_RADIUS) {
             if (settings.value.isSharpMode) viewModel.updateSettings { it.copy(isSharpMode = false) }
             viewModel.backgroundColor.value = Color.Red
-            viewModel.updateUI { it.copy(isSettingCornerRadius = true,
-                isFullscreenPreview = true) }
+            viewModel.updateUI {
+                it.copy(
+                    isSettingCornerRadius = true,
+                    isFullscreenPreview = true
+                )
+            }
         } else {
             viewModel.backgroundColor.value = Color.Black
             Log.e("mrcFF", "here")
@@ -804,7 +827,11 @@ fun SettingsPanel(
                     if (targetState != SettingPanelView.MAIN && initialState == SettingPanelView.MAIN) {
                         // Sliding IN to a setting (Content moves Left)
                         (slideInHorizontally(tween(speed)) { it / 4 } + fadeIn(tween(speed))) togetherWith
-                                (slideOutHorizontally(tween(speed)) { -it / 4 } + fadeOut(tween(speed)))
+                                (slideOutHorizontally(tween(speed)) { -it / 4 } + fadeOut(
+                                    tween(
+                                        speed
+                                    )
+                                ))
                     } else {
                         // Sliding BACK to MAIN (Content moves Right)
                         (slideInHorizontally(tween(speed)) { -it / 4 } + fadeIn(tween(speed))) togetherWith
@@ -821,7 +848,8 @@ fun SettingsPanel(
                                 modifier = Modifier.fillMaxWidth(),
                                 userScrollEnabled = realPageCount > 1
                             ) { pageIndex ->
-                                val actualPageIndex = if (realPageCount > 0) pageIndex % realPageCount else 0
+                                val actualPageIndex =
+                                    if (realPageCount > 0) pageIndex % realPageCount else 0
                                 val pageOptions = optionPages[actualPageIndex]
 
                                 LazyVerticalGrid(
@@ -831,25 +859,41 @@ fun SettingsPanel(
                                         .height(settings.value.heightForLayer(2).dp)
                                         .background(
                                             MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.3f),
-                                            shape = RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp)
+                                            shape = RoundedCornerShape(
+                                                settings.value.cornerRadiusForLayer(
+                                                    2
+                                                ).dp
+                                            )
                                         ),
                                     horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp),
                                     userScrollEnabled = false
                                 ) {
                                     items(items = pageOptions, key = { it.id }) { option ->
-                                        val isHidden = viewModel.isOptionHidden(option.id, settings.value)
-                                        val isInspecting = viewModel.inspectingOption.value == option.id
+                                        val isHidden =
+                                            viewModel.isOptionHidden(option.id, settings.value)
+                                        val isInspecting =
+                                            viewModel.inspectingOption.value == option.id
 
                                         Box(
                                             modifier = Modifier
                                                 .animateItem()
                                                 .fillMaxSize()
                                                 .alpha(if (isHidden) 0.3f else 1f)
-                                                .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp))
+                                                .clip(
+                                                    RoundedCornerShape(
+                                                        settings.value.cornerRadiusForLayer(
+                                                            2
+                                                        ).dp
+                                                    )
+                                                )
                                                 .border(
                                                     width = if (isInspecting) 2.dp else 0.dp,
                                                     color = if (isInspecting) Color(settings.value.highlightColor) else Color.Transparent,
-                                                    shape = RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp)
+                                                    shape = RoundedCornerShape(
+                                                        settings.value.cornerRadiusForLayer(
+                                                            2
+                                                        ).dp
+                                                    )
                                                 )
                                         ) {
                                             CustomIconButton(
@@ -858,7 +902,11 @@ fun SettingsPanel(
                                                 onTap = {
                                                     if (viewModel.isSortingButtons.value) {
                                                         viewModel.inspectingOption.value = option.id
-                                                        viewModel.updateUI { it.copy(isAppsPanelVisible = true) }
+                                                        viewModel.updateUI {
+                                                            it.copy(
+                                                                isAppsPanelVisible = true
+                                                            )
+                                                        }
                                                     } else {
                                                         if (!pagerState.isScrollInProgress) option.onClick()
                                                     }
@@ -873,8 +921,12 @@ fun SettingsPanel(
 
                                     val remaining = 4 - pageOptions.size
                                     if (remaining > 0) {
-                                        items(count = remaining, key = { "spacer_${actualPageIndex}_$it" }) {
-                                            Spacer(modifier = Modifier.animateItem().fillMaxSize())
+                                        items(
+                                            count = remaining,
+                                            key = { "spacer_${actualPageIndex}_$it" }) {
+                                            Spacer(modifier = Modifier
+                                                .animateItem()
+                                                .fillMaxSize())
                                         }
                                     }
                                 }
@@ -957,7 +1009,12 @@ fun SettingsPanel(
                             .fillMaxWidth()
                             .height(settings.value.heightForLayer(2).dp),
                         contentAlignment = Alignment.Center
-                    ) { Text("make by marcinlowercase", color = MaterialTheme.colorScheme.onSurface) }
+                    ) {
+                        Text(
+                            "make by marcinlowercase",
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
 
                     SettingPanelView.CLOSED_TAB_HISTORY_SIZE -> SliderSetting(
                         onBackClick = onBackClick,
@@ -1071,7 +1128,13 @@ fun SettingsPanel(
                                 IconButton(
                                     onClick = onBackClick,
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(3).dp))
+                                        .clip(
+                                            RoundedCornerShape(
+                                                settings.value.cornerRadiusForLayer(
+                                                    3
+                                                ).dp
+                                            )
+                                        )
                                         .fillMaxHeight()
                                         .background(MaterialTheme.colorScheme.onSurface)
                                         .defaultMinSize(minWidth = settings.value.heightForLayer(3).dp)
@@ -1086,7 +1149,13 @@ fun SettingsPanel(
                                     modifier = Modifier
                                         .weight(1f)
                                         .fillMaxHeight()
-                                        .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(3).dp))
+                                        .clip(
+                                            RoundedCornerShape(
+                                                settings.value.cornerRadiusForLayer(
+                                                    3
+                                                ).dp
+                                            )
+                                        )
                                         .background(Color(selectedColorInt)),
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -1147,7 +1216,13 @@ fun SettingsPanel(
                                 IconButton(
                                     onClick = { },
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(3).dp))
+                                        .clip(
+                                            RoundedCornerShape(
+                                                settings.value.cornerRadiusForLayer(
+                                                    3
+                                                ).dp
+                                            )
+                                        )
                                         .fillMaxHeight()
                                         .defaultMinSize(minWidth = settings.value.heightForLayer(3).dp)
                                 ) {
@@ -1160,13 +1235,33 @@ fun SettingsPanel(
                             }
                             AnimatedVisibility(
                                 visible = !uiState.value.isFocusOnSettingTextField,
-                                enter = expandVertically(tween(settings.value.animationSpeedForLayer(1))),
-                                exit = shrinkVertically(tween(settings.value.animationSpeedForLayer(1)))
+                                enter = expandVertically(
+                                    tween(
+                                        settings.value.animationSpeedForLayer(
+                                            1
+                                        )
+                                    )
+                                ),
+                                exit = shrinkVertically(
+                                    tween(
+                                        settings.value.animationSpeedForLayer(
+                                            1
+                                        )
+                                    )
+                                )
                             ) {
                                 Column {
                                     val rainbowBrush = remember {
                                         Brush.horizontalGradient(
-                                            listOf(Color.Red, Color.Yellow, Color.Green, Color.Cyan, Color.Blue, Color.Magenta, Color.Red)
+                                            listOf(
+                                                Color.Red,
+                                                Color.Yellow,
+                                                Color.Green,
+                                                Color.Cyan,
+                                                Color.Blue,
+                                                Color.Magenta,
+                                                Color.Red
+                                            )
                                         )
                                     }
                                     Box(contentAlignment = Alignment.Center) {
@@ -1205,7 +1300,9 @@ fun SettingsPanel(
                                         valueRange = 0f..1f,
                                         colors = SliderDefaults.colors(
                                             thumbColor = MaterialTheme.colorScheme.onSurface,
-                                            activeTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = value)
+                                            activeTrackColor = MaterialTheme.colorScheme.onSurface.copy(
+                                                alpha = value
+                                            )
                                         )
                                     )
                                 }

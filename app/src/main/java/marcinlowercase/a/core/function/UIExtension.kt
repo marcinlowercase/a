@@ -114,7 +114,7 @@ fun Modifier.buttonPointerInput(
                 }
 
 
-                descriptionContent.value = ""
+                if (descriptionContent.value == buttonDescription) descriptionContent.value = ""
             }
         }
 )

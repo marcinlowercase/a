@@ -553,7 +553,7 @@ fun PlaceholderIcon(
                                 }
 
                                 // Always clear the description on release or cancellation
-                                viewModel.descriptionContent.value = ""
+                                if (viewModel.descriptionContent.value == buttonDescription)  viewModel.descriptionContent.value = ""
                             }
                         }
                     }
