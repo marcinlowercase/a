@@ -1,21 +1,21 @@
 [versions]
-agp = "9.1.1"
+agp = "9.2.1"
 kotlin = "2.3.21"
 coreKtx = "1.18.0"
 junit = "4.13.2"
 junitVersion = "1.3.0"
 espressoCore = "3.7.0"
 activityCompose = "1.13.0"
-composeBom = "2026.04.01"
+composeBom = "2026.05.01"
 kotlinxSerializationJson = "1.11.0"
-foundation = "1.11.0"
+foundation = "1.11.2"
 material3 = "1.4.0"
 coil = "2.7.0"
 lifecycle = "2.10.0"
-geckoview = "150.0.20260427013024"
-runtime = "1.11.0"
-media = "1.7.1"
-apksig = "9.1.1"
+geckoview = "151.0.20260513195118"
+runtime = "1.11.2"
+media = "1.8.0"
+apksig = "9.2.1"
 
 [libraries]
 androidx-lifecycle-viewmodel = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "lifecycle"}
