@@ -9,6 +9,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -26,14 +27,18 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -53,6 +58,7 @@ import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.GeckoView
 import kotlin.math.roundToInt
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun BackSquare(
@@ -120,7 +126,7 @@ fun BackSquare(
                             }
 
                             val longPressJob = coroutineScope.launch {
-                                delay(viewConfiguration.longPressTimeoutMillis)
+                                delay(viewConfiguration.longPressTimeoutMillis.milliseconds)
                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                                 viewModel.updateUI { it.copy(isCursorPadVisible = true) }
                                 squareAlpha.snapTo(0f)
@@ -279,38 +285,51 @@ fun BackSquare(
                     }
                     .clip(RoundedCornerShape(settings.cornerRadiusForLayer(1).dp))
                     .border(
-                        width = 2.dp,
+                        width = 0.5.dp,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
                         shape = RoundedCornerShape(settings.cornerRadiusForLayer(1).dp)
                     )
                     .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.6f)),
                 contentAlignment = Alignment.Center
             ) {
-                // Animate the appearance and disappearance of the overlay.
-//                Box(
-//                    modifier = Modifier
-//                        .padding(settings.padding.dp * 2)
-//                        .size(settings.heightForLayer(3).dp)
-//                        .clip(CircleShape)
-//                        .background(MaterialTheme.colorScheme.onSurface.copy(0.3f))
-//
-//                ){
-//                    Icon(
-//                        painter = painterResource(id = R.drawable.ic_search),
-//                        contentDescription = "Open Menu",
-//                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), // Subtle tint so it blends well
-//                        modifier = Modifier.size(24.dp)
-//                    )
-//                }
                 AnimatedVisibility(
                     visible = !uiState.value.isLoading,
                     enter = fadeIn(animationSpec = tween(settings.animationSpeed.roundToInt())),
                     exit = fadeOut(animationSpec = tween(settings.animationSpeed.roundToInt()))
                 ) {
+                    // 1. Put all 8 of your static frame images inside res/drawable
+                    // and list them here in order.
+                    val frames = remember {
+                        listOf(
+                            R.drawable.lob2_a00,
+                            R.drawable.lob2_a01,
+                            R.drawable.lob2_a02,
+                            R.drawable.lob2_a03,
+                            R.drawable.lob2_a04,
+                            R.drawable.lob2_a05,
+                            R.drawable.lob2_a06,
+                            R.drawable.lob2_a07,
+                        )
+                    }
+
+                    // 2. Keep track of which frame index is currently showing
+                    var currentFrameIndex by remember { mutableIntStateOf(0) }
+
+                    // 3. Set how long each individual frame stays on screen (e.g., 100ms)
+                    val frameDurationMillis = 100L
+
+                    // 4. Drive the loop strictly forward: 0, 1, 2, 3, 4, 5, 6, 7 -> 0
+                    LaunchedEffect(Unit) {
+                        while (true) {
+                            delay(frameDurationMillis.milliseconds)
+                            currentFrameIndex = (currentFrameIndex + 1) % frames.size
+                        }
+                    }
+
                     Icon(
-                        painter = painterResource(id = R.drawable.ic_logo_bold),
+                        painter = painterResource(id = frames[currentFrameIndex]),
                         contentDescription = "Open Menu",
-                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), // Subtle tint so it blends well
+                        tint = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.size(settings.heightForLayer(3).dp)
                     )
                 }
@@ -326,7 +345,7 @@ fun BackSquare(
                             .padding(settings.padding.dp)
                             .size(settings.heightForLayer(4).dp),
                         color = MaterialTheme.colorScheme.onSurface,
-                        strokeWidth = 2.dp
+                        strokeWidth = 0.5.dp
                     )
                 }
             }
