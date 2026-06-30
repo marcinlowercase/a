@@ -7,12 +7,12 @@ plugins {
 
 android {
     namespace = "marcinlowercase.a"
-    compileSdk = 36
+    compileSdk = 37
 
     ndkVersion = "29.0.14206865"
     defaultConfig {
-        minSdk = 26 // android 8
-        targetSdk = 36
+        minSdk = 26
+        targetSdk = 37// android 8
         versionCode = 48
         versionName = "0.19.1"
 
