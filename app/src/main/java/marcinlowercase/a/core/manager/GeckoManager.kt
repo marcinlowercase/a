@@ -1352,9 +1352,9 @@ class GeckoManager(private val context: Context) {
                 if (metadata.title != null && metadata.title != lastTitle.value) {
                     lastTitle.value = metadata.title.toString()
                     startReset()
-                    mediaSession.pause()
-                    mediaSession.seekTo(0.0, true)
-                    mediaSession.play()
+//                    mediaSession.pause()
+//                    mediaSession.seekTo(0.0, true)
+//                    mediaSession.play()
 
                 }
             }
