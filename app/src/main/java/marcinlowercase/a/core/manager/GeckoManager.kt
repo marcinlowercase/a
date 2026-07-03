@@ -1022,12 +1022,14 @@ class GeckoManager(private val context: Context) {
             override fun onTitleChange(session: GeckoSession, title: String?) {
                 title?.let { title ->
                     onTitleChangeFun(eventTabId, session, title)
-                    if (session == activeMediaGeckoSession) {
-                        context.startService(Intent(context, MediaPlaybackService::class.java).apply {
-                            putExtra("TITLE", title)
-                            putExtra("IS_PAUSED", isActiveMediaSessionPaused)
-                        })
-                    }
+
+                    // discontinue media section
+//                    if (session == activeMediaGeckoSession) {
+//                        context.startService(Intent(context, MediaPlaybackService::class.java).apply {
+//                            putExtra("TITLE", title)
+//                            putExtra("IS_PAUSED", isActiveMediaSessionPaused)
+//                        })
+//                    }
                 }
             }
 
@@ -1324,12 +1326,13 @@ class GeckoManager(private val context: Context) {
                 isActiveMediaSessionPaused = false
                 val title = tab.value.currentTitle.ifBlank { tab.value.currentURL.toDomain() }
 
-                // website started playing media! Start the background service.
-                val intent = Intent(context, MediaPlaybackService::class.java).apply {
-                    putExtra("TITLE", title)
-                    putExtra("IS_PAUSED", false)
-                }
-                context.startForegroundService(intent)
+                // discontinue media play back controle
+//                // website started playing media! Start the background service.
+//                val intent = Intent(context, MediaPlaybackService::class.java).apply {
+//                    putExtra("TITLE", title)
+//                    putExtra("IS_PAUSED", false)
+//                }
+//                context.startForegroundService(intent)
             }
 
             override fun onDeactivated(session: GeckoSession, mediaSession: MediaSession) {
