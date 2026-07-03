@@ -1381,9 +1381,9 @@ class GeckoManager(private val context: Context) {
 
                 isActiveMediaSessionPaused = true
 
-                context.startService(Intent(context, MediaPlaybackService::class.java).apply {
-                    putExtra("IS_PAUSED", true)
-                })
+//                context.startService(Intent(context, MediaPlaybackService::class.java).apply {
+//                    putExtra("IS_PAUSED", true)
+//                })
                 super.onPause(session, mediaSession)
             }
 
@@ -1397,9 +1397,9 @@ class GeckoManager(private val context: Context) {
                     lastPositionSnapshot.doubleValue = 0.0
                 }
 
-                context.startService(Intent(context, MediaPlaybackService::class.java).apply {
-                    putExtra("IS_PAUSED", false)
-                })
+//                context.startService(Intent(context, MediaPlaybackService::class.java).apply {
+//                    putExtra("IS_PAUSED", false)
+//                })
                 super.onPlay(session, mediaSession)
             }
 
