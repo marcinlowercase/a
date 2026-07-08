@@ -515,7 +515,7 @@ fun PlaceholderIcon(
             .background(
                 otherColor
                     ?: if (!isSystemInDarkTheme() && settings.value.isMaterialYou()) MaterialTheme.colorScheme.surfaceContainer else MaterialTheme.colorScheme.surfaceContainer.copy(
-                        settings.value.backSquareIdleOpacity * 0.2f
+                        0.05f
                     )
             )
             .then(
@@ -616,7 +616,7 @@ fun AppIcon(
             .heightIn(min = settings.value.heightForLayer(3).dp)
             .background(
                 if (!isSystemInDarkTheme() && settings.value.isMaterialYou()) MaterialTheme.colorScheme.surfaceContainer else MaterialTheme.colorScheme.surfaceContainer.copy(
-                    settings.value.backSquareIdleOpacity * 0.2f
+                    0.05f
                 )
             )
             .padding(2.dp)
