@@ -23,6 +23,6 @@ fun webViewLoad(session: GeckoSession?, url: String) {
         .uri(url)
         .flags(GeckoSession.LOAD_FLAGS_NONE)
 
-//        .data(browserSettings.deviceCornerRadius.toString(), "text/plain")
+//        .data(browserSettings.currentCornerRadius.toString(), "text/plain")
     )
 }

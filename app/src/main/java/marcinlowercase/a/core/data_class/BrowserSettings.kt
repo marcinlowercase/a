@@ -28,7 +28,10 @@ import kotlin.math.roundToInt
 data class BrowserSettings(
     val isFirstAppLoad: Boolean,
     val padding: Float,
-    val deviceCornerRadius: Float,
+    val currentCornerRadius: Float,
+    val floatCornerRadius: Float,
+    val splitCornerRadius: Float,
+    val hardwareCornerRadius: Float,
     val defaultUrl: String,
     val animationSpeed: Float,
     val singleLineHeight: Float,
@@ -60,7 +63,7 @@ data class BrowserSettings(
     val memoryUsage: Int,
 ) {
     fun cornerRadiusForLayer(layer: Int): Float {
-        if (layer == 0) return deviceCornerRadius
+        if (layer == 0) return currentCornerRadius
         return (cornerRadiusForLayer(layer - 1) - padding).coerceAtLeast(0f)
     }
 

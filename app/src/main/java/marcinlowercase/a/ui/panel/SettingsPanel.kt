@@ -95,7 +95,7 @@ fun SliderSetting(
 
     val currentSettingOriginalValue = remember(settings, field) {
         when (field) {
-            BrowserSettingField.CORNER_RADIUS -> settings.value.deviceCornerRadius
+            BrowserSettingField.CORNER_RADIUS -> settings.value.currentCornerRadius
             BrowserSettingField.PADDING -> settings.value.padding
             BrowserSettingField.ANIMATION_SPEED -> settings.value.animationSpeed
             BrowserSettingField.SINGLE_LINE_HEIGHT -> settings.value.singleLineHeight

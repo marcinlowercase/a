@@ -100,6 +100,7 @@ import java.util.Collections
 import java.util.regex.Pattern
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.toColorInt
+import marcinlowercase.a.core.enum_class.WindowMode
 
 val LocalBrowserViewModel = staticCompositionLocalOf<BrowserViewModel> {
     error("No BrowserViewModel provided! Check your root Composable.")
@@ -551,7 +552,11 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             // --- GLOBAL SETTINGS (Shared across all profiles) ---
             isFirstAppLoad = globalPrefs.getBoolean("is_first_app_load", true),
             padding = globalPrefs.getFloat("padding", d.PADDING),
-            deviceCornerRadius = globalPrefs.getFloat("device_corner_radius", d.CORNER_RADIUS),
+            currentCornerRadius = globalPrefs.getFloat("current_corner_radius", d.CORNER_RADIUS),
+            hardwareCornerRadius =  globalPrefs.getFloat("hardware_corner_radius", d.CORNER_RADIUS),
+            floatCornerRadius = globalPrefs.getFloat("float_corner_radius", d.CORNER_RADIUS),
+            splitCornerRadius = globalPrefs.getFloat("split_corner_radius", d.CORNER_RADIUS),
+
             singleLineHeight = globalPrefs.getFloat("single_line_height", d.SINGLE_LINE_HEIGHT),
             maxListHeight = globalPrefs.getFloat("max_list_height", d.MAX_LIST_HEIGHT),
             memoryUsage = globalPrefs.getInt("memory_usage", d.MEMORY_USAGE),
@@ -618,7 +623,14 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     fun updateField(field: BrowserSettingField, value: Any) {
         updateSettings { current ->
             when (field) {
-                BrowserSettingField.CORNER_RADIUS -> current.copy(deviceCornerRadius = value as Float)
+                BrowserSettingField.CORNER_RADIUS -> {
+                    when (_uiState.value.windowMode) {
+                        WindowMode.FULLSCREEN -> current.copy(hardwareCornerRadius = value as Float, currentCornerRadius = value as Float)
+                        WindowMode.FLOAT -> current.copy(floatCornerRadius = value as Float, currentCornerRadius = value as Float)
+                        WindowMode.SPLIT ->current.copy(splitCornerRadius = value as Float, currentCornerRadius = value as Float)
+                    }
+
+                }
                 BrowserSettingField.PADDING -> current.copy(padding = value as Float)
                 BrowserSettingField.ANIMATION_SPEED -> current.copy(animationSpeed = value as Float)
                 BrowserSettingField.CURSOR_CONTAINER_SIZE -> current.copy(cursorContainerSize = value as Float)
@@ -681,7 +693,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             val d = DefaultSettingValues
             it.copy(
                 padding = d.PADDING,
-                deviceCornerRadius = d.CORNER_RADIUS,
+                currentCornerRadius = d.CORNER_RADIUS,
                 singleLineHeight = d.SINGLE_LINE_HEIGHT,
                 maxListHeight = d.MAX_LIST_HEIGHT,
                 defaultUrl = d.URL,
@@ -721,7 +733,10 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         globalPrefs.edit().apply {
             putBoolean("is_first_app_load", settings.isFirstAppLoad)
             putFloat("padding", settings.padding)
-            putFloat("device_corner_radius", settings.deviceCornerRadius)
+            putFloat("current_corner_radius", settings.currentCornerRadius)
+            putFloat("hardware_corner_radius", settings.hardwareCornerRadius)
+            putFloat("float_corner_radius", settings.floatCornerRadius)
+            putFloat("split_corner_radius", settings.splitCornerRadius)
             putFloat("single_line_height", settings.singleLineHeight)
             putFloat("max_list_height", settings.maxListHeight)
             putInt("memory_usage", settings.memoryUsage)
@@ -1062,7 +1077,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 val safeMergedSettings = cloudSettings.copy(
                     isFirstAppLoad = localSettings.isFirstAppLoad,
                     padding = localSettings.padding,
-                    deviceCornerRadius = localSettings.deviceCornerRadius,
+                    currentCornerRadius = localSettings.currentCornerRadius,
                     singleLineHeight = localSettings.singleLineHeight,
                     maxListHeight = localSettings.maxListHeight,
                     memoryUsage = localSettings.memoryUsage

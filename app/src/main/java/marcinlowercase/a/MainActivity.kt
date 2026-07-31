@@ -25,6 +25,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -172,8 +173,11 @@ import java.io.File
 import java.io.FileOutputStream
 import kotlin.system.exitProcess
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.ViewModel
 import marcinlowercase.a.core.data_class.activeOffHighlight
 import marcinlowercase.a.core.data_class.activeOnHighlight
+import marcinlowercase.a.core.enum_class.WindowMode
+import marcinlowercase.a.core.function.isBubbleMode
 import marcinlowercase.a.ui.component.BackSquare
 import marcinlowercase.a.ui.component.CursorPointer
 import org.mozilla.geckoview.GeckoRuntime
@@ -672,7 +676,7 @@ fun BrowserScreen(
     val animatedCornerRadius by animateDpAsState(
         targetValue = if (settings.isSharpMode
 
-        ) 0.dp else settings.deviceCornerRadius.dp,
+        ) 0.dp else settings.currentCornerRadius.dp,
         label = "Corner Radius Animation",
     )
 
@@ -697,14 +701,14 @@ fun BrowserScreen(
     // Top Padding
 
     val webViewTopPaddingFullscreen = if (settings.isSharpMode && !uiState.value.isLandscape) {
-        maxOf(cutoutTop, settings.deviceCornerRadius.dp)
+        maxOf(cutoutTop, settings.currentCornerRadius.dp)
     } else {
         cutoutTop
     }
 
     val webViewTopPaddingRegular = if (settings.isSharpMode) {
         maxOf(
-            maxOf(cutoutTop, settings.deviceCornerRadius.dp),
+            maxOf(cutoutTop, settings.currentCornerRadius.dp),
             innerPadding.calculateTopPadding()
         )
     } else {
@@ -730,13 +734,13 @@ fun BrowserScreen(
     // Bottom Padding
     val webViewBottomPaddingFullscreen =
         if (settings.isSharpMode && !uiState.value.isLandscape) {
-            maxOf(cutoutBottom, settings.deviceCornerRadius.dp)
+            maxOf(cutoutBottom, settings.currentCornerRadius.dp)
         } else {
             cutoutBottom
         }
     val webViewBottomPaddingRegular = if (settings.isSharpMode) {
         maxOf(
-            maxOf(cutoutBottom, settings.deviceCornerRadius.dp),
+            maxOf(cutoutBottom, settings.currentCornerRadius.dp),
             innerPadding.calculateBottomPadding()
         )
     } else {
@@ -769,7 +773,7 @@ fun BrowserScreen(
 
     val webViewStartPaddingFullscreen =
         if (settings.isSharpMode && uiState.value.isLandscape) {
-            maxOf(cutoutLeft, settings.deviceCornerRadius.dp)
+            maxOf(cutoutLeft, settings.currentCornerRadius.dp)
         } else {
             cutoutLeft
         }
@@ -786,7 +790,7 @@ fun BrowserScreen(
     // End Padding
 
     val webViewEndPaddingFullscreen = if (settings.isSharpMode && uiState.value.isLandscape) {
-        maxOf(cutoutRight, settings.deviceCornerRadius.dp)
+        maxOf(cutoutRight, settings.currentCornerRadius.dp)
     } else {
         cutoutRight
     }
@@ -1579,6 +1583,34 @@ fun BrowserScreen(
         LocalBrowserViewModel provides viewModel
     ) {
         //region LaunchedEffect
+
+        LaunchedEffect(activity.isInMultiWindowMode,isBubbleMode(activity)) {
+            Log.i("mrcHello", "isInMultiWindowMode : ${activity.isInMultiWindowMode}")
+            Log.i("mrcHello", "isBubble : ${isBubbleMode(activity)}")
+            if (activity.isInMultiWindowMode) {
+                if (isBubbleMode(activity)) {
+                    // Bubble Mode
+                    viewModel.updateUI { it.copy(windowMode = WindowMode.FLOAT) }
+                    viewModel.updateSettings { it.copy(currentCornerRadius = settings.floatCornerRadius) }
+
+                    if (!settings.isFullscreenMode) viewModel.updateSettings { it.copy(isFullscreenMode = true) }
+                } else {
+                    // Split Mode
+                    viewModel.updateUI { it.copy(windowMode = WindowMode.SPLIT) }
+
+                    viewModel.updateSettings { it.copy(currentCornerRadius = settings.splitCornerRadius) }
+                    if (settings.isFullscreenMode) viewModel.updateSettings { it.copy(isFullscreenMode = false) }
+
+
+                }
+
+            } else {
+                // Regular Mode
+                viewModel.updateUI { it.copy(windowMode = WindowMode.FULLSCREEN) }
+
+                viewModel.updateSettings { it.copy(currentCornerRadius = settings.hardwareCornerRadius) }
+            }
+        }
 
         LaunchedEffect(viewModel.activeProfileId.value) {
             if (viewModel.inspectingOption.value != null || viewModel.isSortingButtons.value) {

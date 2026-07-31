@@ -16,6 +16,8 @@
  */
 package marcinlowercase.a.core.data_class
 
+import marcinlowercase.a.core.enum_class.WindowMode
+
 data class BrowserUIState(
     // Bottom Bar & General Overlay
     val isUrlBarVisible: Boolean = true,
@@ -72,7 +74,8 @@ data class BrowserUIState(
     val isLoading: Boolean = false,
     val isFirstLoadPWA: Boolean = true,
 
-    // Screen Size / Orientation
+    // Screen Size / Orientation / Window Mode
+    val windowMode: WindowMode = WindowMode.FULLSCREEN,
     val isLandscape: Boolean = false,
     val isLandscapeByButton: Boolean = false,
     val isSettingCornerRadius: Boolean = true,

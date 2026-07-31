@@ -277,7 +277,7 @@ fun PromptPanel(
 //                                    1.dp, MaterialTheme.colorScheme.onSurface, shape = RoundedCornerShape(
 //                                        cornerRadiusForLayer(
 //                                            3,
-//                                            settings.value.deviceCornerRadius,
+//                                            settings.value.currentCornerRadius,
 //                                            settings.value.padding,
 //                                        ).dp
 //                                    )

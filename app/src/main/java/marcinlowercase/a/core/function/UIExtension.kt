@@ -16,6 +16,10 @@
  */
 package marcinlowercase.a.core.function
 
+import android.app.Activity
+import android.os.Build
+import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -185,3 +189,34 @@ fun formatArgbToCss(argb: String): String {
     }
 }
 
+fun isBubbleMode(activity: Activity?): Boolean {
+    if (activity == null || !activity.isInMultiWindowMode) return false
+
+    // 1. Check for Freeform/Floating Window Mode (Works on HyperOS, MIUI, One UI)
+    try {
+        val config = activity.resources.configuration
+        val getWindowConfig = config.javaClass.getMethod("getWindowConfiguration")
+        val windowConfig = getWindowConfig.invoke(config)
+        val getWindowingMode = windowConfig?.javaClass?.getMethod("getWindowingMode")
+        val mode = getWindowingMode?.invoke(windowConfig) as? Int
+
+        Log.i("mrcHello", "mode $mode")
+        Log.i("mrcHello", "")
+        // 5 = WINDOWING_MODE_FREEFORM (Floating Window / Pop-up view)
+        if (mode == 5) return true
+    } catch (_: Exception) {
+        // Fallback if reflection fails
+    }
+
+    // 2. Fallback for Stock Android / Pixel Bubbles
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        val wm = activity.windowManager
+        val windowBounds = wm.currentWindowMetrics.bounds
+        val displayBounds = wm.maximumWindowMetrics.bounds
+
+        return windowBounds.width() < displayBounds.width() &&
+                windowBounds.height() < displayBounds.height()
+    }
+
+    return false
+}

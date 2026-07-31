@@ -104,6 +104,8 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import marcinlowercase.a.core.enum_class.WindowMode
+import kotlin.time.Duration.Companion.milliseconds
 
 
 enum class SettingPanelView {
@@ -555,6 +557,7 @@ fun OptionsPanel(
 ) {
     val viewModel = LocalBrowserViewModel.current
     val settings = viewModel.browserSettings.collectAsState()
+    val uiState = viewModel.uiState.collectAsState()
 
     // 1. Compute IDs first
     val currentOrderIds = settings.value.optionsOrder.split(",")
@@ -567,6 +570,7 @@ fun OptionsPanel(
         }
 
     val visibleIds = currentOrderIds.filter { opt ->
+        if (uiState.value.windowMode != WindowMode.FULLSCREEN && opt == BrowserOption.FULLSCREEN) return@filter false
         viewModel.isSortingButtons.value || !viewModel.isOptionHidden(opt, settings.value)
     }
 
@@ -743,7 +747,7 @@ fun SettingsPanel(
 
     LaunchedEffect(uiState.value.isSettingsPanelVisible) {
         if (!uiState.value.isSettingsPanelVisible) {
-            delay(settings.value.animationSpeed.toLong())
+            delay(settings.value.animationSpeed.toLong().milliseconds)
             currentView = SettingPanelView.MAIN
         }
     }
@@ -759,6 +763,7 @@ fun SettingsPanel(
         }
 
     val visibleIds = currentOrderIds.filter { opt ->
+        if (uiState.value.windowMode != WindowMode.FULLSCREEN && opt == BrowserOption.FULLSCREEN) return@filter false
         viewModel.isSortingButtons.value || !viewModel.isOptionHidden(opt, settings.value)
     }
 
