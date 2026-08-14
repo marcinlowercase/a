@@ -2634,9 +2634,17 @@ fun BrowserScreen(
                                                 this
                                             }
                                         }
+//                                        .clip(
+//                                            RoundedCornerShape(
+//                                                animatedCornerRadius
+//                                            )
+//                                        )
                                         .clip(
                                             RoundedCornerShape(
-                                                animatedCornerRadius
+                                                topStart = animatedCornerRadius,
+                                                topEnd = animatedCornerRadius,
+                                                bottomEnd = if (isKeyboardVisible && !uiState.value.isFocusOnTextField) 0.dp else animatedCornerRadius,
+                                                bottomStart = if (isKeyboardVisible && !uiState.value.isFocusOnTextField) 0.dp else animatedCornerRadius
                                             )
                                         )
                                         .testTag("WebViewContainer")
