@@ -25,7 +25,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
-import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -111,6 +110,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -139,18 +139,24 @@ import marcinlowercase.a.core.data_class.JsAlert
 import marcinlowercase.a.core.data_class.JsConfirm
 import marcinlowercase.a.core.data_class.JsPrompt
 import marcinlowercase.a.core.data_class.Tab
+import marcinlowercase.a.core.data_class.activeOffHighlight
+import marcinlowercase.a.core.data_class.activeOnHighlight
 import marcinlowercase.a.core.enum_class.ActivePanel
 import marcinlowercase.a.core.enum_class.DownloadStatus
 import marcinlowercase.a.core.enum_class.GestureNavAction
 import marcinlowercase.a.core.enum_class.MediaControlOption
 import marcinlowercase.a.core.enum_class.RevealState
+import marcinlowercase.a.core.enum_class.WindowMode
 import marcinlowercase.a.core.function.createNotificationChannel
+import marcinlowercase.a.core.function.isBubbleMode
 import marcinlowercase.a.core.function.rememberAnchoredDraggableState
 import marcinlowercase.a.core.function.toDomain
 import marcinlowercase.a.core.function.webViewLoad
 import marcinlowercase.a.core.manager.MediaGestureManager
 import marcinlowercase.a.core.service.ShakeDetector
+import marcinlowercase.a.ui.component.BackSquare
 import marcinlowercase.a.ui.component.CursorPad
+import marcinlowercase.a.ui.component.CursorPointer
 import marcinlowercase.a.ui.panel.BottomPanel
 import marcinlowercase.a.ui.panel.ChoicePanel
 import marcinlowercase.a.ui.panel.ColorPickerPanel
@@ -165,24 +171,17 @@ import marcinlowercase.a.ui.viewmodel.BrowserViewModel
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import org.mozilla.gecko.util.ThreadUtils.runOnUiThread
 import org.mozilla.geckoview.GeckoResult
+import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.GeckoSessionSettings
 import org.mozilla.geckoview.GeckoView
 import org.mozilla.geckoview.StorageController
 import java.io.File
 import java.io.FileOutputStream
-import kotlin.system.exitProcess
-import androidx.compose.ui.res.stringResource
-import androidx.lifecycle.ViewModel
-import marcinlowercase.a.core.data_class.activeOffHighlight
-import marcinlowercase.a.core.data_class.activeOnHighlight
-import marcinlowercase.a.core.enum_class.WindowMode
-import marcinlowercase.a.core.function.isBubbleMode
-import marcinlowercase.a.ui.component.BackSquare
-import marcinlowercase.a.ui.component.CursorPointer
-import org.mozilla.geckoview.GeckoRuntime
 import kotlin.math.ceil
 import kotlin.math.round
+import kotlin.system.exitProcess
+import kotlin.time.Duration.Companion.milliseconds
 
 
 //region Composable
@@ -644,7 +643,7 @@ fun BrowserScreen(
 
     // 2. Automatically sync it to your settings whenever the OS theme changes!
     LaunchedEffect(currentPrimaryColor, settings.isEnabledMaterialYou) {
-        // Only override the color if Material You is turned ON
+        // Only override the color if "Material You" is turned ON
         // AND the current highlight color doesn't match the new OS color
         if (settings.isEnabledMaterialYou && settings.highlightColor != currentPrimaryColor) {
             viewModel.updateSettings {
@@ -672,7 +671,7 @@ fun BrowserScreen(
         }
 
 
-    val offsetY = remember { Animatable(0f) }
+//    val offsetY = remember { Animatable(0f) }
     val animatedCornerRadius by animateDpAsState(
         targetValue = if (settings.isSharpMode
 
@@ -926,22 +925,6 @@ fun BrowserScreen(
     )
     val urlBarFocusRequester = remember { FocusRequester() }
 
-    val initialX =
-        if (settings.backSquareOffsetX != -1f) settings.backSquareOffsetX else 0f
-    val initialY =
-        if (settings.backSquareOffsetY != -1f) settings.backSquareOffsetY else 0f
-    val backSquareOffsetX = remember { Animatable(initialX) }
-    val backSquareOffsetY = remember { Animatable(initialY) }
-    LaunchedEffect(initialX, initialY) {
-        if (settings.backSquareOffsetX != initialX || settings.backSquareOffsetY != initialY) {
-            viewModel.updateSettings {
-                it.copy(
-                    backSquareOffsetX = initialX,
-                    backSquareOffsetY = initialY
-                )
-            }
-        }
-    }
 
     val geckoViewRef = remember { mutableStateOf<GeckoView?>(null) }
 
@@ -1075,7 +1058,7 @@ fun BrowserScreen(
             squareAlpha.animateTo(peak)
 
             // b. Wait a moment so the user can see it before it blinks.
-            delay(400)
+            delay(400.milliseconds)
 
             // c. Blink twice.
             repeat(2) {
@@ -1084,7 +1067,7 @@ fun BrowserScreen(
             }
 
         } else {
-            delay(200)
+            delay(200.milliseconds)
         }
         squareAlpha.animateTo(idle, animationSpec = tween(400))
 
@@ -1585,8 +1568,14 @@ fun BrowserScreen(
         //region LaunchedEffect
 
         LaunchedEffect(activity.isInMultiWindowMode,isBubbleMode(activity)) {
-            Log.i("mrcHello", "isInMultiWindowMode : ${activity.isInMultiWindowMode}")
-            Log.i("mrcHello", "isBubble : ${isBubbleMode(activity)}")
+//            Log.i("mrcHello", "isInMultiWindowMode : ${activity.isInMultiWindowMode}")
+//            Log.i("mrcHello", "isBubble : ${isBubbleMode(activity)}")
+//            if (!uiState.value.isBottomPanelVisible) {
+//                viewModel.updateUI { it.copy(isBottomPanelVisible = true) }
+//            }
+            if (!uiState.value.isUrlBarVisible) {
+                viewModel.updateUI { it.copy(isUrlBarVisible = true) }
+            }
             if (activity.isInMultiWindowMode) {
                 if (isBubbleMode(activity)) {
                     // Bubble Mode
@@ -1800,7 +1789,7 @@ fun BrowserScreen(
         }
         LaunchedEffect(uiState.value.isFocusOnTextField, uiState.value.isPromptPanelVisible) {
             if ((!uiState.value.isFocusOnTextField && !uiState.value.isPromptPanelVisible)) {
-                delay(300)
+                delay(300.milliseconds)
                 viewModel.isApplyImePaddingToWebView.value = true
             } else {
                 viewModel.isApplyImePaddingToWebView.value = false
@@ -1836,30 +1825,7 @@ fun BrowserScreen(
                 viewModel.resetBottomPanelTrigger.value = !viewModel.resetBottomPanelTrigger.value
             }
         }
-//
-        LaunchedEffect(viewModel.screenSize.value) {
-            if (viewModel.screenSize.value.width > 0 && !viewModel.isBackSquareInitialized.value && !isPipMode) {
-                val buttonSize = with(density) {
-                    settings.heightForLayer(1).dp.toPx()
-                }
 
-                val defaultX =
-                    viewModel.screenSize.value.width - buttonSize - with(density) { settings.padding.dp.toPx() }
-                val defaultY =
-                    viewModel.screenSize.value.height - buttonSize - with(density) { settings.padding.dp.toPx() }
-
-                backSquareOffsetX.snapTo(defaultX)
-                backSquareOffsetY.snapTo(defaultY)
-                viewModel.isBackSquareInitialized.value = true
-
-                viewModel.updateSettings {
-                    it.copy(
-                        backSquareOffsetX = defaultX,
-                        backSquareOffsetY = defaultY
-                    )
-                }
-            }
-        }
         LaunchedEffect(textFieldState.text, uiState.value.isFocusOnUrlTextField) {
             if (uiState.value.isFocusOnUrlTextField) {
                 viewModel.fetchSuggestions(
@@ -2266,7 +2232,7 @@ fun BrowserScreen(
                         isBrowserVisible = true
 
                         coroutineScope.launch {
-                            delay(250)
+                            delay(250.milliseconds)
 
                             val currentGeckoView = geckoViewRef.value
                             val safeGeckoView = currentGeckoView as? SafeGeckoView
@@ -2405,70 +2371,7 @@ fun BrowserScreen(
             }
         }
 
-        LaunchedEffect(viewModel.screenSize.value) {
-            val squareBoxSize = settings.heightForLayer(1).dp
 
-            val squareBoxSizePx = with(density) { squareBoxSize.toPx() }
-            val paddingPx = with(density) { settings.padding.dp.toPx() }
-
-
-            if (viewModel.screenSize.value.height.toFloat() > (squareBoxSizePx - paddingPx)
-                && backSquareOffsetY.value > viewModel.screenSize.value.height.toFloat() - squareBoxSizePx - paddingPx
-                && !uiState.value.isLandscape
-                && !uiState.value.isBottomPanelVisible
-            ) {
-                // Clamp Y to screen bounds
-                val targetY = backSquareOffsetY.value.coerceIn(
-                    paddingPx,
-                    viewModel.screenSize.value.height.toFloat() - squareBoxSizePx - paddingPx
-                )
-                coroutineScope.launch {
-
-                    launch {
-                        backSquareOffsetY.animateTo(
-                            targetY,
-                            spring()
-                        )
-                    }
-
-                    viewModel.updateSettings {
-                        it.copy(
-                            backSquareOffsetY = targetY
-                        )
-                    }
-
-                    hideBackSquare(false)
-                }
-            }
-
-        }
-
-        LaunchedEffect(isKeyboardVisible, keyboardHeight, settings.backSquareOffsetY) {
-            val squareBoxSize = settings.heightForLayer(1).dp
-            val squareBoxSizePx = with(density) { squareBoxSize.toPx() }
-            val paddingPx = with(density) { settings.padding.dp.toPx() }
-            val screenHeight = viewModel.screenSize.value.height.toFloat()
-
-            if (isKeyboardVisible) {
-                val keyboardHeightPx = with(density) { keyboardHeight.toPx() }
-
-                // Calculate where the top of the BackSquare should be to sit exactly on top of the keyboard + padding
-                val targetY = screenHeight - keyboardHeightPx - squareBoxSizePx - paddingPx
-
-                // Only move it if the saved position is actually LOWER (visually below) the keyboard top
-                if (settings.backSquareOffsetY > targetY) {
-                    backSquareOffsetY.animateTo(targetY, spring())
-                }
-            } else {
-                // Keyboard is hidden.
-                // If the square is currently not at its saved position (meaning it was moved by the keyboard logic),
-                // put it back where the user left it.
-                // We use a small threshold (1f) to avoid floating point comparison issues
-                if (kotlin.math.abs(backSquareOffsetY.value - settings.backSquareOffsetY) > 1f) {
-                    backSquareOffsetY.animateTo(settings.backSquareOffsetY, spring())
-                }
-            }
-        }
         DisposableEffect(Unit) {
             val shakeDetector = ShakeDetector(context) {
                 // This code runs when a shake is detected
@@ -2492,6 +2395,7 @@ fun BrowserScreen(
         }
         // This effect will re-launch whenever isBottomPanelVisible changes.
         LaunchedEffect(uiState.value.isBottomPanelVisible) {
+            Log.i("mrc","isBottomPanelVisible Change")
             if (!uiState.value.isBottomPanelVisible) {
                 // -- The URL bar has just been hidden. Start the "show and blink" sequence. --
 
@@ -2512,15 +2416,15 @@ fun BrowserScreen(
                 squareAlpha.animateTo(settings.backSquareIdleOpacity)
             }
         }
-        LaunchedEffect(viewModel.overlayHeightPx.floatValue) {
-            // We only want to act the first time the height is measured (it changes from 0f to a positive value).
-            // The `offsetY.value == 0f` check is an extra safeguard to ensure we only do this once on startup.
-            if (viewModel.overlayHeightPx.floatValue > 0f && offsetY.value == 0f) {
-                // Instantly "snap" the overlay to its hidden position without any animation.
-                // The hidden position is its full height negated, moving it off-screen upwards.
-                offsetY.snapTo(-viewModel.overlayHeightPx.floatValue * 2)
-            }
-        }
+//        LaunchedEffect(viewModel.overlayHeightPx.floatValue) {
+//            // We only want to act the first time the height is measured (it changes from 0f to a positive value).
+//            // The `offsetY.value == 0f` check is an extra safeguard to ensure we only do this once on startup.
+//            if (viewModel.overlayHeightPx.floatValue > 0f && offsetY.value == 0f) {
+//                // Instantly "snap" the overlay to its hidden position without any animation.
+//                // The hidden position is its full height negated, moving it off-screen upwards.
+//                offsetY.snapTo(-viewModel.overlayHeightPx.floatValue * 2)
+//            }
+//        }
 
         LaunchedEffect(saveTrigger) {
             if (saveTrigger > 0) {
@@ -3106,8 +3010,8 @@ fun BrowserScreen(
                             modifier = modifier,
                             activeSession = activeSession,
                             geckoViewRef = geckoViewRef,
-                            backSquareOffsetX = backSquareOffsetX,
-                            backSquareOffsetY = backSquareOffsetY,
+//                            backSquareOffsetX = backSquareOffsetX,
+//                            backSquareOffsetY = backSquareOffsetY,
                             squareAlpha = squareAlpha,
                             cutoutTop = cutoutTop,
                             webViewPaddingValue = webViewPaddingValue,

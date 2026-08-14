@@ -560,6 +560,9 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             singleLineHeight = globalPrefs.getFloat("single_line_height", d.SINGLE_LINE_HEIGHT),
             maxListHeight = globalPrefs.getFloat("max_list_height", d.MAX_LIST_HEIGHT),
             memoryUsage = globalPrefs.getInt("memory_usage", d.MEMORY_USAGE),
+            backSquareY = globalPrefs.getFloat("back_square_y", 1f),
+            backSquareX = globalPrefs.getFloat("back_square_x", 1f),
+
 
 
             // --- PROFILE-SPECIFIC SETTINGS ---
@@ -606,8 +609,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
 
             // Settings that don't have constants yet (or are dynamic)
-            backSquareOffsetX = prefsToUse.getFloat("back_square_offset_x", -1f),
-            backSquareOffsetY = prefsToUse.getFloat("back_square_offset_y", -1f),
             isGuideModeEnabled = prefsToUse.getBoolean("is_guide_mode_enabled", true),
         )
     }
@@ -740,6 +741,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             putFloat("single_line_height", settings.singleLineHeight)
             putFloat("max_list_height", settings.maxListHeight)
             putInt("memory_usage", settings.memoryUsage)
+            putFloat("back_square_x", settings.backSquareX)
+            putFloat("back_square_y", settings.backSquareY)
 
             apply()
         }
@@ -754,8 +757,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             putFloat("cursor_tracking_speed", settings.cursorTrackingSpeed)
             putBoolean("show_suggestions", settings.showSuggestions)
             putFloat("closed_tab_history_size", settings.closedTabHistorySize)
-            putFloat("back_square_offset_x", settings.backSquareOffsetX)
-            putFloat("back_square_offset_y", settings.backSquareOffsetY)
+
             putFloat("back_square_idle_opacity", settings.backSquareIdleOpacity)
             putInt("search_engine", settings.searchEngine)
             putBoolean("is_fullscreen_mode", settings.isFullscreenMode)
@@ -2513,7 +2515,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     val resetBottomPanelTrigger = mutableStateOf(false)
     val isApplyImePaddingToWebView = mutableStateOf(true)
     val sessionRefreshTrigger = mutableIntStateOf(0)
-    val isBackSquareInitialized = mutableStateOf(_browserSettings.value.backSquareOffsetX != -1f)
     val activeNavAction = mutableStateOf(GestureNavAction.REFRESH)
     val overlayHeightPx = mutableFloatStateOf(0f)
     val cursorPointerPosition = mutableStateOf(Offset.Zero)

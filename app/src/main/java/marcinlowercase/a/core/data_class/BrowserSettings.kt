@@ -43,8 +43,12 @@ data class BrowserSettings(
     val cursorTrackingSpeed: Float,
     val showSuggestions: Boolean,
     val closedTabHistorySize: Float,
-    val backSquareOffsetX: Float = -1f,
-    val backSquareOffsetY: Float = 0f,
+//    val backSquareOffsetX: Float = -1f,
+//    val backSquareOffsetY: Float = 0f,
+    val backSquareX: Float = 1f,
+    val backSquareY: Float = 1f,
+    // changed the offset into percentage/ratio base on the orbit of the backsquare
+    // PROBLEM: we need to calculate the value every single time we open the app ???
     val backSquareIdleOpacity: Float = 0.2f,
     val maxListHeight: Float =  2f,
     val searchEngine: Int = 0,
