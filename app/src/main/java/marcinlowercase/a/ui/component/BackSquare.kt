@@ -1,6 +1,5 @@
 package marcinlowercase.a.ui.component
 
-import android.util.Log
 import android.view.MotionEvent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -104,14 +103,13 @@ fun BackSquare(
         bsVisibleHeight * settings.value.backSquareY + paddingPx + backsquareSizePx / 2 - backsquareSizePx / 2
 
 
-    val rrrbackSquareOffsetX = remember { Animatable(x) }
-    val rrrbackSquareOffsetY = remember { Animatable(y) }
+    val backSquareOffsetX = remember { Animatable(x) }
+    val backSquareOffsetY = remember { Animatable(y) }
 
     // BackSquare Display
     LaunchedEffect(uiState.value.isBottomPanelVisible, viewModel.screenSize.value) {
         if (!uiState.value.isBottomPanelVisible) {
-            Log.d("BackSquare", "x: ${settings.value.backSquareX}")
-            Log.d("BackSquare", "y: ${settings.value.backSquareY}")
+           
             val screenWidth = viewModel.screenSize.value.width.toFloat()
             val screenHeight = viewModel.screenSize.value.height.toFloat()
             if (screenWidth <= 0f || screenHeight <= 0f) return@LaunchedEffect
@@ -127,16 +125,9 @@ fun BackSquare(
                 bsVisibleWidth * settings.value.backSquareX + paddingPx + backsquareSizePx / 2 - backsquareSizePx / 2
             val y =
                 bsVisibleHeight * settings.value.backSquareY + paddingPx + backsquareSizePx / 2 - backsquareSizePx / 2
-
-            Log.e(
-                "BackSquare", "screenWidth=$screenWidth, screenHeight=$screenHeight, " +
-                        "bsVisibleWidth=$bsVisibleWidth, bsVisibleHeight=$bsVisibleHeight, " +
-                        "paddingPx=$paddingPx, backsquareSizePx=$backsquareSizePx, x=$x, y=$y"
-            )
-
-
-            rrrbackSquareOffsetX.animateTo(x)
-            rrrbackSquareOffsetY.animateTo(y)
+            
+            backSquareOffsetX.animateTo(x)
+            backSquareOffsetY.animateTo(y)
         }
     }
 
@@ -171,20 +162,18 @@ fun BackSquare(
             // Only move it if the saved position is actually LOWER (visually below) the keyboard top
 
             if (settingY > keyboardBottomLine.floatValue) {
-                rrrbackSquareOffsetY.animateTo(keyboardBottomLine.floatValue, spring())
+                backSquareOffsetY.animateTo(keyboardBottomLine.floatValue, spring())
             }
         } else {
             // Keyboard is hidden.
             // If the square is currently not at its saved position (meaning it was moved by the keyboard logic),
             // put it back where the user left it.
             // We use a small threshold (1f) to avoid floating point comparison issues
-            if (kotlin.math.abs(rrrbackSquareOffsetY.value - settingY) > 1f) {
+            if (kotlin.math.abs(backSquareOffsetY.value - settingY) > 1f) {
 
-                rrrbackSquareOffsetY.animateTo(settingY, spring())
+                backSquareOffsetY.animateTo(settingY, spring())
             }
         }
-        Log.i("BackSquare", "")
-
     }
 
 
@@ -213,8 +202,8 @@ fun BackSquare(
                 modifier = Modifier
                     .offset {
                         IntOffset(
-                            rrrbackSquareOffsetX.value.roundToInt(),
-                            rrrbackSquareOffsetY.value.roundToInt()
+                            backSquareOffsetX.value.roundToInt(),
+                            backSquareOffsetY.value.roundToInt()
                         )
                     }
                     .animateContentSize(tween(settings.value.animationSpeedForLayer(1)))
@@ -236,9 +225,9 @@ fun BackSquare(
                                 squareAlpha.snapTo(0f)
 
                                 val initialCursorX =
-                                    rrrbackSquareOffsetX.value + settings.value.padding + down.position.x
+                                    backSquareOffsetX.value + settings.value.padding + down.position.x
                                 val initialCursorY =
-                                    ((viewModel.screenSize.value.height - cutoutTop.toPx()) / 2) - (viewModel.screenSize.value.height - rrrbackSquareOffsetY.value) + down.position.y + cutoutTop.toPx()
+                                    ((viewModel.screenSize.value.height - cutoutTop.toPx()) / 2) - (viewModel.screenSize.value.height - backSquareOffsetY.value) + down.position.y + cutoutTop.toPx()
 
                                 viewModel.cursorPointerPosition.value =
                                     Offset(initialCursorX, initialCursorY)
@@ -319,15 +308,15 @@ fun BackSquare(
 
                                         change.consume()
                                         val newX =
-                                            rrrbackSquareOffsetX.value + change.position.x - change.previousPosition.x
+                                            backSquareOffsetX.value + change.position.x - change.previousPosition.x
                                         val newY =
-                                            rrrbackSquareOffsetY.value + change.position.y - change.previousPosition.y
+                                            backSquareOffsetY.value + change.position.y - change.previousPosition.y
 
 
 //                                        val newY = if (imeInsets.calculateBottomPadding().value > 0 && keyboardBottomLine.floatValue < fingerY) keyboardBottomLine.value else fingerY
                                         coroutineScope.launch {
-                                            rrrbackSquareOffsetX.snapTo(newX)
-                                            rrrbackSquareOffsetY.snapTo(newY)
+                                            backSquareOffsetX.snapTo(newX)
+                                            backSquareOffsetY.snapTo(newY)
                                         }
                                     }
 
@@ -339,28 +328,28 @@ fun BackSquare(
 
 
                                     // USE this block if we want the back square go around all edges
-//                                    val xCompareValue =  if (rrrbackSquareOffsetX.value + (backsquareSizePx / 2) < screenWidth / 2) {
-//                                        rrrbackSquareOffsetX.value // Take Left
+//                                    val xCompareValue =  if (backSquareOffsetX.value + (backsquareSizePx / 2) < screenWidth / 2) {
+//                                        backSquareOffsetX.value // Take Left
 //                                    } else
-//                                        screenWidth - rrrbackSquareOffsetX.value // Take Right
+//                                        screenWidth - backSquareOffsetX.value // Take Right
 //
-//                                    val yCompareValue =  if (rrrbackSquareOffsetY.value + (backsquareSizePx / 2) < screenHeight / 2) {
-//                                        rrrbackSquareOffsetY.value // Snap Top
+//                                    val yCompareValue =  if (backSquareOffsetY.value + (backsquareSizePx / 2) < screenHeight / 2) {
+//                                        backSquareOffsetY.value // Snap Top
 //                                    } else
-//                                        screenHeight - rrrbackSquareOffsetY.value // Snap Bottom
+//                                        screenHeight - backSquareOffsetY.value // Snap Bottom
 //
 //                                    val isSnapLeftRight = xCompareValue < yCompareValue
                                     val isSnapLeftRight = true
 
                                     val targetX =
                                         if (isSnapLeftRight) {
-                                            if (rrrbackSquareOffsetX.value + (backsquareSizePx / 2) < screenWidth / 2) {
+                                            if (backSquareOffsetX.value + (backsquareSizePx / 2) < screenWidth / 2) {
                                                 paddingPx // Snap Left
                                             } else
                                                 screenWidth - backsquareSizePx - paddingPx // Snap Right
 
                                         } else {
-                                            rrrbackSquareOffsetX.value.coerceIn(
+                                            backSquareOffsetX.value.coerceIn(
                                                 paddingPx,
                                                 viewModel.screenSize.value.width.toFloat() - backsquareSizePx - paddingPx
                                             )
@@ -370,12 +359,12 @@ fun BackSquare(
                                     // Clamp Y to screen bounds / keyboard bounds
                                     val targetY =
                                         if (isSnapLeftRight) {
-                                            rrrbackSquareOffsetY.value.coerceIn(
+                                            backSquareOffsetY.value.coerceIn(
                                                 paddingPx,
                                                 if (imeInsets.calculateBottomPadding().value > 0) keyboardBottomLine.floatValue else viewModel.screenSize.value.height.toFloat() - backsquareSizePx - paddingPx
                                             )
                                         } else {
-                                            if (rrrbackSquareOffsetY.value + (backsquareSizePx / 2) < screenHeight / 2) {
+                                            if (backSquareOffsetY.value + (backsquareSizePx / 2) < screenHeight / 2) {
                                                 paddingPx // Snap Top
                                             } else
                                                 screenHeight - backsquareSizePx - paddingPx // Snap Bottom
@@ -390,10 +379,10 @@ fun BackSquare(
                                     coroutineScope.launch {
                                         // Animate snap in
                                         launch {
-                                            rrrbackSquareOffsetX.animateTo(targetX, spring())
+                                            backSquareOffsetX.animateTo(targetX, spring())
                                         }
                                         launch {
-                                            rrrbackSquareOffsetY.animateTo(targetY, spring())
+                                            backSquareOffsetY.animateTo(targetY, spring())
                                         }
 
 
