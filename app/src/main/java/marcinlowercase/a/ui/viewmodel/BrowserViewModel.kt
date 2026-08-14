@@ -27,11 +27,9 @@ import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
 import android.media.MediaScannerConnection
-import android.os.Build
 import android.os.Environment
 import android.util.Log
 import android.webkit.URLUtil
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -43,6 +41,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.IntSize
 import androidx.core.content.edit
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.toColorInt
 import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.application
@@ -87,6 +87,7 @@ import marcinlowercase.a.core.enum_class.GestureNavAction
 import marcinlowercase.a.core.enum_class.SearchEngine
 import marcinlowercase.a.core.enum_class.SuggestionSource
 import marcinlowercase.a.core.enum_class.TabState
+import marcinlowercase.a.core.enum_class.WindowMode
 import marcinlowercase.a.core.manager.AppManager
 import marcinlowercase.a.core.manager.BrowserDownloadManager
 import marcinlowercase.a.core.manager.ProfileManager
@@ -98,9 +99,7 @@ import java.net.URLDecoder
 import java.net.URLEncoder
 import java.util.Collections
 import java.util.regex.Pattern
-import androidx.core.graphics.createBitmap
-import androidx.core.graphics.toColorInt
-import marcinlowercase.a.core.enum_class.WindowMode
+import kotlin.time.Duration.Companion.milliseconds
 
 val LocalBrowserViewModel = staticCompositionLocalOf<BrowserViewModel> {
     error("No BrowserViewModel provided! Check your root Composable.")
@@ -184,7 +183,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             syncJob?.cancel()
             syncJob = viewModelScope.launch(Dispatchers.IO) {
                 // Wait 300ms for the user to finish dragging/typing before we do heavy disk reads
-                delay(1000)
+                delay(1000.milliseconds)
 
                 // Do the heavy lifting on a background thread so the UI never drops a frame
                 val newSettings = loadSettingsFromPrefs(currentProfileId)
@@ -626,9 +625,9 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             when (field) {
                 BrowserSettingField.CORNER_RADIUS -> {
                     when (_uiState.value.windowMode) {
-                        WindowMode.FULLSCREEN -> current.copy(hardwareCornerRadius = value as Float, currentCornerRadius = value as Float)
-                        WindowMode.FLOAT -> current.copy(floatCornerRadius = value as Float, currentCornerRadius = value as Float)
-                        WindowMode.SPLIT ->current.copy(splitCornerRadius = value as Float, currentCornerRadius = value as Float)
+                        WindowMode.FULLSCREEN -> current.copy(hardwareCornerRadius = value as Float, currentCornerRadius = value)
+                        WindowMode.FLOAT -> current.copy(floatCornerRadius = value as Float, currentCornerRadius = value)
+                        WindowMode.SPLIT ->current.copy(splitCornerRadius = value as Float, currentCornerRadius = value)
                     }
 
                 }
@@ -1509,7 +1508,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     val saveTabs = {
         saveJob?.cancel()
         saveJob = viewModelScope.launch(Dispatchers.IO) {
-            delay(500) // Wait for rapid events (like redirects) to finish
+            delay(500.milliseconds) // Wait for rapid events (like redirects) to finish
             // Clean, regular save. PWA tabs don't exist in this list anymore!
             tabManager.saveTabs(activeProfileId.value, tabs.toList(), _activeTabIndex.value)
         }
@@ -2504,7 +2503,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         descriptionJob?.cancel()
         descriptionJob = viewModelScope.launch {
             descriptionContent.value = message
-            delay(1000) // Wait 3 seconds
+            delay(1000.milliseconds) // Wait 3 seconds
             // Only clear it if a new message hasn't replaced it in the meantime
             if (descriptionContent.value == message) {
                 descriptionContent.value = ""

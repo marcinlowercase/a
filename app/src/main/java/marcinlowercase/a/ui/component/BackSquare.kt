@@ -1,5 +1,7 @@
 package marcinlowercase.a.ui.component
 
+import android.app.Activity
+import android.util.Log
 import android.view.MotionEvent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -43,10 +45,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalViewConfiguration
@@ -58,6 +62,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import marcinlowercase.a.R
+import marcinlowercase.a.core.function.isBubbleMode
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.GeckoView
@@ -106,9 +111,21 @@ fun BackSquare(
     val backSquareOffsetX = remember { Animatable(x) }
     val backSquareOffsetY = remember { Animatable(y) }
 
+
+    val imeInsets = WindowInsets.ime.asPaddingValues()
+    val keyboardHeight = imeInsets.calculateBottomPadding()
+    val isKeyboardVisible = keyboardHeight > 0.dp
+    val keyboardBottomLine = remember { mutableFloatStateOf(0f) }
+
+    var isDragging by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
     // BackSquare Display
     LaunchedEffect(uiState.value.isBottomPanelVisible, viewModel.screenSize.value) {
-        if (!uiState.value.isBottomPanelVisible) {
+        if (
+//            !uiState.value.isBottomPanelVisible &&
+            !((imeInsets.calculateBottomPadding().value > 0) && isBubbleMode(context as Activity))
+            ) {
            
             val screenWidth = viewModel.screenSize.value.width.toFloat()
             val screenHeight = viewModel.screenSize.value.height.toFloat()
@@ -131,13 +148,6 @@ fun BackSquare(
         }
     }
 
-    val imeInsets = WindowInsets.ime.asPaddingValues()
-    val keyboardHeight = imeInsets.calculateBottomPadding()
-    val isKeyboardVisible = keyboardHeight > 0.dp
-    val keyboardBottomLine = remember { mutableFloatStateOf(0f) }
-
-    var isDragging by remember { mutableStateOf(false) }
-
 
     // Keyboard Detect
     LaunchedEffect(isKeyboardVisible, keyboardHeight.value, settings.value.backSquareY) {
@@ -149,12 +159,16 @@ fun BackSquare(
 
         val paddingPx = with(density) { settings.value.padding.dp.toPx() }
         val screenHeight = viewModel.screenSize.value.height.toFloat()
+        Log.i("BackSquare", "screenHeight: $screenHeight")
         val bsVisibleHeight = screenHeight - (backsquareSizePx / 2 * 2) - (paddingPx * 2)
         val settingY =
             bsVisibleHeight * settings.value.backSquareY + paddingPx + backsquareSizePx / 2 - backsquareSizePx / 2
+        val keyboardHeightPx = with(density) { keyboardHeight.toPx() }
+
+//        val bottomY = bsVisibleHeight + paddingPx + backsquareSizePx / 2 - backsquareSizePx / 2
+        val bottomY = bsVisibleHeight - keyboardHeightPx + paddingPx
 
         if (isKeyboardVisible) {
-            val keyboardHeightPx = with(density) { keyboardHeight.toPx() }
 
             // Calculate where the top of the BackSquare should be to sit exactly on top of the keyboard + padding
             keyboardBottomLine.floatValue =
@@ -162,7 +176,7 @@ fun BackSquare(
             // Only move it if the saved position is actually LOWER (visually below) the keyboard top
 
             if (settingY > keyboardBottomLine.floatValue) {
-                backSquareOffsetY.animateTo(keyboardBottomLine.floatValue, spring())
+                backSquareOffsetY.animateTo(if (isBubbleMode(context as Activity)) bottomY else keyboardBottomLine.floatValue, spring())
             }
         } else {
             // Keyboard is hidden.
