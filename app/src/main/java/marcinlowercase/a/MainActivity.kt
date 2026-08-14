@@ -2664,6 +2664,7 @@ fun BrowserScreen(
                                                     // Create the View ONCE.
                                                     // We never need to recreate this View during tab switching.
                                                     SafeGeckoView(context).apply {
+                                                        setBackgroundColor(android.graphics.Color.BLACK)
                                                         layoutParams = ViewGroup.LayoutParams(
                                                             ViewGroup.LayoutParams.MATCH_PARENT,
                                                             ViewGroup.LayoutParams.MATCH_PARENT
