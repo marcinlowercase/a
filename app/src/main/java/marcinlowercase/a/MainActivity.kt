@@ -757,8 +757,8 @@ fun BrowserScreen(
             || isPipMode
         ) {
             0.dp
-        } else if (isKeyboardVisible && !uiState.value.isFocusOnTextField) {
-            settings.padding.dp
+//        } else if (isKeyboardVisible && !uiState.value.isFocusOnTextField) {
+//            settings.padding.dp
         } else webViewBottomPaddingNormalScreen
 
 
