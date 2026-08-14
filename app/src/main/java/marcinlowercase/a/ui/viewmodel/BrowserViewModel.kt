@@ -2157,7 +2157,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                         downloadTracker.saveDownloads(downloads)
                     }
                 }
-                delay(500L)
+                delay(500L.milliseconds)
             }
         }
     }
