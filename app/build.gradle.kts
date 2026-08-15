@@ -13,8 +13,8 @@ android {
     defaultConfig {
         minSdk = 26 // android 8
         targetSdk = 37
-        versionCode = 53
-        versionName = "0.22.0"
+        versionCode = 54
+        versionName = "0.23.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -118,7 +118,6 @@ dependencies {
     implementation(libs.androidx.compose.foundation)
     implementation(libs.coil.compose)
     implementation(libs.coil.svg)
-    implementation(libs.androidx.compose.material3)
     implementation(libs.mozilla.geckoview)
     implementation(libs.androidx.compose.runtime)
     // Google Sign-In for OAuth 2.0

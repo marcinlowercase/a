@@ -6,3 +6,10 @@
 # Keep standard cryptography and security classes just in case R8 tries to aggressively shrink them
 -keep class java.security.** { *; }
 -keep class javax.crypto.** { *; }
+
+# Preserve Google API Client and Drive models
+-keepclassmembers class * {
+    @com.google.api.client.util.Key <fields>;
+}
+-dontwarn com.google.api.client.**
+-dontwarn org.apache.http.**
