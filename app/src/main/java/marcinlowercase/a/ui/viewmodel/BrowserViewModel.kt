@@ -828,51 +828,71 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 //        }
 //    }
     //endregion
+
+
     //region Sync Logic
-    // 1. Add Auth variables (put this near the top of the class)
-    var userEmailToLogin = ""
-    val syncAuthPrefs: SharedPreferences? = application.getSharedPreferences("SyncAuthPrefs", Context.MODE_PRIVATE)
+    val driveSyncManager = marcinlowercase.a.core.manager.DriveSyncManager(application)
+    val userEmail = mutableStateOf(driveSyncManager.getSavedEmail())
+
+    // Callback holder in case Google requires Drive Scope Consent
+    var pendingDriveAuthResolution = mutableStateOf<androidx.activity.result.IntentSenderRequest?>(null)
+    private var pendingActionAfterAuth: (() -> Unit)? = null
 
     fun isLoggedIn(): Boolean {
-        return syncAuthPrefs?.getString("jwt_token", null) != null
-    }
-
-    fun logout() {
-        syncAuthPrefs?.edit { remove("jwt_token") }
-    }
-
-    // 2. Add API Wrapper functions
-    fun requestLoginCode(email: String, onResult: (Boolean) -> Unit) {
-        viewModelScope.launch {
-            val success = marcinlowercase.a.core.api.SyncApi.requestCode(email)
-            onResult(success)
-        }
+        return userEmail.value.isNotBlank()
     }
 
     fun getLoggedInEmail(): String {
-        return syncAuthPrefs?.getString("email", "Unknown User") ?: "Unknown User"
+        return userEmail.value.ifBlank { "Unknown User" }
     }
 
-    fun verifyLoginCode(code: String, onResult: (Boolean) -> Unit) {
-        viewModelScope.launch {
-            val response = marcinlowercase.a.core.api.SyncApi.verifyCode(userEmailToLogin, code)
-            if (response?.token != null) {
-                // SAVE THE EMAIL HERE TOO!
-                syncAuthPrefs?.edit {
-                    putString("jwt_token", response.token)
-                        .putString("email", userEmailToLogin)
-                }
-                onResult(true)
-            } else {
-                onResult(false)
-            }
+    fun logout() {
+        driveSyncManager.signOut {
+            userEmail.value = ""
+            showCustomNotification(getApplication<Application>().getString(R.string.desc_logout))
         }
     }
-    fun buildSyncPayload(): SyncPayload {
+
+    fun onSignInSuccess(email: String) {
+        userEmail.value = email
+        showCustomNotification(getApplication<Application>().getString(R.string.ui_login_successful))
+        updateUI { it.copy(isSyncPanelVisible = true) }
+    }
+
+    fun onDriveAuthResult(token: String?) {
+        if (token != null) {
+            pendingActionAfterAuth?.invoke()
+        } else {
+            showCustomNotification(getApplication<Application>().getString(R.string.ui_sync_failed))
+        }
+        pendingActionAfterAuth = null
+    }
+
+    private fun executeWithDriveToken(action: suspend (accessToken: String) -> Unit) {
+        driveSyncManager.getDriveAccessToken(
+            onResolutionRequired = { intentSenderRequest ->
+                pendingActionAfterAuth = {
+                    val savedToken = driveSyncManager.getSavedAccessToken()
+                    if (savedToken != null) {
+                        viewModelScope.launch(Dispatchers.IO) { action(savedToken) }
+                    }
+                }
+                pendingDriveAuthResolution.value = intentSenderRequest
+            },
+            onSuccess = { token ->
+                viewModelScope.launch(Dispatchers.IO) { action(token) }
+            },
+            onFailure = {
+                showCustomNotification(getApplication<Application>().getString(R.string.ui_sync_failed))
+            }
+        )
+    }
+
+    fun buildSyncPayload(): marcinlowercase.a.core.data_class.SyncPayload {
         val allProfiles = profileManager.loadProfiles()
+        val context = getApplication<Application>()
 
         val syncProfiles = allProfiles.map { profile ->
-            // 1. Get Pinned Apps for this profile
             val apps = appManager.loadApps(profile.id).map { app ->
                 marcinlowercase.a.core.data_class.AppSyncDTO(
                     id = app.id,
@@ -882,13 +902,11 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 )
             }
 
-            // 2. Get Visited URLs (History) for this profile
             val historyMap = visitedUrlManager.loadUrlMap(profile.id)
             val historyList = historyMap.map {
                 marcinlowercase.a.core.data_class.VisitedUrlSyncDTO(url = it.key, title = it.value)
             }
 
-            // 3. Get Profile-Specific Settings (Read directly from profile SharedPreferences)
             val settingsObj = loadSettingsFromPrefs(profile.id)
             val settingsJsonString = jsonParser.encodeToString(settingsObj)
 
@@ -901,23 +919,22 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             )
         }
 
-        return SyncPayload(
+        return marcinlowercase.a.core.data_class.SyncPayload(
             timestamp = System.currentTimeMillis(),
             profiles = syncProfiles
         )
     }
-    // --- ACTIONS ---
 
+    // --- MANUAL SYNC ACTIONS (GOOGLE DRIVE) ---
 
     fun triggerManualPush() {
-        val token = syncAuthPrefs?.getString("jwt_token", null) ?: return
-        val payload = buildSyncPayload()
         val context = getApplication<Application>()
+        val payload = buildSyncPayload()
+        val jsonString = jsonParser.encodeToString(payload)
 
-        viewModelScope.launch(Dispatchers.IO) {
+        executeWithDriveToken { token ->
             updateUI { it.copy(isLoading = true) }
-            val success = marcinlowercase.a.core.api.SyncApi.pushSyncData(payload, token)
-
+            val success = driveSyncManager.uploadToDrive(token, jsonString)
             withContext(Dispatchers.Main) {
                 updateUI { it.copy(isLoading = false) }
                 if (success) {
@@ -930,65 +947,74 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun triggerManualPull() {
-        val token = syncAuthPrefs?.getString("jwt_token", null) ?: return
         val context = getApplication<Application>()
 
-        viewModelScope.launch(Dispatchers.IO) {
+        executeWithDriveToken { token ->
             updateUI { it.copy(isLoading = true) }
-            val cloudData = marcinlowercase.a.core.api.SyncApi.pullSyncData(token)
-
+            val jsonString = driveSyncManager.downloadFromDrive(token)
             withContext(Dispatchers.Main) {
-                if (cloudData != null && cloudData.profiles.isNotEmpty()) {
-                    wipeAllLocalData() // 1. Nuke local data
-                    restoreFromCloud(cloudData, isMerge = false) // 2. Insert cloud data
-                    showCustomNotification(context.getString(R.string.ui_sync_successful))
+                updateUI { it.copy(isLoading = false) }
+                if (!jsonString.isNullOrBlank()) {
+                    try {
+                        val cloudData = jsonParser.decodeFromString<marcinlowercase.a.core.data_class.SyncPayload>(jsonString)
+                        wipeAllLocalData()
+                        restoreFromCloud(cloudData, isMerge = false)
+                        showCustomNotification(context.getString(R.string.ui_sync_successful))
+                    } catch (e: Exception) {
+                        showCustomNotification(context.getString(R.string.ui_sync_failed))
+                    }
                 } else {
                     showCustomNotification(context.getString(R.string.ui_cloud_empty))
                 }
-                updateUI { it.copy(isLoading = false) }
             }
         }
     }
 
     fun triggerSmartMerge() {
-        val token = syncAuthPrefs?.getString("jwt_token", null) ?: return
         val context = getApplication<Application>()
 
-        viewModelScope.launch(Dispatchers.IO) {
+        executeWithDriveToken { token ->
             updateUI { it.copy(isLoading = true) }
-            val cloudData = marcinlowercase.a.core.api.SyncApi.pullSyncData(token)
+            val jsonString = driveSyncManager.downloadFromDrive(token)
 
-            withContext(Dispatchers.Main) {
-                if (cloudData != null && cloudData.profiles.isNotEmpty()) {
-                    // 1. Combine Local and Cloud
-                    restoreFromCloud(cloudData, isMerge = true)
+            if (!jsonString.isNullOrBlank()) {
+                try {
+                    val cloudData = jsonParser.decodeFromString<marcinlowercase.a.core.data_class.SyncPayload>(jsonString)
+                    withContext(Dispatchers.Main) {
+                        restoreFromCloud(cloudData, isMerge = true)
+                    }
 
-                    // 2. Immediately build the new Super State and Push it back!
+                    // Push the merged super-state back up to Drive
                     val mergedPayload = buildSyncPayload()
-                    launch(Dispatchers.IO) {
-                        val success = marcinlowercase.a.core.api.SyncApi.pushSyncData(mergedPayload, token)
-                        withContext(Dispatchers.Main) {
-                            updateUI { it.copy(isLoading = false) }
-                            if (success) {
-                                showCustomNotification(context.getString(R.string.ui_sync_successful))
-                            } else {
-                                showCustomNotification(context.getString(R.string.ui_sync_failed))
-                            }
+                    val mergedJsonString = jsonParser.encodeToString(mergedPayload)
+                    val pushSuccess = driveSyncManager.uploadToDrive(token, mergedJsonString)
+
+                    withContext(Dispatchers.Main) {
+                        updateUI { it.copy(isLoading = false) }
+                        if (pushSuccess) {
+                            showCustomNotification(context.getString(R.string.ui_sync_successful))
+                        } else {
+                            showCustomNotification(context.getString(R.string.ui_sync_failed))
                         }
                     }
-                } else {
-                    // Cloud is empty, fallback to pushing Local Data to Cloud
-                    val localPayload = buildSyncPayload()
-                    launch(Dispatchers.IO) {
-                        val success = marcinlowercase.a.core.api.SyncApi.pushSyncData(localPayload, token)
-                        withContext(Dispatchers.Main) {
-                            updateUI { it.copy(isLoading = false) }
-                            if (success) {
-                                showCustomNotification(context.getString(R.string.ui_cloud_empty))
-                            } else {
-                                showCustomNotification(context.getString(R.string.ui_sync_failed))
-                            }
-                        }
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        updateUI { it.copy(isLoading = false) }
+                        showCustomNotification(context.getString(R.string.ui_sync_failed))
+                    }
+                }
+            } else {
+                // Cloud empty: upload local data
+                val localPayload = buildSyncPayload()
+                val localJsonString = jsonParser.encodeToString(localPayload)
+                val pushSuccess = driveSyncManager.uploadToDrive(token, localJsonString)
+
+                withContext(Dispatchers.Main) {
+                    updateUI { it.copy(isLoading = false) }
+                    if (pushSuccess) {
+                        showCustomNotification(context.getString(R.string.ui_sync_successful))
+                    } else {
+                        showCustomNotification(context.getString(R.string.ui_sync_failed))
                     }
                 }
             }
@@ -996,16 +1022,15 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun triggerDeleteAccount() {
-        val token = syncAuthPrefs?.getString("jwt_token", null) ?: return
         val context = getApplication<Application>()
 
-        viewModelScope.launch(Dispatchers.IO) {
+        executeWithDriveToken { token ->
             updateUI { it.copy(isLoading = true) }
-            val success = marcinlowercase.a.core.api.SyncApi.deleteAccount(token)
-
+            val success = driveSyncManager.deleteFromDrive(token)
             withContext(Dispatchers.Main) {
                 updateUI { it.copy(isLoading = false) }
                 if (success) {
+                    logout()
                     showCustomNotification(context.getString(R.string.ui_account_deleted))
                 } else {
                     showCustomNotification(context.getString(R.string.ui_sync_failed))
@@ -1018,22 +1043,22 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     private fun wipeAllLocalData() {
         val context = getApplication<Application>()
-        // Wipe global lists
+        // 1. Wipe global lists
         context.getSharedPreferences("BrowserProfiles", Context.MODE_PRIVATE).edit { clear() }
         context.getSharedPreferences("BrowserHistory", Context.MODE_PRIVATE).edit { clear() }
-        context.getSharedPreferences("BrowserApps", Context.MODE_PRIVATE).edit {clear()}
+        context.getSharedPreferences("BrowserApps", Context.MODE_PRIVATE).edit { clear() }
         context.getSharedPreferences("BrowserSiteSettings", Context.MODE_PRIVATE).edit { clear() }
 
-        // Wipe specific settings for all existing profiles
+        // 2. Wipe specific settings and tabs for all existing profiles
         profiles.forEach { profile ->
             context.getSharedPreferences("BrowserPrefs_${profile.id}", Context.MODE_PRIVATE).edit { clear() }
             context.getSharedPreferences("BrowserTabs", Context.MODE_PRIVATE).edit {
                 remove("tabs_list_json_${profile.id}")
-                    .remove("active_tab_index_${profile.id}")
+                remove("active_tab_index_${profile.id}")
             }
         }
 
-        // Clear RAM structures
+        // 3. Clear RAM structures
         profiles.clear()
         visitedUrlMap.clear()
         apps.clear()
@@ -1071,20 +1096,25 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             try {
                 val cloudSettings = jsonParser.decodeFromString<BrowserSettings>(cloudProfile.settings)
 
-                // 1. Read the device's current settings so we know its physical configuration
+                // Read the device's current settings so we know its physical/global configuration
                 val localSettings = loadSettingsFromPrefs(cloudProfile.id)
 
-                // 2. Merge them! Keep all the cloud's profile settings, but restore the 6 global settings
+                // Merge them: Keep cloud profile settings, but preserve ALL local global settings
                 val safeMergedSettings = cloudSettings.copy(
                     isFirstAppLoad = localSettings.isFirstAppLoad,
                     padding = localSettings.padding,
                     currentCornerRadius = localSettings.currentCornerRadius,
+                    hardwareCornerRadius = localSettings.hardwareCornerRadius,
+                    floatCornerRadius = localSettings.floatCornerRadius,
+                    splitCornerRadius = localSettings.splitCornerRadius,
                     singleLineHeight = localSettings.singleLineHeight,
                     maxListHeight = localSettings.maxListHeight,
-                    memoryUsage = localSettings.memoryUsage
+                    memoryUsage = localSettings.memoryUsage,
+                    backSquareX = localSettings.backSquareX,
+                    backSquareY = localSettings.backSquareY
                 )
 
-                // 3. Save the safely merged settings back to disk!
+                // Save to disk
                 saveSettingsToPrefs(cloudProfile.id, safeMergedSettings)
             } catch (e: Exception) {
                 Log.e("BrowserSync", "Failed to parse cloud settings", e)
@@ -1144,6 +1174,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             switchProfile(targetProfileId)
         }
     }
+
     //endregion
     //region Tab logic
 

@@ -25,6 +25,18 @@ android {
             jniLibs {
                 keepDebugSymbols.add("**/lib*.so")
             }
+
+            resources {
+                excludes += "META-INF/DEPENDENCIES"
+                excludes += "META-INF/LICENSE"
+                excludes += "META-INF/LICENSE.txt"
+                excludes += "META-INF/license.txt"
+                excludes += "META-INF/NOTICE"
+                excludes += "META-INF/NOTICE.txt"
+                excludes += "META-INF/notice.txt"
+                excludes += "META-INF/ASL2.0"
+                excludes += "META-INF/*.kotlin_module"
+            }
         }
 
     }
@@ -109,6 +121,20 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.mozilla.geckoview)
     implementation(libs.androidx.compose.runtime)
+    // Google Sign-In for OAuth 2.0
+    implementation(libs.google.play.services.auth)
+
+    // Google Drive API Clients
+    implementation(libs.google.api.client.android) {
+        exclude(group = "org.apache.httpcomponents")
+    }
+    implementation(libs.google.api.services.drive) {
+        exclude(group = "org.apache.httpcomponents")
+    }
+
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.google.identity.googleid)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

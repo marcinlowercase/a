@@ -35,6 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import marcinlowercase.a.R
 import marcinlowercase.a.core.function.buttonPointerInput
 import marcinlowercase.a.core.function.buttonSettingsForLayer
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
@@ -110,9 +111,11 @@ fun CustomIconButton(
             ,
             painter = painterResource(id = painterId),
             contentDescription = buttonDescription,
-            tint = if (otherColor != Color.Transparent && settings.value.isMaterialYou()) MaterialTheme.colorScheme.onPrimary
-            else {
-                if (isWhite) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
+            tint = if (painterId == R.drawable.ic_google_logo) Color.Unspecified  else{
+                if (otherColor != Color.Transparent && settings.value.isMaterialYou()) MaterialTheme.colorScheme.onPrimary
+                else {
+                    if (isWhite) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
+                }
             }
         )
     }

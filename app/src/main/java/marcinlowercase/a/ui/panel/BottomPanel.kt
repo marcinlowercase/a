@@ -102,6 +102,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -178,7 +179,8 @@ fun BottomPanel(
     val settings = viewModel.browserSettings.collectAsState()
 
     //string
-    val invalidEmailText = stringResource(R.string.ui_invalid_email)
+    val loginFailedText = stringResource(R.string.ui_login_failed)
+
 
 
     AnimatedVisibility(
@@ -202,6 +204,7 @@ fun BottomPanel(
         val customIconUrlState = rememberTextFieldState("")
         val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
 
+
         // --- NEW: Local Image Picker ---
         val isPickingImage = remember { mutableStateOf(false) }
 
@@ -223,8 +226,8 @@ fun BottomPanel(
                 urlBarFocusRequester.requestFocus()
                 keyboardController?.show()
             }
-
         }
+
 
         // --- REMOVE the derivedStateOf and safeOffset hack ---
         val isDragEnabled = uiState.value.isUrlBarVisible &&
@@ -370,6 +373,22 @@ fun BottomPanel(
                     onDismiss = onDismiss,
                     state = state,
                 )
+                // --- Drive Scope Consent Launcher ---
+                val driveConsentLauncher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.StartIntentSenderForResult()
+                ) { result ->
+                    coroutineScope.launch {
+                        val token = viewModel.driveSyncManager.handleDriveAuthResult(result.data)
+                        viewModel.onDriveAuthResult(token)
+                    }
+                }
+
+                LaunchedEffect(viewModel.pendingDriveAuthResolution.value) {
+                    viewModel.pendingDriveAuthResolution.value?.let { request ->
+                        driveConsentLauncher.launch(request)
+                        viewModel.pendingDriveAuthResolution.value = null
+                    }
+                }
                 SyncPanel(
                     isVisible = uiState.value.isSyncPanelVisible,
                     onDismiss = { viewModel.updateUI { it.copy(isSyncPanelVisible = false) } },
@@ -415,7 +434,7 @@ fun BottomPanel(
                     },
                     onDeleteAccount = {
                         confirmationPopup(
-                            R.string.confirm_delete_account,
+                            R.string.confirm_wipe_cloud_data,
                             viewModel.getLoggedInEmail(), // Shows the email they are about to delete
                             {
                                 viewModel.triggerDeleteAccount()
@@ -433,8 +452,16 @@ fun BottomPanel(
                         urlBarFocusRequester.requestFocus()
                     },
                     onLoginClick = {
-                        viewModel.updateUI { it.copy(isEnteringEmail = true) }
-                        urlBarFocusRequester.requestFocus()
+//                        viewModel.updateUI { it.copy(isEnteringEmail = true) }
+//                        urlBarFocusRequester.requestFocus()
+                        coroutineScope.launch {
+                            val email = viewModel.driveSyncManager.signInWithGoogle(context as android.app.Activity)
+                            if (email != null) {
+                                viewModel.onSignInSuccess(email)
+                            } else {
+                                viewModel.showCustomNotification(loginFailedText)
+                            }
+                        }
                     }
                 )
                 TabDataPanel(
@@ -873,8 +900,8 @@ fun BottomPanel(
                                 ),
                                 placeholder = {
                                     when {
-                                        uiState.value.isEnteringEmail -> Text(stringResource(R.string.placeholder_email))
-                                        uiState.value.isEnteringLoginCode -> Text(stringResource(R.string.placeholder_login_code))
+//                                        uiState.value.isEnteringEmail -> Text(stringResource(R.string.placeholder_email))
+//                                        uiState.value.isEnteringLoginCode -> Text(stringResource(R.string.placeholder_login_code))
                                         uiState.value.isCreatingProfile -> Text(stringResource(R.string.placeholder_profile_label))
                                         uiState.value.isRenamingProfile -> Text(stringResource(R.string.placeholder_profile_label))
                                         uiState.value.isPinningApp -> Text(stringResource(R.string.placeholder_pin_label))
@@ -972,64 +999,64 @@ fun BottomPanel(
 
                                     when {
 
-                                        uiState.value.isEnteringEmail -> {
-                                            if (!Patterns.EMAIL_ADDRESS.matcher(input).matches()) {
-                                                viewModel.showCustomNotification(invalidEmailText)
-                                                return@TextField // Stop here and keep keyboard open!
-                                            }
-
-                                            viewModel.userEmailToLogin = input
-                                            viewModel.updateUI { it.copy(isEnteringLoginCode = true) }
-                                            viewModel.updateUI {
-                                                it.copy(
-                                                    isEnteringEmail = false,
-                                                    isLoading = true
-                                                )
-                                            }
-                                            viewModel.requestLoginCode(input) { success ->
-                                                viewModel.updateUI { it.copy(isLoading = false) }
-                                                if (success) {
-                                                    textFieldState.setTextAndPlaceCursorAtEnd("")
-                                                } else {
-                                                    viewModel.updateUI {
-                                                        it.copy(
-                                                            isEnteringEmail = false,
-                                                            isEnteringLoginCode = false
-                                                        )
-                                                    }
-                                                    Toast.makeText(
-                                                        context,
-                                                        "Failed to send code",
-                                                        Toast.LENGTH_SHORT
-                                                    ).show()
-                                                }
-                                            }
-                                            return@TextField
-                                        }
-
-                                        uiState.value.isEnteringLoginCode -> {
-                                            viewModel.updateUI { it.copy(isLoading = true) }
-                                            viewModel.verifyLoginCode(input) { success ->
-                                                viewModel.updateUI { it.copy(isLoading = false) }
-                                                if (success) {
-                                                    viewModel.updateUI {
-                                                        it.copy(
-                                                            isEnteringLoginCode = false,
-                                                            isFocusOnUrlTextField = false,
-                                                            isSyncPanelVisible = true // <-- INSTANTLY SHOW THE SYNC PANEL
-                                                        )
-                                                    }
-                                                    focusManager.clearFocus()
-                                                    keyboardController?.hide()
-                                                    textFieldState.setTextAndPlaceCursorAtEnd(
-                                                        resetUrl.toDomain()
-                                                    )
-                                                } else {
-                                                    viewModel.showCustomNotification(invalidCodeText)
-                                                }
-                                            }
-                                            return@TextField
-                                        }
+//                                        uiState.value.isEnteringEmail -> {
+//                                            if (!Patterns.EMAIL_ADDRESS.matcher(input).matches()) {
+//                                                viewModel.showCustomNotification(invalidEmailText)
+//                                                return@TextField // Stop here and keep keyboard open!
+//                                            }
+//
+//                                            viewModel.userEmailToLogin = input
+//                                            viewModel.updateUI { it.copy(isEnteringLoginCode = true) }
+//                                            viewModel.updateUI {
+//                                                it.copy(
+//                                                    isEnteringEmail = false,
+//                                                    isLoading = true
+//                                                )
+//                                            }
+//                                            viewModel.requestLoginCode(input) { success ->
+//                                                viewModel.updateUI { it.copy(isLoading = false) }
+//                                                if (success) {
+//                                                    textFieldState.setTextAndPlaceCursorAtEnd("")
+//                                                } else {
+//                                                    viewModel.updateUI {
+//                                                        it.copy(
+//                                                            isEnteringEmail = false,
+//                                                            isEnteringLoginCode = false
+//                                                        )
+//                                                    }
+//                                                    Toast.makeText(
+//                                                        context,
+//                                                        "Failed to send code",
+//                                                        Toast.LENGTH_SHORT
+//                                                    ).show()
+//                                                }
+//                                            }
+//                                            return@TextField
+//                                        }
+//
+//                                        uiState.value.isEnteringLoginCode -> {
+//                                            viewModel.updateUI { it.copy(isLoading = true) }
+//                                            viewModel.verifyLoginCode(input) { success ->
+//                                                viewModel.updateUI { it.copy(isLoading = false) }
+//                                                if (success) {
+//                                                    viewModel.updateUI {
+//                                                        it.copy(
+//                                                            isEnteringLoginCode = false,
+//                                                            isFocusOnUrlTextField = false,
+//                                                            isSyncPanelVisible = true // <-- INSTANTLY SHOW THE SYNC PANEL
+//                                                        )
+//                                                    }
+//                                                    focusManager.clearFocus()
+//                                                    keyboardController?.hide()
+//                                                    textFieldState.setTextAndPlaceCursorAtEnd(
+//                                                        resetUrl.toDomain()
+//                                                    )
+//                                                } else {
+//                                                    viewModel.showCustomNotification(invalidCodeText)
+//                                                }
+//                                            }
+//                                            return@TextField
+//                                        }
 
                                         uiState.value.isRenamingProfile -> {
                                             viewModel.renameProfile(input)
@@ -1335,8 +1362,16 @@ fun BottomPanel(
                                 urlBarFocusRequester.requestFocus()
                             },
                             onLoginClick = {
-                                viewModel.updateUI { it.copy(isEnteringEmail = true) }
-                                urlBarFocusRequester.requestFocus()
+//                                viewModel.updateUI { it.copy(isEnteringEmail = true) }
+//                                urlBarFocusRequester.requestFocus()
+                                coroutineScope.launch {
+                                    val email = viewModel.driveSyncManager.signInWithGoogle(context as android.app.Activity)
+                                    if (email != null) {
+                                        viewModel.onSignInSuccess(email)
+                                    } else {
+                                        viewModel.showCustomNotification(loginFailedText)
+                                    }
+                                }
                             }
 
                         )
@@ -1415,32 +1450,32 @@ fun BottomPanel(
                     },
                     onDismiss = {
                         when {
-                            uiState.value.isEnteringLoginCode -> {
-                                // Step back to Email
-                                viewModel.updateUI {
-                                    it.copy(
-                                        isEnteringLoginCode = false,
-                                        isEnteringEmail = true
-                                    )
-                                }
-                                textFieldState.setTextAndPlaceCursorAtEnd(viewModel.userEmailToLogin)
-                                urlBarFocusRequester.requestFocus()
-                                keyboardController?.show()
-                            }
-
-                            uiState.value.isEnteringEmail -> {
-                                // Cancel login entirely
-                                viewModel.updateUI {
-                                    it.copy(
-                                        isEnteringEmail = false,
-                                        isFocusOnUrlTextField = false
-                                    )
-                                }
-                                viewModel.userEmailToLogin = ""
-                                focusManager.clearFocus()
-                                keyboardController?.hide()
-                                textFieldState.setTextAndPlaceCursorAtEnd(viewModel.activeTab!!.currentURL.toDomain())
-                            }
+//                            uiState.value.isEnteringLoginCode -> {
+//                                // Step back to Email
+//                                viewModel.updateUI {
+//                                    it.copy(
+//                                        isEnteringLoginCode = false,
+//                                        isEnteringEmail = true
+//                                    )
+//                                }
+//                                textFieldState.setTextAndPlaceCursorAtEnd(viewModel.userEmailToLogin)
+//                                urlBarFocusRequester.requestFocus()
+//                                keyboardController?.show()
+//                            }
+//
+//                            uiState.value.isEnteringEmail -> {
+//                                // Cancel login entirely
+//                                viewModel.updateUI {
+//                                    it.copy(
+//                                        isEnteringEmail = false,
+//                                        isFocusOnUrlTextField = false
+//                                    )
+//                                }
+//                                viewModel.userEmailToLogin = ""
+//                                focusManager.clearFocus()
+//                                keyboardController?.hide()
+//                                textFieldState.setTextAndPlaceCursorAtEnd(viewModel.activeTab!!.currentURL.toDomain())
+//                            }
 
                             else -> {
                                 // Default dismiss
@@ -1470,19 +1505,19 @@ fun BottomPanel(
                     activeWebViewTitle = viewModel.activeTab!!.currentTitle,
                     onResendCodeClick = {
                         viewModel.updateUI { it.copy(isLoading = true) }
-                        viewModel.requestLoginCode(viewModel.userEmailToLogin) { success ->
-                            viewModel.updateUI { it.copy(isLoading = false) }
-                            if (success) {
-                                Toast.makeText(
-                                    context,
-                                    "Code resent to ${viewModel.userEmailToLogin}",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            } else {
-                                Toast.makeText(context, "Failed to resend code", Toast.LENGTH_SHORT)
-                                    .show()
-                            }
-                        }
+//                        viewModel.requestLoginCode(viewModel.userEmailToLogin) { success ->
+//                            viewModel.updateUI { it.copy(isLoading = false) }
+//                            if (success) {
+//                                Toast.makeText(
+//                                    context,
+//                                    "Code resent to ${viewModel.userEmailToLogin}",
+//                                    Toast.LENGTH_SHORT
+//                                ).show()
+//                            } else {
+//                                Toast.makeText(context, "Failed to resend code", Toast.LENGTH_SHORT)
+//                                    .show()
+//                            }
+//                        }
                         urlBarFocusRequester.requestFocus()
                         keyboardController?.show()
                     }

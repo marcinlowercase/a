@@ -127,8 +127,8 @@ fun SyncPanel(
                             onDeleteAccount()
                             onDismiss()
                         },
-                        buttonDescription = stringResource(R.string.desc_delete_account),
-                        painterId = R.drawable.ic_account_circle_off,
+                        buttonDescription = stringResource(R.string.desc_wipe_cloud_data),
+                        painterId = R.drawable.ic_cloud_off,
                         isWhite = !isColorDark(Color.Red.toArgb()),
                         otherColor = if(settings.value.isMaterialYou()) MaterialTheme.colorScheme.error else Color.Red
                     )

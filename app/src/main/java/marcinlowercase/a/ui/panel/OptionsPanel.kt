@@ -144,7 +144,8 @@ fun rememberBrowserOptionsRegistry(
         settings.value,
         viewModel.recentlyClosedTabs.size,
         viewModel.isSortingButtons.value,
-        dynamicPrimaryColor
+        dynamicPrimaryColor,
+        viewModel.userEmail.value
     ) {
         mapOf(
             // --- Options Panel Exclusives ---
@@ -351,8 +352,8 @@ fun rememberBrowserOptionsRegistry(
 
             BrowserOption.SYNC to OptionItem(
                 id = BrowserOption.SYNC,
-                iconRes = R.drawable.ic_sync,
-                contentDescription = R.string.desc_sync, // Make sure to add to strings.xml
+                iconRes = if (viewModel.isLoggedIn()) R.drawable.ic_cloud_sync else R.drawable.ic_google_logo,
+                contentDescription = if (viewModel.isLoggedIn()) R.string.desc_sync else R.string.desc_login,
                 enabled = uiState.value.isSyncPanelVisible// Disable click if not logged in
             ) {
                 if (viewModel.isLoggedIn()) {

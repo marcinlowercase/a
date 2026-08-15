@@ -19,7 +19,6 @@ package marcinlowercase.a.core.function
 import android.app.Activity
 import android.os.Build
 import android.util.Log
-import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -45,6 +44,7 @@ import marcinlowercase.a.core.data_class.BrowserSettings
 
 import java.net.URL
 import java.util.Locale
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun Modifier.buttonSettingsForLayer(
@@ -73,7 +73,7 @@ fun Modifier.buttonPointerInput(
     useLongPress: Boolean = true,
     ): Modifier = this.then(
     Modifier
-        .pointerInput(Unit) {
+        .pointerInput(buttonDescription) {
             // 1. CAPTURE the CoroutineScope provided by pointerInput
             val coroutineScope = CoroutineScope(
                 currentCoroutineContext()
@@ -83,7 +83,7 @@ fun Modifier.buttonPointerInput(
 
                 // 2. USE the captured scope to launch the long press job
                 val longPressJob = coroutineScope.launch {
-                    delay(viewConfiguration.longPressTimeoutMillis)
+                    delay(viewConfiguration.longPressTimeoutMillis.milliseconds)
 
                     // LONG PRESS CONFIRMED
                     if (useLongPress) {
