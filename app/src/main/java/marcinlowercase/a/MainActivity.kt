@@ -1490,27 +1490,27 @@ fun BrowserScreen(
         if (viewModel.pendingPermissionRequest.value != null) activeMainPanel =
             ActivePanel.PERMISSION
     }
-    LaunchedEffect(uiState.value.isTabsPanelVisible) {
-        // When TabsPanel opens, it becomes the main panel.
-        if (uiState.value.isTabsPanelVisible) activeMainPanel = ActivePanel.TABS
-    }
-    LaunchedEffect(uiState.value.isTabDataPanelVisible) {
-        // When TabDataPanel opens, it ensures Tabs is the main panel and forces it open.
-        if (uiState.value.isTabDataPanelVisible) {
-            activeMainPanel = ActivePanel.TABS
-            viewModel.updateUI { it.copy(isTabsPanelVisible = true) }
-        }
-    }
+//    LaunchedEffect(uiState.value.isTabsPanelVisible) {
+//        // When TabsPanel opens, it becomes the main panel.
+//        if (uiState.value.isTabsPanelVisible) activeMainPanel = ActivePanel.TABS
+//    }
+//    LaunchedEffect(uiState.value.isTabDataPanelVisible) {
+//        // When TabDataPanel opens, it ensures Tabs is the main panel and forces it open.
+//        if (uiState.value.isTabDataPanelVisible) {
+//            activeMainPanel = ActivePanel.TABS
+//            viewModel.updateUI { it.copy(isTabsPanelVisible = true) }
+//        }
+//    }
 
     // 3. Enforcer for MAIN panels: When focus changes, close all other main panels.
     LaunchedEffect(activeMainPanel) {
         val current = activeMainPanel // Capture the current state
 
-        if (current != ActivePanel.TABS && current != ActivePanel.APPS && uiState.value.isAppsPanelVisible) viewModel.updateUI {
-            it.copy(
-                isAppsPanelVisible = false
-            )
-        }
+//        if (current != ActivePanel.TABS && current != ActivePanel.APPS && uiState.value.isAppsPanelVisible) viewModel.updateUI {
+//            it.copy(
+//                isAppsPanelVisible = false
+//            )
+//        }
         if (current != ActivePanel.DOWNLOADS && uiState.value.isDownloadPanelVisible) viewModel.updateUI {
             it.copy(
                 isDownloadPanelVisible = false
@@ -1540,19 +1540,19 @@ fun BrowserScreen(
 
         if (current != ActivePanel.SUGGESTIONS && viewModel.suggestions.isNotEmpty()) viewModel.suggestions.clear()
 
-        // If the active panel is NOT TABS, close both TABS and TAB_DATA.
-        if (current != ActivePanel.APPS && current != ActivePanel.TABS) {
-            if (uiState.value.isTabsPanelVisible) viewModel.updateUI { it.copy(isTabsPanelVisible = false) }
-
-            if (uiState.value.isTabsPanelLock) viewModel.updateUI { it.copy(isTabsPanelLock = false) }
-
-            if (uiState.value.isTabDataPanelVisible) viewModel.updateUI {
-                it.copy(
-                    isTabDataPanelVisible = false
-                )
-            }
-
-        }
+//        // If the active panel is NOT TABS, close both TABS and TAB_DATA.
+//        if (current != ActivePanel.APPS && current != ActivePanel.TABS) {
+//            if (uiState.value.isTabsPanelVisible) viewModel.updateUI { it.copy(isTabsPanelVisible = false) }
+//
+//            if (uiState.value.isTabsPanelLock) viewModel.updateUI { it.copy(isTabsPanelLock = false) }
+//
+//            if (uiState.value.isTabDataPanelVisible) viewModel.updateUI {
+//                it.copy(
+//                    isTabDataPanelVisible = false
+//                )
+//            }
+//
+//        }
     }
 
     // 4. Exception Rule: If TabsPanel is closed, TabDataPanel must also close.

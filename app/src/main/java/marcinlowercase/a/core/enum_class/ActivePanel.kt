@@ -23,7 +23,7 @@ enum class ActivePanel {
     FIND_IN_PAGE,
     PROMPT,
     SETTINGS,
-    TABS,
+//    TABS,
     PERMISSION,
     SUGGESTIONS,
     SYNC,
