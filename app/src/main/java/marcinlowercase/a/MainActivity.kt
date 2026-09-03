@@ -102,6 +102,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
@@ -112,6 +113,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
@@ -180,6 +182,7 @@ import java.io.File
 import java.io.FileOutputStream
 import kotlin.math.ceil
 import kotlin.math.round
+import kotlin.math.roundToInt
 import kotlin.system.exitProcess
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -2548,7 +2551,7 @@ fun BrowserScreen(
 
                 ) {
                     Text(
-                        text = "adjust device corner radius",
+                        text = "match device corner radius",
                         color = MaterialTheme.colorScheme.surfaceContainer
                     )
                 }
@@ -2618,7 +2621,17 @@ fun BrowserScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(webViewPaddingValue),
+                            .padding(webViewPaddingValue)
+                            .onSizeChanged {
+                                viewModel.screenSize.value = it
+                                with(density) {
+                                    viewModel.screenSizeDp.value = IntSize(
+                                        it.width.toDp().value.roundToInt(),
+                                        it.height.toDp().value.roundToInt()
+                                    )
+                                }
+                            }
+                        ,
                     ) {
                         // Webview Container
                         key(viewModel.sessionRefreshTrigger.intValue) {

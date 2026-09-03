@@ -195,15 +195,16 @@ fun BackSquare(
         modifier = modifier
             .fillMaxSize()
             .padding(webViewPaddingValue)
-            .onSizeChanged {
-                viewModel.screenSize.value = it
-                with(density) {
-                    viewModel.screenSizeDp.value = IntSize(
-                        it.width.toDp().value.roundToInt(),
-                        it.height.toDp().value.roundToInt()
-                    )
-                }
-            },
+//            .onSizeChanged {
+//                viewModel.screenSize.value = it
+//                with(density) {
+//                    viewModel.screenSizeDp.value = IntSize(
+//                        it.width.toDp().value.roundToInt(),
+//                        it.height.toDp().value.roundToInt()
+//                    )
+//                }
+//            }
+        ,
         enter = fadeIn(tween(settings.value.animationSpeedForLayer(0))),
         exit = fadeOut(tween(settings.value.animationSpeedForLayer(0)))
     ) {
