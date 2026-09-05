@@ -562,7 +562,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             backSquareY = globalPrefs.getFloat("back_square_y", 1f),
             backSquareX = globalPrefs.getFloat("back_square_x", 1f),
 
-            isTabsPanelLock = globalPrefs.getBoolean("is_tabs_panel_lock", false),
+            isTabsPanelLock = globalPrefs.getBoolean("is_tabs_panel_lock", true),
 
 
 

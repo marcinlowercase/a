@@ -61,7 +61,7 @@ data class BrowserSettings(
     val isEnabledConfirmation: Boolean,
     val isEnabledBackgroundPlayback: Boolean,
     val isEnabledMaterialYou: Boolean,
-    val isTabsPanelLock: Boolean = false,
+    val isTabsPanelLock: Boolean = true,
 
     val isEnabledMediaControl: Boolean,
     val isEnabledOutSync: Boolean,
