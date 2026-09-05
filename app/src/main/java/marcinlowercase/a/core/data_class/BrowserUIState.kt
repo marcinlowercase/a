@@ -39,7 +39,7 @@ data class BrowserUIState(
 
     // Tabs
     val isTabsPanelVisible: Boolean = false,
-    val isTabsPanelLock: Boolean = false,
+//    val isTabsPanelLock: Boolean = false,
     val isTabDataPanelVisible: Boolean = false,
     val inspectingTabId: Long? = null,
 

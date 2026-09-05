@@ -153,14 +153,21 @@ fun rememberBrowserOptionsRegistry(
                 id = BrowserOption.TABS_PANEL,
                 iconRes = R.drawable.ic_tabs,
                 contentDescription = R.string.desc_tabs_panel,
-                enabled = uiState.value.isTabsPanelLock
+                enabled = settings.value.isTabsPanelLock
             ) {
                 viewModel.updateUI {
                     it.copy(
                         isTabsPanelVisible = !it.isTabsPanelVisible,
+//                        isTabsPanelLock = !it.isTabsPanelLock
+                    )
+                }
+                viewModel.updateSettings {
+                    it.copy(
                         isTabsPanelLock = !it.isTabsPanelLock
                     )
                 }
+
+
                 if (!uiState.value.isAppsPanelVisible) viewModel.updateUI {
                     it.copy(
                         isOptionsPanelVisible = false,

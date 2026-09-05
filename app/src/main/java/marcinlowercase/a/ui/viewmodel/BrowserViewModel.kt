@@ -562,6 +562,9 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             backSquareY = globalPrefs.getFloat("back_square_y", 1f),
             backSquareX = globalPrefs.getFloat("back_square_x", 1f),
 
+            isTabsPanelLock = globalPrefs.getBoolean("is_tabs_panel_lock", false),
+
+
 
 
             // --- PROFILE-SPECIFIC SETTINGS ---
@@ -742,7 +745,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             putInt("memory_usage", settings.memoryUsage)
             putFloat("back_square_x", settings.backSquareX)
             putFloat("back_square_y", settings.backSquareY)
-
+            putBoolean("is_tabs_panel_lock", settings.isTabsPanelLock)
             apply()
         }
 
@@ -2198,7 +2201,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             it.copy(
                 isUrlBarVisible = true, isDownloadPanelVisible = true,
                 isTabsPanelVisible = false,
-                isTabsPanelLock = false,
+//                isTabsPanelLock = false,
                 isSettingsPanelVisible = false,
                 isAppsPanelVisible = false,
                 isFindInPageVisible = false,
@@ -2206,6 +2209,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 savedPanelState = null
             )
         }
+        updateSettings { it.copy(isTabsPanelLock = false) }
 
         val context = getApplication<Application>()
         val initialFilename =

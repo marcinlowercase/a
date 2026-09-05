@@ -716,7 +716,7 @@ fun BottomPanel(
                                                                         savedPanelState = null,
                                                                     )
                                                                 }
-                                                                if (currentState.isTabsPanelLock) viewModel.updateUI {
+                                                                if (settings.value.isTabsPanelLock) viewModel.updateUI {
                                                                     it.copy(isTabsPanelVisible = savedState.tabs)
                                                                 }
                                                             }
@@ -872,7 +872,7 @@ fun BottomPanel(
                                                                 savedPanelState = null,
                                                             )
                                                         }
-                                                        if (currentState.isTabsPanelLock) viewModel.updateUI {
+                                                        if (settings.value.isTabsPanelLock) viewModel.updateUI {
                                                             it.copy(isTabsPanelVisible = savedState.tabs)
                                                         }
                                                     }

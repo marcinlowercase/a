@@ -1283,13 +1283,16 @@ fun BrowserScreen(
                                             isDownloadPanelVisible = true,
                                             isSyncPanelVisible = false,
                                             isTabsPanelVisible = false,
-                                            isTabsPanelLock = false,
+//                                            isTabsPanelLock = false,
                                             isSettingsPanelVisible = false,
                                             isAppsPanelVisible = false,
                                             isFindInPageVisible = false,
                                             isNavPanelVisible = false,
                                             savedPanelState = null
                                         )
+                                    }
+                                    viewModel.updateSettings {
+                                        it.copy(isTabsPanelLock = false)
                                     }
                                 }
                             } catch (e: Exception) {
@@ -1733,7 +1736,7 @@ fun BrowserScreen(
                     viewModel.updateUI {
                         it.copy(
                             isTabsPanelVisible = false,
-                            isTabsPanelLock = false,
+//                            isTabsPanelLock = false,
                             isOptionsPanelVisible = false,
                             isAppsPanelVisible = false,
                             isDownloadPanelVisible = false,
@@ -1742,6 +1745,9 @@ fun BrowserScreen(
                             isFindInPageVisible = false,
                             isTabDataPanelVisible = false
                         )
+                    }
+                    viewModel.updateSettings {
+                        it.copy(isTabsPanelLock = false)
                     }
                 }
             }
@@ -2345,7 +2351,7 @@ fun BrowserScreen(
                     }
                 }
             } else {
-                if (uiState.value.isTabsPanelLock) viewModel.updateUI {
+                if (settings.isTabsPanelLock) viewModel.updateUI {
                     it.copy(
                         isTabsPanelVisible = true
                     )
@@ -2353,8 +2359,8 @@ fun BrowserScreen(
                 if (uiState.value.isCursorMode) viewModel.updateUI { it.copy(isCursorMode = false) }
             }
         }
-        LaunchedEffect(uiState.value.isTabsPanelLock) {
-            if (!uiState.value.isTabsPanelLock) {
+        LaunchedEffect(settings.isTabsPanelLock) {
+            if (!settings.isTabsPanelLock) {
                 viewModel.updateUI { it.copy(isTabsPanelVisible = false) }
             }
         }
