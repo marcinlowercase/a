@@ -20,7 +20,6 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.ClipData
 import android.util.Patterns
-import android.widget.Toast
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -76,7 +75,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -94,6 +92,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.SoftwareKeyboardController
+import androidx.compose.ui.platform.nativeClipboardManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -102,7 +101,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -126,6 +124,7 @@ import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.GeckoView
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(ExperimentalLayoutApi::class)
 @SuppressLint("FrequentlyChangingValue")
@@ -220,9 +219,9 @@ fun BottomPanel(
             // onFocusChanged(false) events. By waiting 500ms before resetting this flag,
             // we perfectly bridge over those false alarms and keep the pinning panel open!
             coroutineScope.launch {
-                delay(500)
+                delay(500.milliseconds)
                 isPickingImage.value = false
-                delay(50) // Tiny layout buffer
+                delay(50.milliseconds) // Tiny layout buffer
                 urlBarFocusRequester.requestFocus()
                 keyboardController?.show()
             }
@@ -675,7 +674,7 @@ fun BottomPanel(
                                                     }
                                                     val resetUrl = viewModel.activeTab!!.currentURL
                                                     coroutineScope.launch {
-                                                        delay(150)
+                                                        delay(150.milliseconds)
                                                         val currentState = viewModel.uiState.value
                                                         // Protect UI from tearing down if picker is open
                                                         if (!currentState.isFocusOnIconUrlTextField && !currentState.isEnteringLoginCode && !currentState.isFocusOnUrlTextField && !isPickingImage.value) {
@@ -831,7 +830,7 @@ fun BottomPanel(
                                             // THE FIX: Wait a tiny fraction of a second before tearing down the UI.
                                             // This gives Compose enough time to shift focus to the Icon TextField!
                                             coroutineScope.launch {
-                                                delay(150)
+                                                delay(150.milliseconds)
                                                 val currentState = viewModel.uiState.value
                                                 // Protect the UI from tearing down if the picker is open
                                                 if (!currentState.isFocusOnIconUrlTextField && !currentState.isEnteringLoginCode && !currentState.isFocusOnUrlTextField && !isPickingImage.value) {
@@ -1217,7 +1216,7 @@ fun BottomPanel(
 
                                         // 2. USE the captured scope to launch the long press job
                                         val longPressJob = coroutineScope.launch {
-                                            delay(viewConfiguration.longPressTimeoutMillis)
+                                            delay(viewConfiguration.longPressTimeoutMillis.milliseconds)
 
                                             // LONG PRESS CONFIRMED
                                             hapticFeedback.performHapticFeedback(
@@ -1430,7 +1429,7 @@ fun BottomPanel(
                     onCopyClick = {
                         val clipData =
                             ClipData.newPlainText("url", viewModel.activeTab!!.currentURL)
-                        clipboard.nativeClipboard.setPrimaryClip(clipData)
+                        clipboard.nativeClipboardManager.setPrimaryClip(clipData)
                     },
                     onEditClick = {
                         textFieldState.setTextAndPlaceCursorAtEnd(
