@@ -8,6 +8,7 @@ plugins {
 android {
     namespace = "marcinlowercase.a"
     compileSdk = 37
+    compileSdkMinor = 1
 
     ndkVersion = "29.0.14206865"
     defaultConfig {
