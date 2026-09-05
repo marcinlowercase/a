@@ -1506,11 +1506,13 @@ fun BrowserScreen(
     LaunchedEffect(activeMainPanel) {
         val current = activeMainPanel // Capture the current state
 
-//        if (current != ActivePanel.TABS && current != ActivePanel.APPS && uiState.value.isAppsPanelVisible) viewModel.updateUI {
-//            it.copy(
-//                isAppsPanelVisible = false
-//            )
-//        }
+        if (
+//            current != ActivePanel.TABS &&
+            current != ActivePanel.APPS && uiState.value.isAppsPanelVisible) viewModel.updateUI {
+            it.copy(
+                isAppsPanelVisible = false
+            )
+        }
         if (current != ActivePanel.DOWNLOADS && uiState.value.isDownloadPanelVisible) viewModel.updateUI {
             it.copy(
                 isDownloadPanelVisible = false
