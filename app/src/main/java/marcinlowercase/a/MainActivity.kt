@@ -327,21 +327,22 @@ class MainActivity : ComponentActivity() {
 
 
         super.onCreate(savedInstanceState)
-        val isPwa = intent?.getBooleanExtra("is_pwa", false) == true
-        val isClonedBrowser = intent?.getBooleanExtra("is_cloned_browser", false) == true
+//        val isPwa = intent?.getBooleanExtra("is_pwa", false) == true
+//        val isClonedBrowser = intent?.getBooleanExtra("is_cloned_browser", false) == true
 
-        if (!isTaskRoot && !isPwa && !isClonedBrowser) {
-            // We are trapped inside another app's task!
-            // Clone the intent, add the NEW_TASK flag, and fire it to our Main Browser task!
-            val bounceIntent = Intent(intent).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            }
-            startActivity(bounceIntent)
+//        if (!isTaskRoot && !isPwa && !isClonedBrowser) {
+//            // We are trapped inside another app's task!
+//            // Clone the intent, add the NEW_TASK flag, and fire it to our Main Browser task!
+//            val bounceIntent = Intent(intent).apply {
+//                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+//            }
+//            startActivity(bounceIntent)
+//
+//            // Immediately kill this ghost window so it disappears from Google Keep
+//            finish()
+//            return
+//        }
 
-            // Immediately kill this ghost window so it disappears from Google Keep
-            finish()
-            return
-        }
 
         handleIntent(intent, isColdStart = true)
 
@@ -438,6 +439,7 @@ class MainActivity : ComponentActivity() {
                     viewModel.initPwa(urlFromIntent, targetProfileId ?: viewModel.activeProfileId.value)
                 } else {
                     // Normal Browser Mode: Rely on TabManager for cold starts, Flow for hot starts
+                    Log.i("mrcLink", "$urlFromIntent")
                     if (!isColdStart) {
                         newUrlFromIntent.update { urlFromIntent }
                     }
@@ -482,6 +484,9 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onNewIntent(intent: Intent) {
+        Log.e("mrcLink", "onNewIntent")
+        Log.e("mrcLink", "${intent.dataString}")
+        Log.e("mrcLink", "")
         super.onNewIntent(intent)
         // Hot start!
         setIntent(intent)
