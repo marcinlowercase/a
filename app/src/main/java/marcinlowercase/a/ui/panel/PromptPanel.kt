@@ -273,15 +273,6 @@ fun PromptPanel(
                                     false
                                 )
                                 .weight(1f),
-//                                .border(
-//                                    1.dp, MaterialTheme.colorScheme.onSurface, shape = RoundedCornerShape(
-//                                        cornerRadiusForLayer(
-//                                            3,
-//                                            settings.value.currentCornerRadius,
-//                                            settings.value.padding,
-//                                        ).dp
-//                                    )
-//                                )
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.surfaceContainer
                             ),

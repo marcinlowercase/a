@@ -77,7 +77,7 @@ fun ErrorScreen(
         modifier = modifier
             .fillMaxSize()
             .clickable(enabled = false) {} // Prevent clicking through to WebView
-            .clip(RoundedCornerShape(settings.value.currentCornerRadius.dp))
+            .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(0).dp))
             .background(MaterialTheme.colorScheme.onSurface) // Or dynamic theme color
     ) {
         Column(

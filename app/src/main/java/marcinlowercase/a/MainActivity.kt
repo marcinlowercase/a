@@ -683,7 +683,7 @@ fun BrowserScreen(
     val animatedCornerRadius by animateDpAsState(
         targetValue = if (settings.isSharpMode
 
-        ) 0.dp else settings.currentCornerRadius.dp,
+        ) 0.dp else settings.cornerRadiusForLayer(0).dp,
         label = "Corner Radius Animation",
     )
 
@@ -708,14 +708,14 @@ fun BrowserScreen(
     // Top Padding
 
     val webViewTopPaddingFullscreen = if (settings.isSharpMode && !uiState.value.isLandscape) {
-        maxOf(cutoutTop, settings.currentCornerRadius.dp)
+        maxOf(cutoutTop, settings.cornerRadiusForLayer(0).dp)
     } else {
         cutoutTop
     }
 
     val webViewTopPaddingRegular = if (settings.isSharpMode) {
         maxOf(
-            maxOf(cutoutTop, settings.currentCornerRadius.dp),
+            maxOf(cutoutTop, settings.cornerRadiusForLayer(0).dp),
             innerPadding.calculateTopPadding()
         )
     } else {
@@ -741,13 +741,13 @@ fun BrowserScreen(
     // Bottom Padding
     val webViewBottomPaddingFullscreen =
         if (settings.isSharpMode && !uiState.value.isLandscape) {
-            maxOf(cutoutBottom, settings.currentCornerRadius.dp)
+            maxOf(cutoutBottom, settings.cornerRadiusForLayer(0).dp)
         } else {
             cutoutBottom
         }
     val webViewBottomPaddingRegular = if (settings.isSharpMode) {
         maxOf(
-            maxOf(cutoutBottom, settings.currentCornerRadius.dp),
+            maxOf(cutoutBottom, settings.cornerRadiusForLayer(0).dp),
             innerPadding.calculateBottomPadding()
         )
     } else {
@@ -780,7 +780,7 @@ fun BrowserScreen(
 
     val webViewStartPaddingFullscreen =
         if (settings.isSharpMode && uiState.value.isLandscape) {
-            maxOf(cutoutLeft, settings.currentCornerRadius.dp)
+            maxOf(cutoutLeft, settings.cornerRadiusForLayer(0).dp)
         } else {
             cutoutLeft
         }
@@ -797,7 +797,7 @@ fun BrowserScreen(
     // End Padding
 
     val webViewEndPaddingFullscreen = if (settings.isSharpMode && uiState.value.isLandscape) {
-        maxOf(cutoutRight, settings.currentCornerRadius.dp)
+        maxOf(cutoutRight, settings.cornerRadiusForLayer(0).dp)
     } else {
         cutoutRight
     }

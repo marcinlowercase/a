@@ -729,7 +729,7 @@ class GeckoManager(private val context: Context) {
 
                                 val responseObj = JSONObject().apply {
                                     put("enabled", browserSettings.value.isEnabledOutSync)
-                                    put("radius", browserSettings.value.currentCornerRadius.toDouble())
+                                    put("radius", browserSettings.value.cornerRadiusForLayer(0).toDouble())
                                     put("padding", browserSettings.value.padding.toDouble())
                                     put("lineHeight", browserSettings.value.singleLineHeight.toDouble())
                                     put(
