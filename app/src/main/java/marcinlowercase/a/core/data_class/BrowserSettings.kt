@@ -68,15 +68,25 @@ data class BrowserSettings(
     val isEnabledOutSync: Boolean,
     val memoryUsage: Int,
 ) {
-//    fun cornerRadiusForLayer(layer: Int): Float {
-//        if (layer == 0) return currentCornerRadius
-//        return (cornerRadiusForLayer(layer - 1) - padding).coerceAtLeast(0f)
-//    }
+
 
     fun cornerRadiusForLayer(layer: Int): Float {
-        if (layer == 0) return currentCornerRadius
-        if (layer == 1) return (maxOf(currentCornerRadius, BASE_RADIUS) - padding).coerceAtLeast(0f)
-        return (cornerRadiusForLayer(layer - 1) - padding).coerceAtLeast(0f)
+        // if it is fullscreen mode, because the corner radius of the app will touch the real hardware corner radius, so we gonna return the set corner radius to match software radius with hardware radius
+        if (isFullscreenMode) {
+            if (layer == 0) return currentCornerRadius
+            if (layer == 1) return (maxOf(currentCornerRadius, BASE_RADIUS) - padding).coerceAtLeast(0f)
+            return (cornerRadiusForLayer(layer - 1) - padding).coerceAtLeast(0f)
+        }
+        // if it is not fullscreen mode
+        // on standard current android 17, there is still no options to hide the bottom nav bar( but on other oem ROMs they have it)
+        // so the screen gonna have status bar on top and nav bar on bottom
+        // that means the corner of the app (software) does not touch the hardware
+        // so we can use base radius for app corner radius
+        else {
+            if (layer == 0) return maxOf(currentCornerRadius, BASE_RADIUS)
+            return (cornerRadiusForLayer(layer - 1) - padding).coerceAtLeast(0f)
+        }
+
     }
 
     fun heightForLayer(layer: Int): Float {
