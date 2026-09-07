@@ -24,6 +24,7 @@ import kotlinx.serialization.Serializable
 import marcinlowercase.a.ui.panel.isColorDark
 import kotlin.math.roundToInt
 
+const val BASE_RADIUS = 30f
 @Serializable
 data class BrowserSettings(
     val isFirstAppLoad: Boolean,
@@ -67,8 +68,14 @@ data class BrowserSettings(
     val isEnabledOutSync: Boolean,
     val memoryUsage: Int,
 ) {
+//    fun cornerRadiusForLayer(layer: Int): Float {
+//        if (layer == 0) return currentCornerRadius
+//        return (cornerRadiusForLayer(layer - 1) - padding).coerceAtLeast(0f)
+//    }
+
     fun cornerRadiusForLayer(layer: Int): Float {
         if (layer == 0) return currentCornerRadius
+        if (layer == 1) return (maxOf(currentCornerRadius, BASE_RADIUS) - padding).coerceAtLeast(0f)
         return (cornerRadiusForLayer(layer - 1) - padding).coerceAtLeast(0f)
     }
 
