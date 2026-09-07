@@ -168,6 +168,7 @@
     <string name="toast_no_app_to_open_link">no app found to open this link</string>
     <string name="toast_highlight_color_setting_disabled">cannot set highlight color</string>
     <string name="toast_material_you_not_support">your device need to be Android 12</string>
+    <string name="toast_sharp_mode_setting_disabled">current corner radius is 0</string>
 
     <!-- Error -->
     <string name="error_failed_to_load">failed to load</string>
