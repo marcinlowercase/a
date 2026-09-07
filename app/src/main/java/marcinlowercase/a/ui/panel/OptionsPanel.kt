@@ -139,6 +139,10 @@ fun rememberBrowserOptionsRegistry(
     }
     val disabledHighlightColorText = stringResource(R.string.toast_highlight_color_setting_disabled)
     val materialYouNotSupportText = stringResource(R.string.toast_material_you_not_support)
+
+    val disabledSharpModeText =  stringResource(R.string.toast_sharp_mode_setting_disabled)
+
+
     return remember(
         uiState.value,
         settings.value,
@@ -409,14 +413,21 @@ fun rememberBrowserOptionsRegistry(
                 id = BrowserOption.SHARP_MODE,
                 iconRes = if (settings.value.isSharpMode) R.drawable.ic_rounded_corner else R.drawable.ic_sharp_corner,
                 contentDescription = R.string.desc_sharp_mode,
-                enabled = settings.value.isSharpMode
+                enabled = settings.value.isSharpMode || settings.value.cornerRadiusForLayer(0) == 0f
             ) {
-                viewModel.updateSettings { it.copy(isSharpMode = !it.isSharpMode) }; viewModel.updateUI {
-                it.copy(
-                    isOptionsPanelVisible = false,
-                    isAppsPanelVisible = false
-                )
-            }
+                if (settings.value.currentCornerRadius == 0f) {
+                    viewModel.showCustomNotification(disabledSharpModeText)
+                } else {
+                    viewModel.updateSettings { it.copy(isSharpMode = !it.isSharpMode) }
+                    viewModel.updateUI {
+                        it.copy(
+                            isOptionsPanelVisible = false,
+                            isAppsPanelVisible = false
+                        )
+                    }
+                }
+
+
             },
             BrowserOption.REOPEN_TAB to OptionItem(
                 id = BrowserOption.REOPEN_TAB,
