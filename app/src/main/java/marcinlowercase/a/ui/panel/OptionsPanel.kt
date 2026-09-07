@@ -142,6 +142,26 @@ fun rememberBrowserOptionsRegistry(
 
     val disabledSharpModeText =  stringResource(R.string.toast_sharp_mode_setting_disabled)
 
+    val isCornerRadiusZero = settings.value.cornerRadiusForLayer(0) == 0f
+    var hasInitializedCornerRadius by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isCornerRadiusZero) {
+        if (!hasInitializedCornerRadius) {
+            hasInitializedCornerRadius = true
+            // On cold start: only hide if 0; don't unhide if user previously hid it
+            if (isCornerRadiusZero) {
+                viewModel.toggleOptionVisibility(BrowserOption.SHARP_MODE, true)
+            }
+            return@LaunchedEffect
+        }
+
+        // Dynamic slider adjustment during usage:
+        if (isCornerRadiusZero) {
+            viewModel.toggleOptionVisibility(BrowserOption.SHARP_MODE, true)
+        } else {
+            viewModel.toggleOptionVisibility(BrowserOption.SHARP_MODE, false)
+        }
+    }
 
     return remember(
         uiState.value,
@@ -415,7 +435,7 @@ fun rememberBrowserOptionsRegistry(
                 contentDescription = R.string.desc_sharp_mode,
                 enabled = settings.value.isSharpMode || settings.value.cornerRadiusForLayer(0) == 0f
             ) {
-                if (settings.value.currentCornerRadius == 0f) {
+                if (settings.value.cornerRadiusForLayer(0) == 0f) {
                     viewModel.showCustomNotification(disabledSharpModeText)
                 } else {
                     viewModel.updateSettings { it.copy(isSharpMode = !it.isSharpMode) }
