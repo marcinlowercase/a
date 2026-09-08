@@ -63,6 +63,7 @@ import marcinlowercase.a.R
 import marcinlowercase.a.core.constant.DefaultSettingValues
 import marcinlowercase.a.core.constant.generic_location_permission
 import marcinlowercase.a.core.data_class.App
+import marcinlowercase.a.core.data_class.AppSyncDTO
 import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.BrowserUIState
 import marcinlowercase.a.core.data_class.ConfirmationDialogState
@@ -76,10 +77,12 @@ import marcinlowercase.a.core.data_class.JsDateTimeState
 import marcinlowercase.a.core.data_class.JsDialogState
 import marcinlowercase.a.core.data_class.PollData
 import marcinlowercase.a.core.data_class.Profile
+import marcinlowercase.a.core.data_class.ProfileSyncDTO
 import marcinlowercase.a.core.data_class.SiteSettings
 import marcinlowercase.a.core.data_class.Suggestion
 import marcinlowercase.a.core.data_class.SyncPayload
 import marcinlowercase.a.core.data_class.Tab
+import marcinlowercase.a.core.data_class.VisitedUrlSyncDTO
 import marcinlowercase.a.core.enum_class.BrowserOption
 import marcinlowercase.a.core.enum_class.BrowserSettingField
 import marcinlowercase.a.core.enum_class.DownloadStatus
@@ -881,6 +884,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                     val savedToken = driveSyncManager.getSavedAccessToken()
                     if (savedToken != null) {
                         viewModelScope.launch(Dispatchers.IO) { action(savedToken) }
+                    } else {
+                        updateUI { it.copy(isLoading = false) }
                     }
                 }
                 pendingDriveAuthResolution.value = intentSenderRequest
@@ -889,34 +894,36 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 viewModelScope.launch(Dispatchers.IO) { action(token) }
             },
             onFailure = {
+                // Ensure loading indicator dismisses on failure
+                updateUI { it.copy(isLoading = false) }
                 showCustomNotification(getApplication<Application>().getString(R.string.ui_sync_failed))
             }
         )
     }
 
-    fun buildSyncPayload(): marcinlowercase.a.core.data_class.SyncPayload {
+    fun toggleProfileSync(profileId: String) {
+        val index = profiles.indexOfFirst { it.id == profileId }
+        if (index != -1) {
+            val updated = profiles[index].copy(isSyncEnabled = !profiles[index].isSyncEnabled)
+            profiles[index] = updated
+            profileManager.saveProfiles(profiles)
+        }
+    }
+
+    // Runs on Dispatchers.IO
+    private fun buildSyncPayloadOnIO(): SyncPayload {
         val allProfiles = profileManager.loadProfiles()
-        val context = getApplication<Application>()
 
-        val syncProfiles = allProfiles.map { profile ->
+        val syncProfiles = allProfiles.filter { it.isSyncEnabled }.map { profile ->
             val apps = appManager.loadApps(profile.id).map { app ->
-                marcinlowercase.a.core.data_class.AppSyncDTO(
-                    id = app.id,
-                    label = app.label,
-                    url = app.url,
-                    iconUrl = app.iconUrl
-                )
+                AppSyncDTO(id = app.id, label = app.label, url = app.url, iconUrl = app.iconUrl)
             }
-
             val historyMap = visitedUrlManager.loadUrlMap(profile.id)
-            val historyList = historyMap.map {
-                marcinlowercase.a.core.data_class.VisitedUrlSyncDTO(url = it.key, title = it.value)
-            }
-
+            val historyList = historyMap.map { VisitedUrlSyncDTO(url = it.key, title = it.value) }
             val settingsObj = loadSettingsFromPrefs(profile.id)
             val settingsJsonString = jsonParser.encodeToString(settingsObj)
 
-            marcinlowercase.a.core.data_class.ProfileSyncDTO(
+            ProfileSyncDTO(
                 id = profile.id,
                 name = profile.name,
                 settings = settingsJsonString,
@@ -925,7 +932,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             )
         }
 
-        return marcinlowercase.a.core.data_class.SyncPayload(
+        return SyncPayload(
             timestamp = System.currentTimeMillis(),
             profiles = syncProfiles
         )
@@ -935,12 +942,24 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     fun triggerManualPush() {
         val context = getApplication<Application>()
-        val payload = buildSyncPayload()
-        val jsonString = jsonParser.encodeToString(payload)
+        updateUI { it.copy(isLoading = true) }
 
         executeWithDriveToken { token ->
-            updateUI { it.copy(isLoading = true) }
+            // Heavy operations happen on background IO thread
+            val payload = buildSyncPayloadOnIO()
+
+            // Guard: Don't push an empty payload if user unchecked all profiles
+            if (payload.profiles.isEmpty()) {
+                withContext(Dispatchers.Main) {
+                    updateUI { it.copy(isLoading = false) }
+                    showCustomNotification("No profiles selected for sync")
+                }
+                return@executeWithDriveToken
+            }
+
+            val jsonString = jsonParser.encodeToString(payload)
             val success = driveSyncManager.uploadToDrive(token, jsonString)
+
             withContext(Dispatchers.Main) {
                 updateUI { it.copy(isLoading = false) }
                 if (success) {
@@ -954,22 +973,43 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     fun triggerManualPull() {
         val context = getApplication<Application>()
+        updateUI { it.copy(isLoading = true) }
 
         executeWithDriveToken { token ->
-            updateUI { it.copy(isLoading = true) }
             val jsonString = driveSyncManager.downloadFromDrive(token)
-            withContext(Dispatchers.Main) {
-                updateUI { it.copy(isLoading = false) }
-                if (!jsonString.isNullOrBlank()) {
-                    try {
-                        val cloudData = jsonParser.decodeFromString<marcinlowercase.a.core.data_class.SyncPayload>(jsonString)
-                        wipeAllLocalData()
-                        restoreFromCloud(cloudData, isMerge = false)
+
+            if (!jsonString.isNullOrBlank()) {
+                try {
+                    // 1. Heavy JSON decode on IO thread
+                    val cloudData = jsonParser.decodeFromString<SyncPayload>(jsonString)
+
+                    // 2. Guard: Never wipe local data if cloud backup has 0 profiles
+                    if (cloudData.profiles.isEmpty()) {
+                        withContext(Dispatchers.Main) {
+                            updateUI { it.copy(isLoading = false) }
+                            showCustomNotification(context.getString(R.string.ui_cloud_empty))
+                        }
+                        return@executeWithDriveToken
+                    }
+
+                    // 3. Apply changes cleanly on Main thread without intermediate empty frames
+                    withContext(Dispatchers.Main) {
+                        androidx.compose.runtime.snapshots.Snapshot.withMutableSnapshot {
+                            wipeAllLocalData()
+                            restoreFromCloud(cloudData, isMerge = false)
+                        }
+                        updateUI { it.copy(isLoading = false) }
                         showCustomNotification(context.getString(R.string.ui_sync_successful))
-                    } catch (e: Exception) {
+                    }
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        updateUI { it.copy(isLoading = false) }
                         showCustomNotification(context.getString(R.string.ui_sync_failed))
                     }
-                } else {
+                }
+            } else {
+                withContext(Dispatchers.Main) {
+                    updateUI { it.copy(isLoading = false) }
                     showCustomNotification(context.getString(R.string.ui_cloud_empty))
                 }
             }
@@ -978,20 +1018,22 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     fun triggerSmartMerge() {
         val context = getApplication<Application>()
+        updateUI { it.copy(isLoading = true) }
 
         executeWithDriveToken { token ->
-            updateUI { it.copy(isLoading = true) }
             val jsonString = driveSyncManager.downloadFromDrive(token)
 
             if (!jsonString.isNullOrBlank()) {
                 try {
-                    val cloudData = jsonParser.decodeFromString<marcinlowercase.a.core.data_class.SyncPayload>(jsonString)
+                    val cloudData = jsonParser.decodeFromString<SyncPayload>(jsonString)
                     withContext(Dispatchers.Main) {
-                        restoreFromCloud(cloudData, isMerge = true)
+                        androidx.compose.runtime.snapshots.Snapshot.withMutableSnapshot {
+                            restoreFromCloud(cloudData, isMerge = true)
+                        }
                     }
 
-                    // Push the merged super-state back up to Drive
-                    val mergedPayload = buildSyncPayload()
+                    // Push the merged super-state back up to Drive on IO thread
+                    val mergedPayload = buildSyncPayloadOnIO()
                     val mergedJsonString = jsonParser.encodeToString(mergedPayload)
                     val pushSuccess = driveSyncManager.uploadToDrive(token, mergedJsonString)
 
@@ -1011,7 +1053,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 }
             } else {
                 // Cloud empty: upload local data
-                val localPayload = buildSyncPayload()
+                val localPayload = buildSyncPayloadOnIO()
                 val localJsonString = jsonParser.encodeToString(localPayload)
                 val pushSuccess = driveSyncManager.uploadToDrive(token, localJsonString)
 
@@ -1029,9 +1071,9 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     fun triggerDeleteAccount() {
         val context = getApplication<Application>()
+        updateUI { it.copy(isLoading = true) }
 
         executeWithDriveToken { token ->
-            updateUI { it.copy(isLoading = true) }
             val success = driveSyncManager.deleteFromDrive(token)
             withContext(Dispatchers.Main) {
                 updateUI { it.copy(isLoading = false) }

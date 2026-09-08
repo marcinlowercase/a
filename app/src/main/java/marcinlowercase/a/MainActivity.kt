@@ -99,6 +99,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -957,12 +958,23 @@ fun BrowserScreen(
                 ).dp
 
     val totalRevealHeight = optionsPanelHeight + settings.padding.dp + appsPanelHeight
-    viewModel.updateUI {
-        it.copy(
-            optionsPanelHeightPx = with(density) { (optionsPanelHeight).toPx() },
-            appsPanelHeightPx = with(density) { appsPanelHeight.toPx() },
-            totalRevealHeightPx = with(density) { totalRevealHeight.toPx() }
-        )
+    LaunchedEffect(optionsPanelHeight, appsPanelHeight, totalRevealHeight, density) {
+        val optionsPx = with(density) { optionsPanelHeight.toPx() }
+        val appsPx = with(density) { appsPanelHeight.toPx() }
+        val totalPx = with(density) { totalRevealHeight.toPx() }
+
+        if (uiState.value.optionsPanelHeightPx != optionsPx ||
+            uiState.value.appsPanelHeightPx != appsPx ||
+            uiState.value.totalRevealHeightPx != totalPx
+        ) {
+            viewModel.updateUI {
+                it.copy(
+                    optionsPanelHeightPx = optionsPx,
+                    appsPanelHeightPx = appsPx,
+                    totalRevealHeightPx = totalPx
+                )
+            }
+        }
     }
 
     // 1. Keep track of where the panel actually is physically
@@ -2689,7 +2701,7 @@ fun BrowserScreen(
                                     ) {
                                         if (isBrowserVisible) {
                                             AndroidView(
-                                                modifier = Modifier.fillMaxSize(),
+                                                modifier = Modifier.fillMaxSize() .focusProperties { canFocus = false },
                                                 factory = { context ->
                                                     // Create the View ONCE.
                                                     // We never need to recreate this View during tab switching.

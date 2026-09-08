@@ -84,6 +84,7 @@
     <string name="desc_rename_profile">rename profile</string>
     <string name="desc_new_profile">new profile</string>
     <string name="desc_delete_profile">delete profile</string>
+    <string name="desc_sync_profile">sync profile</string>
 
     <!-- Text Edit Panel -->
     <string name="desc_cancel" tools:ignore="ButtonCase">cancel</string>

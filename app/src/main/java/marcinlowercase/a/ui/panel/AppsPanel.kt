@@ -57,6 +57,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -171,6 +172,7 @@ fun AppsPanel(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(maxPanelHeight)
+                    .focusProperties { canFocus = false }
                     .padding(horizontal = settings.value.padding.dp)
                     .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp))
                     .background(MaterialTheme.colorScheme.inverseSurface)
@@ -440,7 +442,25 @@ fun AppsPanel(
                 }
                 visualItemCount += 2
 
-
+                item(
+                    span = { GridItemSpan(1) },
+                    key = "sync_profile_${pageProfile.id}",
+                    contentType = "action_button"
+                ) {
+                    PlaceholderIcon(
+                        iconRes = R.drawable.ic_person_cloud,
+                        // Glows with theme highlight color when ON, default dim when OFF
+                        otherColor = if (pageProfile.isSyncEnabled) Color(settings.value.highlightColor) else null,
+                        onClick = {
+                            if (isInteractive()) {
+                                viewModel.toggleProfileSync(pageProfile.id)
+                            }
+                        },
+                        modifier = Modifier.animateItem(),
+                        buttonDescription = stringResource(R.string.desc_sync_profile)
+                    )
+                }
+                visualItemCount++
 
                 item(
                     span = { GridItemSpan(1) },
@@ -479,7 +499,7 @@ fun AppsPanel(
                 val minRows = ceil(settings.value.maxListHeight).toInt()
                 val currentRows = ceil(visualItemCount / 4f).toInt()
                 val targetRows = maxOf(minRows, currentRows)
-                val remainingPlaceholders = (targetRows * 4) - visualItemCount
+                val remainingPlaceholders = ((targetRows * 4) - visualItemCount).coerceAtLeast(0)
 
                 items(
                     count = remainingPlaceholders,

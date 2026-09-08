@@ -22,4 +22,5 @@ import kotlinx.serialization.Serializable
 data class Profile(
     val id: String,
     val name: String,
+    val isSyncEnabled: Boolean = true
 )
