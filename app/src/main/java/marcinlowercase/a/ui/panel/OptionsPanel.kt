@@ -755,13 +755,29 @@ fun SettingsPanel(
     val viewModel = LocalBrowserViewModel.current
     val uiState = viewModel.uiState.collectAsState()
     val settings = viewModel.browserSettings.collectAsState()
+    val isFirstModeLoad = settings.value.isFirstLoadForMode(uiState.value.windowMode)
 
     var currentView by remember { mutableStateOf(targetSetting) }
-    val onBackClick = {
-        if (!settings.value.isFirstAppLoad) currentView =
-            SettingPanelView.MAIN else viewModel.updateUI { it.copy(isSettingsPanelVisible = false) }
+
+    LaunchedEffect(isFirstModeLoad, uiState.value.windowMode) {
+        if (settings.value.isFirstLoadForMode(uiState.value.windowMode)) {
+            currentView = SettingPanelView.CORNER_RADIUS
+        }
     }
 
+    val onBackClick = {
+        if (!isFirstModeLoad) {
+            currentView = SettingPanelView.MAIN
+        } else {
+            viewModel.updateSettings { current ->
+                when (uiState.value.windowMode) {
+                    WindowMode.FULLSCREEN -> current.copy(isFirstAppLoad = false)
+                    WindowMode.SPLIT -> current.copy(isFirstSplitLoad = false)
+                    WindowMode.FLOAT -> current.copy(isFirstFloatLoad = false)
+                }
+            }
+        }
+    }
     LaunchedEffect(currentView) {
         if (currentView == SettingPanelView.CORNER_RADIUS) {
             if (settings.value.isSharpMode) viewModel.updateSettings { it.copy(isSharpMode = false) }
@@ -784,8 +800,9 @@ fun SettingsPanel(
         }
     }
 
-    LaunchedEffect(uiState.value.isSettingsPanelVisible) {
-        if (!uiState.value.isSettingsPanelVisible) {
+    LaunchedEffect(uiState.value.isSettingsPanelVisible, isFirstModeLoad) {
+        // Only reset to MAIN if the panel closed normally AND it's not a first-time setup
+        if (!uiState.value.isSettingsPanelVisible && !isFirstModeLoad) {
             delay(settings.value.animationSpeed.toLong().milliseconds)
             currentView = SettingPanelView.MAIN
         }
@@ -846,11 +863,11 @@ fun SettingsPanel(
         }
     }
     AnimatedVisibility(
-        visible = uiState.value.isSettingsPanelVisible || settings.value.isFirstAppLoad,
+        visible = uiState.value.isSettingsPanelVisible || isFirstModeLoad,
         enter = expandVertically(tween(settings.value.animationSpeedForLayer(1))),
         exit = shrinkVertically(
             tween(
-                if (settings.value.isFirstAppLoad) settings.value.animationSpeedForLayer(0) * 6
+                if (isFirstModeLoad) settings.value.animationSpeedForLayer(0) * 6
                 else settings.value.animationSpeedForLayer(1)
             )
         )
@@ -1184,7 +1201,7 @@ fun SettingsPanel(
                                         .defaultMinSize(minWidth = settings.value.heightForLayer(3).dp)
                                 ) {
                                     Icon(
-                                        painter = painterResource(id = if (settings.value.isFirstAppLoad) R.drawable.ic_check else R.drawable.ic_arrow_back),
+                                        painter = painterResource(id = if (isFirstModeLoad) R.drawable.ic_check else R.drawable.ic_arrow_back),
                                         contentDescription = "Back to Settings",
                                         tint = MaterialTheme.colorScheme.surfaceContainer
                                     )

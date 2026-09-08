@@ -92,6 +92,7 @@ fun SliderSetting(
 ) {
     val viewModel = LocalBrowserViewModel.current
     val settings = viewModel.browserSettings.collectAsState()
+    val uiState = viewModel.uiState.collectAsState()
 
     val currentSettingOriginalValue = remember(settings, field) {
         when (field) {
@@ -186,7 +187,7 @@ fun SliderSetting(
 
             ) {
                 Icon(
-                    painter = painterResource(id = if(settings.value.isFirstAppLoad) R.drawable.ic_check else R.drawable.ic_arrow_back),
+                    painter = painterResource(id = if(settings.value.isFirstLoadForMode(uiState.value.windowMode) ) R.drawable.ic_check else R.drawable.ic_arrow_back),
                     contentDescription = "Back to Settings",
                     tint = MaterialTheme.colorScheme.surfaceContainer
                 )

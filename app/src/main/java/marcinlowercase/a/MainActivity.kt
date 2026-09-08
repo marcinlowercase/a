@@ -661,6 +661,7 @@ fun BrowserScreen(
     }
 
     val uiState = viewModel.uiState.collectAsState()
+    val isFirstModeLoad = settings.isFirstLoadForMode(uiState.value.windowMode)
 
     viewModel.initializeTabs(initialIntentUrl)
     val activeTabIndex by viewModel.activeTabIndex.collectAsState()
@@ -1826,7 +1827,13 @@ fun BrowserScreen(
         }
         LaunchedEffect(uiState.value.isSettingsPanelVisible) {
             if (!uiState.value.isSettingsPanelVisible)
-                viewModel.updateSettings { it.copy(isFirstAppLoad = false) }
+                viewModel.updateSettings { current ->
+                    when (uiState.value.windowMode) {
+                        WindowMode.FULLSCREEN -> current.copy(isFirstAppLoad = false)
+                        WindowMode.SPLIT -> current.copy(isFirstSplitLoad = false)
+                        WindowMode.FLOAT -> current.copy(isFirstFloatLoad = false)
+                    }
+                }
         }
         LaunchedEffect(viewModel.inspectingAppId.longValue) {
             if (viewModel.inspectingAppId.longValue > 0L) viewModel.descriptionContent.value =
@@ -2541,11 +2548,8 @@ fun BrowserScreen(
                 modifier = Modifier
                     .windowInsetsPadding(WindowInsets.ime)
                     .align(Alignment.BottomCenter),
-                visible = settings.isFirstAppLoad,
-                enter = slideInVertically(
-                    animationSpec = tween(settings.animationSpeedForLayer(0) * 4),
-                    initialOffsetY = { it }
-                ),
+                visible = isFirstModeLoad,
+                enter = fadeIn(tween(settings.animationSpeedForLayer(0))),
                 exit = slideOutVertically(
                     animationSpec = tween(settings.animationSpeedForLayer(0) * 4),
                     targetOffsetY = { -it }
@@ -2574,7 +2578,7 @@ fun BrowserScreen(
                 modifier = Modifier
                     .windowInsetsPadding(WindowInsets.ime)
                     .align(Alignment.BottomCenter),
-                visible = settings.isFirstAppLoad,
+                visible = isFirstModeLoad,
                 enter = fadeIn(tween(settings.animationSpeedForLayer(0))),
                 exit = fadeOut(animationSpec = tween(settings.animationSpeedForLayer(0) * 4))
             ) {
@@ -2612,7 +2616,7 @@ fun BrowserScreen(
 
             // WebView
             AnimatedVisibility(
-                visible = !settings.isFirstAppLoad,
+                visible = !isFirstModeLoad,
                 enter = slideInVertically(
                     animationSpec = tween(settings.animationSpeedForLayer(0) * 4),
                     initialOffsetY = { it }

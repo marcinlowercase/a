@@ -21,6 +21,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.toArgb
 import kotlinx.serialization.Serializable
+import marcinlowercase.a.core.enum_class.WindowMode
 import marcinlowercase.a.ui.panel.isColorDark
 import kotlin.math.roundToInt
 
@@ -28,6 +29,8 @@ const val BASE_RADIUS = 30f
 @Serializable
 data class BrowserSettings(
     val isFirstAppLoad: Boolean,
+    val isFirstSplitLoad: Boolean = true,
+    val isFirstFloatLoad: Boolean = true,
     val padding: Float,
     val currentCornerRadius: Float,
     val floatCornerRadius: Float,
@@ -124,6 +127,11 @@ data class BrowserSettings(
 
     fun isMaterialYou() : Boolean {
         return isEnabledMaterialYou && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    }
+    fun isFirstLoadForMode(mode: WindowMode): Boolean = when (mode) {
+        WindowMode.FULLSCREEN -> isFirstAppLoad
+        WindowMode.SPLIT -> isFirstSplitLoad
+        WindowMode.FLOAT -> isFirstFloatLoad
     }
 
 }

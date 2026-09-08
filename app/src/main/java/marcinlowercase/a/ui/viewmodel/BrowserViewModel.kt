@@ -523,7 +523,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             context.getSharedPreferences("BrowserPrefs_$profileId", Context.MODE_PRIVATE)
 
         // Fallback for migration (if the profile doesn't exist yet, pull from global)
-        // We now check for "default_url" instead of "is_first_app_load" since it moved to global
         val prefsToUse = if (profilePrefs.contains("default_url")) profilePrefs else globalPrefs
         val d = DefaultSettingValues
 
@@ -550,6 +549,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         return BrowserSettings(
             // --- GLOBAL SETTINGS (Shared across all profiles) ---
             isFirstAppLoad = globalPrefs.getBoolean("is_first_app_load", true),
+            isFirstSplitLoad = globalPrefs.getBoolean("is_first_split_load", true),
+            isFirstFloatLoad = globalPrefs.getBoolean("is_first_float_load", true),
             padding = globalPrefs.getFloat("padding", d.PADDING),
             currentCornerRadius = globalPrefs.getFloat("current_corner_radius", d.CORNER_RADIUS),
             hardwareCornerRadius =  globalPrefs.getFloat("hardware_corner_radius", d.CORNER_RADIUS),
@@ -735,6 +736,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         // --- Save GLOBAL Settings ---
         globalPrefs.edit().apply {
             putBoolean("is_first_app_load", settings.isFirstAppLoad)
+            putBoolean("is_first_split_load", settings.isFirstSplitLoad)
+            putBoolean("is_first_float_load", settings.isFirstFloatLoad)
             putFloat("padding", settings.padding)
             putFloat("current_corner_radius", settings.currentCornerRadius)
             putFloat("hardware_corner_radius", settings.hardwareCornerRadius)
