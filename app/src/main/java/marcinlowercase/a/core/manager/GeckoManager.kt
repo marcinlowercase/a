@@ -744,7 +744,9 @@ class GeckoManager(private val context: Context) {
                                         "offHighlight",
                                         formatArgbToCss(activeOffHighlight.value.toHexString())
                                     )
-                                    put("isDesktop", browserSettings.value.isDesktopMode)
+                                    val currentDomain = tab.value.currentURL.toDomain()
+                                    val isDesktop = siteSettings[currentDomain]?.isDesktopMode ?: false
+                                    put("isDesktop", isDesktop)
                                     // Send the LIVE width to JavaScript
                                     put("screenWidth", liveScreenWidthDp)
                                     put("animationSpeed", browserSettings.value.animationSpeed.toInt())
