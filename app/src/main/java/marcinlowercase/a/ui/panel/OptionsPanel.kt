@@ -1400,7 +1400,13 @@ fun OptionsPanelWrapper(
         content = content,
         modifier = Modifier.clipToBounds()
     ) { measurables, constraints ->
-        val placeable = measurables.first().measure(constraints)
+//        val placeable = measurables.first().measure(constraints)
+        val placeable = measurables.first().measure(
+            constraints.copy(
+                minHeight = 0,
+                maxHeight = androidx.compose.ui.unit.Constraints.Infinity
+            )
+        )
         val currentHeight = animatedHeight.roundToInt()
 
         layout(placeable.width, currentHeight) {

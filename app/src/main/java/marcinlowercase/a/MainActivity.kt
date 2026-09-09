@@ -714,8 +714,11 @@ fun BrowserScreen(
     } else {
         spring(visibilityThreshold = Dp.VisibilityThreshold)
     }
-    val isEffectivelyFullscreen = settings.isFullscreenMode || uiState.value.isOnFullscreenVideo || uiState.value.isLandscapeByButton
-
+    val isEffectivelyFullscreen = when (uiState.value.windowMode) {
+        WindowMode.FLOAT -> true                         // Bubbles are always fullscreen (no status/nav bar insets)
+        WindowMode.SPLIT -> false                        // Split screen always keeps system bars
+        WindowMode.FULLSCREEN -> settings.isFullscreenMode // Regular mode respects the user's saved preference
+    } || uiState.value.isOnFullscreenVideo || uiState.value.isLandscapeByButton
     // Top Padding
 
     val webViewTopPaddingFullscreen = if (settings.isSharpMode && !uiState.value.isLandscape) {
@@ -967,7 +970,7 @@ fun BrowserScreen(
     val optionsPanelHeight = (settings.heightForLayer(2) + settings.padding * 2).dp
 
     val fullyDisplayRow = round(settings.maxListHeight)
-    val numberOfPaddings =fullyDisplayRow + if (ceil(settings.maxListHeight) > settings.maxListHeight) + 2
+    val numberOfPaddings = fullyDisplayRow + if (ceil(settings.maxListHeight) > settings.maxListHeight) + 2
         else + 1
     val appsPanelHeight =
         (
@@ -1611,11 +1614,6 @@ fun BrowserScreen(
         //region LaunchedEffect
 
         LaunchedEffect(activity.isInMultiWindowMode,isBubbleMode(activity)) {
-//            Log.i("mrcHello", "isInMultiWindowMode : ${activity.isInMultiWindowMode}")
-//            Log.i("mrcHello", "isBubble : ${isBubbleMode(activity)}")
-//            if (!uiState.value.isBottomPanelVisible) {
-//                viewModel.updateUI { it.copy(isBottomPanelVisible = true) }
-//            }
             if (!uiState.value.isUrlBarVisible) {
                 viewModel.updateUI { it.copy(isUrlBarVisible = true) }
             }
@@ -1625,14 +1623,13 @@ fun BrowserScreen(
                     viewModel.updateUI { it.copy(windowMode = WindowMode.FLOAT) }
                     viewModel.updateSettings { it.copy(currentCornerRadius = settings.floatCornerRadius) }
 
-                    if (!settings.isFullscreenMode) viewModel.updateSettings { it.copy(isFullscreenMode = true) }
+//                    if (!settings.isFullscreenMode) viewModel.updateSettings { it.copy(isFullscreenMode = true) }
                 } else {
                     // Split Mode
                     viewModel.updateUI { it.copy(windowMode = WindowMode.SPLIT) }
 
                     viewModel.updateSettings { it.copy(currentCornerRadius = settings.splitCornerRadius) }
-                    if (settings.isFullscreenMode) viewModel.updateSettings { it.copy(isFullscreenMode = false) }
-
+//                    if (settings.isFullscreenMode) viewModel.updateSettings { it.copy(isFullscreenMode = false) }
 
                 }
 
