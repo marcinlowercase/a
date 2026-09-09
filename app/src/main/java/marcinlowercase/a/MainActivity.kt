@@ -709,12 +709,11 @@ fun BrowserScreen(
     val cutoutLeft = cutoutPaddingValues.calculateLeftPadding(LocalLayoutDirection.current)
     val cutoutRight = cutoutPaddingValues.calculateRightPadding(LocalLayoutDirection.current)
 
-    val paddingAnimationSpec = if (isPipMode) {
+    val paddingAnimationSpec = if (isPipMode || isKeyboardVisible) {
         snap()
     } else {
         spring(visibilityThreshold = Dp.VisibilityThreshold)
     }
-
     val isEffectivelyFullscreen = settings.isFullscreenMode || uiState.value.isOnFullscreenVideo || uiState.value.isLandscapeByButton
 
     // Top Padding
@@ -772,15 +771,23 @@ fun BrowserScreen(
         webViewBottomPaddingRegular
     }
 
-    val targetWebViewBottomPadding =
-        if (uiState.value.isSettingCornerRadius
-            || isPipMode
-        ) {
-            0.dp
-//        } else if (isKeyboardVisible && !uiState.value.isFocusOnTextField) {
-//            settings.padding.dp
-        } else webViewBottomPaddingNormalScreen
+//    val targetWebViewBottomPadding =
+//        if (uiState.value.isSettingCornerRadius
+//            || isPipMode
+//        ) {
+//            0.dp
+////        } else if (isKeyboardVisible && !uiState.value.isFocusOnTextField) {
+////            settings.padding.dp
+//        } else webViewBottomPaddingNormalScreen
 
+    val targetWebViewBottomPadding = when {
+        uiState.value.isSettingCornerRadius || isPipMode -> 0.dp
+
+        // When typing inside GeckoView, remove the nav bar padding so WebView sticks to the keyboard
+        isKeyboardVisible && !uiState.value.isFocusOnTextField -> 0.dp
+
+        else -> webViewBottomPaddingNormalScreen
+    }
 
     val webViewBottomPadding by animateDpAsState(
         targetValue = targetWebViewBottomPadding,
@@ -2450,9 +2457,16 @@ fun BrowserScreen(
 
                 // d. After blinking, fade out completely.
             } else {
-                // -- The URL bar is visible. Ensure the square is fully transparent. --
+
+                if (!uiState.value.isFocusOnUrlTextField) {
+                    geckoViewRef.value?.let { gv ->
+                        gv.clearFocus()
+                        val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
+                        imm?.hideSoftInputFromWindow(gv.windowToken, 0)
+                    }
+                }
+
                 hideBackSquare(false)
-                geckoViewRef.value?.clearFocus()
             }
 
         }

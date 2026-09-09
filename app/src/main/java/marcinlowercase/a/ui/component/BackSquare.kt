@@ -1,6 +1,7 @@
 package marcinlowercase.a.ui.component
 
 import android.app.Activity
+import android.content.Context
 import android.util.Log
 import android.view.MotionEvent
 import androidx.compose.animation.AnimatedVisibility
@@ -50,7 +51,9 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
@@ -108,6 +111,8 @@ fun BackSquare(
     val backSquareOffsetX = remember { Animatable(x) }
     val backSquareOffsetY = remember { Animatable(y) }
 
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
 
     val imeInsets = WindowInsets.ime.asPaddingValues()
     val keyboardHeight = imeInsets.calculateBottomPadding()
@@ -424,7 +429,12 @@ fun BackSquare(
                                     if (longPressJob.isActive) {
                                         longPressJob.cancel()
                                         coroutineScope.launch {
-                                            geckoViewRef.value?.clearFocus()
+                                            geckoViewRef.value?.let { gv ->
+                                                gv.clearFocus()
+                                                val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
+                                                imm?.hideSoftInputFromWindow(gv.windowToken, 0)
+                                            }
+
                                             viewModel.updateUI {
                                                 it.copy(isUrlBarVisible = true)
                                             }
