@@ -145,6 +145,10 @@ fun rememberBrowserOptionsRegistry(
     val isCornerRadiusZero = settings.value.cornerRadiusForLayer(0) == 0f
     var hasInitializedCornerRadius by remember { mutableStateOf(false) }
 
+
+    val currentDomain = viewModel.siteSettingsManager.getDomain(viewModel.activeTab?.currentURL)
+    val isDomainDesktop = currentDomain?.let { viewModel.siteSettings[it]?.isDesktopMode } ?: false
+
     LaunchedEffect(isCornerRadiusZero) {
         if (!hasInitializedCornerRadius) {
             hasInitializedCornerRadius = true
@@ -169,7 +173,8 @@ fun rememberBrowserOptionsRegistry(
         viewModel.recentlyClosedTabs.size,
         viewModel.isSortingButtons.value,
         dynamicPrimaryColor,
-        viewModel.userEmail.value
+        viewModel.userEmail.value,
+        isDomainDesktop
     ) {
         mapOf(
             // --- Options Panel Exclusives ---
@@ -470,11 +475,15 @@ fun rememberBrowserOptionsRegistry(
             ) { viewModel.updateSettings { it.copy(isFullscreenMode = !it.isFullscreenMode) } },
             BrowserOption.DESKTOP_MODE to OptionItem(
                 id = BrowserOption.DESKTOP_MODE,
-                iconRes = if (settings.value.isDesktopMode) R.drawable.ic_computer else R.drawable.ic_mobile_3,
+                iconRes = if (isDomainDesktop) R.drawable.ic_computer else R.drawable.ic_mobile_3,
                 contentDescription = R.string.desc_desktop_mode,
-                enabled = settings.value.isDesktopMode
+                enabled = isDomainDesktop
             ) {
-                viewModel.updateSettings { it.copy(isDesktopMode = !it.isDesktopMode) }; viewModel.updateUI {
+//                viewModel.updateSettings { it.copy(isDesktopMode = !it.isDesktopMode) }
+                viewModel.toggleDesktopModeForCurrentTab()
+
+
+                viewModel.updateUI {
                 it.copy(
                     isOptionsPanelVisible = false,
                     isAppsPanelVisible = false

@@ -22,5 +22,6 @@ import kotlinx.serialization.Serializable
 data class SiteSettings(
     val domain: String,
     // Map of <PermissionConstant, isGranted> e.g., <"android.permission.CAMERA", true>
-    val permissionDecisions: MutableMap<String, Boolean> = mutableMapOf()
+    val permissionDecisions: MutableMap<String, Boolean> = mutableMapOf(),
+    val isDesktopMode: Boolean = false
 )

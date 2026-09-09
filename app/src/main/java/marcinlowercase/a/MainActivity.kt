@@ -675,10 +675,20 @@ fun BrowserScreen(
 
     val textFieldState = rememberTextFieldState(viewModel.activeTab!!.currentURL)
 
+
+    val currentDomain = viewModel.siteSettingsManager.getDomain(viewModel.activeTab?.currentURL)
+    val isCurrentDomainDesktop = currentDomain?.let { viewModel.siteSettings[it]?.isDesktopMode } ?: false
+
     val activeSession =
         remember(viewModel.activeTab!!.id, viewModel.sessionRefreshTrigger.intValue) {
-            viewModel.geckoManager.getSession(viewModel.activeTab!!, settings.isDesktopMode,  settings.isEnabledBackgroundPlayback)
+            viewModel.geckoManager.getSession(
+                tab= viewModel.activeTab!!,
+//                isDesktopMode = settings.isDesktopMode,
+                isDesktopMode = isCurrentDomainDesktop,
+
+                isEnabledBackgroundPlayback = settings.isEnabledBackgroundPlayback)
         }
+//    tab: Tab, isDesktopMode: Boolean = false, isEnabledBackgroundPlayback: Boolean = true
 
 
 //    val offsetY = remember { Animatable(0f) }
@@ -1637,13 +1647,13 @@ fun BrowserScreen(
             if (!viewModel.isSortingButtons.value) viewModel.updateUI { it.copy(isAppsPanelVisible = false) }
         }
 
-        LaunchedEffect(settings.isDesktopMode, activeSession) {
-            val targetUserAgent = if (settings.isDesktopMode) {
+        LaunchedEffect(isCurrentDomainDesktop, activeSession) {
+            val targetUserAgent = if (isCurrentDomainDesktop) {
                 GeckoSessionSettings.USER_AGENT_MODE_DESKTOP
             } else {
                 GeckoSessionSettings.USER_AGENT_MODE_MOBILE
             }
-            val targetViewportMode = if (settings.isDesktopMode) {
+            val targetViewportMode = if (isCurrentDomainDesktop) {
                 GeckoSessionSettings.VIEWPORT_MODE_DESKTOP
             } else {
                 GeckoSessionSettings.VIEWPORT_MODE_MOBILE

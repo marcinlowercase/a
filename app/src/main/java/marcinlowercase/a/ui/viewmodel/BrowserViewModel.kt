@@ -2403,6 +2403,20 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         siteSettingsManager.saveSettings(currentProfileId, siteSettings)
     }
 
+
+    fun isCurrentTabDesktopMode(): Boolean {
+        val domain = siteSettingsManager.getDomain(activeTab?.currentURL) ?: return false
+        return siteSettings[domain]?.isDesktopMode ?: false
+    }
+
+    fun toggleDesktopModeForCurrentTab() {
+        val domain = siteSettingsManager.getDomain(activeTab?.currentURL) ?: return
+        val current = siteSettings[domain] ?: SiteSettings(domain = domain)
+        val updated = current.copy(isDesktopMode = !current.isDesktopMode)
+        siteSettings[domain] = updated
+        siteSettingsManager.saveSettings(currentProfileId, siteSettings)
+    }
+
     //endregion
     //region Permission Logic
     val pendingPermissionRequest = mutableStateOf<CustomPermissionRequest?>(null)
