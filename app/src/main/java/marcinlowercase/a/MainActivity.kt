@@ -969,13 +969,15 @@ fun BrowserScreen(
 //region OptionsPanel Drag State
     val optionsPanelHeight = (settings.heightForLayer(2) + settings.padding * 2).dp
 
-    val fullyDisplayRow = round(settings.maxListHeight)
-    val numberOfPaddings = fullyDisplayRow + if (ceil(settings.maxListHeight) > settings.maxListHeight) + 2
-        else + 1
-    val appsPanelHeight =
-        (
-                (settings.heightForLayer(3) * settings.maxListHeight) + settings.padding * numberOfPaddings
-                ).dp
+//    val fullyDisplayRow = round(settings.maxListHeight)
+//    val numberOfPaddings = fullyDisplayRow + if (ceil(settings.maxListHeight) > settings.maxListHeight) + 2
+//        else + 1
+//    val appsPanelHeight =
+//        (
+//                (settings.heightForLayer(3) * settings.maxListHeight) + settings.padding * numberOfPaddings
+//                ).dp
+
+    val appsPanelHeight = settings.maxContainerSizeForLayer(3, uiState.value.windowMode).dp
 
     val totalRevealHeight = optionsPanelHeight + settings.padding.dp + appsPanelHeight
     LaunchedEffect(optionsPanelHeight, appsPanelHeight, totalRevealHeight, density) {
@@ -1612,7 +1614,13 @@ fun BrowserScreen(
         LocalBrowserViewModel provides viewModel
     ) {
         //region LaunchedEffect
-
+        LaunchedEffect(activity.isInMultiWindowMode) {
+            activity.requestedOrientation = if (activity.isInMultiWindowMode) {
+                ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            } else {
+                ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            }
+        }
         LaunchedEffect(activity.isInMultiWindowMode,isBubbleMode(activity)) {
             if (!uiState.value.isUrlBarVisible) {
                 viewModel.updateUI { it.copy(isUrlBarVisible = true) }

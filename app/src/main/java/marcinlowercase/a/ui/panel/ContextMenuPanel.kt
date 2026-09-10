@@ -52,7 +52,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalClipboard
@@ -70,9 +69,11 @@ import marcinlowercase.a.core.enum_class.ContextMenuType
 import marcinlowercase.a.core.function.copyImageToClipboard
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.platform.nativeClipboardManager
 
 //import marcinlowercase.a.core.function.shareImage
 import kotlin.math.roundToInt
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun ContextMenuPanel(
@@ -134,7 +135,7 @@ fun ContextMenuPanel(
                 }
                 actions.add(Triple(R.drawable.ic_content_copy, "copy link") {
                     val clip = ClipData.newPlainText("Link", targetUrl)
-                    clipboard.nativeClipboard.setPrimaryClip(clip)
+                    clipboard.nativeClipboardManager.setPrimaryClip(clip)
                     viewModel.contextMenuData.value = null
                 })
 
@@ -159,7 +160,7 @@ fun ContextMenuPanel(
 //                    })
                     actions.add(Triple(R.drawable.ic_content_copy, "copy link") {
                         val clip = ClipData.newPlainText("Link", targetUrl)
-                        clipboard.nativeClipboard.setPrimaryClip(clip)
+                        clipboard.nativeClipboardManager.setPrimaryClip(clip)
                         viewModel.contextMenuData.value = null
                     })
                     secondTargetUrl = data.srcUrl
@@ -169,7 +170,7 @@ fun ContextMenuPanel(
                     })
                     secondActions.add(Triple(R.drawable.ic_content_copy, "copy media link") {
                         val clip = ClipData.newPlainText("Link", secondTargetUrl)
-                        clipboard.nativeClipboard.setPrimaryClip(clip)
+                        clipboard.nativeClipboardManager.setPrimaryClip(clip)
                         viewModel.contextMenuData.value = null
                     })
                     secondActions.add(Triple(R.drawable.ic_download, "download media file") {
@@ -202,7 +203,7 @@ fun ContextMenuPanel(
                     })
                     actions.add(Triple(R.drawable.ic_content_copy, "copy media link") {
                         val clip = ClipData.newPlainText("Link", targetUrl)
-                        clipboard.nativeClipboard.setPrimaryClip(clip)
+                        clipboard.nativeClipboardManager.setPrimaryClip(clip)
                         viewModel.contextMenuData.value = null
                     })
 //                    actions.add(Triple(R.drawable.ic_share, "share link") {
@@ -397,7 +398,7 @@ fun ContextMenuPanel(
 
                                             // 2. USE the captured scope to launch the long press job
                                             val longPressJob = coroutineScope.launch {
-                                                delay(viewConfiguration.longPressTimeoutMillis)
+                                                delay(viewConfiguration.longPressTimeoutMillis.milliseconds)
 
                                                 // LONG PRESS CONFIRMED
                                                 hapticFeedback.performHapticFeedback(

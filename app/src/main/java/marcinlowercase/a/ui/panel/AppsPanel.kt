@@ -99,13 +99,15 @@ fun AppsPanel(
     val settings = viewModel.browserSettings.collectAsState()
 
     // Panel Height Calculation
-    val fullyDisplayRow = round(settings.value.maxListHeight)
-    val numberOfPaddings = fullyDisplayRow + if (ceil(settings.value.maxListHeight) > settings.value.maxListHeight) 2 else 1
-    val maxPanelHeight =
-        (
-                (settings.value.heightForLayer(3) * settings.value.maxListHeight) +
-                settings.value.padding * numberOfPaddings
-                ).dp
+//    val fullyDisplayRow = round(settings.value.maxListHeight)
+//    val numberOfPaddings = fullyDisplayRow + if (ceil(settings.value.maxListHeight) > settings.value.maxListHeight) 2 else 1
+//    val maxPanelHeight =
+//        (
+//                (settings.value.heightForLayer(3) * settings.value.maxListHeight) +
+//                settings.value.padding * numberOfPaddings
+//                ).dp
+
+    val maxPanelHeight = settings.value.maxContainerSizeForLayer(3, uiState.value.windowMode).dp
 
     val profiles = viewModel.profiles
     val realPageCount = profiles.size
@@ -496,7 +498,7 @@ fun AppsPanel(
                     }
                     visualItemCount++
                 }
-                val minRows = ceil(settings.value.maxListHeight).toInt()
+                val minRows = ceil(settings.value.getMaxListHeight(uiState.value.windowMode)).toInt()
                 val currentRows = ceil(visualItemCount / 4f).toInt()
                 val targetRows = maxOf(minRows, currentRows)
                 val remainingPlaceholders = ((targetRows * 4) - visualItemCount).coerceAtLeast(0)

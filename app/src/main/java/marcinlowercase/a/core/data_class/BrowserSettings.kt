@@ -23,6 +23,8 @@ import androidx.compose.ui.graphics.toArgb
 import kotlinx.serialization.Serializable
 import marcinlowercase.a.core.enum_class.WindowMode
 import marcinlowercase.a.ui.panel.isColorDark
+import kotlin.math.ceil
+import kotlin.math.round
 import kotlin.math.roundToInt
 
 const val BASE_RADIUS = 30f
@@ -109,10 +111,19 @@ data class BrowserSettings(
         return singleLineHeight - (padding * layer* 2)
     }
 
-
-    fun maxContainerSizeForLayer(layer: Int): Float {
-        return (heightForLayer(layer) * maxListHeight) + (padding * (maxListHeight.toInt()  + 1))
+    fun getMaxListHeight(mode: WindowMode): Float {
+        return if (mode == WindowMode.SPLIT) 1.0f else maxListHeight
     }
+    fun maxContainerSizeForLayer(layer: Int, mode: WindowMode = WindowMode.FULLSCREEN): Float {
+        val listHeight = getMaxListHeight(mode)
+        val fullyDisplayRow = round(listHeight)
+        val numberOfPaddings = fullyDisplayRow + if (ceil(listHeight) > listHeight) 2 else 1
+
+        return (heightForLayer(layer) * listHeight) + (padding * numberOfPaddings)
+    }
+//    fun maxContainerSizeForLayer(layer: Int): Float {
+//        return (heightForLayer(layer) * maxListHeight) + (padding * (maxListHeight.toInt()  + 1))
+//    }
 
     fun animationSpeedForLayer(layer: Int): Int {
         val adjusted = animationSpeed - 50f * layer

@@ -46,6 +46,7 @@
         <!-- The Main Browser: Can have multiple instances for PWA / clones -->
         <activity
             android:name=".MainActivity"
+            android:resizeableActivity="true"
             android:exported="true"
             android:theme="@style/Theme.A"
             android:windowSoftInputMode="adjustResize"
