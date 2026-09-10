@@ -113,6 +113,7 @@
     <!-- Tab Data Panel -->
     <string name="desc_permission_list">permission list</string>
     <string name="desc_permission_location">location permission</string>
+    <string name="desc_permission_drive_access">Drive access permission</string>
     <string name="desc_permission_camera">camera permission</string>
     <string name="desc_permission_microphone">microphone permission</string>
     <string name="desc_permission_notifications">notifications permission</string>

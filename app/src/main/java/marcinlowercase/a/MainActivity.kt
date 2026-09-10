@@ -133,6 +133,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import marcinlowercase.a.core.constant.generic_location_permission
+import marcinlowercase.a.core.constant.google_drive_access_permission
 import marcinlowercase.a.core.data_class.ConfirmationDialogState
 import marcinlowercase.a.core.data_class.CustomPermissionRequest
 import marcinlowercase.a.core.data_class.DownloadItem
@@ -1645,21 +1646,31 @@ fun BrowserScreen(
                 DriveSyncManager.consentLauncher = null
             }
         }
+        // In MainActivity.kt -> BrowserScreen
         DisposableEffect(viewModel.activeProfileId.value) {
             viewModel.geckoManager.onDomainDrivePermissionRequested = { domain, onDecision ->
-                confirmationPopup(
-                    message = R.string.confirm_drive_permission, // e.g. "Allow this website to read and save data to your Google Drive?"
-                    url = domain,
-                    onConfirm = {
-                        // Save decision so it stays silent next time
-                        viewModel.savePermissionDecision(domain, mapOf("google_drive" to true))
-                        onDecision(true)
-                    },
-                    onCancel = {
-                        viewModel.savePermissionDecision(domain, mapOf("google_drive" to false))
-                        onDecision(false)
-                    }
-                )
+                val activeDomain = viewModel.activeTab?.currentURL?.toDomain()
+
+                if (domain == activeDomain) {
+                    val driveRequest = CustomPermissionRequest(
+                        origin = if (domain.startsWith("http")) domain else "https://$domain",
+                        title = "Google Drive access",
+                        rationale = "Allow $domain to save and read files in your Google Drive.",
+                        iconResAllow = R.drawable.ic_drive_access_allow,
+                        iconResDeny = R.drawable.ic_drive_access_deny,
+                        permissionsToRequest = listOf(google_drive_access_permission),
+                        onResult = { permissionsMap, pendingRequest ->
+                            val isGranted = permissionsMap[google_drive_access_permission] == true
+                            onDecision(isGranted)
+                            pendingRequest.value = null
+                        },
+                        isSystemRequest = false
+                    )
+                    viewModel.pendingPermissionRequest.value = driveRequest
+                } else {
+                    // Tab was closed or user switched away: drop the request
+                    onDecision(false)
+                }
             }
             onDispose {
                 viewModel.geckoManager.onDomainDrivePermissionRequested = null
@@ -1745,6 +1756,13 @@ fun BrowserScreen(
         }
 
         LaunchedEffect(viewModel.activeTab?.id, viewModel.activeProfileId.value) {
+            viewModel.pendingPermissionRequest.value = null
+            viewModel.pendingMediaPermissionRequest.value = null
+            viewModel.jsDialogState.value = null
+            viewModel.choiceState.value = null
+            viewModel.colorState.value = null
+            viewModel.dateTimeState.value = null
+
             val currentUrl = viewModel.activeTab?.currentURL ?: ""
             if (!uiState.value.isFocusOnUrlTextField) {
                 textFieldState.setTextAndPlaceCursorAtEnd(currentUrl.toDomain())
@@ -2193,14 +2211,26 @@ fun BrowserScreen(
                         }
                     )
                 },
-                onJsAlert = { message ->
-                    viewModel.jsDialogState.value = JsAlert(message)
+                // In MainActivity.kt -> setupDelegates
+                onJsAlert = { tabId, message ->
+                    // IGNORE if the tab is not the currently active tab
+                    if (tabId == viewModel.activeTab?.id) {
+                        viewModel.jsDialogState.value = JsAlert(message)
+                    }
                 },
-                onJsConfirm = { message, callback ->
-                    viewModel.jsDialogState.value = JsConfirm(message, callback)
+                onJsConfirm = { tabId, message, callback ->
+                    if (tabId == viewModel.activeTab?.id) {
+                        viewModel.jsDialogState.value = JsConfirm(message, callback)
+                    } else {
+                        callback(false) // Auto-cancel if fired from a background tab
+                    }
                 },
-                onJsPrompt = { message, defaultValue, callback ->
-                    viewModel.jsDialogState.value = JsPrompt(message, defaultValue, callback)
+                onJsPrompt = { tabId, message, defaultValue, callback ->
+                    if (tabId == viewModel.activeTab?.id) {
+                        viewModel.jsDialogState.value = JsPrompt(message, defaultValue, callback)
+                    } else {
+                        callback(null) // Auto-cancel if fired from a background tab
+                    }
                 },
 
                 onLoadErrorFun = { eventTabId, session, uri, error ->
@@ -2300,6 +2330,14 @@ fun BrowserScreen(
                 },
                 onDateTimePromptFun = { viewModel.dateTimeState.value = it },
                 onCloseTabFun = { id ->
+                    if (viewModel.activeTab?.id == id) {
+                        viewModel.pendingPermissionRequest.value = null
+                        viewModel.pendingMediaPermissionRequest.value = null
+                        viewModel.jsDialogState.value = null
+                        viewModel.choiceState.value = null
+                        viewModel.colorState.value = null
+                        viewModel.dateTimeState.value = null
+                    }
                     viewModel.closeTabById(id)
                 },
 

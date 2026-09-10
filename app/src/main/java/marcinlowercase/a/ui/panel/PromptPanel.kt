@@ -78,6 +78,8 @@ fun PromptPanel(
     val viewModel = LocalBrowserViewModel.current
     val uiState = viewModel.uiState.collectAsState()
     val settings = viewModel.browserSettings.collectAsState()
+
+
     AnimatedVisibility(
 //        modifier = modifier,
         visible = uiState.value.isPromptPanelVisible,
@@ -93,9 +95,14 @@ fun PromptPanel(
         )
     ) {
         val displayState = viewModel.jsDialogDisplayState.value ?: return@AnimatedVisibility
+
+// LOCK URL TO THE DIALOG: Only evaluated once when displayState appears, never while closing
+        val displayedUrl = remember(displayState) { viewModel.activeTab?.currentURL.orEmpty() }
         var textInput by remember(state) {
             mutableStateOf(if (state is JsPrompt) state.defaultValue else "")
         }
+
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -135,7 +142,7 @@ fun PromptPanel(
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        text = viewModel.activeTab!!.currentURL, // Safely handle null URL
+                        text = displayedUrl, // Safely handle null URL
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1, // Crucial for horizontal scrolling
                         overflow = TextOverflow.Ellipsis, // Good practice, though scrolling will hide it

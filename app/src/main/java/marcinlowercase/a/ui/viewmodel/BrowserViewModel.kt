@@ -2466,16 +2466,14 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     val denyCurrentPermissionRequest = {
         val request = pendingPermissionRequest.value
         if (request != null) {
-            // 1. Identify domain
+            // FIX: fallback so Deny also persists
             val domain = siteSettingsManager.getDomain(request.origin)
+                ?: request.origin.removePrefix("https://").removePrefix("http://")
 
-            // 2. Map all requested permissions to FALSE
-            if (domain != null) {
+            if (domain.isNotBlank()) {
                 val deniedPermissions = request.permissionsToRequest.associateWith { false }
                 savePermissionDecision(domain, deniedPermissions)
             }
-
-            // 3. Notify GeckoView that the request is finished (with empty result)
             request.onResult.invoke(emptyMap(), pendingPermissionRequest)
         }
     }

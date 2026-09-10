@@ -44,6 +44,7 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import marcinlowercase.a.R
+import marcinlowercase.a.core.constant.google_drive_access_permission
 import marcinlowercase.a.core.custom_class.CustomPermissionDelegate
 import marcinlowercase.a.core.data_class.BrowserSettings
 import marcinlowercase.a.core.data_class.ContextMenuData
@@ -269,7 +270,9 @@ class GeckoManager(private val context: Context) {
 
     private suspend fun checkOrRequestDrivePermission(domain: String, siteSettings: Map<String, SiteSettings>): Boolean {
         // 1. Check if the user already made a decision for this domain
-        val existingDecision = siteSettings[domain]?.permissionDecisions?.get("google_drive")
+        val existingDecision = siteSettings[domain]?.permissionDecisions?.get(
+            google_drive_access_permission
+        )
         if (existingDecision != null) {
             return existingDecision
         }
@@ -697,9 +700,9 @@ class GeckoManager(private val context: Context) {
         onPageStopFun: (session: GeckoSession, success: Boolean) -> Unit,
         onContextMenuFun: (data: ContextMenuData) -> Unit,
         onDownloadRequested: (url: String, userAgent: String, contentDisposition: String?, mimeType: String?, stream: java.io.InputStream?) -> Unit,
-        onJsAlert: (String) -> Unit,
-        onJsConfirm: (String, (Boolean) -> Unit) -> Unit,
-        onJsPrompt: (String, String, (String?) -> Unit) -> Unit,
+        onJsAlert: (Long, String) -> Unit,
+        onJsConfirm: (Long, String, (Boolean) -> Unit) -> Unit,
+        onJsPrompt: (Long, String, String, (String?) -> Unit) -> Unit,
         onLoadErrorFun: (eventTabId: Long, session: GeckoSession, uri: String?, error: WebRequestError) -> Unit,
         onSessionCrash: () -> Unit,
 
@@ -1260,6 +1263,7 @@ class GeckoManager(private val context: Context) {
 
                 // We use onJsPrompt instead to give the user an editable OutlinedTextField!
                 onJsPrompt(
+                    eventTabId,
                     context.getString(R.string.confirm_open_pop_up),
                     targetUrl
                 ) { editedUrl ->
@@ -1378,8 +1382,7 @@ class GeckoManager(private val context: Context) {
                 val message = prompt.message ?: ""
 
                 // Show UI
-                onJsAlert(message)
-
+                onJsAlert(eventTabId, message)
                 return GeckoResult.fromValue(prompt.dismiss())
             }
 
@@ -1391,7 +1394,7 @@ class GeckoManager(private val context: Context) {
 
                 val result = GeckoResult<GeckoSession.PromptDelegate.PromptResponse>()
 
-                onJsConfirm(message) { confirmed ->
+                onJsConfirm(eventTabId, message) { confirmed ->
                     val buttonType = if (confirmed)
                         GeckoSession.PromptDelegate.ButtonPrompt.Type.POSITIVE
                     else
@@ -1414,7 +1417,7 @@ class GeckoManager(private val context: Context) {
 
                 val result = GeckoResult<GeckoSession.PromptDelegate.PromptResponse>()
 
-                onJsPrompt(message, defaultValue) { input ->
+                onJsPrompt(eventTabId, message, defaultValue) { input ->
                     if (input != null) {
                         result.complete(prompt.confirm(input))
                     } else {

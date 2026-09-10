@@ -49,6 +49,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import marcinlowercase.a.R
 import marcinlowercase.a.core.constant.generic_location_permission
+import marcinlowercase.a.core.constant.google_drive_access_permission
 import marcinlowercase.a.core.function.toDomain
 import marcinlowercase.a.ui.component.CustomIconButton
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
@@ -149,6 +150,7 @@ fun TabDataPanel(
                                     settings.permissionDecisions.forEach { (permission, isGranted) ->
                                         val (iconRes, nameResId) = when (permission) {
                                             generic_location_permission -> R.drawable.ic_location_on to R.string.desc_permission_location
+                                            google_drive_access_permission -> R.drawable.ic_drive_access_allow to R.string.desc_permission_drive_access
                                             Manifest.permission.CAMERA -> R.drawable.ic_camera_on to R.string.desc_permission_camera
                                             Manifest.permission.RECORD_AUDIO -> R.drawable.ic_mic_on to R.string.desc_permission_microphone
                                             Manifest.permission.POST_NOTIFICATIONS, Manifest.permission.INTERNET -> R.drawable.ic_notifications to R.string.desc_permission_notifications

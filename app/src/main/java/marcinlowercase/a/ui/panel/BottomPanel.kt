@@ -478,20 +478,25 @@ fun BottomPanel(
                 PermissionPanel(
                     isUrlBarVisible = uiState.value.isUrlBarVisible,
                     onAllow = {
-                        // When user clicks allow, launch the system dialog with the permissions
-                        // stored in our request object.
+                        viewModel.pendingPermissionRequest.value?.let { request ->
+                            // --- NEW: Handle software/web-only permissions (like Google Drive) ---
+                            if (!request.isSystemRequest) {
+                                val grantedMap = request.permissionsToRequest.associateWith { true }
 
-                        viewModel.pendingPermissionRequest.value?.let {
-                            if (it.permissionsToRequest.contains(Manifest.permission.CAMERA) || it.permissionsToRequest.contains(
-                                    Manifest.permission.RECORD_AUDIO
-                                )
+                                // FIX: fallback to request.origin if getDomain() returns null
+                                val domain = viewModel.siteSettingsManager.getDomain(request.origin)
+                                    ?: request.origin.removePrefix("https://").removePrefix("http://")
+
+                                viewModel.savePermissionDecision(domain, grantedMap)
+                                request.onResult(grantedMap, viewModel.pendingPermissionRequest)
+                                viewModel.pendingPermissionRequest.value = null
+                            } else if (request.permissionsToRequest.contains(Manifest.permission.CAMERA) ||
+                                request.permissionsToRequest.contains(Manifest.permission.RECORD_AUDIO)
                             ) {
-                                viewModel.allowMediaPermissionRequest(it.permissionsToRequest.associateWith { true })
+                                viewModel.allowMediaPermissionRequest(request.permissionsToRequest.associateWith { true })
                             } else {
-                                permissionLauncher.launch(it.permissionsToRequest.toTypedArray())
-
+                                permissionLauncher.launch(request.permissionsToRequest.toTypedArray())
                             }
-
                         }
                     },
                 )
