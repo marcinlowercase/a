@@ -28,7 +28,9 @@ import kotlinx.coroutines.withContext
 import marcinlowercase.a.R
 import java.io.ByteArrayOutputStream
 import androidx.core.content.edit
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
+import kotlin.coroutines.resume
 
 class DriveSyncManager(private val context: Context) {
 
@@ -206,16 +208,34 @@ class DriveSyncManager(private val context: Context) {
     // 4. STORAGE & STATE
     // ==========================================
     fun getSavedAccessToken(): String? = prefs.getString("access_token", null)
+
+    companion object {
+        // Bridge between background Drive requests and the Compose Activity UI
+        var consentLauncher: ((IntentSenderRequest, (String?) -> Unit) -> Unit)? = null
+    }
+
     suspend fun getFreshAccessToken(): String? = withContext(Dispatchers.IO) {
         try {
             val authRequest = AuthorizationRequest.builder()
-                .setRequestedScopes(listOf(Scope(DriveScopes.DRIVE_APPDATA), Scope(DriveScopes.DRIVE_FILE)))
+                .setRequestedScopes(listOf(appDataScope, driveFileScope))
                 .build()
 
             val result = authClient.authorize(authRequest).await()
             if (result.hasResolution()) {
-                // User needs to grant the new DRIVE_FILE consent in your UI
-                null
+                val pendingIntent = result.pendingIntent ?: return@withContext null
+                val request = IntentSenderRequest.Builder(pendingIntent.intentSender).build()
+
+                // PAUSE the web app call and launch the Google consent popup on screen
+                suspendCancellableCoroutine { continuation ->
+                    val launcher = consentLauncher
+                    if (launcher != null) {
+                        launcher(request) { freshToken ->
+                            if (continuation.isActive) continuation.resume(freshToken)
+                        }
+                    } else {
+                        if (continuation.isActive) continuation.resume(null)
+                    }
+                }
             } else {
                 val token = result.accessToken
                 if (token != null) saveAccessToken(token)

@@ -155,6 +155,7 @@ import marcinlowercase.a.core.function.isBubbleMode
 import marcinlowercase.a.core.function.rememberAnchoredDraggableState
 import marcinlowercase.a.core.function.toDomain
 import marcinlowercase.a.core.function.webViewLoad
+import marcinlowercase.a.core.manager.DriveSyncManager
 import marcinlowercase.a.core.manager.MediaGestureManager
 import marcinlowercase.a.core.service.ShakeDetector
 import marcinlowercase.a.ui.component.BackSquare
@@ -927,6 +928,31 @@ fun BrowserScreen(
 
         }
     )
+
+
+    // Inside BrowserScreen composable in MainActivity.kt
+    var pendingDriveCallback by remember { mutableStateOf<((String?) -> Unit)?>(null) }
+
+    val driveConsentLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        coroutineScope.launch {
+            val token = viewModel.driveSyncManager.handleDriveAuthResult(result.data)
+            pendingDriveCallback?.invoke(token)
+            pendingDriveCallback = null
+        }
+    }
+
+// Connect the bridge to the Compose UI lifecycle
+    DisposableEffect(Unit) {
+        DriveSyncManager.consentLauncher = { intentSenderRequest, onTokenReceived ->
+            pendingDriveCallback = onTokenReceived
+            driveConsentLauncher.launch(intentSenderRequest)
+        }
+        onDispose {
+            DriveSyncManager.consentLauncher = null
+        }
+    }
 
     //endregion
 
