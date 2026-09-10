@@ -27,6 +27,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import marcinlowercase.a.R
 import java.io.ByteArrayOutputStream
+import androidx.core.content.edit
 
 class DriveSyncManager(private val context: Context) {
 
@@ -34,7 +35,9 @@ class DriveSyncManager(private val context: Context) {
     private val authClient = Identity.getAuthorizationClient(context)
     private val prefs = context.getSharedPreferences("DriveAuthPrefs", Context.MODE_PRIVATE)
 
-    private val driveScope = Scope(DriveScopes.DRIVE_APPDATA)
+    private val appDataScope = Scope(DriveScopes.DRIVE_APPDATA)
+    private val driveFileScope = Scope(DriveScopes.DRIVE_FILE)
+
     private val syncFileName = "browser_sync_data.json"
 
     // ==========================================
@@ -82,7 +85,7 @@ class DriveSyncManager(private val context: Context) {
         onFailure: (Exception) -> Unit
     ) {
         val authRequest = AuthorizationRequest.builder()
-            .setRequestedScopes(listOf(driveScope))
+            .setRequestedScopes(listOf(appDataScope))
             .build()
 
         authClient.authorize(authRequest)
@@ -204,11 +207,11 @@ class DriveSyncManager(private val context: Context) {
     fun getSavedAccessToken(): String? = prefs.getString("access_token", null)
     fun getSavedEmail(): String = prefs.getString("user_email", "") ?: ""
 
-    fun saveAccessToken(token: String) = prefs.edit().putString("access_token", token).apply()
-    fun saveEmail(email: String) = prefs.edit().putString("user_email", email).apply()
+    fun saveAccessToken(token: String) = prefs.edit { putString("access_token", token) }
+    fun saveEmail(email: String) = prefs.edit { putString("user_email", email) }
 
     fun signOut(onComplete: () -> Unit) {
-        prefs.edit().clear().apply()
+        prefs.edit { clear() }
         onComplete()
     }
 }

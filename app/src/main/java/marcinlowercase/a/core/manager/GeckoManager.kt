@@ -39,6 +39,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import marcinlowercase.a.R
@@ -80,6 +81,10 @@ private const val INIT = -1.0
 private const val RESET = -2.0
 
 class GeckoManager(private val context: Context) {
+
+    private val driveSyncManager = DriveSyncManager(context)
+    private val driveFileManager = DriveFileManager(driveSyncManager)
+
     var activeGeckoMediaSession: MediaSession? = null
     var activeMediaGeckoSession: GeckoSession? = null
 
@@ -787,6 +792,61 @@ class GeckoManager(private val context: Context) {
                                 } else {
                                     GeckoResult.fromValue("ERROR_EMPTY_DATA")
                                 }
+                            }
+                            "driveSaveText" -> {
+                                val filename = (when (message) {
+                                    is JSONObject -> message.optString("filename")
+                                    is Map<*, *> -> message["filename"] as? String
+                                    else -> null
+                                } ?: "").replace("/", "_") // Prevent path traversal
+
+                                val content = (when (message) {
+                                    is JSONObject -> message.optString("content")
+                                    is Map<*, *> -> message["content"] as? String
+                                    else -> null
+                                } ?: "")
+                                val mimeType = when (message) {
+                                    is JSONObject -> message.optString("mimeType", "application/json")
+                                    is Map<*, *> -> message["mimeType"] as? String ?: "application/json"
+                                    else -> "application/json"
+                                }
+
+                                val token = driveSyncManager.getSavedAccessToken()
+                                if (token.isNullOrBlank()) {
+                                    return GeckoResult.fromValue("ERROR_NOT_AUTHENTICATED")
+                                }
+
+                                // Isolate by domain so apps can't touch each other's Drive folders
+                                val appId = sender.url?.toDomain()?.replace(".", "_")?.ifBlank { "standalone_app" } ?: "standalone_app"
+
+                                val result = GeckoResult<Any>()
+                                MainScope().launch(Dispatchers.IO) {
+                                    val success = driveFileManager.saveText(token, appId, filename, content, mimeType)
+                                    result.complete(if (success) "SUCCESS" else "ERROR_SAVING")
+                                }
+                                return result
+                            }
+
+                            "driveReadText" -> {
+                                val filename = (when (message) {
+                                    is JSONObject -> message.optString("filename")
+                                    is Map<*, *> -> message["filename"] as? String
+                                    else -> null
+                                } ?: "").replace("/", "_")
+
+                                val token = driveSyncManager.getSavedAccessToken()
+                                if (token.isNullOrBlank()) {
+                                    return GeckoResult.fromValue("ERROR_NOT_AUTHENTICATED")
+                                }
+
+                                val appId = sender.url?.toDomain()?.replace(".", "_")?.ifBlank { "standalone_app" } ?: "standalone_app"
+
+                                val result = GeckoResult<Any>()
+                                MainScope().launch(Dispatchers.IO) {
+                                    val content = driveFileManager.readText(token, appId, filename)
+                                    result.complete(content ?: "ERROR_NOT_FOUND")
+                                }
+                                return result
                             }
                         }
 
