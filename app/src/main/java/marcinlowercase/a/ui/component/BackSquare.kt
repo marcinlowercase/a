@@ -46,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -476,62 +477,48 @@ fun BackSquare(
                     .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.6f)),
                 contentAlignment = Alignment.Center
             ) {
-                AnimatedVisibility(
-                    visible = !uiState.value.isLoading,
-                    enter = fadeIn(animationSpec = tween(settings.value.animationSpeed.roundToInt())),
-                    exit = fadeOut(animationSpec = tween(settings.value.animationSpeed.roundToInt()))
-                ) {
-                    // 1. Put all 8 of your static frame images inside res/drawable
-                    // and list them here in order.
-                    val frames = remember {
-                        listOf(
-                            R.drawable.lob2_a00,
-                            R.drawable.lob2_a01,
-                            R.drawable.lob2_a02,
-                            R.drawable.lob2_a03,
-                            R.drawable.lob2_a04,
-                            R.drawable.lob2_a05,
-                            R.drawable.lob2_a06,
-                            R.drawable.lob2_a07,
-                        )
-                    }
-
-                    // 2. Keep track of which frame index is currently showing
-                    var currentFrameIndex by remember { mutableIntStateOf(0) }
-
-                    // 3. Set how long each individual frame stays on screen (e.g., 100ms)
-                    val frameDurationMillis = 100L
-
-                    // 4. Drive the loop strictly forward: 0, 1, 2, 3, 4, 5, 6, 7 -> 0
-                    LaunchedEffect(Unit) {
-                        while (true) {
-                            delay(frameDurationMillis.milliseconds)
-                            currentFrameIndex = (currentFrameIndex + 1) % frames.size
-                        }
-                    }
-
-                    Icon(
-                        painter = painterResource(id = frames[currentFrameIndex]),
-                        contentDescription = "Open Menu",
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(settings.value.heightForLayer(3).dp)
+                // 1. Put all 8 of your static frame images inside res/drawable
+                val frames = remember {
+                    listOf(
+                        R.drawable.lob2_a00,
+                        R.drawable.lob2_a01,
+                        R.drawable.lob2_a02,
+                        R.drawable.lob2_a03,
+                        R.drawable.lob2_a04,
+                        R.drawable.lob2_a05,
+                        R.drawable.lob2_a06,
+                        R.drawable.lob2_a07,
                     )
                 }
 
-                AnimatedVisibility(
-                    visible = uiState.value.isLoading,
-                    modifier = modifier,
-                    enter = fadeIn(animationSpec = tween(settings.value.animationSpeed.roundToInt())),
-                    exit = fadeOut(animationSpec = tween(settings.value.animationSpeed.roundToInt()))
-                ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier
-                            .padding(settings.value.padding.dp)
-                            .size(settings.value.heightForLayer(4).dp),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        strokeWidth = 0.5.dp
+                var currentFrameIndex by remember { mutableIntStateOf(0) }
+
+                // 1. Animatable delay to smoothly ramp the speed up and down
+                val currentDelayMillis = remember { Animatable(100f) }
+
+                // 2. Smoothly ease between normal (100ms) and fast (10ms)
+                LaunchedEffect(uiState.value.isLoading) {
+                    val targetDelay = if (uiState.value.isLoading) 4f else 100f
+                    currentDelayMillis.animateTo(
+                        targetValue = targetDelay,
+                        animationSpec = tween(durationMillis = if (uiState.value.isLoading) 40 else 5000) // adjust duration if you want it faster/slower to ramp
                     )
                 }
+
+                // 3. Continuously advance frames using the dynamically changing delay
+                LaunchedEffect(Unit) {
+                    while (true) {
+                        delay(currentDelayMillis.value.toLong().milliseconds)
+                        currentFrameIndex = (currentFrameIndex + 1) % frames.size
+                    }
+                }
+
+                Icon(
+                    painter = painterResource(id = frames[currentFrameIndex]),
+                    contentDescription = "Open Menu",
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(settings.value.heightForLayer(3).dp)
+                )
             }
         }
     }
