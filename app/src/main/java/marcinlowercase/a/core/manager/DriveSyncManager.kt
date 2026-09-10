@@ -28,6 +28,7 @@ import kotlinx.coroutines.withContext
 import marcinlowercase.a.R
 import java.io.ByteArrayOutputStream
 import androidx.core.content.edit
+import kotlinx.coroutines.tasks.await
 
 class DriveSyncManager(private val context: Context) {
 
@@ -85,7 +86,7 @@ class DriveSyncManager(private val context: Context) {
         onFailure: (Exception) -> Unit
     ) {
         val authRequest = AuthorizationRequest.builder()
-            .setRequestedScopes(listOf(appDataScope))
+            .setRequestedScopes(listOf(appDataScope, driveFileScope))
             .build()
 
         authClient.authorize(authRequest)
@@ -205,6 +206,26 @@ class DriveSyncManager(private val context: Context) {
     // 4. STORAGE & STATE
     // ==========================================
     fun getSavedAccessToken(): String? = prefs.getString("access_token", null)
+    suspend fun getFreshAccessToken(): String? = withContext(Dispatchers.IO) {
+        try {
+            val authRequest = AuthorizationRequest.builder()
+                .setRequestedScopes(listOf(Scope(DriveScopes.DRIVE_APPDATA), Scope(DriveScopes.DRIVE_FILE)))
+                .build()
+
+            val result = authClient.authorize(authRequest).await()
+            if (result.hasResolution()) {
+                // User needs to grant the new DRIVE_FILE consent in your UI
+                null
+            } else {
+                val token = result.accessToken
+                if (token != null) saveAccessToken(token)
+                token
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("DriveSync", "Token refresh failed", e)
+            null
+        }
+    }
     fun getSavedEmail(): String = prefs.getString("user_email", "") ?: ""
 
     fun saveAccessToken(token: String) = prefs.edit { putString("access_token", token) }

@@ -798,29 +798,31 @@ class GeckoManager(private val context: Context) {
                                     is JSONObject -> message.optString("filename")
                                     is Map<*, *> -> message["filename"] as? String
                                     else -> null
-                                } ?: "").replace("/", "_") // Prevent path traversal
+                                } ?: "").replace("/", "_")
 
                                 val content = (when (message) {
                                     is JSONObject -> message.optString("content")
                                     is Map<*, *> -> message["content"] as? String
                                     else -> null
                                 } ?: "")
+
                                 val mimeType = when (message) {
                                     is JSONObject -> message.optString("mimeType", "application/json")
                                     is Map<*, *> -> message["mimeType"] as? String ?: "application/json"
                                     else -> "application/json"
                                 }
 
-                                val token = driveSyncManager.getSavedAccessToken()
-                                if (token.isNullOrBlank()) {
-                                    return GeckoResult.fromValue("ERROR_NOT_AUTHENTICATED")
-                                }
-
-                                // Isolate by domain so apps can't touch each other's Drive folders
                                 val appId = sender.url?.toDomain()?.replace(".", "_")?.ifBlank { "standalone_app" } ?: "standalone_app"
 
                                 val result = GeckoResult<Any>()
                                 MainScope().launch(Dispatchers.IO) {
+                                    // CALL IT INSIDE THE COROUTINE HERE
+                                    val token = driveSyncManager.getFreshAccessToken()
+                                    if (token.isNullOrBlank()) {
+                                        result.complete("ERROR_NOT_AUTHENTICATED")
+                                        return@launch
+                                    }
+
                                     val success = driveFileManager.saveText(token, appId, filename, content, mimeType)
                                     result.complete(if (success) "SUCCESS" else "ERROR_SAVING")
                                 }
@@ -834,15 +836,17 @@ class GeckoManager(private val context: Context) {
                                     else -> null
                                 } ?: "").replace("/", "_")
 
-                                val token = driveSyncManager.getSavedAccessToken()
-                                if (token.isNullOrBlank()) {
-                                    return GeckoResult.fromValue("ERROR_NOT_AUTHENTICATED")
-                                }
-
                                 val appId = sender.url?.toDomain()?.replace(".", "_")?.ifBlank { "standalone_app" } ?: "standalone_app"
 
                                 val result = GeckoResult<Any>()
                                 MainScope().launch(Dispatchers.IO) {
+                                    // CALL IT INSIDE THE COROUTINE HERE
+                                    val token = driveSyncManager.getFreshAccessToken()
+                                    if (token.isNullOrBlank()) {
+                                        result.complete("ERROR_NOT_AUTHENTICATED")
+                                        return@launch
+                                    }
+
                                     val content = driveFileManager.readText(token, appId, filename)
                                     result.complete(content ?: "ERROR_NOT_FOUND")
                                 }
