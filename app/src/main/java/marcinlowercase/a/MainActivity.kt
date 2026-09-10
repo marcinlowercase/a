@@ -631,6 +631,8 @@ fun BrowserScreen(
     viewModel: BrowserViewModel = viewModel()
 ) {
 
+
+
     //region Variables
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -943,16 +945,7 @@ fun BrowserScreen(
         }
     }
 
-// Connect the bridge to the Compose UI lifecycle
-    DisposableEffect(Unit) {
-        DriveSyncManager.consentLauncher = { intentSenderRequest, onTokenReceived ->
-            pendingDriveCallback = onTokenReceived
-            driveConsentLauncher.launch(intentSenderRequest)
-        }
-        onDispose {
-            DriveSyncManager.consentLauncher = null
-        }
-    }
+
 
     //endregion
 
@@ -1091,6 +1084,14 @@ fun BrowserScreen(
     }
     //endregion
 
+
+
+
+
+
+
+    //endregion
+    // region Top Function
     fun confirmationPopup(
         message: Int,
         url: String = "",
@@ -1116,9 +1117,6 @@ fun BrowserScreen(
         }
 
     }
-
-
-    // region Top Function
     suspend fun hideBackSquare(blinkEffect: Boolean = true) {
         val idle = settings.backSquareIdleOpacity
         if (blinkEffect) {
@@ -1519,10 +1517,6 @@ fun BrowserScreen(
     }
     // endregion
 
-
-    //endregion
-
-
     //region Single Panel
 
 
@@ -1640,6 +1634,38 @@ fun BrowserScreen(
         LocalBrowserViewModel provides viewModel
     ) {
         //region LaunchedEffect
+
+        // Connect the bridge to the Compose UI lifecycle
+        DisposableEffect(Unit) {
+            DriveSyncManager.consentLauncher = { intentSenderRequest, onTokenReceived ->
+                pendingDriveCallback = onTokenReceived
+                driveConsentLauncher.launch(intentSenderRequest)
+            }
+            onDispose {
+                DriveSyncManager.consentLauncher = null
+            }
+        }
+        DisposableEffect(viewModel.activeProfileId.value) {
+            viewModel.geckoManager.onDomainDrivePermissionRequested = { domain, onDecision ->
+                confirmationPopup(
+                    message = R.string.confirm_drive_permission, // e.g. "Allow this website to read and save data to your Google Drive?"
+                    url = domain,
+                    onConfirm = {
+                        // Save decision so it stays silent next time
+                        viewModel.savePermissionDecision(domain, mapOf("google_drive" to true))
+                        onDecision(true)
+                    },
+                    onCancel = {
+                        viewModel.savePermissionDecision(domain, mapOf("google_drive" to false))
+                        onDecision(false)
+                    }
+                )
+            }
+            onDispose {
+                viewModel.geckoManager.onDomainDrivePermissionRequested = null
+            }
+        }
+
         LaunchedEffect(activity.isInMultiWindowMode) {
             activity.requestedOrientation = if (activity.isInMultiWindowMode) {
                 ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED

@@ -144,6 +144,8 @@
     <string name="confirm_pull">overwrite local data with cloud ?</string>
     <string name="confirm_push">overwrite cloud data with local ?</string>
     <string name="confirm_disable_confirmation">disable all confirmation popup ?</string>
+    <string name="confirm_drive_permission">allow a website to write and read its own files in your Google Drive ?</string>
+
 
     <!-- Memory Setting -->
     <string name="memory_low">low memory</string>

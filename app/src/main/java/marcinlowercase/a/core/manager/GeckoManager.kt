@@ -42,6 +42,7 @@ import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import marcinlowercase.a.R
 import marcinlowercase.a.core.custom_class.CustomPermissionDelegate
 import marcinlowercase.a.core.data_class.BrowserSettings
@@ -71,6 +72,7 @@ import org.mozilla.geckoview.WebNotification
 import org.mozilla.geckoview.WebNotificationDelegate
 import org.mozilla.geckoview.WebRequestError
 import org.mozilla.geckoview.WebResponse
+import kotlin.coroutines.resume
 import kotlin.math.abs
 
 private const val UBLOCK_ID = "uBlock0@raymondhill.net"
@@ -260,6 +262,28 @@ class GeckoManager(private val context: Context) {
                 try {
                     notification.dismiss() // Clean up the GeckoView IPC resource
                 } catch (_: Exception) {}
+            }
+        }
+    }
+    var onDomainDrivePermissionRequested: ((domain: String, onDecision: (Boolean) -> Unit) -> Unit)? = null
+
+    private suspend fun checkOrRequestDrivePermission(domain: String, siteSettings: Map<String, SiteSettings>): Boolean {
+        // 1. Check if the user already made a decision for this domain
+        val existingDecision = siteSettings[domain]?.permissionDecisions?.get("google_drive")
+        if (existingDecision != null) {
+            return existingDecision
+        }
+
+        // 2. First time: Pause the web request and ask the user in Compose UI
+        return suspendCancellableCoroutine { continuation ->
+            val requestPrompt = onDomainDrivePermissionRequested
+            if (requestPrompt != null) {
+                requestPrompt(domain) { isAllowed ->
+                    if (continuation.isActive) continuation.resume(isAllowed)
+                }
+            } else {
+                // Default to deny if no UI prompt is attached
+                if (continuation.isActive) continuation.resume(false)
             }
         }
     }
@@ -812,17 +836,26 @@ class GeckoManager(private val context: Context) {
                                     else -> "application/json"
                                 }
 
-                                val appId = sender.url?.toDomain()?.replace(".", "_")?.ifBlank { "standalone_app" } ?: "standalone_app"
+                                val domain = sender.url?.toDomain() ?: "standalone_app"
+                                val appId = domain.replace(".", "_")
 
                                 val result = GeckoResult<Any>()
                                 MainScope().launch(Dispatchers.IO) {
-                                    // CALL IT INSIDE THE COROUTINE HERE
+                                    // 1. Check per-domain permission
+                                    val isDomainAllowed = checkOrRequestDrivePermission(domain, siteSettings)
+                                    if (!isDomainAllowed) {
+                                        result.complete("ERROR_PERMISSION_DENIED")
+                                        return@launch
+                                    }
+
+                                    // 2. Browser-level Google OAuth check
                                     val token = driveSyncManager.getFreshAccessToken()
                                     if (token.isNullOrBlank()) {
                                         result.complete("ERROR_NOT_AUTHENTICATED")
                                         return@launch
                                     }
 
+                                    // 3. Perform file operation
                                     val success = driveFileManager.saveText(token, appId, filename, content, mimeType)
                                     result.complete(if (success) "SUCCESS" else "ERROR_SAVING")
                                 }
@@ -836,17 +869,26 @@ class GeckoManager(private val context: Context) {
                                     else -> null
                                 } ?: "").replace("/", "_")
 
-                                val appId = sender.url?.toDomain()?.replace(".", "_")?.ifBlank { "standalone_app" } ?: "standalone_app"
+                                val domain = sender.url?.toDomain() ?: "standalone_app"
+                                val appId = domain.replace(".", "_")
 
                                 val result = GeckoResult<Any>()
                                 MainScope().launch(Dispatchers.IO) {
-                                    // CALL IT INSIDE THE COROUTINE HERE
+                                    // 1. Check per-domain permission
+                                    val isDomainAllowed = checkOrRequestDrivePermission(domain, siteSettings)
+                                    if (!isDomainAllowed) {
+                                        result.complete("ERROR_PERMISSION_DENIED")
+                                        return@launch
+                                    }
+
+                                    // 2. Browser-level Google OAuth check
                                     val token = driveSyncManager.getFreshAccessToken()
                                     if (token.isNullOrBlank()) {
                                         result.complete("ERROR_NOT_AUTHENTICATED")
                                         return@launch
                                     }
 
+                                    // 3. Perform file read operation
                                     val content = driveFileManager.readText(token, appId, filename)
                                     result.complete(content ?: "ERROR_NOT_FOUND")
                                 }

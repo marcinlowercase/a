@@ -454,7 +454,8 @@ fun BottomPanel(
 //                        viewModel.updateUI { it.copy(isEnteringEmail = true) }
 //                        urlBarFocusRequester.requestFocus()
                         coroutineScope.launch {
-                            val email = viewModel.driveSyncManager.signInWithGoogle(context as android.app.Activity)
+                            val email =
+                                viewModel.driveSyncManager.signInWithGoogle(context as android.app.Activity)
                             if (email != null) {
                                 viewModel.onSignInSuccess(email)
                             } else {
@@ -493,8 +494,7 @@ fun BottomPanel(
 
                         }
                     },
-
-                    )
+                )
 
 
                 AnimatedVisibility(visible = viewModel.suggestions.isNotEmpty() && textFieldState.text.isNotEmpty() && uiState.value.isFocusOnUrlTextField && (!uiState.value.isPinningApp && !uiState.value.isCloningBrowser && !uiState.value.isRenamingProfile && !uiState.value.isCreatingProfile && !uiState.value.isEnteringEmail && !uiState.value.isEnteringLoginCode)) {
@@ -799,10 +799,13 @@ fun BottomPanel(
                                             if (!(uiState.value.isPinningApp || uiState.value.isCloningBrowser)) {
                                                 viewModel.updateUI { state ->
                                                     // STRICT EVALUATION: If an exclusive panel is active, Options CANNOT be saved as visible!
-                                                    val isAnyExclusivePanelOpen = state.isFindInPageVisible || state.isDownloadPanelVisible || state.isSettingsPanelVisible || state.isSyncPanelVisible || state.isTabDataPanelVisible
+                                                    val isAnyExclusivePanelOpen =
+                                                        state.isFindInPageVisible || state.isDownloadPanelVisible || state.isSettingsPanelVisible || state.isSyncPanelVisible || state.isTabDataPanelVisible
 
-                                                    val realOptionsVisible = state.isOptionsPanelVisible && !isAnyExclusivePanelOpen
-                                                    val realAppsVisible = state.isAppsPanelVisible && !isAnyExclusivePanelOpen
+                                                    val realOptionsVisible =
+                                                        state.isOptionsPanelVisible && !isAnyExclusivePanelOpen
+                                                    val realAppsVisible =
+                                                        state.isAppsPanelVisible && !isAnyExclusivePanelOpen
 
                                                     state.copy(
                                                         savedPanelState = PanelVisibilityState(
@@ -1364,7 +1367,8 @@ fun BottomPanel(
 //                                viewModel.updateUI { it.copy(isEnteringEmail = true) }
 //                                urlBarFocusRequester.requestFocus()
                                 coroutineScope.launch {
-                                    val email = viewModel.driveSyncManager.signInWithGoogle(context as android.app.Activity)
+                                    val email =
+                                        viewModel.driveSyncManager.signInWithGoogle(context as android.app.Activity)
                                     if (email != null) {
                                         viewModel.onSignInSuccess(email)
                                     } else {
