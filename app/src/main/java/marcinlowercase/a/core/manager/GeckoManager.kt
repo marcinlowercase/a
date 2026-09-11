@@ -27,6 +27,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.VibrationEffect
 import android.util.Log
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
@@ -75,7 +76,8 @@ import org.mozilla.geckoview.WebRequestError
 import org.mozilla.geckoview.WebResponse
 import kotlin.coroutines.resume
 import kotlin.math.abs
-
+import android.os.Vibrator
+import android.os.VibratorManager
 private const val UBLOCK_ID = "uBlock0@raymondhill.net"
 private const val FAVICON_ID = "browser_core_extension@marcinlowercase"
 private var coreExtension: WebExtension? = null
@@ -667,6 +669,93 @@ class GeckoManager(private val context: Context) {
         return engineManagedSessionIds.contains(tabId)
     }
 
+
+    private fun triggerHaptic(type: String) {
+        val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val manager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+            manager?.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+        } ?: return
+
+        if (!vibrator.hasVibrator()) return
+
+        val effect = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            // --- MODERN ANDROID 11+ COMPOSITIONS (Pixel 8a) ---
+            when (type.lowercase()) {
+                // Micro interactions
+                "tick" -> VibrationEffect.startComposition()
+                    .addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 0.4f)
+                    .compose()
+
+                "click" -> VibrationEffect.startComposition()
+                    .addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 0.8f)
+                    .compose()
+
+                "heavy" -> VibrationEffect.startComposition()
+                    .addPrimitive(VibrationEffect.Composition.PRIMITIVE_THUD, 1.0f)
+                    .compose()
+
+                "double_click" -> VibrationEffect.startComposition()
+                    .addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 0.6f)
+                    .addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 1.0f, 60)
+                    .compose()
+
+                // --- DUOLINGO-STYLE EXPRESSIVE PATTERNS ---
+
+                // Correct / Complete (Ascending 3-beat fanfare: tick -> click -> punch)
+                "success" -> VibrationEffect.startComposition()
+                    .addPrimitive(VibrationEffect.Composition.PRIMITIVE_LOW_TICK, 0.5f)
+                    .addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 0.8f, 70)
+                    .addPrimitive(VibrationEffect.Composition.PRIMITIVE_THUD, 1.0f, 90)
+                    .compose()
+
+                // Mistake / Reject (Two heavy, dull thuds in quick succession)
+                "error" -> VibrationEffect.startComposition()
+                    .addPrimitive(VibrationEffect.Composition.PRIMITIVE_THUD, 1.0f)
+                    .addPrimitive(VibrationEffect.Composition.PRIMITIVE_THUD, 0.7f, 80)
+                    .compose()
+
+                // Long Swell / Anticipation (Rising tension before an event)
+                "rise" -> VibrationEffect.startComposition()
+                    .addPrimitive(VibrationEffect.Composition.PRIMITIVE_SLOW_RISE, 1.0f)
+                    .compose()
+
+                // Level Up / Streak / Celebration (Long multi-beat fanfare: rise -> spin -> explosion)
+                "celebration" -> VibrationEffect.startComposition()
+                    .addPrimitive(VibrationEffect.Composition.PRIMITIVE_QUICK_RISE, 0.6f)
+                    .addPrimitive(VibrationEffect.Composition.PRIMITIVE_SPIN, 0.8f, 40)
+                    .addPrimitive(VibrationEffect.Composition.PRIMITIVE_THUD, 1.0f, 80)
+                    .addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 0.9f, 120)
+                    .compose()
+
+                // Warning / Ripple (Two soft swells)
+                "warning" -> VibrationEffect.startComposition()
+                    .addPrimitive(VibrationEffect.Composition.PRIMITIVE_QUICK_RISE, 0.5f)
+                    .addPrimitive(VibrationEffect.Composition.PRIMITIVE_QUICK_RISE, 0.8f, 100)
+                    .compose()
+
+                else -> VibrationEffect.createOneShot(20L, VibrationEffect.DEFAULT_AMPLITUDE)
+            }
+        } else {
+            // --- CLEAN ANDROID 10 (API 29) WAVEFORM FALLBACKS ---
+            when (type.lowercase()) {
+                "tick" -> VibrationEffect.createOneShot(8L, 60)
+                "click" -> VibrationEffect.createOneShot(20L, 160)
+                "heavy" -> VibrationEffect.createOneShot(45L, 255)
+                "double_click" -> VibrationEffect.createWaveform(longArrayOf(0, 15, 60, 20), intArrayOf(0, 160, 0, 255), -1)
+                "success" -> VibrationEffect.createWaveform(longArrayOf(0, 15, 70, 25, 90, 45), intArrayOf(0, 100, 0, 180, 0, 255), -1)
+                "error" -> VibrationEffect.createWaveform(longArrayOf(0, 40, 80, 40), intArrayOf(0, 255, 0, 200), -1)
+                "celebration" -> VibrationEffect.createWaveform(longArrayOf(0, 60, 40, 60, 80, 40, 120, 25), intArrayOf(0, 120, 0, 180, 0, 255, 0, 200), -1)
+                "rise" -> VibrationEffect.createWaveform(longArrayOf(0, 20, 20, 40, 20, 80, 20, 120), intArrayOf(0, 50, 0, 100, 0, 180, 0, 255), -1)
+                "warning" -> VibrationEffect.createWaveform(longArrayOf(0, 30, 100, 30), intArrayOf(0, 150, 0, 220), -1)
+                else -> VibrationEffect.createOneShot(20L, VibrationEffect.DEFAULT_AMPLITUDE)
+            }
+        }
+
+        vibrator.vibrate(effect)
+    }
     fun setupDelegates(
         session: GeckoSession,
         tab: MutableState<Tab>,
@@ -950,6 +1039,17 @@ class GeckoManager(private val context: Context) {
                                     result.complete(if (success) "SUCCESS" else "ERROR_DELETING")
                                 }
                                 return result
+                            }
+
+                            "hapticVibrate" -> {
+                                val hapticType = when (message) {
+                                    is JSONObject -> message.optString("hapticType", "click")
+                                    is Map<*, *> -> message["hapticType"] as? String ?: "click"
+                                    else -> "click"
+                                }
+
+                                triggerHaptic(hapticType)
+                                return GeckoResult.fromValue("SUCCESS")
                             }
                         }
 
