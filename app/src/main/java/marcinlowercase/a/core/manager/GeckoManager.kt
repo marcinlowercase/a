@@ -78,6 +78,10 @@ import kotlin.coroutines.resume
 import kotlin.math.abs
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.media.AudioManager
+import android.media.RingtoneManager
+import android.media.ToneGenerator
+
 private const val UBLOCK_ID = "uBlock0@raymondhill.net"
 private const val FAVICON_ID = "browser_core_extension@marcinlowercase"
 private var coreExtension: WebExtension? = null
@@ -182,6 +186,38 @@ class GeckoManager(private val context: Context) {
 
     }
 
+
+    private var toneGenerator: ToneGenerator? = null
+
+    private fun playAudioEffect(type: String) {
+        try {
+            when (type.lowercase()) {
+                // Scanner beep (Standard 100ms high-pitch tone)
+                "beep" -> {
+                    if (toneGenerator == null) toneGenerator = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 100)
+                    toneGenerator?.startTone(ToneGenerator.TONE_PROP_BEEP, 100)
+                }
+                // Success / Acknowledge chime
+                "success" -> {
+                    if (toneGenerator == null) toneGenerator = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 100)
+                    toneGenerator?.startTone(ToneGenerator.TONE_PROP_ACK, 180)
+                }
+                // Error buzzer
+                "error" -> {
+                    if (toneGenerator == null) toneGenerator = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 100)
+                    toneGenerator?.startTone(ToneGenerator.TONE_PROP_NACK, 250)
+                }
+                // System Notification chime
+                "notification" -> {
+                    val notificationUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+                    val ringtone = RingtoneManager.getRingtone(context, notificationUri)
+                    ringtone?.play()
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("GeckoAudio", "Failed to play audio effect", e)
+        }
+    }
 
     private fun setupWebNotifications() {
         // Ensure Android Notification Channel Exists
@@ -1049,6 +1085,16 @@ class GeckoManager(private val context: Context) {
                                 }
 
                                 triggerHaptic(hapticType)
+                                return GeckoResult.fromValue("SUCCESS")
+                            }
+                            "audioPlay" -> {
+                                val soundType = when (message) {
+                                    is JSONObject -> message.optString("sound", "beep")
+                                    is Map<*, *> -> message["sound"] as? String ?: "beep"
+                                    else -> "beep"
+                                }
+
+                                playAudioEffect(soundType)
                                 return GeckoResult.fromValue("SUCCESS")
                             }
                         }

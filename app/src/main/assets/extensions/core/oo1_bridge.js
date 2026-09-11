@@ -80,7 +80,22 @@
     }
 
     // ==========================================
-    // 3. INJECT INTO WEBPAGE (XRAY SANDBOX BRIDGE)
+    // 3. AUDIO PLAY MODULE
+    // ==========================================
+
+    function playAudio(sound) {
+        return new window.Promise((resolve) => {
+            browser.runtime.sendNativeMessage("browser", {
+                type: "audioPlay",
+                sound: sound || "beep"
+            })
+            .then(res => resolve(res))
+            .catch(() => resolve("FAIL"));
+        });
+    }
+
+    // ==========================================
+    // FINAL. INJECT INTO WEBPAGE (XRAY SANDBOX BRIDGE)
     // ==========================================
 
     if (typeof cloneInto !== "undefined" && window.wrappedJSObject) {
@@ -102,10 +117,16 @@
         exportFunction(vibrate, hapticObj, { defineAs: "vibrate" });
         pageWin.oo1.haptic = hapticObj;
 
+        // Export Audio
+        const audioObj = cloneInto({}, pageWin);
+        exportFunction(playAudio, audioObj, { defineAs: "play" });
+        pageWin.oo1.audio = audioObj;
+
     } else {
         // Fallback scope
         window.oo1 = window.oo1 || {};
         window.oo1.drive = { saveText, readText, listFiles, deleteFile };
         window.oo1.haptic = { vibrate };
+        window.oo1.audio = { play: playAudio };
     }
 })();
