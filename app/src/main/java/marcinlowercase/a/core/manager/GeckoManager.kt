@@ -81,6 +81,13 @@ import android.os.VibratorManager
 import android.media.AudioManager
 import android.media.RingtoneManager
 import android.media.ToneGenerator
+import com.google.mlkit.vision.barcode.common.Barcode
+import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
+import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
+import android.app.AlarmManager
+import marcinlowercase.a.core.service.AlarmReceiver
+import android.provider.Settings
+import androidx.core.net.toUri
 
 private const val UBLOCK_ID = "uBlock0@raymondhill.net"
 private const val FAVICON_ID = "browser_core_extension@marcinlowercase"
@@ -189,6 +196,84 @@ class GeckoManager(private val context: Context) {
 
     private var toneGenerator: ToneGenerator? = null
 
+    private fun scheduleExactAlarm(id: String, triggerAtMillis: Long, title: String, message: String): String {
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return "FAIL"
+
+        // Android 12+ (API 31+) Check
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
+            try {
+                // Automatically launch the system toggle page for this app
+                val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+                    data = "package:${context.packageName}".toUri()
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(intent)
+            } catch (e: Exception) {
+                Log.e("GeckoAlarm", "Failed to open exact alarm settings", e)
+            }
+            return "PERMISSION_REQUIRED"
+        }
+
+        val intent = Intent(context, AlarmReceiver::class.java).apply {
+            putExtra("id", id)
+            putExtra("title", title)
+            putExtra("message", message)
+            putExtra("notifId", id.hashCode())
+        }
+
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            id.hashCode(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        alarmManager.setExactAndAllowWhileIdle(
+            AlarmManager.RTC_WAKEUP,
+            triggerAtMillis,
+            pendingIntent
+        )
+
+        return "SUCCESS"
+    }
+    private fun cancelExactAlarm(id: String): String {
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return "FAIL"
+        val intent = Intent(context, AlarmReceiver::class.java)
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            id.hashCode(),
+            intent,
+            PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        if (pendingIntent != null) {
+            alarmManager.cancel(pendingIntent)
+            pendingIntent.cancel()
+        }
+        return "SUCCESS"
+    }
+
+    private suspend fun scanBarcodeNatively(): String = suspendCancellableCoroutine { continuation ->
+        val options = GmsBarcodeScannerOptions.Builder()
+            .setBarcodeFormats(Barcode.FORMAT_ALL_FORMATS)
+            .enableAutoZoom()
+            .build()
+
+        val scanner = GmsBarcodeScanning.getClient(context, options)
+
+        scanner.startScan()
+            .addOnSuccessListener { barcode ->
+                val rawValue = barcode.rawValue ?: ""
+                if (continuation.isActive) continuation.resume(rawValue)
+            }
+            .addOnCanceledListener {
+                if (continuation.isActive) continuation.resume("CANCELED")
+            }
+            .addOnFailureListener { e ->
+                Log.e("GeckoScanner", "Barcode scan failed", e)
+                if (continuation.isActive) continuation.resume("ERROR")
+            }
+    }
     private fun playAudioEffect(type: String) {
         try {
             when (type.lowercase()) {
@@ -1096,6 +1181,67 @@ class GeckoManager(private val context: Context) {
 
                                 playAudioEffect(soundType)
                                 return GeckoResult.fromValue("SUCCESS")
+                            }
+                            "scannerBarcode" -> {
+                                val result = GeckoResult<Any>()
+                                MainScope().launch(Dispatchers.Main) {
+                                    val code = scanBarcodeNatively()
+                                    result.complete(code)
+                                }
+                                return result
+                            }
+                            "alarmSchedule" -> {
+                                // 1. Android 13+ Notification Permission Check
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                    val hasNotifPermission = ContextCompat.checkSelfPermission(
+                                        context, Manifest.permission.POST_NOTIFICATIONS
+                                    ) == PackageManager.PERMISSION_GRANTED
+
+                                    if (!hasNotifPermission) {
+                                        try {
+                                            val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                                                putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                            }
+                                            context.startActivity(intent)
+                                        } catch (_: Exception) {}
+                                        return GeckoResult.fromValue("NOTIFICATION_PERMISSION_REQUIRED")
+                                    }
+                                }
+
+                                val id = when (message) {
+                                    is JSONObject -> message.optString("id", "default")
+                                    is Map<*, *> -> message["id"] as? String ?: "default"
+                                    else -> "default"
+                                }
+                                val delayMs = when (message) {
+                                    is JSONObject -> message.optLong("delayMs", 5000L)
+                                    is Map<*, *> -> (message["delayMs"] as? Number)?.toLong() ?: 5000L
+                                    else -> 5000L
+                                }
+                                val title = when (message) {
+                                    is JSONObject -> message.optString("title", "Alarm")
+                                    is Map<*, *> -> message["title"] as? String ?: "Alarm"
+                                    else -> "Alarm"
+                                }
+                                val text = when (message) {
+                                    is JSONObject -> message.optString("message", "")
+                                    is Map<*, *> -> message["message"] as? String ?: ""
+                                    else -> ""
+                                }
+
+                                val triggerAt = System.currentTimeMillis() + delayMs
+                                val res = scheduleExactAlarm(id, triggerAt, title, text)
+                                return GeckoResult.fromValue(res)
+                            }
+                            "alarmCancel" -> {
+                                val id = when (message) {
+                                    is JSONObject -> message.optString("id", "default")
+                                    is Map<*, *> -> message["id"] as? String ?: "default"
+                                    else -> "default"
+                                }
+                                val res = cancelExactAlarm(id)
+                                return GeckoResult.fromValue(res)
                             }
                         }
 

@@ -95,6 +95,44 @@
     }
 
     // ==========================================
+    // 4. BARCODE MODULE
+    // ==========================================
+
+    function scanBarcode() {
+        return new window.Promise((resolve) => {
+            browser.runtime.sendNativeMessage("browser", {
+                type: "scannerBarcode"
+            })
+            .then(res => resolve(res))
+            .catch(() => resolve("ERROR"));
+        });
+    }
+
+    function scheduleAlarm(id, delayMs, title, message) {
+        return new window.Promise((resolve) => {
+            browser.runtime.sendNativeMessage("browser", {
+                type: "alarmSchedule",
+                id: id || "reminder",
+                delayMs: delayMs || 5000,
+                title: title || "Alarm",
+                message: message || "Time is up!"
+            })
+            .then(res => resolve(res))
+            .catch(() => resolve("FAIL"));
+        });
+    }
+
+    function cancelAlarm(id) {
+        return new window.Promise((resolve) => {
+            browser.runtime.sendNativeMessage("browser", {
+                type: "alarmCancel",
+                id: id || "reminder"
+            })
+            .then(res => resolve(res))
+            .catch(() => resolve("FAIL"));
+        });
+    }
+    // ==========================================
     // FINAL. INJECT INTO WEBPAGE (XRAY SANDBOX BRIDGE)
     // ==========================================
 
@@ -122,11 +160,24 @@
         exportFunction(playAudio, audioObj, { defineAs: "play" });
         pageWin.oo1.audio = audioObj;
 
+        // Export Barcode
+        const scannerObj = cloneInto({}, pageWin);
+        exportFunction(scanBarcode, scannerObj, { defineAs: "scan" });
+        pageWin.oo1.scanner = scannerObj;
+
+
+        const alarmObj = cloneInto({}, pageWin);
+        exportFunction(scheduleAlarm, alarmObj, { defineAs: "schedule" });
+        exportFunction(cancelAlarm, alarmObj, { defineAs: "cancel" });
+        pageWin.oo1.alarm = alarmObj;
+
     } else {
         // Fallback scope
         window.oo1 = window.oo1 || {};
         window.oo1.drive = { saveText, readText, listFiles, deleteFile };
         window.oo1.haptic = { vibrate };
         window.oo1.audio = { play: playAudio };
+        window.oo1.scanner = { scan: scanBarcode };
+        window.oo1.alarm = { schedule: scheduleAlarm, cancel: cancelAlarm };
     }
 })();

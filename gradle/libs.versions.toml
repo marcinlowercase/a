@@ -20,6 +20,7 @@ googleApiServicesDrive = "v3-rev20220815-2.0.0"
 
 credentials = "1.6.0"
 googleid = "1.2.0"
+playServicesCodeScanner = "16.1.0"
 
 [libraries]
 androidx-lifecycle-viewmodel = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "lifecycle"}
@@ -45,6 +46,7 @@ mozilla-geckoview = { group = "org.mozilla.geckoview", name="geckoview-omni", ve
 androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime", version.ref = "runtime" }
 androidx-media = {group = "androidx.media", name = "media" , version.ref = "media"}
 android-apksig = {group = "com.android.tools.build", name = "apksig", version.ref = "agp"}
+play-services-code-scanner = { module = "com.google.android.gms:play-services-code-scanner", version.ref = "playServicesCodeScanner" }
 
 google-play-services-auth = { module = "com.google.android.gms:play-services-auth", version.ref = "playServicesAuth" }
 google-api-client-android = { module = "com.google.api-client:google-api-client-android", version.ref = "googleApiClientAndroid" }
