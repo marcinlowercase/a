@@ -897,6 +897,60 @@ class GeckoManager(private val context: Context) {
                                 }
                                 return result
                             }
+
+                            "driveListFiles" -> {
+                                val domain = sender.url?.toDomain() ?: "standalone_app"
+                                val appId = domain.replace(".", "_")
+
+                                val result = GeckoResult<Any>()
+                                MainScope().launch(Dispatchers.IO) {
+                                    if (!checkOrRequestDrivePermission(domain, siteSettings)) {
+                                        result.complete("ERROR_PERMISSION_DENIED")
+                                        return@launch
+                                    }
+
+                                    val token = driveSyncManager.getFreshAccessToken()
+                                    if (token.isNullOrBlank()) {
+                                        result.complete("ERROR_NOT_AUTHENTICATED")
+                                        return@launch
+                                    }
+
+                                    val files = driveFileManager.listFiles(token, appId)
+                                    // Convert to JSON Array string so it passes cleanly over WebExtension IPC
+                                    val jsonArray = org.json.JSONArray(files)
+                                    result.complete(jsonArray.toString())
+                                }
+                                return result
+                            }
+
+                            "driveDeleteFile" -> {
+                                val filename = (when (message) {
+                                    is JSONObject -> message.optString("filename")
+                                    is Map<*, *> -> message["filename"] as? String
+                                    else -> null
+                                } ?: "").replace("/", "_")
+
+                                val domain = sender.url?.toDomain() ?: "standalone_app"
+                                val appId = domain.replace(".", "_")
+
+                                val result = GeckoResult<Any>()
+                                MainScope().launch(Dispatchers.IO) {
+                                    if (!checkOrRequestDrivePermission(domain, siteSettings)) {
+                                        result.complete("ERROR_PERMISSION_DENIED")
+                                        return@launch
+                                    }
+
+                                    val token = driveSyncManager.getFreshAccessToken()
+                                    if (token.isNullOrBlank()) {
+                                        result.complete("ERROR_NOT_AUTHENTICATED")
+                                        return@launch
+                                    }
+
+                                    val success = driveFileManager.deleteFile(token, appId, filename)
+                                    result.complete(if (success) "SUCCESS" else "ERROR_DELETING")
+                                }
+                                return result
+                            }
                         }
 
                     } catch (e: Exception) {

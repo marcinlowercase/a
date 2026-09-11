@@ -1,5 +1,4 @@
 //oo1_bridge.js
-
 (function () {
     if (!window.location.href || window.location.href === "about:blank" || window.location.protocol === "moz-extension:") {
         return;
@@ -29,6 +28,37 @@
         });
     }
 
+    function listFiles() {
+        return new window.Promise((resolve, reject) => {
+            browser.runtime.sendNativeMessage("browser", {
+                type: "driveListFiles"
+            })
+            .then(res => {
+                try {
+                    let parsed = typeof res === "string" ? JSON.parse(res) : res;
+                    if (typeof cloneInto !== "undefined" && window.wrappedJSObject) {
+                        parsed = cloneInto(parsed, window.wrappedJSObject);
+                    }
+                    resolve(parsed);
+                } catch (e) {
+                    resolve([]);
+                }
+            })
+            .catch(err => reject(err ? err.toString() : "IPC Error"));
+        });
+    }
+
+    function deleteFile(filename) {
+        return new window.Promise((resolve, reject) => {
+            browser.runtime.sendNativeMessage("browser", {
+                type: "driveDeleteFile",
+                filename: filename || ""
+            })
+            .then(res => resolve(res))
+            .catch(err => reject(err ? err.toString() : "IPC Error"));
+        });
+    }
+
     // Inject into the page's unprivileged window scope (crossing Xray Vision)
     if (typeof cloneInto !== "undefined" && window.wrappedJSObject) {
         const pageWin = window.wrappedJSObject;
@@ -39,10 +69,12 @@
         const driveObj = cloneInto({}, pageWin);
         exportFunction(saveText, driveObj, { defineAs: "saveText" });
         exportFunction(readText, driveObj, { defineAs: "readText" });
+        exportFunction(listFiles, driveObj, { defineAs: "listFiles" });
+        exportFunction(deleteFile, driveObj, { defineAs: "deleteFile" });
 
         pageWin.oo1.drive = driveObj;
     } else {
         window.oo1 = window.oo1 || {};
-        window.oo1.drive = { saveText, readText };
+        window.oo1.drive = { saveText, readText, listFiles, deleteFile };
     }
 })();

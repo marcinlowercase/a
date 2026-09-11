@@ -120,4 +120,55 @@ class DriveFileManager(private val syncManager: DriveSyncManager) {
             null
         }
     }
+
+    suspend fun listFiles(
+        accessToken: String,
+        appId: String
+    ): List<Map<String, Any>> = withContext(Dispatchers.IO) {
+        try {
+            val service = getDriveService(accessToken)
+            val folderId = getOrCreateAppFolderId(service, appId)
+
+            val fileList = service.files().list()
+                .setQ("'$folderId' in parents and trashed = false")
+                .setFields("files(id, name, size, modifiedTime, mimeType)")
+                .execute()
+
+            fileList.files?.map { file ->
+                mapOf(
+                    "id" to (file.id ?: ""),
+                    "name" to (file.name ?: ""),
+                    "size" to (file.getSize() ?: 0L),
+                    "modifiedTime" to (file.modifiedTime?.value ?: 0L),
+                    "mimeType" to (file.mimeType ?: "")
+                )
+            } ?: emptyList()
+        } catch (e: Exception) {
+            android.util.Log.e("DriveFile", "Failed to list files for $appId", e)
+            emptyList()
+        }
+    }
+
+    suspend fun deleteFile(
+        accessToken: String,
+        appId: String,
+        fileName: String
+    ): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val service = getDriveService(accessToken)
+            val folderId = getOrCreateAppFolderId(service, appId)
+
+            val file = service.files().list()
+                .setQ("name = '$fileName' and '$folderId' in parents and trashed = false")
+                .setFields("files(id)")
+                .execute()
+                .files?.firstOrNull() ?: return@withContext false
+
+            service.files().delete(file.id).execute()
+            true
+        } catch (e: Exception) {
+            android.util.Log.e("DriveFile", "Failed to delete file: $fileName", e)
+            false
+        }
+    }
 }
