@@ -39,24 +39,42 @@ fun Theme(
     val colorScheme = if (dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         // 1. IF ENABLED: Use pure Material You dynamic colors
         val context = LocalContext.current
+
+        // Surface Variant is basically surface but will be affected by dark/light mode
+        // surface container is the surface but if not enable dynamic color, it always black
         if (darkTheme) {
-            dynamicDarkColorScheme(context)
+            dynamicDarkColorScheme(context).copy(
+                surfaceVariant = dynamicDarkColorScheme(context).surface,
+                onSurfaceVariant = dynamicDarkColorScheme(context).onSurface,
+            )
         } else {
             dynamicLightColorScheme(context).copy(
-                surfaceVariant = Color.White,
+//                surfaceVariant = Color.White,
+                surfaceVariant = dynamicLightColorScheme(context).surface,
+                onSurfaceVariant = dynamicLightColorScheme(context).onSurface,
                 inverseSurface = dynamicLightColorScheme(context).surface,
             )
         }
     } else {
         // 2. IF DISABLED: Use default scheme but override exactly the 5 colors you requested
-        darkColorScheme().copy(
+
+
+        val finalTheme = darkColorScheme().copy(
             surfaceContainer = Color.Black,
-            surfaceVariant = Color.Transparent,
+//            surfaceVariant = Color.Transparent,
             onSurface = Color.White,
             secondaryContainer = Color.White,
             onSecondaryContainer = Color.Black,
-            inverseSurface = Color.White
-        )
+            inverseSurface = Color.White,
+
+            )
+
+        if (darkTheme) {
+            finalTheme.copy(surfaceVariant = Color.Black, onSurfaceVariant = Color.White)
+        } else {
+            finalTheme.copy(surfaceVariant = Color.White, onSurfaceVariant = Color.Black)
+
+        }
     }
 
     val view = LocalView.current
