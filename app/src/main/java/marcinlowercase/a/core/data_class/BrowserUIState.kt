@@ -16,9 +16,15 @@
  */
 package marcinlowercase.a.core.data_class
 
+import marcinlowercase.a.core.enum_class.AppState
 import marcinlowercase.a.core.enum_class.WindowMode
 
 data class BrowserUIState(
+
+    val appState: AppState = AppState.REGULAR,
+
+    val isBuildPreview: Boolean = false,
+
     // Bottom Bar & General Overlay
     val isUrlBarVisible: Boolean = true,
     val isUrlOverlayBoxVisible: Boolean = true,

@@ -399,6 +399,8 @@ fun AppsPanel(
 
                     // --- FOOTER / PLACEHOLDERS ---
 
+
+
                     item(
                         span = { GridItemSpan(1) },
                         key = "pin_tab_${pageProfile.id}",
@@ -413,6 +415,30 @@ fun AppsPanel(
                     }
                     visualItemCount++
                 }
+
+                item(
+                    span = { GridItemSpan(1) },
+                    key = "build_app_${pageProfile.id}",
+                    contentType = "action_button"
+                ) {
+                    PlaceholderIcon(
+                        iconRes = R.drawable.ic_architecture,
+                        onClick = {
+                            if (isInteractive()) {
+                                viewModel.updateUI {
+                                    it.copy(
+                                        appState = marcinlowercase.a.core.enum_class.AppState.BUILD,
+                                        isAppsPanelVisible = false,
+                                        isOptionsPanelVisible = false,
+                                    )
+                                }
+                            }
+                        },
+                        modifier = Modifier.animateItem(),
+                        buttonDescription = stringResource(R.string.desc_build_new_app)
+                    )
+                }
+                visualItemCount++
 
                 val remainder = visualItemCount % 4
                 val needsGapFiller = remainder == 3
@@ -611,7 +637,7 @@ fun PlaceholderIcon(
                 painter = painterResource(id = iconRes),
                 contentDescription = null,
                 tint = if (otherColor != null) Color(settings.value.activeOnHighlight()
-                ) else {
+                    ) else {
                     if (!isSystemInDarkTheme() && settings.value.isMaterialYou())MaterialTheme.colorScheme.onSurface  else
                     MaterialTheme.colorScheme.surfaceContainer
                 },

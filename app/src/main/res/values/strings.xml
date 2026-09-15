@@ -11,6 +11,9 @@
     <string name="word_allow">allow</string>
     <string name="word_deny">deny</string>
     <string name="word_from">from</string>
+    <string name="word_send">send</string>
+    <string name="word_chat">chat</string>
+    <string name="word_preview">preview</string>
 
     <!-- Sync & Login -->
 
@@ -22,6 +25,7 @@
     <string name="desc_sync_pull">pull</string>
     <string name="desc_delete_account">wipe cloud data</string>
     <string name="desc_wipe_cloud_data">delete account</string>
+    <string name="desc_exit_build_mode">exit build mode</string>
 
     <string name="ui_login_successful">login successful</string>
     <string name="ui_login_failed">login failed</string>
@@ -81,6 +85,7 @@
     <string name="desc_delete_pin">delete pin</string>
     <string name="desc_done_editing">done editing</string>
     <string name="desc_pin_current_tab">pin current tab</string>
+    <string name="desc_build_new_app">build new app</string>
     <string name="desc_rename_profile">rename profile</string>
     <string name="desc_new_profile">new profile</string>
     <string name="desc_delete_profile">delete profile</string>
@@ -146,6 +151,8 @@
     <string name="confirm_push">overwrite cloud data with local ?</string>
     <string name="confirm_disable_confirmation">disable all confirmation popup ?</string>
     <string name="confirm_drive_permission">allow a website to write and read its own files in your Google Drive ?</string>
+    <string name="confirm_exit_build_mode">exit build mode ?</string>
+
 
 
     <!-- Memory Setting -->

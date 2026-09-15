@@ -56,6 +56,7 @@ fun CustomIconButton(
     isWhite: Boolean = true,
 
     useLongPress: Boolean = true,
+    isSquare: Boolean = false,
 
     ) {
     val viewModel = LocalBrowserViewModel.current
@@ -63,11 +64,19 @@ fun CustomIconButton(
 
 
     val hapticFeedback = LocalHapticFeedback.current
-    val sizeModifier = if (isLandscape) {
-        Modifier.width(settings.value.heightForLayer(layer).dp)
-    } else {
-        Modifier.height(settings.value.heightForLayer(layer).dp)
-    }
+    val sizeModifier =
+        if (isSquare) {
+            Modifier.width(settings.value.heightForLayer(layer).dp)
+                .height(settings.value.heightForLayer(layer).dp)
+        } else {
+            if (isLandscape) {
+                Modifier.width(settings.value.heightForLayer(layer).dp)
+            } else {
+                Modifier.height(settings.value.heightForLayer(layer).dp)
+            }
+        }
+
+
     Box(
         modifier = modifier
 

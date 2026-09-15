@@ -93,6 +93,7 @@ import marcinlowercase.a.core.enum_class.TabState
 import marcinlowercase.a.core.enum_class.WindowMode
 import marcinlowercase.a.core.manager.AppManager
 import marcinlowercase.a.core.manager.BrowserDownloadManager
+import marcinlowercase.a.core.manager.GeminiManager
 import marcinlowercase.a.core.manager.ProfileManager
 import marcinlowercase.a.core.manager.SiteSettingsManager
 import marcinlowercase.a.core.manager.TabManager
@@ -119,6 +120,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     val visitedUrlManager = VisitedUrlManager(application)
 
     val profileManager = ProfileManager(application)
+
+    val geminiManager = GeminiManager(application)
 
     //endregion
 
@@ -2753,6 +2756,39 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     }
 
     //endregion
+
+    //region Build
+    // Conversation history: Pair(role, message) -> role is "user" or "model"
+    val buildChatHistory = mutableStateListOf<Pair<String, String>>()
+    var isChatThinking = mutableStateOf(false)
+
+    fun sendBuildChatMessage(userText: String) {
+        if (userText.isBlank() || isChatThinking.value) return
+
+        buildChatHistory.add("user" to userText)
+        isChatThinking.value = true
+
+        viewModelScope.launch {
+            val systemPrompt = """
+            You are the consultative software architect for "the browser of oo1 studio".
+            Ask clarifying questions, suggest UI layout components, and guide the user. Keep responses concise and conversational.
+        """.trimIndent()
+
+            val result = geminiManager.sendChatMessage(
+                history = buildChatHistory.toList(),
+                systemPrompt = systemPrompt
+            )
+
+            isChatThinking.value = false
+            result.onSuccess { responseText ->
+                buildChatHistory.add("model" to responseText)
+            }.onFailure { error ->
+                buildChatHistory.add("model" to "Error: ${error.message ?: "Failed to get response"}")
+            }
+        }
+    }
+    //endregion
+
     init {
         geckoManager.setAdBlockEnabled(_browserSettings.value.isAdBlockEnabled)
         startDownloadPolling()

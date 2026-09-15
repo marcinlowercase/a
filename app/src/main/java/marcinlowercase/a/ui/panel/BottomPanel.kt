@@ -29,7 +29,9 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -74,9 +76,12 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -110,6 +115,7 @@ import marcinlowercase.a.core.data_class.JsDialogState
 import marcinlowercase.a.core.data_class.PanelVisibilityState
 import marcinlowercase.a.core.data_class.Suggestion
 import marcinlowercase.a.core.data_class.Tab
+import marcinlowercase.a.core.enum_class.AppState
 import marcinlowercase.a.core.enum_class.GestureNavAction
 import marcinlowercase.a.core.enum_class.RevealState
 import marcinlowercase.a.core.enum_class.SearchEngine
@@ -181,22 +187,31 @@ fun BottomPanel(
     val loginFailedText = stringResource(R.string.ui_login_failed)
 
 
+    val speed = settings.value.animationSpeedForLayer(0)
 
+// Detects if the sheet was already open on screen (meaning this is a mode switch!)
+    var wasPanelVisible by remember { mutableStateOf(uiState.value.isBottomPanelVisible) }
+    val isModeSwitch = uiState.value.isBottomPanelVisible && wasPanelVisible
+    SideEffect {
+        wasPanelVisible = uiState.value.isBottomPanelVisible
+    }
     AnimatedVisibility(
         modifier = modifier,
-        visible = uiState.value.isBottomPanelVisible,
-        enter = slideInVertically(
-            animationSpec = tween(
-                settings.value.animationSpeedForLayer(0)
-            ),
-            initialOffsetY = { it }
-        ),
-        exit = slideOutVertically(
-            animationSpec = tween(
-                settings.value.animationSpeedForLayer(0)
-            ),
-            targetOffsetY = { it }
-        )
+        visible = uiState.value.appState == AppState.REGULAR && uiState.value.isBottomPanelVisible,
+        enter = if (isModeSwitch) {
+            // Returning from Build Mode: slide in from left to right
+            slideInHorizontally(tween(speed)) { -it }
+        } else {
+            // Normal reveal from BackSquare: slide up vertically
+            slideInVertically(tween(speed)) { it }
+        },
+        exit = if (uiState.value.isBottomPanelVisible) {
+            // Entering Build Mode: slide out to the LEFT
+            slideOutHorizontally(tween(speed)) { -it }
+        } else {
+            // Normal dismiss on webview touch: slide down vertically
+            slideOutVertically(tween(speed)) { it }
+        }
     ) {
         val clipboard = LocalClipboard.current
 

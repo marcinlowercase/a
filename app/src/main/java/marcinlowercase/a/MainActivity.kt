@@ -162,7 +162,10 @@ import marcinlowercase.a.core.service.ShakeDetector
 import marcinlowercase.a.ui.component.BackSquare
 import marcinlowercase.a.ui.component.CursorPad
 import marcinlowercase.a.ui.component.CursorPointer
+import marcinlowercase.a.ui.component.CustomIconButton
 import marcinlowercase.a.ui.panel.BottomPanel
+import marcinlowercase.a.ui.panel.BuildChatPanel
+import marcinlowercase.a.ui.panel.BuildPanel
 import marcinlowercase.a.ui.panel.ChoicePanel
 import marcinlowercase.a.ui.panel.ColorPickerPanel
 import marcinlowercase.a.ui.panel.DateTimePickerPanel
@@ -2674,6 +2677,8 @@ fun BrowserScreen(
                     .focusable() // CRITICAL: It must be focusable
             )
 
+
+
             // Adjust Device Corner Radius Screen
             AnimatedVisibility(
                 modifier = Modifier
@@ -2886,8 +2891,13 @@ fun BrowserScreen(
                                                 }
                                             )
                                         }
-
-                                        // --- PWA NATIVE SPLASH SCREEN ---
+                                        Box(modifier = Modifier.fillMaxSize()) {
+                                            BuildChatPanel(
+                                                messages = viewModel.buildChatHistory,
+                                                isThinking = viewModel.isChatThinking.value,
+                                                cornerRadius = 0.dp
+                                            )
+                                        }
 
                                         // --- PWA NATIVE SPLASH SCREEN ---
                                         Column(modifier = Modifier.fillMaxSize()) {
@@ -3168,6 +3178,22 @@ fun BrowserScreen(
                             },
 
                             )
+
+                        BuildPanel(
+                            modifier = Modifier
+                                .padding(
+                                    PaddingValues(
+                                        start = webViewStartPadding,
+                                        end = webViewEndPadding,
+                                        bottom = 0.dp,
+                                        top = 0.dp
+                                    )
+                                )
+                                .windowInsetsPadding(WindowInsets.ime)
+                                .align(Alignment.BottomCenter),
+                            floatingPanelBottomPadding = floatingPanelBottomPadding,
+                            confirmationPopup = ::confirmationPopup
+                        )
                         CursorPad(
                             urlBarFocusRequester = urlBarFocusRequester,
                             coroutineScope = coroutineScope,
