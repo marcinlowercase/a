@@ -3,6 +3,7 @@ package marcinlowercase.a.ui.panel
 import android.Manifest
 import android.content.pm.PackageManager
 import android.util.Log
+import androidx.compose.ui.draw.drawWithContent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -26,6 +27,7 @@ import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.clearText
@@ -52,6 +54,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
@@ -109,6 +114,8 @@ fun BuildPanel(
             }
         }
     }
+
+    val textFieldScrollState = rememberScrollState()
 
     DisposableEffect(Unit) {
         onDispose {
@@ -169,14 +176,37 @@ fun BuildPanel(
                 // ROW 1: Multiline Text Input
                 TextField(
                     state = textState,
+                    scrollState = textFieldScrollState,
                     modifier = Modifier
                         .fillMaxWidth()
                         .focusRequester(focusRequester)
-                        .onFocusChanged { isTextFieldFocused = it.isFocused },
+                        .onFocusChanged { isTextFieldFocused = it.isFocused }
+                        .drawWithContent {
+                            drawContent()
+                            if (textFieldScrollState.maxValue > 0) {
+                                val scrollbarWidth = 4.dp.toPx()
+                                val rightMargin = 8.dp.toPx()
+                                val verticalMargin = verticalCenterPad.toPx()
+
+                                val trackHeight = size.height - (verticalMargin * 2)
+                                val totalHeight = trackHeight + textFieldScrollState.maxValue
+                                val thumbHeight = (trackHeight / totalHeight * trackHeight).coerceAtLeast(20.dp.toPx())
+                                val scrollProgress = textFieldScrollState.value.toFloat() / textFieldScrollState.maxValue
+                                val thumbOffset = verticalMargin + scrollProgress * (trackHeight - thumbHeight)
+
+                                drawRoundRect(
+                                    color = Color.Gray.copy(alpha = 0.5f), // or MaterialTheme.colorScheme.surfaceContainer
+                                    topLeft = Offset(size.width - scrollbarWidth - rightMargin, thumbOffset),
+                                    size = Size(scrollbarWidth, thumbHeight),
+                                    cornerRadius = CornerRadius(scrollbarWidth / 2, scrollbarWidth / 2)
+                                )
+                            }
+                        },
                     lineLimits = TextFieldLineLimits.MultiLine(
                         minHeightInLines = 1,
-                        maxHeightInLines = ceil(settings.value.maxListHeight).toInt()
-                            .coerceAtLeast(1)
+                        maxHeightInLines = 7
+//                        maxHeightInLines = ceil(settings.value.maxListHeight).toInt()
+//                            .coerceAtLeast(1)
                     ),
                     placeholder = {
                         Text(
