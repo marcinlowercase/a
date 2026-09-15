@@ -129,7 +129,7 @@ fun SyncPanel(
                         },
                         buttonDescription = stringResource(R.string.desc_wipe_cloud_data),
                         painterId = R.drawable.ic_cloud_off,
-                        isWhite = !isColorDark(Color.Red.toArgb()),
+                        isWhite = !isColorDark((if(settings.value.isMaterialYou()) MaterialTheme.colorScheme.error else Color.Red).toArgb()),
                         otherColor = if(settings.value.isMaterialYou()) MaterialTheme.colorScheme.error else Color.Red
                     )
                 }

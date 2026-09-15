@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -48,8 +49,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -83,12 +90,22 @@ fun BuildPanel(
     var isRecording by remember { mutableStateOf(false) }
     var isTranscribing by remember { mutableStateOf(false) }
 
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    val isImeVisible = WindowInsets.ime.asPaddingValues().calculateBottomPadding() > 0.dp
+    var isTextFieldFocused by remember { mutableStateOf(false) }
+    var wasKeyboardOpenBeforePreview by remember { mutableStateOf(false) }
+
+    val focusRequester = remember { FocusRequester() }
     // Automatically switch GeckoView to the OutSync preview template upon entering Build Mode
     LaunchedEffect(uiState.value.appState) {
         if (uiState.value.appState == AppState.BUILD) {
             viewModel.activeTab?.let { tab ->
                 val session = viewModel.geckoManager.getSession(tab)
-                session.load(GeckoSession.Loader().uri("resource://android/assets/preview/template.html"))
+                session.load(
+                    GeckoSession.Loader().uri("resource://android/assets/preview/template.html")
+                )
             }
         }
     }
@@ -142,7 +159,7 @@ fun BuildPanel(
                     .padding(bottom = floatingPanelBottomPadding)
                     .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
                     .background(MaterialTheme.colorScheme.surfaceContainer)
-                    .padding(settings.value.padding.dp),
+                    .padding(settings.value.padding.dp * 2),
                 verticalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
             ) {
 
@@ -152,15 +169,19 @@ fun BuildPanel(
                 // ROW 1: Multiline Text Input
                 TextField(
                     state = textState,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester)
+                        .onFocusChanged { isTextFieldFocused = it.isFocused },
                     lineLimits = TextFieldLineLimits.MultiLine(
                         minHeightInLines = 1,
-                        maxHeightInLines = ceil(settings.value.maxListHeight).toInt().coerceAtLeast(1)
+                        maxHeightInLines = ceil(settings.value.maxListHeight).toInt()
+                            .coerceAtLeast(1)
                     ),
                     placeholder = {
                         Text(
                             text = "Describe your app...",
-                            color = Color.Gray,
+                            color = MaterialTheme.colorScheme.surfaceContainer,
                             textAlign = TextAlign.Start
                         )
                     },
@@ -171,11 +192,11 @@ fun BuildPanel(
                         vertical = verticalCenterPad
                     ),
                     colors = TextFieldDefaults.colors(
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                        cursorColor = MaterialTheme.colorScheme.onSurface,
-                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        focusedContainerColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.onSurface,
+                        cursorColor = MaterialTheme.colorScheme.surfaceContainer,
+                        focusedTextColor = MaterialTheme.colorScheme.surfaceContainer,
+                        unfocusedTextColor = MaterialTheme.colorScheme.surfaceContainer,
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent
                     )
@@ -190,8 +211,10 @@ fun BuildPanel(
 
                     // Exit Build Mode Button
                     CustomIconButton(
-                        layer = 2,
+                        layer = 3,
                         onTap = {
+                            focusManager.clearFocus()
+                            keyboardController?.hide()
                             confirmationPopup(
                                 R.string.confirm_exit_build_mode,
                                 "",
@@ -208,18 +231,36 @@ fun BuildPanel(
                         },
                         buttonDescription = stringResource(R.string.desc_exit_build_mode),
                         painterId = R.drawable.ic_close,
-                        isWhite = true,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        isWhite = !isColorDark((if (settings.value.isMaterialYou()) MaterialTheme.colorScheme.error else Color.Red).toArgb()),
+                        otherColor = if (settings.value.isMaterialYou()) MaterialTheme.colorScheme.error else Color.Red
                     )
 
                     CustomIconButton(
-                        layer = 2,
+                        layer = 3,
                         onTap = {
-                            // Toggles between full-screen chat and full-screen GeckoView preview
+                            if (uiState.value.isBuildPreview) {
+                                // Turning from Preview BACK to Chat:
+                                if (wasKeyboardOpenBeforePreview) {
+                                    focusRequester.requestFocus()
+                                    keyboardController?.show()
+                                }
+                            } else {
+                                // Turning from Chat TO Preview:
+                                // Save state: true only if focused AND keyboard is up
+                                wasKeyboardOpenBeforePreview = isTextFieldFocused && isImeVisible
+
+                                // Always hide keyboard when entering preview
+                                focusManager.clearFocus()
+                                keyboardController?.hide()
+                            }
+
                             viewModel.updateUI { it.copy(isBuildPreview = !it.isBuildPreview) }
                         },
-                        buttonDescription = if (uiState.value.isBuildPreview) stringResource(R.string.word_chat) else stringResource(R.string.word_preview),
-                        painterId = if (uiState.value.isBuildPreview) R.drawable.ic_chat_bubble else R.drawable.ic_visibility,
+                        buttonDescription = if (uiState.value.isBuildPreview) stringResource(R.string.word_chat) else stringResource(
+                            R.string.word_preview
+                        ),
+                        painterId = if (uiState.value.isBuildPreview) R.drawable.ic_forum else R.drawable.ic_deployed_code,
                         isWhite = true,
                         modifier = Modifier.weight(1f)
                     )
@@ -298,21 +339,39 @@ fun BuildPanel(
 //                        )
 //                    }
 
-                    // Send Button
-                    CustomIconButton(
-                        layer = 2,
-                        onTap = {
-                            val query = textState.text.toString().trim()
-                            if (query.isNotBlank()) {
-                                viewModel.sendBuildChatMessage(query)
-                                textState.clearText()
-                            }
-                        },
-                        buttonDescription = stringResource(R.string.word_send),
-                        painterId = R.drawable.ic_send,
-                        isWhite = true,
-                        modifier = Modifier.weight(1f)
-                    )
+                    // Send Button / Spinner
+                    if (viewModel.isChatThinking.value) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(settings.value.heightForLayer(3).dp)
+                                .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = MaterialTheme.colorScheme.onSurface,
+                                strokeWidth = 2.dp
+                            )
+                        }
+                    } else {
+                        CustomIconButton(
+                            layer = 3,
+                            onTap = {
+                                val query = textState.text.toString().trim()
+                                if (query.isNotBlank()) {
+                                    viewModel.sendBuildChatMessage(query)
+                                    textState.clearText()
+                                }
+                                focusManager.clearFocus()
+                                keyboardController?.hide()
+                            },
+                            buttonDescription = stringResource(R.string.word_send),
+                            painterId = R.drawable.ic_send,
+                            isWhite = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                 }
             }
         }
