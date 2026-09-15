@@ -24,6 +24,7 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -41,6 +42,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import marcinlowercase.a.core.data_class.BrowserSettings
+import java.lang.Integer.min
 
 import java.net.URL
 import java.util.Locale
@@ -58,7 +60,7 @@ fun Modifier.buttonSettingsForLayer(
                 browserSettings.cornerRadiusForLayer(layer).dp
             )
         )
-        .height(browserSettings.heightForLayer(layer).dp)
+        .heightIn(min = browserSettings.heightForLayer(layer).dp)
         .background(if (enabled) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
 )
 
