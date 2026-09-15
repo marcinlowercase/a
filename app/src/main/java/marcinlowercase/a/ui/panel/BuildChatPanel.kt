@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -26,20 +27,21 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import marcinlowercase.a.core.function.buttonSettingsForLayer
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 
 @Composable
 fun BuildChatPanel(
-    messages: List<Pair<String, String>>,
-    isThinking: Boolean,
     modifier: Modifier = Modifier,
-    cornerRadius: Dp
 ) {
     val listState = rememberLazyListState()
     val viewModel = LocalBrowserViewModel.current
     val settings = viewModel.browserSettings.collectAsState()
     val uiState = viewModel.uiState.collectAsState()
 
+    val messages = viewModel.buildChatHistory
+    val isThinking = viewModel.isChatThinking.value
+    val layer = 4
     // Auto-scroll to bottom on new messages
     LaunchedEffect(messages.size, isThinking) {
         if (messages.isNotEmpty()) {
@@ -62,27 +64,45 @@ fun BuildChatPanel(
             LazyColumn(
                 state = listState,
                 modifier = modifier
-                    .fillMaxWidth(),
+                    .fillMaxWidth()
+                    .padding(settings.value.padding.dp * layer),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(messages) { (role, text) ->
                     val isUser = role == "user"
                     Box(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth()
+                            .padding(
+                                start = if (isUser) settings.value.heightForLayer(
+                                    layer
+                                ).dp else 0.dp
+                            ),
                         contentAlignment = if (isUser) Alignment.CenterEnd else Alignment.CenterStart
                     ) {
-                        Text(
-                            text = text,
-                            color = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+
+                        Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(cornerRadius))
-                                .background(
-                                    if (isUser) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.surfaceContainerHighest
+                                .clip(
+                                    RoundedCornerShape(
+                                        if (isUser) settings.value.cornerRadiusForLayer(
+                                            layer
+                                        ).dp else 0.dp
+                                    )
                                 )
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
+                                .heightIn(min = settings.value.heightForLayer(layer).dp)
+                                .background(if (isUser) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
+                                .padding(
+                                    horizontal = if (isUser) settings.value.cornerRadiusForLayer(
+                                        layer
+                                    ).dp else 0.dp, vertical = settings.value.padding.dp
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = text,
+                                color = if (isUser) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
                     }
                 }
 

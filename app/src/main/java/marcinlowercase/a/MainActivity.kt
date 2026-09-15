@@ -2893,9 +2893,7 @@ fun BrowserScreen(
                                         }
                                         Box(modifier = Modifier.fillMaxSize()) {
                                             BuildChatPanel(
-                                                messages = viewModel.buildChatHistory,
-                                                isThinking = viewModel.isChatThinking.value,
-                                                cornerRadius = 0.dp
+
                                             )
                                         }
 
