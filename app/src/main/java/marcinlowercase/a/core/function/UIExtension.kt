@@ -64,6 +64,22 @@ fun Modifier.buttonSettingsForLayer(
         .background(if (enabled) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
 )
 
+@Composable
+fun Modifier.buttonSettingsForLayer(
+    layer: Int,
+    browserSettings: BrowserSettings,
+    backgroundColor: Color
+): Modifier = this.then(
+    Modifier
+        .clip(
+            RoundedCornerShape(
+                browserSettings.cornerRadiusForLayer(layer).dp
+            )
+        )
+        .heightIn(min = browserSettings.heightForLayer(layer).dp)
+        .background(backgroundColor)
+)
+
 fun Modifier.buttonPointerInput(
     onTap: (() -> Unit),
     onLongPress: () -> Boolean = {

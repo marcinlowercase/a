@@ -16,6 +16,8 @@
  */
 package marcinlowercase.a.ui.component
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
@@ -25,6 +27,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -64,6 +67,45 @@ fun CustomIconButton(
 
 
     val hapticFeedback = LocalHapticFeedback.current
+
+    val speed = settings.value.animationSpeedForLayer(layer)
+
+// 1. Animate Background Color
+
+    val baseBgColor = if (otherColor != Color.Transparent) {
+        otherColor
+    } else {
+        MaterialTheme.colorScheme.secondaryContainer
+    }
+
+// Keep the exact same dynamic hue (RGB) and only animate the alpha
+    val targetBackgroundColor = if (isWhite || otherColor != Color.Transparent) {
+        baseBgColor
+    } else {
+        baseBgColor.copy(alpha = 0f) // Transparent version of the SAME dynamic color
+    }
+
+    val animatedBackgroundColor by animateColorAsState(
+        targetValue = targetBackgroundColor,
+        animationSpec = tween(speed),
+        label = "IconButtonBackground"
+    )
+
+// 2. Animate Content (Icon & Text) Color
+    val targetContentColor = if (otherColor != Color.Transparent && settings.value.isMaterialYou()) {
+        MaterialTheme.colorScheme.onPrimary
+    } else if (isWhite) {
+        MaterialTheme.colorScheme.onSecondaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+    val animatedContentColor by animateColorAsState(
+        targetValue = targetContentColor,
+        animationSpec = tween(speed),
+        label = "IconButtonContent"
+    )
+
+
     val sizeModifier =
         if (isSquare) {
             Modifier.width(settings.value.heightForLayer(layer).dp)
@@ -85,7 +127,7 @@ fun CustomIconButton(
             .buttonSettingsForLayer(
                 layer,
                 settings.value,
-                isWhite
+                animatedBackgroundColor
             )
 
             .buttonPointerInput(
@@ -105,10 +147,7 @@ fun CustomIconButton(
             Text(
                 text = textIcon,
                 fontFamily = FontFamily.Monospace,
-                color = if (otherColor != Color.Transparent && settings.value.isMaterialYou()) MaterialTheme.colorScheme.onPrimary
-                else {
-                    if (isWhite) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
-                },
+                color = animatedContentColor,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Black,
                 textDecoration = TextDecoration.Underline
@@ -120,12 +159,7 @@ fun CustomIconButton(
             ,
             painter = painterResource(id = painterId),
             contentDescription = buttonDescription,
-            tint = if (painterId == R.drawable.ic_google_logo) Color.Unspecified  else{
-                if (otherColor != Color.Transparent && settings.value.isMaterialYou()) MaterialTheme.colorScheme.onPrimary
-                else {
-                    if (isWhite) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
-                }
-            }
+            tint = if (painterId == R.drawable.ic_google_logo) Color.Unspecified  else animatedContentColor
         )
     }
 }

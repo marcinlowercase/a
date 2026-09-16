@@ -392,13 +392,16 @@ fun BuildPanel(
                                 if (query.isNotBlank()) {
                                     viewModel.sendBuildChatMessage(query)
                                     textState.clearText()
+                                    if (uiState.value.isBuildPreview) {
+                                        viewModel.updateUI { it.copy(isBuildPreview = false) }
+                                    }
                                 }
                                 focusManager.clearFocus()
                                 keyboardController?.hide()
                             },
                             buttonDescription = stringResource(R.string.word_send),
                             painterId = R.drawable.ic_send,
-                            isWhite = true,
+                            isWhite = textState.text.toString().trim().isNotBlank(),
                             modifier = Modifier.weight(1f)
                         )
                     }
