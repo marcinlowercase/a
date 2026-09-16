@@ -25,6 +25,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -32,6 +33,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -56,7 +59,7 @@ fun FindInPagePanel(
 //    currentRotation: Float,
     isVisible: Boolean,
 
-    onSearchTextChanged: (String) -> Unit,
+    searchTextFieldState: TextFieldState,
     onFindNext: () -> Unit,
     onFindPrevious: () -> Unit,
     onClose: () -> Unit,
@@ -98,8 +101,13 @@ fun FindInPagePanel(
 
         ) {
             TextField(
-                value = viewModel.findInPageText.value,
-                onValueChange = onSearchTextChanged,
+                state = searchTextFieldState,
+                lineLimits = TextFieldLineLimits.SingleLine,
+                contentPadding = PaddingValues(
+                    horizontal = settings.value.cornerRadiusForLayer(
+                        2
+                    ).dp + settings.value.padding.dp
+                ),
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(
@@ -116,10 +124,13 @@ fun FindInPagePanel(
                 shape = RoundedCornerShape(
                     settings.value.cornerRadiusForLayer(2).dp
                 ),
-                placeholder = { Text(stringResource(R.string.ui_find_in_page)) },
-                singleLine = true,
+                placeholder = { Text(
+                    stringResource(R.string.ui_find_in_page),
+                    color = MaterialTheme.colorScheme.onSurface
+                ) },
+//                singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() }),
+                onKeyboardAction = { keyboardController?.hide() },
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
                     unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,

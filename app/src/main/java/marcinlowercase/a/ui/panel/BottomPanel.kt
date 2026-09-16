@@ -308,76 +308,57 @@ fun BottomPanel(
                     onDownload = onDownload,
                 )
 
-                FindInPagePanel(
-                    isVisible = uiState.value.isFindInPageVisible,
-                    onSearchTextChanged = { newText ->
-                        viewModel.findInPageText.value = newText
-                        activeSession.let { session ->
-                            if (newText.isEmpty()) {
-                                session.finder.clear()
-                                // Update UI to show 0/0 results
-                                viewModel.findInPageResult.value = 0 to 0
-                            } else {
-                                // 0 means no special flags (case-insensitive, forward direction)
-                                session.finder.find(newText, 0).then { result ->
-                                    // result is of type GeckoSession.FinderResult?
-                                    if (result != null) {
-                                        // Update your Compose state directly here
-                                        // result.current is 1-based index (WebView was 0-based, Gecko is 1-based usually, check logic)
-                                        // Actually Gecko's 'current' is 0-based index of the match, or -1 if none.
-
-                                        val currentMatch =
-                                            if (result.total > 0) result.current + 1 else 0
-                                        viewModel.findInPageResult.value =
-                                            currentMatch to result.total
-                                    }
-                                    GeckoResult.fromValue(result)
-                                }
-                            }
-                        }
-                    },
-                    onFindNext = {
-                        activeSession.finder.find(
-                            viewModel.findInPageText.value,
-                            GeckoSession.FINDER_FIND_FORWARD
-                        )
-                            .then { result ->
-                                // Update UI with new result.current
+                LaunchedEffect(viewModel.findInPageTextFieldState) {
+                    androidx.compose.runtime.snapshotFlow {
+                        viewModel.findInPageTextFieldState.text.toString()
+                    }.collect { newText ->
+                        if (newText.isEmpty()) {
+                            activeSession.finder.clear()
+                            viewModel.findInPageResult.value = 0 to 0
+                        } else {
+                            activeSession.finder.find(newText, 0).then { result ->
                                 if (result != null) {
-                                    // Update your Compose state directly here
-                                    // result.current is 1-based index (WebView was 0-based, Gecko is 1-based usually, check logic)
-                                    // Actually Gecko's 'current' is 0-based index of the match, or -1 if none.
-
-                                    val currentMatch = if (result.total > 0) result.current else 0
+                                    val currentMatch =
+                                        if (result.total > 0) result.current + 1 else 0
                                     viewModel.findInPageResult.value = currentMatch to result.total
                                 }
-
                                 GeckoResult.fromValue(result)
-
-
                             }
+                        }
+                    }
+                }
+
+// 2. Pass searchTextFieldState to FindInPagePanel
+                FindInPagePanel(
+                    isVisible = uiState.value.isFindInPageVisible,
+                    searchTextFieldState = viewModel.findInPageTextFieldState,
+                    onFindNext = {
+                        activeSession.finder.find(
+                            viewModel.findInPageTextFieldState.text.toString(),
+                            GeckoSession.FINDER_FIND_FORWARD
+                        ).then { result ->
+                            if (result != null) {
+                                val currentMatch = if (result.total > 0) result.current else 0
+                                viewModel.findInPageResult.value = currentMatch to result.total
+                            }
+                            GeckoResult.fromValue(result)
+                        }
                     },
                     onFindPrevious = {
                         activeSession.finder.find(
-                            viewModel.findInPageText.value,
+                            viewModel.findInPageTextFieldState.text.toString(),
                             GeckoSession.FINDER_FIND_BACKWARDS
-                        )
-                            .then { result ->
-                                // Update UI
-                                if (result != null) {
-                                    // Update your Compose state directly here
-                                    // result.current is 1-based index (WebView was 0-based, Gecko is 1-based usually, check logic)
-                                    // Actually Gecko's 'current' is 0-based index of the match, or -1 if none.
-
-                                    val currentMatch = if (result.total > 0) result.current else 0
-                                    viewModel.findInPageResult.value = currentMatch to result.total
-                                }
-                                GeckoResult.fromValue(result)
+                        ).then { result ->
+                            if (result != null) {
+                                val currentMatch = if (result.total > 0) result.current else 0
+                                viewModel.findInPageResult.value = currentMatch to result.total
                             }
+                            GeckoResult.fromValue(result)
+                        }
                     },
                     onClose = {
                         viewModel.updateUI { it.copy(isFindInPageVisible = false) }
-                        viewModel.findInPageText.value = ""
+                        viewModel.findInPageTextFieldState.setTextAndPlaceCursorAtEnd("")
                         activeSession.finder.clear()
                     },
                 )
@@ -500,7 +481,8 @@ fun BottomPanel(
 
                                 // FIX: fallback to request.origin if getDomain() returns null
                                 val domain = viewModel.siteSettingsManager.getDomain(request.origin)
-                                    ?: request.origin.removePrefix("https://").removePrefix("http://")
+                                    ?: request.origin.removePrefix("https://")
+                                        .removePrefix("http://")
 
                                 viewModel.savePermissionDecision(domain, grantedMap)
                                 request.onResult(grantedMap, viewModel.pendingPermissionRequest)
@@ -924,11 +906,30 @@ fun BottomPanel(
                                     when {
 //                                        uiState.value.isEnteringEmail -> Text(stringResource(R.string.placeholder_email))
 //                                        uiState.value.isEnteringLoginCode -> Text(stringResource(R.string.placeholder_login_code))
-                                        uiState.value.isCreatingProfile -> Text(stringResource(R.string.placeholder_profile_label))
-                                        uiState.value.isRenamingProfile -> Text(stringResource(R.string.placeholder_profile_label))
-                                        uiState.value.isPinningApp -> Text(stringResource(R.string.placeholder_pin_label))
-                                        uiState.value.isCloningBrowser -> Text(stringResource(R.string.placeholder_browser_label))
-                                        else -> Text(stringResource(R.string.placeholder_url))
+                                        uiState.value.isCreatingProfile -> Text(
+                                            stringResource(R.string.placeholder_profile_label),
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+
+                                        uiState.value.isRenamingProfile -> Text(
+                                            stringResource(R.string.placeholder_profile_label),
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+
+                                        uiState.value.isPinningApp -> Text(
+                                            stringResource(R.string.placeholder_pin_label),
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+
+                                        uiState.value.isCloningBrowser -> Text(
+                                            stringResource(R.string.placeholder_browser_label),
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+
+                                        else -> Text(
+                                            stringResource(R.string.placeholder_url),
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
                                     }
                                 },
                                 state = textFieldState,

@@ -2636,7 +2636,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     val contextMenuData = mutableStateOf<ContextMenuData?>(null)
     val contextMenuDisplayData = mutableStateOf<ContextMenuData?>(null)
 
-    val findInPageText = mutableStateOf("")
+    val findInPageTextFieldState = androidx.compose.foundation.text.input.TextFieldState("")
     val findInPageResult = mutableStateOf(0 to 0)
 
     //endregion
