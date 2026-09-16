@@ -1968,7 +1968,7 @@ fun BrowserScreen(
         }
         LaunchedEffect(uiState.value.isFindInPageVisible) {
             if (!uiState.value.isFindInPageVisible) {
-                viewModel.findInPageText.value = ""
+                viewModel.findInPageTextFieldState.setTextAndPlaceCursorAtEnd("")
                 viewModel.findInPageResult.value = 0 to 0
             }
         }
