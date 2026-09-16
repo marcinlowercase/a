@@ -785,6 +785,8 @@ fun SettingsPanel(
                     WindowMode.FLOAT -> current.copy(isFirstFloatLoad = false)
                 }
             }
+            viewModel.updateUI { it.copy(isSettingsPanelVisible = false) }
+            currentView = SettingPanelView.MAIN
         }
     }
     LaunchedEffect(currentView) {
