@@ -166,7 +166,7 @@ fun BuildPanel(
                     .padding(bottom = floatingPanelBottomPadding)
                     .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
                     .background(MaterialTheme.colorScheme.surfaceContainer)
-                    .padding(settings.value.padding.dp * 2),
+                    .padding(settings.value.padding.dp),
                 verticalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
             ) {
 
@@ -218,7 +218,7 @@ fun BuildPanel(
                     textStyle = androidx.compose.material3.LocalTextStyle.current.copy(textAlign = TextAlign.Start),
                     shape = RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp),
                     contentPadding = PaddingValues(
-                        horizontal = settings.value.cornerRadiusForLayer(1).dp + settings.value.padding.dp,
+                        horizontal = settings.value.cornerRadiusForLayer(2).dp + settings.value.padding.dp,
                         vertical = verticalCenterPad
                     ),
                     colors = TextFieldDefaults.colors(
@@ -234,7 +234,7 @@ fun BuildPanel(
 
                 // ROW 2: Action Buttons (Exit, Mic / Spinner, Send)
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().padding(settings.value.padding.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
                 ) {
@@ -313,7 +313,7 @@ fun BuildPanel(
 //                        }
 //                    } else {
 //                        CustomIconButton(
-//                            layer = 2,
+//                            layer = 3,
 //                            isSquare = false,
 //                            onTap = {
 //                                val hasPermission = ContextCompat.checkSelfPermission(

@@ -146,6 +146,7 @@ import marcinlowercase.a.core.data_class.Tab
 import marcinlowercase.a.core.data_class.activeOffHighlight
 import marcinlowercase.a.core.data_class.activeOnHighlight
 import marcinlowercase.a.core.enum_class.ActivePanel
+import marcinlowercase.a.core.enum_class.AppState
 import marcinlowercase.a.core.enum_class.DownloadStatus
 import marcinlowercase.a.core.enum_class.GestureNavAction
 import marcinlowercase.a.core.enum_class.MediaControlOption
@@ -794,8 +795,7 @@ fun BrowserScreen(
         uiState.value.isSettingCornerRadius || isPipMode -> 0.dp
 
         // When typing inside GeckoView, remove the nav bar padding so WebView sticks to the keyboard
-        isKeyboardVisible && !uiState.value.isFocusOnTextField -> 0.dp
-
+        isKeyboardVisible && !uiState.value.isFocusOnTextField && uiState.value.appState != AppState.BUILD -> 0.dp
         else -> webViewBottomPaddingNormalScreen
     }
 
@@ -2794,7 +2794,7 @@ fun BrowserScreen(
                                         .fillMaxWidth()
                                         .weight(1f)
                                         .run {
-                                            if (viewModel.isApplyImePaddingToWebView.value) {
+                                            if (viewModel.isApplyImePaddingToWebView.value && uiState.value.appState != AppState.BUILD) {
                                                 this.windowInsetsPadding(WindowInsets.ime)
                                             } else {
                                                 this
@@ -2892,9 +2892,7 @@ fun BrowserScreen(
                                             )
                                         }
                                         Box(modifier = Modifier.fillMaxSize()) {
-                                            BuildChatPanel(
-
-                                            )
+                                            BuildChatPanel()
                                         }
 
                                         // --- PWA NATIVE SPLASH SCREEN ---

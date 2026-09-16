@@ -67,8 +67,8 @@ fun ConfirmationPanel() {
                 .fillMaxWidth()
                 .padding(horizontal = settings.value.padding.dp)
                 .padding(
-                    top = settings.value.padding.dp,
-                    bottom = if (uiState.value.isUrlBarVisible) 0.dp else settings.value.padding.dp
+                    vertical = settings.value.padding.dp,
+//                    bottom = if (uiState.value.isUrlBarVisible) 0.dp else settings.value.padding.dp
                 )
                 .clip(
                     RoundedCornerShape(

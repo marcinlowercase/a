@@ -7,8 +7,11 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -21,14 +24,23 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import marcinlowercase.a.core.function.buttonSettingsForLayer
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun BuildChatPanel(
@@ -42,13 +54,62 @@ fun BuildChatPanel(
     val messages = viewModel.buildChatHistory
     val isThinking = viewModel.isChatThinking.value
     val layer = 4
-    // Auto-scroll to bottom on new messages
+    val density = LocalDensity.current
+    val layoutInfo = listState.layoutInfo
+    val lastUserIndex = messages.indexOfLast { it.first == "user" }
+    var cachedSpacerHeight by remember { mutableStateOf(0.dp) }
+
+// 1. Continuously keeps the spacer height reactive as messages stream in
     LaunchedEffect(messages.size, isThinking) {
-        if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.size - 1)
+        snapshotFlow { listState.layoutInfo }.collect { info ->
+            val userPromptCount = messages.count { it.first == "user" }
+            if (userPromptCount <= 1) {
+                cachedSpacerHeight = 0.dp
+                return@collect
+            }
+
+            val viewportHeight = info.viewportSize.height
+            val topPad = info.beforeContentPadding
+            val bottomPad = info.afterContentPadding
+            val innerViewportHeight = viewportHeight - topPad - bottomPad
+
+            if (lastUserIndex != -1 && innerViewportHeight > 0) {
+                val lastTurnItems = info.visibleItemsInfo.filter {
+                    it.index >= lastUserIndex && it.key != "trailing_scroll_runway"
+                }
+                if (lastTurnItems.isNotEmpty()) {
+                    val firstItem = lastTurnItems.minByOrNull { it.offset }!!
+                    val lastItem = lastTurnItems.maxByOrNull { it.offset + it.size }!!
+                    val lastTurnHeight = (lastItem.offset + lastItem.size) - firstItem.offset
+
+                    // Subtract settings.value.padding.dp to offset Arrangement.spacedBy
+                    cachedSpacerHeight = with(density) {
+                        maxOf(0.dp, (innerViewportHeight - lastTurnHeight).toDp() - settings.value.padding.dp)
+                    }
+                }
+            }
         }
     }
 
+// 2. Waits for Prompt 2 to physically exist in layout, THEN animates
+    LaunchedEffect(messages.size) {
+        if (messages.isNotEmpty() && messages.lastOrNull()?.first == "user") {
+            val targetIndex = messages.indexOfLast { it.first == "user" }
+            if (targetIndex != -1) {
+                // Wait until the LazyColumn actually lays out the new item
+                snapshotFlow { listState.layoutInfo }
+                    .filter { info ->
+                        info.visibleItemsInfo.any { it.index == targetIndex }
+                    }
+                    .first()
+
+                // Wait 1 frame for the spacer height to be applied to the scroll bounds
+                kotlinx.coroutines.delay(16.milliseconds)
+
+                listState.animateScrollToItem(index = targetIndex, scrollOffset = 0)
+            }
+        }
+    }
     AnimatedVisibility(
         visible = uiState.value.appState == marcinlowercase.a.core.enum_class.AppState.BUILD && !uiState.value.isBuildPreview,
         modifier = Modifier.fillMaxSize(),
@@ -57,16 +118,26 @@ fun BuildChatPanel(
     ) {
         Box(
             modifier = Modifier
+//                .padding(settings.value.padding.dp)
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.surfaceContainer)
+                .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
 //                .padding(bottom = settings.value.heightForLayer(1).dp + settings.value.padding.dp * 4)
         ) {
             LazyColumn(
                 state = listState,
+                contentPadding = PaddingValues(
+                    top = settings.value.padding.dp * layer,
+                    start = settings.value.padding.dp * layer,
+                    end = settings.value.padding.dp * layer,
+                    bottom = (settings.value.heightForLayer(1) * 2).dp,
+
+                    ),
                 modifier = modifier
                     .fillMaxWidth()
-                    .padding(settings.value.padding.dp * layer),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+//                    .padding(settings.value.padding.dp * layer)
+                ,
+                verticalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
             ) {
                 items(messages) { (role, text) ->
                     val isUser = role == "user"
@@ -90,7 +161,7 @@ fun BuildChatPanel(
                                     )
                                 )
                                 .heightIn(min = settings.value.heightForLayer(layer).dp)
-                                .background(if (isUser) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
+                                .background(if (isUser) MaterialTheme.colorScheme.onSurfaceVariant else Color.Transparent)
                                 .padding(
                                     horizontal = if (isUser) settings.value.cornerRadiusForLayer(
                                         layer
@@ -100,7 +171,7 @@ fun BuildChatPanel(
                         ) {
                             Text(
                                 text = text,
-                                color = if (isUser) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
+                                color = if (isUser) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
@@ -115,6 +186,9 @@ fun BuildChatPanel(
                             modifier = Modifier.padding(start = 4.dp)
                         )
                     }
+                }
+                item(key = "trailing_scroll_runway") {
+                    Spacer(modifier = Modifier.height(cachedSpacerHeight))
                 }
             }
         }
