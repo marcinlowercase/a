@@ -17,6 +17,8 @@
 package marcinlowercase.a
 
 import android.Manifest
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.DownloadManager
@@ -32,6 +34,7 @@ import android.os.Environment
 import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.util.Log
+import android.view.InputDevice
 import android.view.MotionEvent
 import android.view.ViewGroup
 import android.widget.Toast
@@ -165,7 +168,7 @@ import marcinlowercase.a.ui.component.CursorPad
 import marcinlowercase.a.ui.component.CursorPointer
 import marcinlowercase.a.ui.component.CustomIconButton
 import marcinlowercase.a.ui.panel.BottomPanel
-import marcinlowercase.a.ui.panel.BuildChatPanel
+import marcinlowercase.a.ui.panel.ChatView
 import marcinlowercase.a.ui.panel.BuildPanel
 import marcinlowercase.a.ui.panel.ChoicePanel
 import marcinlowercase.a.ui.panel.ColorPickerPanel
@@ -2627,6 +2630,23 @@ fun BrowserScreen(
                     viewModel.confirmationState.value = null
                 }
 
+                uiState.value.appState == AppState.BUILD -> {
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
+                    confirmationPopup(
+                        message = R.string.confirm_exit_build_mode,
+                        onConfirm = {
+                            viewModel.updateUI {
+                                it.copy(
+                                    appState = AppState.REGULAR,
+                                    isBuildPreview = false
+                                )
+                            }
+                        }
+                    )
+                }
+
+
                 // back the webview
                 viewModel.activeTab!!.canGoBack -> {
                     activeSession.goBack(true)
@@ -2820,79 +2840,92 @@ fun BrowserScreen(
                                     Box(
                                         modifier = Modifier
                                             .fillMaxSize()
-
-
                                     ) {
                                         if (isBrowserVisible) {
-                                            AndroidView(
-                                                modifier = Modifier.fillMaxSize() .focusProperties { canFocus = false },
-                                                factory = { context ->
-                                                    // Create the View ONCE.
-                                                    // We never need to recreate this View during tab switching.
-                                                    SafeGeckoView(context).apply {
-                                                        setBackgroundColor(android.graphics.Color.BLACK)
-                                                        layoutParams = ViewGroup.LayoutParams(
-                                                            ViewGroup.LayoutParams.MATCH_PARENT,
-                                                            ViewGroup.LayoutParams.MATCH_PARENT
-                                                        )
-                                                        isSaveEnabled = false
-                                                        activityContextDelegate = GeckoView.ActivityContextDelegate { context }
-                                                        setOnTouchListener { _, event ->
+                                            val isChatMode = uiState.value.appState == AppState.BUILD && !uiState.value.isBuildPreview
+                                            val speed = settings.animationSpeedForLayer(1)
 
-                                                            if (event.source == android.view.InputDevice.SOURCE_UNKNOWN) {
-                                                                return@setOnTouchListener false
-                                                            }
+                                            androidx.compose.animation.AnimatedVisibility(
+                                                visible = isBrowserVisible && !isChatMode,
+                                                enter = slideInHorizontally(tween(speed)) { -it },
+                                                exit = slideOutHorizontally(tween(speed)) { -it },
+                                                modifier = Modifier.fillMaxSize()
 
-                                                            if (event.action == MotionEvent.ACTION_DOWN) {
-                                                                // The user touched the web content
-                                                                if (uiState.value.isUrlBarVisible) {
-                                                                    viewModel.updateUI {
+                                            ) {
+                                                AndroidView(
+                                                    modifier = Modifier
+                                                        .fillMaxSize()
+                                                        .focusProperties { canFocus = false }
+                                                    ,
+                                                    factory = { context ->
+                                                        // Create the View ONCE.
+                                                        // We never need to recreate this View during tab switching.
+                                                        SafeGeckoView(context).apply {
+                                                            setBackgroundColor(android.graphics.Color.BLACK)
+                                                            layoutParams = ViewGroup.LayoutParams(
+                                                                ViewGroup.LayoutParams.MATCH_PARENT,
+                                                                ViewGroup.LayoutParams.MATCH_PARENT
+                                                            )
+                                                            isSaveEnabled = false
+                                                            activityContextDelegate =
+                                                                GeckoView.ActivityContextDelegate { context }
+                                                            setOnTouchListener { _, event ->
+
+                                                                if (event.source == InputDevice.SOURCE_UNKNOWN) {
+                                                                    return@setOnTouchListener false
+                                                                }
+
+                                                                if (event.action == MotionEvent.ACTION_DOWN) {
+                                                                    // The user touched the web content
+                                                                    if (uiState.value.isUrlBarVisible) {
+                                                                        viewModel.updateUI {
+                                                                            it.copy(
+                                                                                isUrlBarVisible = false
+                                                                            )
+                                                                        }
+                                                                    }
+                                                                    if (uiState.value.isMediaControlPanelVisible) viewModel.updateUI {
                                                                         it.copy(
-                                                                            isUrlBarVisible = false
+                                                                            isMediaControlPanelVisible = false
                                                                         )
                                                                     }
-                                                                }
-                                                                if (uiState.value.isMediaControlPanelVisible) viewModel.updateUI {
-                                                                    it.copy(
-                                                                        isMediaControlPanelVisible = false
-                                                                    )
-                                                                }
 
-                                                                if (viewModel.contextMenuData.value != null) viewModel.contextMenuData.value =
-                                                                    null
-                                                                if (viewModel.choiceState.value != null) viewModel.choiceState.value =
-                                                                    null
-                                                                if (viewModel.colorState.value != null) {
-                                                                    viewModel.colorState.value?.result?.complete(
-                                                                        viewModel.colorState.value?.prompt?.dismiss()
-                                                                    )
-
-                                                                    viewModel.colorState.value =
+                                                                    if (viewModel.contextMenuData.value != null) viewModel.contextMenuData.value =
                                                                         null
+                                                                    if (viewModel.choiceState.value != null) viewModel.choiceState.value =
+                                                                        null
+                                                                    if (viewModel.colorState.value != null) {
+                                                                        viewModel.colorState.value?.result?.complete(
+                                                                            viewModel.colorState.value?.prompt?.dismiss()
+                                                                        )
+
+                                                                        viewModel.colorState.value =
+                                                                            null
+                                                                    }
                                                                 }
+                                                                false
                                                             }
-                                                            false
+                                                            geckoViewRef.value = this
                                                         }
-                                                        geckoViewRef.value = this
-                                                    }
-                                                },
-                                                update = { geckoView ->
-                                                    // 4. THE SWITCH: Just swap the session!
-                                                    // When 'activeSession' changes, this block runs automatically.
-                                                    // GeckoView handles detaching the old one and attaching the new one.
-                                                    //                                                geckoView.setSession(activeSession)
+                                                    },
+                                                    update = { geckoView ->
+                                                        // 4. THE SWITCH: Just swap the session!
+                                                        // When 'activeSession' changes, this block runs automatically.
+                                                        // GeckoView handles detaching the old one and attaching the new one.
+                                                        //                                                geckoView.setSession(activeSession)
 
-                                                    if (geckoView.session != activeSession) {
-                                                        geckoView.releaseSession()
-                                                        geckoView.setSession(activeSession)
-                                                    }
-                                                    geckoViewRef.value = geckoView
+                                                        if (geckoView.session != activeSession) {
+                                                            geckoView.releaseSession()
+                                                            geckoView.setSession(activeSession)
+                                                        }
+                                                        geckoViewRef.value = geckoView
 
-                                                }
-                                            )
+                                                    }
+                                                )
+                                            }
                                         }
                                         Box(modifier = Modifier.fillMaxSize()) {
-                                            BuildChatPanel()
+                                            ChatView()
                                         }
 
                                         // --- PWA NATIVE SPLASH SCREEN ---

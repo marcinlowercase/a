@@ -1,10 +1,15 @@
 package marcinlowercase.a.ui.panel
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -14,11 +19,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -34,16 +40,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
-import marcinlowercase.a.core.function.buttonSettingsForLayer
+import marcinlowercase.a.core.enum_class.AppState
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
-fun BuildChatPanel(
+fun ChatView(
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
@@ -58,7 +64,7 @@ fun BuildChatPanel(
     val layoutInfo = listState.layoutInfo
     val lastUserIndex = messages.indexOfLast { it.first == "user" }
     var cachedSpacerHeight by remember { mutableStateOf(0.dp) }
-
+    var viewingPromptText by remember { mutableStateOf<String?>(null) }
 // 1. Continuously keeps the spacer height reactive as messages stream in
     LaunchedEffect(messages.size, isThinking) {
         snapshotFlow { listState.layoutInfo }.collect { info ->
@@ -84,7 +90,7 @@ fun BuildChatPanel(
 
                     // Subtract settings.value.padding.dp to offset Arrangement.spacedBy
                     cachedSpacerHeight = with(density) {
-                        maxOf(0.dp, (innerViewportHeight - lastTurnHeight).toDp() - settings.value.padding.dp)
+                        maxOf(0.dp, (innerViewportHeight - lastTurnHeight).toDp() - settings.value.padding.dp * layer)
                     }
                 }
             }
@@ -110,18 +116,25 @@ fun BuildChatPanel(
             }
         }
     }
+    val isChatMode = uiState.value.appState == AppState.BUILD && !uiState.value.isBuildPreview
     AnimatedVisibility(
-        visible = uiState.value.appState == marcinlowercase.a.core.enum_class.AppState.BUILD && !uiState.value.isBuildPreview,
+        visible =isChatMode,
         modifier = Modifier.fillMaxSize(),
-        enter = fadeIn(tween(settings.value.animationSpeedForLayer(1))),
-        exit = fadeOut(tween(settings.value.animationSpeedForLayer(1)))
+//        enter = fadeIn(tween(settings.value.animationSpeedForLayer(1))),
+//        exit = fadeOut(tween(settings.value.animationSpeedForLayer(1)))
+        enter = slideInHorizontally(tween(settings.value.animationSpeedForLayer(1))) { it },
+        exit = slideOutHorizontally(tween(settings.value.animationSpeedForLayer(1))) { it }
     ) {
         Box(
             modifier = Modifier
 //                .padding(settings.value.padding.dp)
                 .fillMaxSize()
-                .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
+//                .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) { /* Do nothing - consume tap */ }
 //                .padding(bottom = settings.value.heightForLayer(1).dp + settings.value.padding.dp * 4)
         ) {
             LazyColumn(
@@ -137,40 +150,47 @@ fun BuildChatPanel(
                     .fillMaxWidth()
 //                    .padding(settings.value.padding.dp * layer)
                 ,
-                verticalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
+                verticalArrangement = Arrangement.spacedBy(settings.value.padding.dp * layer)
             ) {
                 items(messages) { (role, text) ->
                     val isUser = role == "user"
+                    var hasOverflow by remember { mutableStateOf(false) }
+
                     Box(
-                        modifier = Modifier.fillMaxWidth()
-                            .padding(
-                                start = if (isUser) settings.value.heightForLayer(
-                                    layer
-                                ).dp else 0.dp
-                            ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = if (isUser) settings.value.heightForLayer(layer).dp else 0.dp),
                         contentAlignment = if (isUser) Alignment.CenterEnd else Alignment.CenterStart
                     ) {
-
                         Box(
                             modifier = Modifier
                                 .clip(
                                     RoundedCornerShape(
-                                        if (isUser) settings.value.cornerRadiusForLayer(
-                                            layer
-                                        ).dp else 0.dp
+                                        if (isUser) settings.value.cornerRadiusForLayer(layer).dp else 0.dp
                                     )
+                                )
+                                .then(
+                                    if (isUser && hasOverflow) {
+                                        Modifier.clickable { viewingPromptText = text }
+                                    } else Modifier
                                 )
                                 .heightIn(min = settings.value.heightForLayer(layer).dp)
                                 .background(if (isUser) MaterialTheme.colorScheme.onSurfaceVariant else Color.Transparent)
                                 .padding(
-                                    horizontal = if (isUser) settings.value.cornerRadiusForLayer(
-                                        layer
-                                    ).dp else 0.dp, vertical = settings.value.padding.dp
+                                    horizontal = if (isUser) settings.value.cornerRadiusForLayer(layer).dp else 0.dp,
+                                    vertical = settings.value.padding.dp
                                 ),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = text,
+                                maxLines = if (isUser) 4 else Int.MAX_VALUE,
+                                overflow = if (isUser) TextOverflow.Ellipsis else TextOverflow.Clip,
+                                onTextLayout = { result ->
+                                    if (isUser) {
+                                        hasOverflow = result.hasVisualOverflow
+                                    }
+                                },
                                 color = if (isUser) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
@@ -189,6 +209,42 @@ fun BuildChatPanel(
                 }
                 item(key = "trailing_scroll_runway") {
                     Spacer(modifier = Modifier.height(cachedSpacerHeight))
+                }
+            }
+        }
+        // Intercept system Back gesture when viewer is active
+        BackHandler(enabled = viewingPromptText != null) {
+            viewingPromptText = null
+        }
+
+// Fullscreen Prompt Overlay
+        AnimatedVisibility(
+            visible = viewingPromptText != null,
+            enter = fadeIn(tween(settings.value.animationSpeedForLayer(1))),
+            exit = fadeOut(tween(settings.value.animationSpeedForLayer(1)))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .clickable { viewingPromptText = null } // Tap anywhere to dismiss
+                    .padding(settings.value.padding.dp * layer)
+                    .padding(bottom = (settings.value.heightForLayer(1) * 2).dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(layer).dp))
+                        .background(MaterialTheme.colorScheme.onSurfaceVariant)
+                        .padding(settings.value.padding.dp )
+                        .padding(horizontal = settings.value.cornerRadiusForLayer(4).dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    Text(
+                        text = viewingPromptText.orEmpty(),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        style = MaterialTheme.typography.bodyLarge
+                    )
                 }
             }
         }
