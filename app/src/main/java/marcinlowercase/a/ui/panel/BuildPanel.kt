@@ -210,7 +210,7 @@ fun BuildPanel(
                     ),
                     placeholder = {
                         Text(
-                            text = "Describe your app...",
+                            text = stringResource(R.string.placeholder_describe_app),
                             color = MaterialTheme.colorScheme.surfaceContainer,
                             textAlign = TextAlign.Start
                         )

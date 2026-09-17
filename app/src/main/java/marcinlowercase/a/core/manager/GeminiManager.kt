@@ -54,29 +54,17 @@ class GeminiManager(context: Context) {
      * @param jsonMode If true, forces structured JSON output
      */
     suspend fun sendChatMessage(
-        history: List<Pair<String, String>>,
-        systemPrompt: String,
-        jsonMode: Boolean = false
+        history: List<Pair<String, String>>
     ): Result<String> = withContext(Dispatchers.IO) {
         val apiKey = getApiKey()
         if (apiKey.isBlank()) {
             return@withContext Result.failure(Exception("API_KEY_MISSING"))
         }
-        val totalStart = System.currentTimeMillis()
-        var stepStart = totalStart
+
         try {
             val url = "$baseUrl/$modelName:generateContent?key=$apiKey"
 
-            // 1. Build Payload
             val payload = JSONObject().apply {
-                // System instructions
-                put("system_instruction", JSONObject().apply {
-                    put("parts", JSONArray().apply {
-                        put(JSONObject().apply { put("text", systemPrompt) })
-                    })
-                })
-
-                // Conversation history
                 put("contents", JSONArray().apply {
                     history.forEach { (role, message) ->
                         put(JSONObject().apply {
@@ -87,73 +75,34 @@ class GeminiManager(context: Context) {
                         })
                     }
                 })
-
-                // Generation Config
-                put("generationConfig", JSONObject().apply {
-                    put("temperature", if (jsonMode) 0.1 else 0.4)
-                    if (jsonMode) {
-                        put("response_mime_type", "application/json")
-                    }
-                })
             }
 
             val body = payload.toString().toRequestBody("application/json".toMediaType())
-            val request = Request.Builder()
-                .url(url)
-                .post(body)
-                .build()
+            val request = Request.Builder().url(url).post(body).build()
 
-            Log.d("GeminiTimer", "[Chat] Payload constructed in ${System.currentTimeMillis() - stepStart}ms")
+            val response = httpClient.newCall(request).execute()
+            val rawResponse = response.body?.string().orEmpty()
 
-            var attempts = 0
-            var currentModel = modelName
-            var rawResponse = ""
-
-            while (attempts < 3) {
-                attempts++
-                val netStart = System.currentTimeMillis()
-                val targetUrl = "$baseUrl/$currentModel:generateContent?key=$apiKey"
-                val callRequest = Request.Builder().url(targetUrl).post(body).build()
-
-                Log.d("GeminiTimer", "[Chat] Attempt $attempts ($currentModel) starting HTTP call...")
-                val response = httpClient.newCall(callRequest).execute()
-                val netDuration = System.currentTimeMillis() - netStart
-                rawResponse = response.body?.string().orEmpty()
-
-                Log.d("GeminiTimer", "[Chat] Attempt $attempts finished in ${netDuration}ms with code: ${response.code}")
-
-                if (response.isSuccessful) {
-                    break
-                } else if (response.code == 503 || response.code == 429) {
-                    Log.w("GeminiTimer", "[Chat] Overloaded (${response.code}). Backing off for ${1000L * attempts}ms...")
-                    if (attempts == 2) currentModel = fallbackModelName
-                    kotlinx.coroutines.delay(1000L * attempts)
-                } else {
-                    return@withContext Result.failure(Exception("HTTP_${response.code}"))
-                }
+            if (!response.isSuccessful) {
+                return@withContext Result.failure(Exception("HTTP_${response.code}: $rawResponse"))
             }
 
-            stepStart = System.currentTimeMillis()
-            if (rawResponse.isBlank() || !rawResponse.contains("candidates")) {
-                return@withContext Result.failure(Exception("HTTP_503_OVERLOADED"))
-            }
-
-            // 2. Parse response text
             val jsonResponse = JSONObject(rawResponse)
-            val candidate = jsonResponse.optJSONArray("candidates")?.optJSONObject(0)
-            val contentPart = candidate
+            val replyText = jsonResponse.optJSONArray("candidates")
+                ?.optJSONObject(0)
                 ?.optJSONObject("content")
                 ?.optJSONArray("parts")
                 ?.optJSONObject(0)
-            val replyText = contentPart?.optString("text").orEmpty()
-            Log.d("GeminiTimer", "[Chat] JSON parsed in ${System.currentTimeMillis() - stepStart}ms")
-            Log.i("GeminiTimer", "=== [Chat] TOTAL ROUNDTRIP: ${System.currentTimeMillis() - totalStart}ms ===")
+                ?.optString("text")
+                .orEmpty()
+
             Result.success(replyText)
         } catch (e: Exception) {
             Log.e("GeminiManager", "Request failed", e)
             Result.failure(e)
         }
     }
+
 
 
 

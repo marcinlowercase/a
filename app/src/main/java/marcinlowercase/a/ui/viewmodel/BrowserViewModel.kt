@@ -2769,14 +2769,9 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         isChatThinking.value = true
 
         viewModelScope.launch {
-            val systemPrompt = """
-            You are the consultative software architect for "the browser of oo1 studio".
-            Ask clarifying questions, suggest UI layout components, and guide the user. Keep responses concise and conversational.
-        """.trimIndent()
-
+            // Pure multi-turn chat: no instructions, no constraints
             val result = geminiManager.sendChatMessage(
-                history = buildChatHistory.toList(),
-                systemPrompt = systemPrompt
+                history = buildChatHistory.toList()
             )
 
             isChatThinking.value = false
