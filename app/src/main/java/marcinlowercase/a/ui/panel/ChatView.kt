@@ -40,8 +40,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import marcinlowercase.a.core.enum_class.AppState
@@ -156,6 +164,11 @@ fun ChatView(
                     val isUser = role == "user"
                     var hasOverflow by remember { mutableStateOf(false) }
 
+                    // Parse Markdown for model responses; keep user prompts as plain text
+                    val formattedText = remember(text) {
+                        if (isUser) AnnotatedString(text) else parseMarkdown(text)
+                    }
+
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -183,7 +196,7 @@ fun ChatView(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = text,
+                                text = formattedText, // Use the parsed AnnotatedString
                                 maxLines = if (isUser) 4 else Int.MAX_VALUE,
                                 overflow = if (isUser) TextOverflow.Ellipsis else TextOverflow.Clip,
                                 onTextLayout = { result ->
@@ -196,7 +209,6 @@ fun ChatView(
                         }
                     }
                 }
-
                 if (isThinking) {
                     item {
                         Text(
@@ -248,5 +260,107 @@ fun ChatView(
                 }
             }
         }
+    }
+}
+
+fun parseMarkdown(text: String): AnnotatedString {
+    return buildAnnotatedString {
+        val lines = text.lines()
+        var inCodeBlock = false
+
+        lines.forEachIndexed { index, rawLine ->
+            val trimmed = rawLine.trim()
+
+            // 1. Code Blocks (```)
+            if (trimmed.startsWith("```")) {
+                inCodeBlock = !inCodeBlock
+                return@forEachIndexed
+            }
+
+            if (inCodeBlock) {
+                withStyle(
+                    SpanStyle(
+                        fontFamily = FontFamily.Monospace,
+                        background = Color.Gray.copy(alpha = 0.2f)
+                    )
+                ) {
+                    append("  $rawLine\n")
+                }
+                return@forEachIndexed
+            }
+
+            // 2. Horizontal Divider (--- or ***)
+            if (trimmed == "---" || trimmed == "***" || trimmed == "___") {
+                withStyle(SpanStyle(color = Color.Gray.copy(alpha = 0.4f))) {
+                    append("────────────────────────\n")
+                }
+                return@forEachIndexed
+            }
+
+            // 3. Headers (#, ##, ###) & Bullets (*, -)
+            val (headerStyle, lineContent) = when {
+                rawLine.startsWith("### ") -> SpanStyle(fontWeight = FontWeight.Bold, fontSize = 16.sp) to rawLine.removePrefix("### ")
+                rawLine.startsWith("## ") -> SpanStyle(fontWeight = FontWeight.Bold, fontSize = 18.sp) to rawLine.removePrefix("## ")
+                rawLine.startsWith("# ") -> SpanStyle(fontWeight = FontWeight.Bold, fontSize = 20.sp) to rawLine.removePrefix("# ")
+                rawLine.trimStart().startsWith("* ") -> null to "• " + rawLine.trimStart().removePrefix("* ")
+                rawLine.trimStart().startsWith("- ") -> null to "• " + rawLine.trimStart().removePrefix("- ")
+                else -> null to rawLine
+            }
+
+            if (headerStyle != null) {
+                withStyle(headerStyle) {
+                    appendInlineMarkdown(lineContent)
+                }
+            } else {
+                appendInlineMarkdown(lineContent)
+            }
+
+            if (index < lines.lastIndex) {
+                append("\n")
+            }
+        }
+    }
+}
+
+private fun AnnotatedString.Builder.appendInlineMarkdown(line: String) {
+    // Matches **bold**, `code`, and *italic*
+    val regex = Regex("""(\*\*.*?\*\*|`.*?`|\*.*?\*)""")
+    var currentIndex = 0
+
+    for (match in regex.findAll(line)) {
+        if (match.range.first > currentIndex) {
+            append(line.substring(currentIndex, match.range.first))
+        }
+
+        val matchText = match.value
+        when {
+            matchText.startsWith("**") && matchText.endsWith("**") && matchText.length >= 4 -> {
+                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                    append(matchText.removeSurrounding("**"))
+                }
+            }
+            matchText.startsWith("`") && matchText.endsWith("`") && matchText.length >= 2 -> {
+                withStyle(
+                    SpanStyle(
+                        fontFamily = FontFamily.Monospace,
+                        background = Color.Gray.copy(alpha = 0.25f)
+                    )
+                ) {
+                    append(" ${matchText.removeSurrounding("`")} ")
+                }
+            }
+            matchText.startsWith("*") && matchText.endsWith("*") && matchText.length >= 2 -> {
+                withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
+                    append(matchText.removeSurrounding("*"))
+                }
+            }
+            else -> append(matchText)
+        }
+
+        currentIndex = match.range.last + 1
+    }
+
+    if (currentIndex < line.length) {
+        append(line.substring(currentIndex))
     }
 }
