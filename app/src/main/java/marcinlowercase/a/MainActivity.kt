@@ -50,6 +50,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -104,6 +105,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.onSizeChanged
@@ -2845,13 +2847,22 @@ fun BrowserScreen(
                                             val isChatMode = uiState.value.appState == AppState.BUILD && !uiState.value.isBuildPreview
                                             val speed = settings.animationSpeedForLayer(1)
 
-                                            androidx.compose.animation.AnimatedVisibility(
-                                                visible = isBrowserVisible && !isChatMode,
-                                                enter = slideInHorizontally(tween(speed)) { -it },
-                                                exit = slideOutHorizontally(tween(speed)) { -it },
-                                                modifier = Modifier.fillMaxSize()
+                                            // Single shared driver: 0f = Preview (Gecko), -1f = Chat
+                                            val offsetFraction by animateFloatAsState(
+                                                targetValue = if (isChatMode) -1f else 0f,
+                                                animationSpec = tween(speed),
+                                                label = "CarouselSlide"
+                                            )
 
-                                            ) {
+// 1. GeckoView (Only composed when visible or animating)
+                                            if (isBrowserVisible && (offsetFraction > -1f || !isChatMode)) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .fillMaxSize()
+                                                        .graphicsLayer {
+                                                            translationX = offsetFraction * size.width
+                                                        }
+                                                ) {
                                                 AndroidView(
                                                     modifier = Modifier
                                                         .fillMaxSize()
@@ -2924,9 +2935,20 @@ fun BrowserScreen(
                                                 )
                                             }
                                         }
-                                        Box(modifier = Modifier.fillMaxSize()) {
-                                            ChatView()
-                                        }
+
+                                            if (offsetFraction < 0f || isChatMode) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .fillMaxSize()
+                                                        .graphicsLayer {
+                                                            // Exactly touching GeckoView at all times
+                                                            translationX = (1f + offsetFraction) * size.width
+                                                        }
+                                                ) {
+                                                    ChatView(modifier = Modifier.fillMaxSize())
+                                                }
+                                            }
+                                            }
 
                                         // --- PWA NATIVE SPLASH SCREEN ---
                                         Column(modifier = Modifier.fillMaxSize()) {

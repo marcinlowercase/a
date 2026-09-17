@@ -125,13 +125,8 @@ fun ChatView(
         }
     }
     val isChatMode = uiState.value.appState == AppState.BUILD && !uiState.value.isBuildPreview
-    AnimatedVisibility(
-        visible =isChatMode,
-        modifier = Modifier.fillMaxSize(),
-//        enter = fadeIn(tween(settings.value.animationSpeedForLayer(1))),
-//        exit = fadeOut(tween(settings.value.animationSpeedForLayer(1)))
-        enter = slideInHorizontally(tween(settings.value.animationSpeedForLayer(1))) { it },
-        exit = slideOutHorizontally(tween(settings.value.animationSpeedForLayer(1))) { it }
+    Box(
+        modifier = modifier.fillMaxSize()
     ) {
         Box(
             modifier = Modifier
