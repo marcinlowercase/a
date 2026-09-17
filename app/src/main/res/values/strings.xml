@@ -170,6 +170,7 @@
     <string name="placeholder_blank_page">blank page</string>
     <string name="placeholder_icon_link">custom icon url / svg code</string>
     <string name="placeholder_profile">profile</string>
+    <string name="placeholder_describe_app">describe your app</string>
 
     <!-- Toast / Overlay -->
     <string name="toast_prepare_cloned">preparing custom browser…</string>
