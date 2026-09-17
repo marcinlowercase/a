@@ -99,7 +99,7 @@ fun BuildPanel(
     val keyboardController = LocalSoftwareKeyboardController.current
 
     val isImeVisible = WindowInsets.ime.asPaddingValues().calculateBottomPadding() > 0.dp
-    var isTextFieldFocused by remember { mutableStateOf(false) }
+//    var isTextFieldFocused by remember { mutableStateOf(false) }
     var wasKeyboardOpenBeforePreview by remember { mutableStateOf(false) }
 
     val focusRequester = remember { FocusRequester() }
@@ -166,7 +166,8 @@ fun BuildPanel(
                     .padding(bottom = floatingPanelBottomPadding)
                     .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
                     .background(MaterialTheme.colorScheme.surfaceContainer)
-                    .padding(settings.value.padding.dp),
+                    .padding(settings.value.padding.dp)
+                ,
                 verticalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
             ) {
 
@@ -180,7 +181,14 @@ fun BuildPanel(
                     modifier = Modifier
                         .fillMaxWidth()
                         .focusRequester(focusRequester)
-                        .onFocusChanged { isTextFieldFocused = it.isFocused }
+                        .onFocusChanged { focusState ->
+                            viewModel.updateUI {
+                                it.copy(
+//                                    isFocusOnTextField = focusState.isFocused,
+                                    isFocusOnBuildTextField = focusState.isFocused
+                                )
+                            }
+                        }
                         .drawWithContent {
                             drawContent()
                             if (textFieldScrollState.maxValue > 0) {
@@ -278,7 +286,7 @@ fun BuildPanel(
                             } else {
                                 // Turning from Chat TO Preview:
                                 // Save state: true only if focused AND keyboard is up
-                                wasKeyboardOpenBeforePreview = isTextFieldFocused && isImeVisible
+                                wasKeyboardOpenBeforePreview = uiState.value.isFocusOnBuildTextField && isImeVisible
 
                                 // Always hide keyboard when entering preview
                                 focusManager.clearFocus()

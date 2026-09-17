@@ -1813,10 +1813,11 @@ fun BrowserScreen(
             uiState.value.isFocusOnFindTextField,
             uiState.value.isFocusOnProfileTextField,
             uiState.value.isFocusOnIconUrlTextField,
+            uiState.value.isFocusOnBuildTextField
         ) {
             viewModel.updateUI {
                 it.copy(
-                    isFocusOnTextField = uiState.value.isFocusOnFindTextField || uiState.value.isFocusOnUrlTextField || uiState.value.isFocusOnSettingTextField || uiState.value.isFocusOnProfileTextField || uiState.value.isFocusOnIconUrlTextField
+                    isFocusOnTextField = uiState.value.isFocusOnFindTextField || uiState.value.isFocusOnUrlTextField || uiState.value.isFocusOnSettingTextField || uiState.value.isFocusOnProfileTextField || uiState.value.isFocusOnIconUrlTextField || uiState.value.isFocusOnBuildTextField
                 )
             }
         }
