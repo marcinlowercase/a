@@ -400,29 +400,29 @@ fun AppsPanel(
                     visualItemCount++
                 }
 
-                item(
-                    span = { GridItemSpan(1) },
-                    key = "build_app_${pageProfile.id}",
-                    contentType = "action_button"
-                ) {
-                    PlaceholderIcon(
-                        iconRes = R.drawable.ic_architecture,
-                        onClick = {
-                            if (isInteractive()) {
-                                viewModel.updateUI {
-                                    it.copy(
-                                        appState = marcinlowercase.a.core.enum_class.AppState.BUILD,
-                                        isAppsPanelVisible = false,
-                                        isOptionsPanelVisible = false,
-                                    )
-                                }
-                            }
-                        },
-                        modifier = Modifier.animateItem(),
-                        buttonDescription = stringResource(R.string.desc_build_new_app)
-                    )
-                }
-                visualItemCount++
+//                item(
+//                    span = { GridItemSpan(1) },
+//                    key = "build_app_${pageProfile.id}",
+//                    contentType = "action_button"
+//                ) {
+//                    PlaceholderIcon(
+//                        iconRes = R.drawable.ic_architecture,
+//                        onClick = {
+//                            if (isInteractive()) {
+//                                viewModel.updateUI {
+//                                    it.copy(
+//                                        appState = marcinlowercase.a.core.enum_class.AppState.BUILD,
+//                                        isAppsPanelVisible = false,
+//                                        isOptionsPanelVisible = false,
+//                                    )
+//                                }
+//                            }
+//                        },
+//                        modifier = Modifier.animateItem(),
+//                        buttonDescription = stringResource(R.string.desc_build_new_app)
+//                    )
+//                }
+//                visualItemCount++
 
                 val remainder = visualItemCount % 4
                 val needsGapFiller = remainder == 3
