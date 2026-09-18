@@ -1,4 +1,3 @@
- 
 package marcinlowercase.a.ui.panel
 
 import android.annotation.SuppressLint

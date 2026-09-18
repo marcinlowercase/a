@@ -1,4 +1,3 @@
- 
 package marcinlowercase.a.ui.viewmodel
 
 import android.Manifest

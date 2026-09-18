@@ -1,4 +1,3 @@
- 
 package marcinlowercase.a.core.service
 
 import android.content.Context

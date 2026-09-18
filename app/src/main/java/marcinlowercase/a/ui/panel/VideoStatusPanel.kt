@@ -1,4 +1,3 @@
- 
 package marcinlowercase.a.ui.panel
 
 import androidx.compose.animation.animateContentSize

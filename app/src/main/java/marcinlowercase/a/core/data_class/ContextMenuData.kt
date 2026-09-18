@@ -1,4 +1,3 @@
- 
 package marcinlowercase.a.core.data_class
 
 import marcinlowercase.a.core.enum_class.ContextMenuType

@@ -1,6 +1,5 @@
 @file:Suppress("unused")
 
- 
 package marcinlowercase.a.ui.theme
 
 import androidx.compose.ui.graphics.Color

@@ -1,4 +1,3 @@
- 
 package marcinlowercase.a.core.enum_class
 
 import kotlinx.serialization.Serializable

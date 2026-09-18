@@ -1,4 +1,3 @@
- 
 package marcinlowercase.a.core.manager
 
 import android.app.Activity

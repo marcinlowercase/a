@@ -1,4 +1,3 @@
- 
 package marcinlowercase.a.ui.component
 
 import android.os.SystemClock

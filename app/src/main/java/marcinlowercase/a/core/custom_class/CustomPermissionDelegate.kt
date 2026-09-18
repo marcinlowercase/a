@@ -1,4 +1,3 @@
- 
 package marcinlowercase.a.core.custom_class
 
 import android.Manifest

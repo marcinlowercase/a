@@ -1,4 +1,3 @@
- 
 package marcinlowercase.a.core.constant
 object DefaultSettingValues {
     const val PADDING = 5f

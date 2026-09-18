@@ -1,4 +1,3 @@
- 
 package marcinlowercase.a.core.data_class
 
 import org.mozilla.geckoview.GeckoSession.PromptDelegate.ColorPrompt

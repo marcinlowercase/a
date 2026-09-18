@@ -1,4 +1,3 @@
- 
 package marcinlowercase.a.core.accessibility_service
 
 import android.accessibilityservice.AccessibilityService

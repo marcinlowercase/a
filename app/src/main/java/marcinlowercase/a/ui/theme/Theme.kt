@@ -1,4 +1,3 @@
- 
 package marcinlowercase.a.ui.theme
 
 import android.app.Activity

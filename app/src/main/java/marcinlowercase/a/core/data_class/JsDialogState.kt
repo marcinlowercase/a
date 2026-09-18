@@ -1,4 +1,3 @@
- 
 package marcinlowercase.a.core.data_class
 
 // A sealed interface to represent any type of JS Dialog

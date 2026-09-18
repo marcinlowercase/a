@@ -1,4 +1,3 @@
- 
 package marcinlowercase.a
 
 import androidx.test.platform.app.InstrumentationRegistry

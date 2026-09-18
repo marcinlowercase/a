@@ -1,4 +1,3 @@
- 
 package marcinlowercase.a.core.function
 
 import androidx.compose.foundation.ExperimentalFoundationApi

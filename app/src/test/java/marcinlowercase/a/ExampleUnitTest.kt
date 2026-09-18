@@ -1,4 +1,3 @@
- 
 package marcinlowercase.a
 
 import org.junit.Test

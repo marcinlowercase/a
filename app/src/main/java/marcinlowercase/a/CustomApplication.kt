@@ -1,4 +1,3 @@
- 
 package marcinlowercase.a
 
 import android.app.Application

@@ -1,4 +1,3 @@
- 
 package marcinlowercase.a.core.data_class
 
 import androidx.compose.runtime.MutableState

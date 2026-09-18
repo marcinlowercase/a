@@ -1,4 +1,3 @@
- 
 package marcinlowercase.a.ui.component
 
 import androidx.compose.animation.AnimatedVisibility
