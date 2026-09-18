@@ -2764,9 +2764,12 @@ fun BrowserScreen(
                     animationSpec = tween(settings.animationSpeedForLayer(0) * 4),
                     initialOffsetY = { it }
                 ),
-                exit = slideOutVertically(
-                    animationSpec = tween(settings.animationSpeedForLayer(0) * 4),
-                    targetOffsetY = { -it }
+                exit = fadeOut(
+                    tween(
+                        settings.animationSpeedForLayer(
+                            0
+                        )
+                    )
                 )
             ) {
 
