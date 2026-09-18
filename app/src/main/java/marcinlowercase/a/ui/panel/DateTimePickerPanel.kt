@@ -112,12 +112,20 @@ fun DateTimePickerPanel() {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = settings.value.padding.dp)
+            .padding(top = settings.value.padding.dp)
             .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
+
+
+
             .background(MaterialTheme.colorScheme.surfaceContainer)
-            .padding(settings.value.padding.dp)
+
     ) {
         Column(
-            modifier = Modifier.clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp)),
+            modifier = Modifier.clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp))
+                .padding(top = settings.value.padding.dp)
+                .padding(settings.value.padding.dp)
+
+            ,
             verticalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
         ) {
 
@@ -174,7 +182,8 @@ fun DateTimePickerPanel() {
                                 selectedDayContentColor = MaterialTheme.colorScheme.surfaceContainer,
                                 todayContentColor = MaterialTheme.colorScheme.onSurface,
                                 todayDateBorderColor = MaterialTheme.colorScheme.onSurface,
-                                dividerColor = Color.Transparent
+                                dividerColor = Color.Transparent,
+                                navigationContentColor = MaterialTheme.colorScheme.onSurface,
                             ),
                             showModeToggle = false,
                             title = null, // Removes "Select date"
