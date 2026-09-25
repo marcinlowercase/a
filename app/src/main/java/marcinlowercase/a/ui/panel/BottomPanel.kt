@@ -232,8 +232,7 @@ fun BottomPanel(
                 !uiState.value.isFocusOnTextField &&
                 viewModel.contextMenuData.value == null &&
                 !uiState.value.isPromptPanelVisible &&
-                !uiState.value.isPermissionPanelVisible &&
-                !uiState.value.isEnteringLoginCode
+                !uiState.value.isPermissionPanelVisible
 
         // Automatically clear the custom URL text box when the user finishes pinning or cancels
         LaunchedEffect(uiState.value.isPinningApp, uiState.value.isCloningBrowser) {
@@ -483,7 +482,7 @@ fun BottomPanel(
                 )
 
 
-                AnimatedVisibility(visible = viewModel.suggestions.isNotEmpty() && textFieldState.text.isNotEmpty() && uiState.value.isFocusOnUrlTextField && (!uiState.value.isPinningApp && !uiState.value.isCloningBrowser && !uiState.value.isRenamingProfile && !uiState.value.isCreatingProfile && !uiState.value.isEnteringEmail && !uiState.value.isEnteringLoginCode)) {
+                AnimatedVisibility(visible = viewModel.suggestions.isNotEmpty() && textFieldState.text.isNotEmpty() && uiState.value.isFocusOnUrlTextField && (!uiState.value.isPinningApp && !uiState.value.isCloningBrowser && !uiState.value.isRenamingProfile && !uiState.value.isCreatingProfile)) {
                     LazyColumn(
                         modifier = Modifier
                             .padding(horizontal = settings.value.padding.dp)
@@ -663,12 +662,7 @@ fun BottomPanel(
                                                         delay(150.milliseconds)
                                                         val currentState = viewModel.uiState.value
                                                         // Protect UI from tearing down if picker is open
-                                                        if (!currentState.isFocusOnIconUrlTextField && !currentState.isEnteringLoginCode && !currentState.isFocusOnUrlTextField && !isPickingImage.value) {
-                                                            if (currentState.isEnteringEmail) viewModel.updateUI {
-                                                                it.copy(
-                                                                    isEnteringEmail = false
-                                                                )
-                                                            }
+                                                        if (!currentState.isFocusOnIconUrlTextField && !currentState.isFocusOnUrlTextField && !isPickingImage.value) {
                                                             if (currentState.isPinningApp) viewModel.updateUI {
                                                                 it.copy(
                                                                     isPinningApp = false
@@ -765,7 +759,6 @@ fun BottomPanel(
                                 }
                             }
                             val defaultIconUrl = stringResource(R.string.bold_icon_url)
-                            val invalidCodeText = stringResource(R.string.ui_invalid_code)
                             TextField(
                                 modifier = Modifier
                                     .heightIn(
@@ -822,12 +815,8 @@ fun BottomPanel(
                                                 delay(150.milliseconds)
                                                 val currentState = viewModel.uiState.value
                                                 // Protect the UI from tearing down if the picker is open
-                                                if (!currentState.isFocusOnIconUrlTextField && !currentState.isEnteringLoginCode && !currentState.isFocusOnUrlTextField && !isPickingImage.value) {
-                                                    if (currentState.isEnteringEmail) viewModel.updateUI {
-                                                        it.copy(
-                                                            isEnteringEmail = false
-                                                        )
-                                                    }
+                                                if (!currentState.isFocusOnIconUrlTextField && !currentState.isFocusOnUrlTextField && !isPickingImage.value) {
+
                                                     if (currentState.isPinningApp) viewModel.updateUI {
                                                         it.copy(
                                                             isPinningApp = false
@@ -925,10 +914,8 @@ fun BottomPanel(
                                 lineLimits = TextFieldLineLimits.SingleLine,
                                 keyboardOptions = KeyboardOptions(
                                     keyboardType = when {
-                                        uiState.value.isEnteringLoginCode -> androidx.compose.ui.text.input.KeyboardType.NumberPassword
                                         uiState.value.isRenamingProfile
                                                 || uiState.value.isCreatingProfile
-                                                || uiState.value.isEnteringLoginCode
                                                 || uiState.value.isPinningApp
                                                 || uiState.value.isCloningBrowser
                                             -> androidx.compose.ui.text.input.KeyboardType.Text
@@ -938,7 +925,6 @@ fun BottomPanel(
                                     imeAction = when {
                                         uiState.value.isRenamingProfile
                                                 || uiState.value.isCreatingProfile
-                                                || uiState.value.isEnteringLoginCode
                                                 || uiState.value.isPinningApp
                                                 || uiState.value.isCloningBrowser
                                             -> ImeAction.Done
@@ -954,10 +940,6 @@ fun BottomPanel(
                                     if (input.isEmpty()) {
 
                                         when {
-
-                                            uiState.value.isEnteringLoginCode -> {
-                                                viewModel.showCustomNotification(invalidCodeText)
-                                            }
 
                                             uiState.value.isCreatingProfile -> {
                                                 viewModel.createNewProfile()
@@ -991,14 +973,12 @@ fun BottomPanel(
                                             else -> activeSession.reload()
                                         }
 
-                                        if (!uiState.value.isEnteringLoginCode) {
-                                            focusManager.clearFocus()
-                                            keyboardController?.hide()
-                                            textFieldState.setTextAndPlaceCursorAtEnd(resetUrl.toDomain())
+                                        focusManager.clearFocus()
+                                        keyboardController?.hide()
+                                        textFieldState.setTextAndPlaceCursorAtEnd(resetUrl.toDomain())
 
-                                            viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
-                                            return@TextField
-                                        }
+                                        viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
+                                        return@TextField
                                     }
 
 
@@ -1170,12 +1150,10 @@ fun BottomPanel(
                                         }
                                     }
 
-                                    if (!uiState.value.isEnteringLoginCode) {
-                                        focusManager.clearFocus()
-                                        keyboardController?.hide()
-                                        viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
+                                    focusManager.clearFocus()
+                                    keyboardController?.hide()
+                                    viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
 
-                                    }
 
                                 },
                                 shape = RoundedCornerShape(
@@ -1430,8 +1408,7 @@ fun BottomPanel(
                 val profileText = stringResource(R.string.placeholder_profile)
 
                 TextEditPanel(
-                    isVisible = uiState.value.isEnteringEmail ||
-                            uiState.value.isEnteringLoginCode ||
+                    isVisible =
                             uiState.value.isPinningApp ||
                             uiState.value.isCloningBrowser ||
                             (uiState.value.isFocusOnUrlTextField && textFieldState.text.isBlank()),

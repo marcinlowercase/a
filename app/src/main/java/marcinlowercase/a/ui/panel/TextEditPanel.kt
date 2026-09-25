@@ -79,49 +79,9 @@ fun TextEditPanel(
 
             // --- SLOT 2 & 3 Logic ---
             when {
-                uiState.value.isEnteringEmail -> {
-                    // Empty Slot 2 & 3 for Enter Email
-                    item(key = "empty_2") { Spacer(modifier = Modifier.fillMaxSize().animateItem()) }
-                    item(key = "empty_3") { Spacer(modifier = Modifier.fillMaxSize().animateItem()) }
-                }
 
-                uiState.value.isEnteringLoginCode -> {
-                    // Slot 2: Open Email App
-                    item(key = "open_email_btn") {
-                        CustomIconButton(
-                            layer = 3,
-                            modifier = Modifier.fillMaxSize().animateItem(),
-                            onTap = {
-                                val intent = Intent(Intent.ACTION_MAIN).apply {
-                                    addCategory(Intent.CATEGORY_APP_EMAIL)
-                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                }
-                                try {
-                                    context.startActivity(intent)
-                                } catch (_: Exception) {
-                                    // Fallback if no specific email app is found
-                                    val fallbackIntent = Intent(Intent.ACTION_VIEW,
-                                        "mailto:".toUri())
-                                    fallbackIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                    context.startActivity(fallbackIntent)
-                                }
-                            },
-                            buttonDescription = stringResource(R.string.desc_open_email_app),
-                            painterId = R.drawable.ic_mail,
-                        )
-                    }
 
-                    // Slot 3: Resend Code
-                    item(key = "resend_code_btn") {
-                        CustomIconButton(
-                            layer = 3,
-                            modifier = Modifier.fillMaxSize().animateItem(),
-                            onTap = onResendCodeClick,
-                            buttonDescription = stringResource(R.string.desc_resend_email),
-                            painterId = R.drawable.ic_email_resend,
-                        )
-                    }
-                }
+
 
                 uiState.value.isPinningApp || uiState.value.isCreatingProfile || uiState.value.isRenamingProfile || uiState.value.isCloningBrowser -> {
                     // Slot 2: Add to Home Screen (or Empty if not pinning)
