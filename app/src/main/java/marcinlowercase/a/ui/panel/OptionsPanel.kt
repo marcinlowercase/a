@@ -1011,8 +1011,8 @@ fun SettingsPanel(
 
                     SettingPanelView.PADDING -> SliderSetting(
                         onBackClick = onBackClick,
-                        valueRange = 2f..8f,
-                        steps = 5,
+                        valueRange = 4f..8f,
+                        steps = 3,
                         textFieldValueFun = { it },
                         afterDecimal = false,
                         iconID = R.drawable.ic_padding,
