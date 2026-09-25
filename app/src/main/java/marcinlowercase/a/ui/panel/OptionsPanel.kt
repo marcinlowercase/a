@@ -105,7 +105,6 @@ fun rememberBrowserOptionsRegistry(
     onCloseAllTabs: () -> Unit,
     onNavigateToSetting: (SettingPanelView) -> Unit,
     confirmationPopup: (Int, String, () -> Unit, () -> Unit) -> Unit,
-    changeBrowserIcon: () -> Unit,
     onLoginClick: () -> Unit,
 ): Map<BrowserOption, OptionItem> {
     val viewModel = LocalBrowserViewModel.current
@@ -311,13 +310,7 @@ fun rememberBrowserOptionsRegistry(
                     )
                 }
             },
-            BrowserOption.CHANGE_ICON to OptionItem(
-                id = BrowserOption.CHANGE_ICON,
-                iconRes = R.drawable.ic_empty_logo,
-                contentDescription = R.string.desc_change_icon
-            ) {
-                changeBrowserIcon()
-            },
+
             BrowserOption.CONFIRMATION to OptionItem(
                 id = BrowserOption.CONFIRMATION,
                 iconRes = R.drawable.ic_warning,
@@ -584,7 +577,6 @@ fun rememberBrowserOptionsRegistry(
 fun OptionsPanel(
     onCloseAllTabs: () -> Unit,
     confirmationPopup: (Int, String, () -> Unit, () -> Unit) -> Unit,
-    changeBrowserIcon: () -> Unit,
     onLoginClick: () -> Unit,
 ) {
     val viewModel = LocalBrowserViewModel.current
@@ -627,7 +619,6 @@ fun OptionsPanel(
         onCloseAllTabs = onCloseAllTabs,
         onNavigateToSetting = {},
         confirmationPopup = confirmationPopup,
-        changeBrowserIcon = changeBrowserIcon,
         onLoginClick = onLoginClick,
 
         )
@@ -742,7 +733,6 @@ fun SettingsPanel(
     confirmationPopup: (Int, String, () -> Unit, () -> Unit) -> Unit,
     onCloseAllTabs: () -> Unit,
     targetSetting: SettingPanelView = SettingPanelView.MAIN,
-    changeBrowserIcon: () -> Unit = {},
     onLoginClick: () -> Unit = {},
 ) {
     val viewModel = LocalBrowserViewModel.current
@@ -832,7 +822,6 @@ fun SettingsPanel(
         onCloseAllTabs = onCloseAllTabs,
         onNavigateToSetting = { currentView = it },
         confirmationPopup = confirmationPopup,
-        changeBrowserIcon = changeBrowserIcon,
         onLoginClick = onLoginClick
     )
     // 4. Map IDs to UI items

@@ -1,6 +1,5 @@
 package marcinlowercase.a.ui.panel
 
-import android.content.Intent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
@@ -26,7 +25,6 @@ import androidx.compose.ui.unit.dp
 import marcinlowercase.a.R
 import marcinlowercase.a.ui.component.CustomIconButton
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
-import androidx.core.net.toUri
 
 @Composable
 fun TextEditPanel(
@@ -36,7 +34,6 @@ fun TextEditPanel(
     onDismiss: () -> Unit,
     activeWebViewTitle: String,
     onAddToHomeScreen: () -> Unit,
-    onResendCodeClick: () -> Unit
 ) {
     val context = LocalContext.current
     val viewModel = LocalBrowserViewModel.current
@@ -83,21 +80,24 @@ fun TextEditPanel(
 
 
 
-                uiState.value.isPinningApp || uiState.value.isCreatingProfile || uiState.value.isRenamingProfile || uiState.value.isCloningBrowser -> {
-                    // Slot 2: Add to Home Screen (or Empty if not pinning)
-                    if (uiState.value.isPinningApp) {
-                        item(key = "add_to_home_btn") {
-                            CustomIconButton(
-                                layer = 3,
-                                modifier = Modifier.fillMaxSize().animateItem(),
-                                onTap = onAddToHomeScreen,
-                                buttonDescription = stringResource(R.string.desc_install_web_app),
-                                painterId = R.drawable.ic_browser_updated,
-                            )
-                        }
-                    } else {
-                        item(key = "empty_pin_2") { Spacer(modifier = Modifier.fillMaxSize().animateItem()) }
-                    }
+                uiState.value.isPinningApp || uiState.value.isCreatingProfile || uiState.value.isRenamingProfile  -> {
+//                    // Slot 2: Add to Home Screen (or Empty if not pinning)
+                    //TODO
+//                    if (uiState.value.isPinningApp) {
+//                        item(key = "add_to_home_btn") {
+//                            CustomIconButton(
+//                                layer = 3,
+//                                modifier = Modifier.fillMaxSize().animateItem(),
+//                                onTap = onAddToHomeScreen,
+//                                buttonDescription = stringResource(R.string.desc_install_web_app),
+//                                painterId = R.drawable.ic_browser_updated,
+//                            )
+//                        }
+//                    } else {
+//                        item(key = "empty_pin_2") { Spacer(modifier = Modifier.fillMaxSize().animateItem()) }
+//                    }
+//                    Slot 2 always empty, cause we temporary disable the add to homescreen
+                    item(key = "empty_pin_2") { Spacer(modifier = Modifier.fillMaxSize().animateItem()) }
 
                     // Slot 3: Edit Button
                     if (activeWebViewTitle.isNotBlank()) {

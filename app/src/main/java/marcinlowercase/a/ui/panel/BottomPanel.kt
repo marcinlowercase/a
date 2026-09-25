@@ -235,8 +235,8 @@ fun BottomPanel(
                 !uiState.value.isPermissionPanelVisible
 
         // Automatically clear the custom URL text box when the user finishes pinning or cancels
-        LaunchedEffect(uiState.value.isPinningApp, uiState.value.isCloningBrowser) {
-            if (!uiState.value.isPinningApp && !uiState.value.isCloningBrowser) {
+        LaunchedEffect(uiState.value.isPinningApp) {
+            if (!uiState.value.isPinningApp) {
                 customIconUrlState.setTextAndPlaceCursorAtEnd("")
             }
         }
@@ -425,10 +425,7 @@ fun BottomPanel(
                 SettingsPanel(
                     onCloseAllTabs = onCloseAllTabs,
                     confirmationPopup = confirmationPopup,
-                    changeBrowserIcon = {
-                        viewModel.updateUI { it.copy(isCloningBrowser = true) }
-                        urlBarFocusRequester.requestFocus()
-                    },
+
                     onLoginClick = {
 //                        viewModel.updateUI { it.copy(isEnteringEmail = true) }
 //                        urlBarFocusRequester.requestFocus()
@@ -482,7 +479,7 @@ fun BottomPanel(
                 )
 
 
-                AnimatedVisibility(visible = viewModel.suggestions.isNotEmpty() && textFieldState.text.isNotEmpty() && uiState.value.isFocusOnUrlTextField && (!uiState.value.isPinningApp && !uiState.value.isCloningBrowser && !uiState.value.isRenamingProfile && !uiState.value.isCreatingProfile)) {
+                AnimatedVisibility(visible = viewModel.suggestions.isNotEmpty() && textFieldState.text.isNotEmpty() && uiState.value.isFocusOnUrlTextField && (!uiState.value.isPinningApp && !uiState.value.isRenamingProfile && !uiState.value.isCreatingProfile)) {
                     LazyColumn(
                         modifier = Modifier
                             .padding(horizontal = settings.value.padding.dp)
@@ -594,7 +591,7 @@ fun BottomPanel(
                             }
                         ) {
                             AnimatedVisibility(
-                                visible = uiState.value.isPinningApp || uiState.value.isCloningBrowser,
+                                visible = uiState.value.isPinningApp,
                                 enter = expandVertically(
                                     tween(
                                         settings.value.animationSpeedForLayer(
@@ -666,11 +663,6 @@ fun BottomPanel(
                                                             if (currentState.isPinningApp) viewModel.updateUI {
                                                                 it.copy(
                                                                     isPinningApp = false
-                                                                )
-                                                            }
-                                                            if (currentState.isCloningBrowser) viewModel.updateUI {
-                                                                it.copy(
-                                                                    isCloningBrowser = false
                                                                 )
                                                             }
                                                             if (currentState.isCreatingProfile) viewModel.updateUI {
@@ -758,7 +750,6 @@ fun BottomPanel(
                                     )
                                 }
                             }
-                            val defaultIconUrl = stringResource(R.string.bold_icon_url)
                             TextField(
                                 modifier = Modifier
                                     .heightIn(
@@ -775,7 +766,7 @@ fun BottomPanel(
                                         viewModel.updateUI { it.copy(isFocusOnUrlTextField = focusState.isFocused) }
 
                                         if (focusState.isFocused) {
-                                            if (!(uiState.value.isPinningApp || uiState.value.isCloningBrowser)) {
+                                            if (!(uiState.value.isPinningApp)) {
                                                 viewModel.updateUI { state ->
                                                     // STRICT EVALUATION: If an exclusive panel is active, Options CANNOT be saved as visible!
                                                     val isAnyExclusivePanelOpen =
@@ -820,11 +811,6 @@ fun BottomPanel(
                                                     if (currentState.isPinningApp) viewModel.updateUI {
                                                         it.copy(
                                                             isPinningApp = false
-                                                        )
-                                                    }
-                                                    if (currentState.isCloningBrowser) viewModel.updateUI {
-                                                        it.copy(
-                                                            isCloningBrowser = false
                                                         )
                                                     }
                                                     if (currentState.isCreatingProfile) viewModel.updateUI {
@@ -894,11 +880,6 @@ fun BottomPanel(
                                             color = MaterialTheme.colorScheme.onSurface
                                         )
 
-                                        uiState.value.isCloningBrowser -> Text(
-                                            stringResource(R.string.placeholder_browser_label),
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-
                                         else -> Text(
                                             stringResource(R.string.placeholder_url),
                                             color = MaterialTheme.colorScheme.onSurface
@@ -917,7 +898,6 @@ fun BottomPanel(
                                         uiState.value.isRenamingProfile
                                                 || uiState.value.isCreatingProfile
                                                 || uiState.value.isPinningApp
-                                                || uiState.value.isCloningBrowser
                                             -> androidx.compose.ui.text.input.KeyboardType.Text
 
                                         else -> androidx.compose.ui.text.input.KeyboardType.Uri
@@ -926,7 +906,6 @@ fun BottomPanel(
                                         uiState.value.isRenamingProfile
                                                 || uiState.value.isCreatingProfile
                                                 || uiState.value.isPinningApp
-                                                || uiState.value.isCloningBrowser
                                             -> ImeAction.Done
 
                                         else -> ImeAction.Go
@@ -955,16 +934,7 @@ fun BottomPanel(
                                                 viewModel.updateUI { it.copy(isPinningApp = false) }
                                             }
 
-                                            uiState.value.isCloningBrowser -> {
-                                                viewModel.generateAndInstallWebApk(
-                                                    context = context,
-                                                    title = "13rowser",
-                                                    url = resetUrl,
-                                                    iconUrl = defaultIconUrl,
-                                                    isFullBrowser = true,
-                                                )
-                                                viewModel.updateUI { it.copy(isCloningBrowser = false) }
-                                            }
+
 
                                             uiState.value.isRenamingProfile -> {
 
@@ -985,66 +955,6 @@ fun BottomPanel(
 
 
                                     when {
-
-//                                        uiState.value.isEnteringEmail -> {
-//                                            if (!Patterns.EMAIL_ADDRESS.matcher(input).matches()) {
-//                                                viewModel.showCustomNotification(invalidEmailText)
-//                                                return@TextField // Stop here and keep keyboard open!
-//                                            }
-//
-//                                            viewModel.userEmailToLogin = input
-//                                            viewModel.updateUI { it.copy(isEnteringLoginCode = true) }
-//                                            viewModel.updateUI {
-//                                                it.copy(
-//                                                    isEnteringEmail = false,
-//                                                    isLoading = true
-//                                                )
-//                                            }
-//                                            viewModel.requestLoginCode(input) { success ->
-//                                                viewModel.updateUI { it.copy(isLoading = false) }
-//                                                if (success) {
-//                                                    textFieldState.setTextAndPlaceCursorAtEnd("")
-//                                                } else {
-//                                                    viewModel.updateUI {
-//                                                        it.copy(
-//                                                            isEnteringEmail = false,
-//                                                            isEnteringLoginCode = false
-//                                                        )
-//                                                    }
-//                                                    Toast.makeText(
-//                                                        context,
-//                                                        "Failed to send code",
-//                                                        Toast.LENGTH_SHORT
-//                                                    ).show()
-//                                                }
-//                                            }
-//                                            return@TextField
-//                                        }
-//
-//                                        uiState.value.isEnteringLoginCode -> {
-//                                            viewModel.updateUI { it.copy(isLoading = true) }
-//                                            viewModel.verifyLoginCode(input) { success ->
-//                                                viewModel.updateUI { it.copy(isLoading = false) }
-//                                                if (success) {
-//                                                    viewModel.updateUI {
-//                                                        it.copy(
-//                                                            isEnteringLoginCode = false,
-//                                                            isFocusOnUrlTextField = false,
-//                                                            isSyncPanelVisible = true // <-- INSTANTLY SHOW THE SYNC PANEL
-//                                                        )
-//                                                    }
-//                                                    focusManager.clearFocus()
-//                                                    keyboardController?.hide()
-//                                                    textFieldState.setTextAndPlaceCursorAtEnd(
-//                                                        resetUrl.toDomain()
-//                                                    )
-//                                                } else {
-//                                                    viewModel.showCustomNotification(invalidCodeText)
-//                                                }
-//                                            }
-//                                            return@TextField
-//                                        }
-
                                         uiState.value.isRenamingProfile -> {
                                             viewModel.renameProfile(input)
                                             viewModel.updateUI { it.copy(isAppsPanelVisible = true) }
@@ -1068,23 +978,6 @@ fun BottomPanel(
                                                 iconUrl = finalIconUrl,
                                             )
                                             viewModel.updateUI { it.copy(isPinningApp = false) }
-                                        }
-
-                                        uiState.value.isCloningBrowser -> {
-                                            val customIconInput =
-                                                (customIconUrlState.text).toString().trim()
-                                            val finalIconUrl =
-                                                customIconInput.ifEmpty { defaultIconUrl }
-
-                                            viewModel.generateAndInstallWebApk(
-                                                context = context,
-                                                title = input,
-                                                url = settings.value.defaultUrl,
-                                                iconUrl = finalIconUrl,
-                                                isFullBrowser = true,
-                                            )
-                                            viewModel.updateUI { it.copy(isCloningBrowser = false) }
-
                                         }
 
 
@@ -1342,13 +1235,7 @@ fun BottomPanel(
                         OptionsPanel(
                             onCloseAllTabs = onCloseAllTabs,
                             confirmationPopup = confirmationPopup,
-                            changeBrowserIcon = {
-                                viewModel.updateUI { it.copy(isCloningBrowser = true) }
-                                urlBarFocusRequester.requestFocus()
-                            },
                             onLoginClick = {
-//                                viewModel.updateUI { it.copy(isEnteringEmail = true) }
-//                                urlBarFocusRequester.requestFocus()
                                 coroutineScope.launch {
                                     val email =
                                         viewModel.driveSyncManager.signInWithGoogle(context as android.app.Activity)
@@ -1404,13 +1291,11 @@ fun BottomPanel(
                     }
                 }
 
-                val browserName = stringResource(R.string.app_name)
                 val profileText = stringResource(R.string.placeholder_profile)
 
                 TextEditPanel(
                     isVisible =
                             uiState.value.isPinningApp ||
-                            uiState.value.isCloningBrowser ||
                             (uiState.value.isFocusOnUrlTextField && textFieldState.text.isBlank()),
                     onCopyClick = {
                         val clipData =
@@ -1425,7 +1310,6 @@ fun BottomPanel(
                                     ?: ""
 
                                 uiState.value.isPinningApp -> viewModel.activeTab!!.currentTitle
-                                uiState.value.isCloningBrowser -> browserName
                                 else -> viewModel.activeTab!!.errorState?.failingUrl
                                     ?: viewModel.activeTab!!.currentURL
                             }
@@ -1471,41 +1355,17 @@ fun BottomPanel(
                         }
                     },
                     onAddToHomeScreen = {
-                        val input = (textFieldState.text).toString().trim()
-                        val finalTitle = input.ifEmpty { viewModel.activeTab!!.currentTitle }
-                        val customIconInput = (customIconUrlState.text).toString().trim()
-                        val finalIconUrl =
-                            customIconInput.ifEmpty { viewModel.activeTab!!.currentFaviconUrl }
-                        viewModel.generateAndInstallWebApk(
-                            context = context,
-                            title = finalTitle,
-                            url = viewModel.activeTab!!.currentURL,
-                            iconUrl = finalIconUrl,
-                            isFullBrowser = false
-                        )
-                        viewModel.updateUI { it.copy(isPinningApp = false) }
-                        focusManager.clearFocus()
-                        keyboardController?.hide()
+//                        val input = (textFieldState.text).toString().trim()
+//                        val finalTitle = input.ifEmpty { viewModel.activeTab!!.currentTitle }
+//                        val customIconInput = (customIconUrlState.text).toString().trim()
+//                        val finalIconUrl =
+//                            customIconInput.ifEmpty { viewModel.activeTab!!.currentFaviconUrl }
+//                       //TODO add to home screen new function need to be here
+//                        viewModel.updateUI { it.copy(isPinningApp = false) }
+//                        focusManager.clearFocus()
+//                        keyboardController?.hide()
                     },
                     activeWebViewTitle = viewModel.activeTab!!.currentTitle,
-                    onResendCodeClick = {
-                        viewModel.updateUI { it.copy(isLoading = true) }
-//                        viewModel.requestLoginCode(viewModel.userEmailToLogin) { success ->
-//                            viewModel.updateUI { it.copy(isLoading = false) }
-//                            if (success) {
-//                                Toast.makeText(
-//                                    context,
-//                                    "Code resent to ${viewModel.userEmailToLogin}",
-//                                    Toast.LENGTH_SHORT
-//                                ).show()
-//                            } else {
-//                                Toast.makeText(context, "Failed to resend code", Toast.LENGTH_SHORT)
-//                                    .show()
-//                            }
-//                        }
-                        urlBarFocusRequester.requestFocus()
-                        keyboardController?.show()
-                    }
                 )
             }
         }

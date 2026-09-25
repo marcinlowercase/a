@@ -175,8 +175,6 @@
     <!-- Toast / Overlay -->
     <string name="toast_prepare_cloned">preparing custom browser…</string>
     <string name="toast_prepare_pwa">preparing web app installer…</string>
-    <string name="toast_failed_to_start_apk_installer">failed to start APK installer</string>
-    <string name="toast_failed_to_generate_apk">failed to generate web app installer</string>
     <string name="toast_no_app_to_open_link">no app found to open this link</string>
     <string name="toast_highlight_color_setting_disabled">cannot set highlight color</string>
     <string name="toast_material_you_not_support">your device need to be Android 12</string>

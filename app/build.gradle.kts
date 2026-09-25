@@ -91,10 +91,6 @@ android {
         }
     }
 
-    androidResources {
-        noCompress += listOf("apk", "pk8", "der")
-    }
-
     splits {
         abi {
             isEnable = true
