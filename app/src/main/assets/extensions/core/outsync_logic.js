@@ -115,26 +115,6 @@
   // ==========================================
   // 6. EXACT ALARM MODULE (Android AlarmManager)
   // ==========================================
-  function scheduleAlarm(id, delayMs, title, message) {
-    return new window.Promise((resolve) => {
-      send("alarmSchedule", {
-        id: id || "reminder",
-        delayMs: delayMs || 5000,
-        title: title || "Alarm",
-        message: message || "Time is up!"
-      })
-      .then((res) => resolve(res))
-      .catch(() => resolve("FAIL"));
-    });
-  }
-
-  function cancelAlarm(id) {
-    return new window.Promise((resolve) => {
-      send("alarmCancel", { id: id || "reminder" })
-      .then((res) => resolve(res))
-      .catch(() => resolve("FAIL"));
-    });
-  }
 
   // ==========================================
   // 7. HARDWARE FLASHLIGHT MODULE
@@ -242,10 +222,7 @@
     root.scanner = scannerObj;
 
     // 6. Alarm
-    const alarmObj = cloneInto({}, pageWin);
-    exportFunction(scheduleAlarm, alarmObj, { defineAs: "schedule" });
-    exportFunction(cancelAlarm, alarmObj, { defineAs: "cancel" });
-    root.alarm = alarmObj;
+
 
     // 7. Flashlight
     const flashObj = cloneInto({}, pageWin);
@@ -288,10 +265,6 @@
       },
       scanner: {
         scan: scanBarcode
-      },
-      alarm: {
-        schedule: scheduleAlarm,
-        cancel: cancelAlarm
       },
       flashlight: {
         toggle: toggleFlashlight,
