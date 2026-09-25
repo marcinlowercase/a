@@ -9,6 +9,10 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.hardware.camera2.CameraManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.os.PowerManager
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.VibrationEffect
@@ -69,6 +73,7 @@ import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import android.app.AlarmManager
+import android.hardware.camera2.CameraCharacteristics
 import marcinlowercase.a.core.service.AlarmReceiver
 import android.provider.Settings
 import androidx.core.net.toUri
@@ -175,6 +180,106 @@ class GeckoManager(private val context: Context) {
 
         setupWebNotifications()
 
+
+        val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as? CameraManager
+        cameraManager?.registerTorchCallback(object : CameraManager.TorchCallback() {
+            override fun onTorchModeChanged(cameraId: String, enabled: Boolean) {
+                isTorchOn = enabled
+            }
+        }, null)
+
+    }
+
+
+    // --- 1. FLASHLIGHT CONTROLLER ---
+    private var isTorchOn = false
+
+    private fun setFlashlight(enable: Boolean? = null): String {
+        val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as? CameraManager ?: return "FAIL"
+        return try {
+            val cameraId = cameraManager.cameraIdList.firstOrNull { id ->
+                val characteristics = cameraManager.getCameraCharacteristics(id)
+                characteristics.get(android.hardware.camera2.CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
+            } ?: return "NO_FLASH_HARDWARE"
+
+            // If enable is null, toggle state
+            val targetState = enable ?: !isTorchOn
+            cameraManager.setTorchMode(cameraId, targetState)
+            isTorchOn = targetState
+            if (isTorchOn) "ON" else "OFF"
+        } catch (e: Exception) {
+            Log.e("GeckoHardware", "Flashlight toggle failed", e)
+            "ERROR"
+        }
+    }
+
+    private fun getTorchCameraId(cameraManager: CameraManager): String? {
+        return cameraManager.cameraIdList.firstOrNull { id ->
+            val characteristics = cameraManager.getCameraCharacteristics(id)
+            characteristics.get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
+        }
+    }
+
+    private fun getFlashlightMaxStrength(): Int {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return 1
+        val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as? CameraManager ?: return 1
+        return try {
+            val cameraId = getTorchCameraId(cameraManager) ?: return 1
+            val characteristics = cameraManager.getCameraCharacteristics(cameraId)
+            characteristics.get(CameraCharacteristics.FLASH_INFO_STRENGTH_MAXIMUM_LEVEL) ?: 1
+        } catch (_: Exception) {
+            1
+        }
+    }
+
+    private fun setFlashlightStrength(level: Int): String {
+        val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as? CameraManager ?: return "FAIL"
+        return try {
+            val cameraId = getTorchCameraId(cameraManager) ?: return "NO_FLASH_HARDWARE"
+            if (level <= 0) {
+                cameraManager.setTorchMode(cameraId, false)
+                isTorchOn = false
+                "OFF"
+            } else {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    val characteristics = cameraManager.getCameraCharacteristics(cameraId)
+                    val maxLevel = characteristics.get(CameraCharacteristics.FLASH_INFO_STRENGTH_MAXIMUM_LEVEL) ?: 1
+                    if (maxLevel > 1) {
+                        val clamped = level.coerceIn(1, maxLevel)
+                        cameraManager.turnOnTorchWithStrengthLevel(cameraId, clamped)
+                        isTorchOn = true
+                        "ON"
+                    } else {
+                        cameraManager.setTorchMode(cameraId, true)
+                        isTorchOn = true
+                        "ON"
+                    }
+                } else {
+                    cameraManager.setTorchMode(cameraId, true)
+                    isTorchOn = true
+                    "ON"
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("GeckoHardware", "Flashlight strength failed", e)
+            "ERROR"
+        }
+    }
+
+    // --- 2. SCREEN STATE (POWER INTERACTIVE) ---
+    private fun isScreenOn(): Boolean {
+        val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager ?: return true
+        return powerManager.isInteractive
+    }
+
+    // --- 3. NETWORK CONNECTIVITY STATUS ---
+    private fun isConnectedToInternet(): Boolean {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return false
+        val activeNetwork = connectivityManager.activeNetwork ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork) ?: return false
+
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
     }
 
 
@@ -1226,6 +1331,44 @@ class GeckoManager(private val context: Context) {
                                 }
                                 val res = cancelExactAlarm(id)
                                 return GeckoResult.fromValue(res)
+                            }
+
+                            "flashlightToggle" -> {
+                                val state = when (message) {
+                                    is JSONObject -> if (!message.isNull("enabled")) message.optBoolean("enabled") else null
+                                    is Map<*, *> -> message["enabled"] as? Boolean
+                                    else -> null
+                                }
+                                val result = setFlashlight(state)
+                                return GeckoResult.fromValue(result)
+                            }
+
+                            "deviceGetScreenState" -> {
+                                val screenState = if (isScreenOn()) "ON" else "OFF"
+                                return GeckoResult.fromValue(screenState)
+                            }
+
+                            "deviceGetNetworkState" -> {
+                                val isConnected = isConnectedToInternet()
+                                val responseObj = JSONObject().apply {
+                                    put("connected", isConnected)
+                                }
+                                return GeckoResult.fromValue(responseObj.toString())
+                            }
+
+                            "flashlightGetMaxStrength" -> {
+                                val max = getFlashlightMaxStrength()
+                                return GeckoResult.fromValue(max.toString())
+                            }
+
+                            "flashlightSetStrength" -> {
+                                val level = when (message) {
+                                    is JSONObject -> message.optInt("level", 1)
+                                    is Map<*, *> -> (message["level"] as? Number)?.toInt() ?: 1
+                                    else -> 1
+                                }
+                                val result = setFlashlightStrength(level)
+                                return GeckoResult.fromValue(result)
                             }
                         }
 
