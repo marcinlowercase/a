@@ -9,11 +9,13 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -32,9 +34,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import marcinlowercase.a.R
+import marcinlowercase.a.core.constant.drm_access_permission
 import marcinlowercase.a.core.constant.generic_location_permission
+import marcinlowercase.a.core.constant.generic_notification_permission
 import marcinlowercase.a.core.constant.google_drive_access_permission
 import marcinlowercase.a.core.constant.local_file_storage_permission
+import marcinlowercase.a.core.constant.persistent_storage_permission
 import marcinlowercase.a.core.function.toDomain
 import marcinlowercase.a.ui.component.CustomIconButton
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
@@ -121,44 +126,60 @@ fun TabDataPanel(
                         }
 
                         TabDataPanelView.PERMISSIONS -> {
-                            // 3. REMOVED REDUNDANT LOOKUP HERE.
-                            // We just use `settings` and `domain` declared above!
-
                             if (settings != null && settings.permissionDecisions.isNotEmpty()) {
-                                Row(
+                                Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(horizontal = browserSettings.value.padding.dp)
-                                        .padding(top = browserSettings.value.padding.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
+                                        .clip(RoundedCornerShape(
+                                            browserSettings.value.cornerRadiusForLayer(2).dp
+                                        ))
+                                        .border(browserSettings.value.padding.dp / 2, MaterialTheme.colorScheme.onSurface,RoundedCornerShape(
+                                            browserSettings.value.cornerRadiusForLayer(2).dp
+                                        ))
+//                                        .padding(horizontal = browserSettings.value.padding.dp)
+//                                        .padding(top = browserSettings.value.padding.dp)
+                                        .padding(browserSettings.value.padding.dp)
+                                    ,
+                                    verticalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
                                 ) {
-                                    settings.permissionDecisions.forEach { (permission, isGranted) ->
-                                        val (iconRes, nameResId) = when (permission) {
-                                            generic_location_permission -> R.drawable.ic_location_on to R.string.desc_permission_location
-                                            google_drive_access_permission -> R.drawable.ic_drive_access_allow to R.string.desc_permission_drive_access
-                                            local_file_storage_permission -> R.drawable.ic_write_file to R.string.desc_permission_save_file_to_device
+                                    settings.permissionDecisions.entries.toList().chunked(4).reversed().forEach { rowPermissions ->
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
+                                        ) {
+                                            rowPermissions.forEach { (permission, isGranted) ->
+                                                val (iconRes, nameResId) = when (permission) {
+                                                    generic_location_permission -> R.drawable.ic_location_on to R.string.desc_permission_location
+                                                    google_drive_access_permission -> R.drawable.ic_drive_access_allow to R.string.desc_permission_drive_access
+                                                    local_file_storage_permission -> R.drawable.ic_write_file to R.string.desc_permission_save_file_to_device
 
-                                            Manifest.permission.CAMERA -> R.drawable.ic_camera_on to R.string.desc_permission_camera
-                                            Manifest.permission.RECORD_AUDIO -> R.drawable.ic_mic_on to R.string.desc_permission_microphone
-                                            Manifest.permission.POST_NOTIFICATIONS, Manifest.permission.INTERNET -> R.drawable.ic_notifications to R.string.desc_permission_notifications
-                                            Manifest.permission.ACCESS_NETWORK_STATE -> R.drawable.ic_persistent_storage to R.string.desc_permission_storage
-                                            Manifest.permission.VIBRATE -> R.drawable.ic_media_output to R.string.desc_permission_drm
-                                            else -> R.drawable.ic_bug to R.string.desc_permission_unknown
+                                                    Manifest.permission.CAMERA -> R.drawable.ic_camera_on to R.string.desc_permission_camera
+                                                    Manifest.permission.RECORD_AUDIO -> R.drawable.ic_mic_on to R.string.desc_permission_microphone
+                                                    Manifest.permission.POST_NOTIFICATIONS, generic_notification_permission -> R.drawable.ic_notifications to R.string.desc_permission_notifications
+                                                    persistent_storage_permission -> R.drawable.ic_persistent_storage to R.string.desc_permission_storage
+                                                    drm_access_permission -> R.drawable.ic_media_output to R.string.desc_permission_drm
+                                                    else -> R.drawable.ic_bug to R.string.desc_permission_unknown
+                                                }
+
+                                                CustomIconButton(
+                                                    layer = 3,
+                                                    modifier = Modifier.weight(1f),
+                                                    onTap = { onPermissionToggle(domain, permission, !isGranted) },
+                                                    buttonDescription = stringResource(nameResId),
+                                                    painterId = iconRes,
+                                                    isWhite = isGranted,
+                                                )
+                                            }
+
+                                            // Fills remaining spots on incomplete rows so buttons stay 1/4th width
+                                            repeat(4 - rowPermissions.size) {
+                                                Spacer(modifier = Modifier.weight(1f))
+                                            }
                                         }
-
-                                        CustomIconButton(
-                                            layer = 3,
-                                            modifier = Modifier.weight(1f),
-                                            onTap = { onPermissionToggle(domain, permission, !isGranted)},
-                                            buttonDescription = stringResource(nameResId),
-                                            painterId = iconRes,
-                                            isWhite = isGranted,
-                                        )
                                     }
                                 }
                             }
-                        }
-                    }
+                        }                    }
                 }
 
                 // action buttons

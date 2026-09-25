@@ -7,7 +7,10 @@ import android.util.Log
 import androidx.compose.runtime.MutableState
 import androidx.core.content.ContextCompat
 import marcinlowercase.a.R
+import marcinlowercase.a.core.constant.drm_access_permission
 import marcinlowercase.a.core.constant.generic_location_permission
+import marcinlowercase.a.core.constant.generic_notification_permission
+import marcinlowercase.a.core.constant.persistent_storage_permission
 import marcinlowercase.a.core.data_class.CustomPermissionRequest
 import marcinlowercase.a.core.data_class.SiteSettings
 import marcinlowercase.a.core.data_class.Tab
@@ -99,9 +102,7 @@ class CustomPermissionDelegate(
                 Manifest.permission.POST_NOTIFICATIONS
             } else {
                 // Android 12 and below don't use OS-level notification permissions.
-                // We use INTERNET as a dummy key because it's always granted by the system,
-                // ensuring the ActivityResultLauncher returns 'true' instantly without OS popups.
-                Manifest.permission.INTERNET
+                generic_notification_permission
             }
 
             // Check if the ViewModel already remembered this decision in memory/disk
@@ -150,7 +151,7 @@ class CustomPermissionDelegate(
 
             // We use a benign, auto-granted Android permission as a unique "key" so your ViewModel
             // automatically saves it without triggering an actual OS permission popup.
-            val storagePermissionKey = Manifest.permission.ACCESS_NETWORK_STATE
+            val storagePermissionKey = persistent_storage_permission
 
             // Check if the ViewModel already remembered this decision
             val decision = siteSettings[domain]?.permissionDecisions?.get(storagePermissionKey)
@@ -198,7 +199,7 @@ class CustomPermissionDelegate(
 
             // We use another benign, auto-granted Android permission as a unique "key"
             // so your ViewModel auto-saves it without triggering an OS permission popup.
-            val drmPermissionKey = Manifest.permission.VIBRATE
+            val drmPermissionKey = drm_access_permission
 
             // Check if the ViewModel already remembered this decision
             val decision = siteSettings[domain]?.permissionDecisions?.get(drmPermissionKey)
