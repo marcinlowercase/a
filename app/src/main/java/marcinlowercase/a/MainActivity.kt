@@ -1550,13 +1550,12 @@ fun BrowserScreen(
 //        // When TabsPanel opens, it becomes the main panel.
 //        if (uiState.value.isTabsPanelVisible) activeMainPanel = ActivePanel.TABS
 //    }
-//    LaunchedEffect(uiState.value.isTabDataPanelVisible) {
-//        // When TabDataPanel opens, it ensures Tabs is the main panel and forces it open.
-//        if (uiState.value.isTabDataPanelVisible) {
-//            activeMainPanel = ActivePanel.TABS
-//            viewModel.updateUI { it.copy(isTabsPanelVisible = true) }
-//        }
-//    }
+    LaunchedEffect(uiState.value.isTabDataPanelVisible) {
+        // When TabDataPanel opens, it ensures Tabs is the main panel and forces it open.
+        if (uiState.value.isTabDataPanelVisible) {
+            activeMainPanel = ActivePanel.TAB_DATA
+        }
+    }
 
     // 3. Enforcer for MAIN panels: When focus changes, close all other main panels.
     LaunchedEffect(activeMainPanel) {
@@ -1567,6 +1566,13 @@ fun BrowserScreen(
             current != ActivePanel.APPS && uiState.value.isAppsPanelVisible) viewModel.updateUI {
             it.copy(
                 isAppsPanelVisible = false
+            )
+        }
+        if (
+//            current != ActivePanel.TABS &&
+            current != ActivePanel.TAB_DATA && uiState.value.isTabDataPanelVisible) viewModel.updateUI {
+            it.copy(
+                isTabDataPanelVisible = false
             )
         }
         if (current != ActivePanel.DOWNLOADS && uiState.value.isDownloadPanelVisible) viewModel.updateUI {

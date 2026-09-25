@@ -8,6 +8,7 @@ enum class ActivePanel {
     PROMPT,
     SETTINGS,
 //    TABS,
+    TAB_DATA,
     PERMISSION,
     SUGGESTIONS,
     SYNC,
