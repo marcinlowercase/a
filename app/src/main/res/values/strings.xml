@@ -125,6 +125,8 @@
     <string name="desc_permission_storage">persistent storage permission</string>
     <string name="desc_permission_unknown">unknown</string>
     <string name="desc_permission_drm">playing protected media (DRM)</string>
+    <string name="desc_permission_save_file_to_device">saving files to device</string>
+    <string name="desc_permission_google_drive_app_folder">Drive app folder access</string>
 
 
     <string name="desc_clear_site_data">clear site data</string>

@@ -170,8 +170,8 @@ class CustomPermissionDelegate(
                 title = permissionName,
                 rationale = "This site wants to store data persistently to work offline or save local data.",
                 // Feel free to replace these with actual save/deny icons (e.g., R.drawable.ic_save)
-                iconResAllow = R.drawable.ic_folder,
-                iconResDeny = R.drawable.ic_folder_off,
+                iconResAllow = R.drawable.ic_persistent_storage,
+                iconResDeny = R.drawable.ic_persistent_storage_deny,
                 permissionsToRequest = listOf(storagePermissionKey),
                 onResult = { permissionsMap, pendingRequest ->
 

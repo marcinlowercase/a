@@ -443,6 +443,28 @@ class GeckoManager(private val context: Context) {
         }
     }
 
+    var onDomainFileStoragePermissionRequested: ((domain: String, onDecision: (Boolean) -> Unit) -> Unit)? = null
+
+    private suspend fun checkOrRequestFileStoragePermission(domain: String, siteSettings: Map<String, SiteSettings>): Boolean {
+        val existingDecision = siteSettings[domain]?.permissionDecisions?.get(
+            marcinlowercase.a.core.constant.local_file_storage_permission
+        )
+        if (existingDecision != null) {
+            return existingDecision
+        }
+
+        return suspendCancellableCoroutine { continuation ->
+            val requestPrompt = onDomainFileStoragePermissionRequested
+            if (requestPrompt != null) {
+                requestPrompt(domain) { isAllowed ->
+                    if (continuation.isActive) continuation.resume(isAllowed)
+                }
+            } else {
+                if (continuation.isActive) continuation.resume(false)
+            }
+        }
+    }
+
     private fun ensureUblockOrigin() {
         runtime.webExtensionController.list().accept(
             { extensions ->
@@ -1031,9 +1053,8 @@ class GeckoManager(private val context: Context) {
                                     is JSONObject -> message.optString("filename")
                                     is Map<*, *> -> message["filename"] as? String
                                     else -> null
-                                } ?: "download").replace("/", "_") // Prevent path traversal
+                                } ?: "download").replace("/", "_")
 
-                                // Ensure base64Data is strictly a non-null String by adding ?: "" to the Map cast
                                 val base64Data = when (message) {
                                     is JSONObject -> message.optString("base64Data")
                                     is Map<*, *> -> message["base64Data"] as? String ?: ""
@@ -1052,12 +1073,25 @@ class GeckoManager(private val context: Context) {
                                     else -> "DOWNLOADS"
                                 }
 
-                                return if (base64Data.isNotEmpty()) {
-                                    val success = saveBase64ToStorage(context, filename, base64Data, mimeType, folder)
-                                    GeckoResult.fromValue(if (success) "SUCCESS" else "ERROR_SAVING")
-                                } else {
-                                    GeckoResult.fromValue("ERROR_EMPTY_DATA")
+                                if (base64Data.isEmpty()) {
+                                    return GeckoResult.fromValue("ERROR_EMPTY_DATA")
                                 }
+
+                                val domain = sender.url?.toDomain() ?: "standalone_app"
+                                val result = GeckoResult<Any>()
+
+                                MainScope().launch(Dispatchers.IO) {
+                                    val isAllowed = checkOrRequestFileStoragePermission(domain, siteSettings)
+                                    if (!isAllowed) {
+                                        result.complete("ERROR_PERMISSION_DENIED")
+                                        return@launch
+                                    }
+
+                                    val success = saveBase64ToStorage(context, filename, base64Data, mimeType, folder)
+                                    result.complete(if (success) "SUCCESS" else "ERROR_SAVING")
+                                }
+
+                                return result
                             }
                             "driveSaveText" -> {
                                 val filename = (when (message) {

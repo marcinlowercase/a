@@ -20,17 +20,24 @@
   // 1. PUBLIC FILE STORAGE (Global Downloads/Pictures)
   // ==========================================
   function saveFile(filename, base64Data, mimeType, folder) {
-    return new window.Promise((resolve, reject) => {
-      send("saveFile", {
-        filename: filename || "download",
-        base64Data: base64Data || "",
-        mimeType: mimeType || "application/octet-stream",
-        folder: folder || "DOWNLOADS"
-      })
-      .then((res) => resolve(res))
-      .catch((err) => reject(err ? err.toString() : "IPC Error"));
-    });
-  }
+      return new window.Promise((resolve, reject) => {
+        send("saveFile", {
+          filename: filename || "download",
+          base64Data: base64Data || "",
+          mimeType: mimeType || "application/octet-stream",
+          folder: folder || "DOWNLOADS"
+        })
+        .then((res) => {
+          if (res === "SUCCESS") {
+            resolve(res);
+          } else {
+            // Rejects so the web app's catch block triggers!
+            reject(new Error(res));
+          }
+        })
+        .catch((err) => reject(err ? err.toString() : "IPC Error"));
+      });
+    }
 
   // ==========================================
   // 2. GOOGLE DRIVE MODULE (BYOS - Bring Your Own Storage)

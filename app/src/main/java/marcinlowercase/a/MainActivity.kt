@@ -1639,6 +1639,8 @@ fun BrowserScreen(
             }
         }
         // In MainActivity.kt -> BrowserScreen
+        val googleDriveAppFolderString = stringResource(R.string.desc_permission_google_drive_app_folder)
+        val saveFileToDevice = stringResource(R.string.desc_permission_save_file_to_device)
         DisposableEffect(viewModel.activeProfileId.value) {
             viewModel.geckoManager.onDomainDrivePermissionRequested = { domain, onDecision ->
                 val activeDomain = viewModel.activeTab?.currentURL?.toDomain()
@@ -1646,7 +1648,7 @@ fun BrowserScreen(
                 if (domain == activeDomain) {
                     val driveRequest = CustomPermissionRequest(
                         origin = if (domain.startsWith("http")) domain else "https://$domain",
-                        title = "Google Drive access",
+                        title = googleDriveAppFolderString,
                         rationale = "Allow $domain to save and read files in your Google Drive.",
                         iconResAllow = R.drawable.ic_drive_access_allow,
                         iconResDeny = R.drawable.ic_drive_access_deny,
@@ -1664,8 +1666,33 @@ fun BrowserScreen(
                     onDecision(false)
                 }
             }
+            viewModel.geckoManager.onDomainFileStoragePermissionRequested = { domain, onDecision ->
+                val activeDomain = viewModel.activeTab?.currentURL?.toDomain()
+
+                if (domain == activeDomain) {
+                    val fileRequest = CustomPermissionRequest(
+                        origin = if (domain.startsWith("http")) domain else "https://$domain",
+                        title = saveFileToDevice,
+                        rationale = "Allow $domain to save files directly to your device storage.",
+                        iconResAllow = R.drawable.ic_write_file,
+                        iconResDeny = R.drawable.ic_write_file_deny,
+                        permissionsToRequest = listOf(marcinlowercase.a.core.constant.local_file_storage_permission),
+                        onResult = { permissionsMap, pendingRequest ->
+                            val isGranted = permissionsMap[marcinlowercase.a.core.constant.local_file_storage_permission] == true
+                            onDecision(isGranted)
+                            pendingRequest.value = null
+                        },
+                        isSystemRequest = false
+                    )
+                    viewModel.pendingPermissionRequest.value = fileRequest
+                } else {
+                    onDecision(false)
+                }
+            }
+
             onDispose {
                 viewModel.geckoManager.onDomainDrivePermissionRequested = null
+                viewModel.geckoManager.onDomainFileStoragePermissionRequested = null
             }
         }
 

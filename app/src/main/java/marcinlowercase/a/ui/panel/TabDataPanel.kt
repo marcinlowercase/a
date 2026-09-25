@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import marcinlowercase.a.R
 import marcinlowercase.a.core.constant.generic_location_permission
 import marcinlowercase.a.core.constant.google_drive_access_permission
+import marcinlowercase.a.core.constant.local_file_storage_permission
 import marcinlowercase.a.core.function.toDomain
 import marcinlowercase.a.ui.component.CustomIconButton
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
@@ -135,10 +136,12 @@ fun TabDataPanel(
                                         val (iconRes, nameResId) = when (permission) {
                                             generic_location_permission -> R.drawable.ic_location_on to R.string.desc_permission_location
                                             google_drive_access_permission -> R.drawable.ic_drive_access_allow to R.string.desc_permission_drive_access
+                                            local_file_storage_permission -> R.drawable.ic_write_file to R.string.desc_permission_save_file_to_device
+
                                             Manifest.permission.CAMERA -> R.drawable.ic_camera_on to R.string.desc_permission_camera
                                             Manifest.permission.RECORD_AUDIO -> R.drawable.ic_mic_on to R.string.desc_permission_microphone
                                             Manifest.permission.POST_NOTIFICATIONS, Manifest.permission.INTERNET -> R.drawable.ic_notifications to R.string.desc_permission_notifications
-                                            Manifest.permission.ACCESS_NETWORK_STATE -> R.drawable.ic_folder to R.string.desc_permission_storage
+                                            Manifest.permission.ACCESS_NETWORK_STATE -> R.drawable.ic_persistent_storage to R.string.desc_permission_storage
                                             Manifest.permission.VIBRATE -> R.drawable.ic_media_output to R.string.desc_permission_drm
                                             else -> R.drawable.ic_bug to R.string.desc_permission_unknown
                                         }
