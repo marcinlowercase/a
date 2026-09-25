@@ -9,13 +9,19 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
+import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
+import android.media.AudioManager
+import android.media.RingtoneManager
+import android.media.ToneGenerator
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-import android.os.PowerManager
-import android.content.pm.PackageManager
 import android.os.Build
+import android.os.PowerManager
 import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.util.Log
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
@@ -28,6 +34,9 @@ import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import com.google.mlkit.vision.barcode.common.Barcode
+import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
+import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
@@ -64,19 +73,6 @@ import org.mozilla.geckoview.WebRequestError
 import org.mozilla.geckoview.WebResponse
 import kotlin.coroutines.resume
 import kotlin.math.abs
-import android.os.Vibrator
-import android.os.VibratorManager
-import android.media.AudioManager
-import android.media.RingtoneManager
-import android.media.ToneGenerator
-import com.google.mlkit.vision.barcode.common.Barcode
-import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
-import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
-import android.app.AlarmManager
-import android.hardware.camera2.CameraCharacteristics
-import marcinlowercase.a.core.service.AlarmReceiver
-import android.provider.Settings
-import androidx.core.net.toUri
 
 private const val UBLOCK_ID = "uBlock0@raymondhill.net"
 private const val FAVICON_ID = "browser_core_extension@marcinlowercase"

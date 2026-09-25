@@ -24,8 +24,8 @@ android {
     defaultConfig {
         minSdk = 29 // android 10
         targetSdk = 37
-        versionCode = 58
-        versionName = "1.0.0"
+        versionCode = 59
+        versionName = "1.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
