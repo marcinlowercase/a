@@ -148,17 +148,17 @@ fun TabDataPanel(
                                             horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
                                         ) {
                                             rowPermissions.forEach { (permission, isGranted) ->
-                                                val (iconRes, nameResId) = when (permission) {
-                                                    generic_location_permission -> R.drawable.ic_location_on to R.string.desc_permission_location
-                                                    google_drive_access_permission -> R.drawable.ic_drive_access_allow to R.string.desc_permission_drive_access
-                                                    local_file_storage_permission -> R.drawable.ic_write_file to R.string.desc_permission_save_file_to_device
+                                                val (allowIcon, denyIcon, nameResId) = when (permission) {
+                                                    generic_location_permission -> Triple(R.drawable.ic_location_on, R.drawable.ic_location_off, R.string.desc_permission_location)
+                                                    google_drive_access_permission -> Triple(R.drawable.ic_drive_access_allow, R.drawable.ic_drive_access_deny, R.string.desc_permission_drive_access)
+                                                    local_file_storage_permission -> Triple(R.drawable.ic_write_file, R.drawable.ic_write_file_deny, R.string.desc_permission_save_file_to_device)
 
-                                                    Manifest.permission.CAMERA -> R.drawable.ic_camera_on to R.string.desc_permission_camera
-                                                    Manifest.permission.RECORD_AUDIO -> R.drawable.ic_mic_on to R.string.desc_permission_microphone
-                                                    Manifest.permission.POST_NOTIFICATIONS, generic_notification_permission -> R.drawable.ic_notifications to R.string.desc_permission_notifications
-                                                    persistent_storage_permission -> R.drawable.ic_persistent_storage to R.string.desc_permission_storage
-                                                    drm_access_permission -> R.drawable.ic_media_output to R.string.desc_permission_drm
-                                                    else -> R.drawable.ic_bug to R.string.desc_permission_unknown
+                                                    Manifest.permission.CAMERA -> Triple(R.drawable.ic_camera_on, R.drawable.ic_camera_off, R.string.desc_permission_camera)
+                                                    Manifest.permission.RECORD_AUDIO -> Triple(R.drawable.ic_mic_on, R.drawable.ic_mic_off, R.string.desc_permission_microphone)
+                                                    Manifest.permission.POST_NOTIFICATIONS, generic_notification_permission -> Triple(R.drawable.ic_notifications, R.drawable.ic_notifications_off, R.string.desc_permission_notifications)
+                                                    persistent_storage_permission -> Triple(R.drawable.ic_persistent_storage, R.drawable.ic_persistent_storage_deny, R.string.desc_permission_storage)
+                                                    drm_access_permission -> Triple(R.drawable.ic_media_output, R.drawable.ic_media_output_off, R.string.desc_permission_drm)
+                                                    else -> Triple(R.drawable.ic_bug, R.drawable.ic_bug, R.string.desc_permission_unknown)
                                                 }
 
                                                 CustomIconButton(
@@ -166,7 +166,7 @@ fun TabDataPanel(
                                                     modifier = Modifier.weight(1f),
                                                     onTap = { onPermissionToggle(domain, permission, !isGranted) },
                                                     buttonDescription = stringResource(nameResId),
-                                                    painterId = iconRes,
+                                                    painterId = if (isGranted) allowIcon else denyIcon,
                                                     isWhite = isGranted,
                                                 )
                                             }
