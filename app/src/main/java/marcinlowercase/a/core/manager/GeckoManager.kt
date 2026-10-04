@@ -195,7 +195,7 @@ class GeckoManager(private val context: Context) {
         return try {
             val cameraId = cameraManager.cameraIdList.firstOrNull { id ->
                 val characteristics = cameraManager.getCameraCharacteristics(id)
-                characteristics.get(android.hardware.camera2.CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
+                characteristics.get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
             } ?: return "NO_FLASH_HARDWARE"
 
             // If enable is null, toggle state

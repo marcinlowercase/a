@@ -138,7 +138,7 @@ class DriveFileManager(private val syncManager: DriveSyncManager) {
                 mapOf(
                     "id" to (file.id ?: ""),
                     "name" to (file.name ?: ""),
-                    "size" to (file.getSize() ?: 0L),
+                    "size" to (file.size ?: 0L),
                     "modifiedTime" to (file.modifiedTime?.value ?: 0L),
                     "mimeType" to (file.mimeType ?: "")
                 )

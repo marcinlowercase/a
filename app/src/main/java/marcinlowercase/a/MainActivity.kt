@@ -2420,7 +2420,7 @@ fun BrowserScreen(
                                     MotionEvent.obtain(now, now, MotionEvent.ACTION_DOWN, 0f, 0f, 0)
                                         .apply {
                                             // 3. Mark this tap as synthetic so our touch listener can ignore it
-                                            source = android.view.InputDevice.SOURCE_UNKNOWN
+                                            source = InputDevice.SOURCE_UNKNOWN
                                         }
                                 val cancelEvent = MotionEvent.obtain(
                                     now,
@@ -2430,7 +2430,7 @@ fun BrowserScreen(
                                     0f,
                                     0
                                 ).apply {
-                                    source = android.view.InputDevice.SOURCE_UNKNOWN
+                                    source = InputDevice.SOURCE_UNKNOWN
                                 }
 
                                 gv.dispatchTouchEvent(downEvent)
