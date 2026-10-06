@@ -11,7 +11,7 @@ import kotlin.math.ceil
 import kotlin.math.round
 import kotlin.math.roundToInt
 
-const val BASE_RADIUS = 30f
+const val BASE_RADIUS = 28f
 @Serializable
 data class BrowserSettings(
     val isFirstAppLoad: Boolean,
@@ -43,7 +43,7 @@ data class BrowserSettings(
     val maxListHeight: Float =  2f,
     val searchEngine: Int = 0,
     val isFullscreenMode: Boolean,
-    val highlightColor: Int = 0xFFBA160C.toInt(),
+    val highlightColor: Int,
     val isGuideModeEnabled: Boolean = true,
     val optionsOrder: String,
     val settingsOrder: String,
