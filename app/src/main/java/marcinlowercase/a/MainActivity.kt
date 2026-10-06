@@ -2373,7 +2373,7 @@ fun BrowserScreen(
             )
 
             if (!uiState.value.initialLoadDone && initialIntentUrl != null && viewModel.activeTab!!.currentURL == initialIntentUrl) {
-                webViewLoad(activeSession, initialIntentUrl)
+                webViewLoad(activeSession, initialIntentUrl, context)
                 viewModel.updateUI { it.copy(initialLoadDone = true) }
             } else {
                 val stateToRestore = viewModel.activeTab!!.savedState?.let {
@@ -3246,7 +3246,7 @@ fun BrowserScreen(
                             focusManager = focusManager,
                             keyboardController = keyboardController,
                             onNewUrl = { newUrl ->
-                                webViewLoad(activeSession, newUrl)
+                                webViewLoad(activeSession, newUrl, context)
                             },
 
                             )
