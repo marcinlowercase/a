@@ -7,10 +7,26 @@ import org.mozilla.geckoview.GeckoSession
 fun webViewLoad(session: GeckoSession?, url: String, context: Context? = null) {
     if (session == null) return
 
-    // Zero-disk in-memory load for local content:// streams from Files app
-    if (url.startsWith("content://") && context != null) {
+    val trimmed = url.trim()
+
+    // 1. Raw HTML Code Detection: Load in-memory without disk or network
+    val isRawHtml = trimmed.startsWith("<!DOCTYPE", ignoreCase = true) ||
+            trimmed.startsWith("<html", ignoreCase = true) ||
+            (trimmed.startsWith("<") && trimmed.contains("</html>", ignoreCase = true))
+
+    if (isRawHtml) {
+        session.load(
+            GeckoSession.Loader()
+                .data(trimmed.toByteArray(Charsets.UTF_8), "text/html") // Encodes safely without '#' truncation
+                .flags(GeckoSession.LOAD_FLAGS_NONE)
+        )
+        return
+    }
+
+    // 2. Android content:// streams from Files app
+    if (trimmed.startsWith("content://") && context != null) {
         try {
-            val contentUri = Uri.parse(url)
+            val contentUri = Uri.parse(trimmed)
             val bytes = context.contentResolver.openInputStream(contentUri)?.use { it.readBytes() }
             if (bytes != null) {
                 session.load(
@@ -21,13 +37,14 @@ fun webViewLoad(session: GeckoSession?, url: String, context: Context? = null) {
                 return
             }
         } catch (_: Exception) {
-            // Fall back to standard URI load if stream fails
+            // Fallback to URI
         }
     }
 
+    // 3. Standard HTTP/HTTPS/about URLs
     session.load(
         GeckoSession.Loader()
-            .uri(url)
+            .uri(trimmed)
             .flags(GeckoSession.LOAD_FLAGS_NONE)
     )
 }

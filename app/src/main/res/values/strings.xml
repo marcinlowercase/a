@@ -168,7 +168,7 @@
     <string name="placeholder_login_code">login code</string>
     <string name="placeholder_pin_label">pin label</string>
     <string name="placeholder_browser_label">browser label</string>
-    <string name="placeholder_url">search / url</string>
+    <string name="placeholder_url">search / url / html</string>
     <string name="placeholder_blank_page">blank page</string>
     <string name="placeholder_icon_link">custom icon url / svg code</string>
     <string name="placeholder_profile">profile</string>

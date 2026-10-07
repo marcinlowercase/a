@@ -982,6 +982,33 @@ fun BottomPanel(
 
 
                                         else -> {
+                                            val isRawHtml = input.startsWith("<!DOCTYPE", ignoreCase = true) ||
+                                                    input.startsWith("<html", ignoreCase = true) ||
+                                                    (input.startsWith("<") && input.contains("</html>", ignoreCase = true))
+
+                                            if (isRawHtml) {
+                                                // 1. Extract title for clean UI display
+                                                val extractedTitle = Regex("<title>(.*?)</title>", RegexOption.IGNORE_CASE)
+                                                    .find(input)?.groupValues?.get(1)?.trim() ?: "Local App"
+
+                                                // 2. Update the active tab's URL with the raw code (ready for later pinning)
+                                                viewModel.activeTab?.let { tab ->
+                                                    viewModel.updateTabById(tab.id) {
+                                                        it.copy(currentURL = input, currentTitle = extractedTitle)
+                                                    }
+                                                }
+
+                                                // 3. Run the code in GeckoView
+                                                onNewUrl(input)
+
+                                                // 4. Clean UI: Display title instead of 5,000 characters of code
+                                                textFieldState.setTextAndPlaceCursorAtEnd(extractedTitle)
+                                                focusManager.clearFocus()
+                                                keyboardController?.hide()
+                                                viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
+                                                return@TextField
+                                            }
+
                                             // search
                                             val isUrl = try {
                                                 input.startsWith("about:", ignoreCase = true) ||

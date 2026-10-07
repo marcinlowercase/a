@@ -169,12 +169,22 @@ fun getFaviconUrlFromGoogleServer(pageUrl: String): String {
     return "https://www.google.com/s2/favicons?sz=64&domain_url=$host"
 }
 
-fun String.toDomain(): String = try {
-    URL(this).host?.let {
-        if (it.startsWith("www.", ignoreCase = true)) it.substring(4) else it
-    } ?: this
-} catch (_: Exception) {
-    this
+fun String.toDomain(): String {
+    // Intercept local apps, data streams, and raw HTML
+    if (startsWith("data:", ignoreCase = true) ||
+        startsWith("content:", ignoreCase = true) ||
+        startsWith("<")
+    ) {
+        return "local app"
+    }
+
+    return try {
+        URL(this).host?.let {
+            if (it.startsWith("www.", ignoreCase = true)) it.substring(4) else it
+        } ?: this
+    } catch (_: Exception) {
+        this
+    }
 }
 
 fun formatArgbToCss(argb: String): String {
