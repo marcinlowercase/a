@@ -1586,10 +1586,15 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         val isLocalHtml = url.startsWith("<") || url.startsWith("data:", ignoreCase = true)
 
         if (isLocalHtml) {
-            val slug = cleanTitle.lowercase()
+            var slug = cleanTitle.lowercase()
                 .replace(Regex("[^a-z0-9]+"), "_")
                 .trim('_')
                 .ifBlank { "app_${System.currentTimeMillis()}" }
+
+            // If an app with this slug already exists, append a unique timestamp suffix
+            if (apps.any { it.url == "local://$slug" }) {
+                slug = "${slug}_${System.currentTimeMillis()}"
+            }
 
             val context = getApplication<Application>()
             val htmlContent = if (url.startsWith("data:", ignoreCase = true)) {
