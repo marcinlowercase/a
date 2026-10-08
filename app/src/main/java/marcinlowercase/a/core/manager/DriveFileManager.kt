@@ -20,11 +20,11 @@ class DriveFileManager(private val syncManager: DriveSyncManager) {
         }.setApplicationName("oo1_browser").build()
     }
 
-    // Ensures: Google Drive -> oo1_studio -> {appId}
+    // Ensures: Google Drive -> the_browser_of_oo1_studio -> {appId}
     private suspend fun getOrCreateAppFolderId(service: Drive, appId: String): String = withContext(Dispatchers.IO) {
-        val rootFolderName = "oo1_studio"
+        val rootFolderName = "the_browser_of_oo1_studio"
 
-        // 1. Find or create root 'oo1_studio' folder
+        // 1. Find or create root 'the_browser_of_oo1_studio' folder
         val rootQuery = service.files().list()
             .setQ("name = '$rootFolderName' and mimeType = 'application/vnd.google-apps.folder' and trashed = false and 'root' in parents")
             .setFields("files(id)")

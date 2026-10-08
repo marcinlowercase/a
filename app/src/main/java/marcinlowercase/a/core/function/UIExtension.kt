@@ -170,14 +170,20 @@ fun getFaviconUrlFromGoogleServer(pageUrl: String): String {
 }
 
 fun String.toDomain(): String {
-    // Intercept local apps, data streams, and raw HTML
-    if (startsWith("data:", ignoreCase = true) ||
-        startsWith("content:", ignoreCase = true) ||
-        startsWith("<")
-    ) {
-        return "local app"
+    // 1. Direct local scheme address
+    if (startsWith("local://", ignoreCase = true)) {
+        return this.lowercase().trimEnd('/')
     }
 
+    // 2. Unpinned code in-memory or files opened from storage
+    if (startsWith("data:", ignoreCase = true) || startsWith("<")) {
+        return "local://draft"
+    }
+    if (startsWith("content:", ignoreCase = true)) {
+        return "local://file"
+    }
+
+    // 3. Web URLs
     return try {
         URL(this).host?.let {
             if (it.startsWith("www.", ignoreCase = true)) it.substring(4) else it

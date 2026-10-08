@@ -95,310 +95,320 @@ fun AppsPanel(
 
     val profiles = viewModel.profiles
     val realPageCount = profiles.size
-    val currentProfileIdx =
-        profiles.indexOfFirst { it.id == viewModel.activeProfileId.value }.coerceAtLeast(0)
+    if (realPageCount == 0) return
 
-    val initialPage = remember(realPageCount) {
-        if (realPageCount <= 1) 0 else (Int.MAX_VALUE / 2) - ((Int.MAX_VALUE / 2) % realPageCount) + currentProfileIdx
-    }
+    val profilesKey = remember(profiles.size) { profiles.map { it.id }.hashCode() }
 
-    val pagerState = rememberPagerState(
-        initialPage = initialPage,
-        pageCount = { if (realPageCount <= 1) 1 else Int.MAX_VALUE }
-    )
-
-    // Helper: Only allow clicks if the panel is fully resting in the "Revealed" state
-    // and not currently being swiped/dragged or scrolling.
-    val isInteractive: () -> Boolean = {
-        uiState.value.isAppsPanelVisible
-                && !draggableState.isAnimationRunning
-                && !pagerState.isScrollInProgress
-    }
-
-    // Pager Logic
-    LaunchedEffect(pagerState.settledPage) {
-        val targetIndex = pagerState.settledPage % realPageCount
-        val selectedProfile = profiles[targetIndex]
-        if (selectedProfile.id != viewModel.activeProfileId.value) {
-            viewModel.switchProfile(selectedProfile.id)
-        }
-    }
-    LaunchedEffect(viewModel.activeProfileId.value, realPageCount) {
-        val targetIndex =
+    androidx.compose.runtime.key(profilesKey) {
+        val currentProfileIdx =
             profiles.indexOfFirst { it.id == viewModel.activeProfileId.value }.coerceAtLeast(0)
-        val currentIndex = pagerState.currentPage % realPageCount
-        if (currentIndex != targetIndex) {
-            var diff = targetIndex - currentIndex
-            if (diff > realPageCount / 2) diff -= realPageCount
-            if (diff < -realPageCount / 2) diff += realPageCount
-            pagerState.animateScrollToPage(pagerState.currentPage + diff)
-        }
-    }
 
-    HorizontalPager(
-        state = pagerState,
-        userScrollEnabled = realPageCount > 1
-    ) { page ->
-        val profileIndex = page % realPageCount
-        val pageProfile = profiles[profileIndex]
-        val activeApps = viewModel.apps.toList()
+        val initialPage =
+            if (realPageCount <= 1) 0 else (Int.MAX_VALUE / 2) - ((Int.MAX_VALUE / 2) % realPageCount) + currentProfileIdx
 
-        val pageApps = if (pageProfile.id == viewModel.activeProfileId.value) {
-            activeApps
-        } else {
-            remember(pageProfile.id) { viewModel.appManager.loadApps(pageProfile.id) }
+        val pagerState = rememberPagerState(
+            initialPage = initialPage,
+            pageCount = { if (realPageCount <= 1) 1 else Int.MAX_VALUE }
+        )
+
+        // Helper: Only allow clicks if the panel is fully resting in the "Revealed" state
+        // and not currently being swiped/dragged or scrolling.
+        val isInteractive: () -> Boolean = {
+            uiState.value.isAppsPanelVisible
+                    && !draggableState.isAnimationRunning
+                    && !pagerState.isScrollInProgress
         }
 
-        Column(
-            horizontalAlignment = Alignment.Start,
-            modifier = Modifier
-        ) {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(4),
+        // Pager Logic
+        LaunchedEffect(pagerState.settledPage) {
+            val targetIndex = pagerState.settledPage % realPageCount
+            val selectedProfile = profiles[targetIndex]
+            if (selectedProfile.id != viewModel.activeProfileId.value) {
+                viewModel.switchProfile(selectedProfile.id)
+            }
+        }
+        LaunchedEffect(viewModel.activeProfileId.value, realPageCount) {
+            val targetIndex =
+                profiles.indexOfFirst { it.id == viewModel.activeProfileId.value }.coerceAtLeast(0)
+            val currentIndex = pagerState.currentPage % realPageCount
+            if (currentIndex != targetIndex) {
+                var diff = targetIndex - currentIndex
+                if (diff > realPageCount / 2) diff -= realPageCount
+                if (diff < -realPageCount / 2) diff += realPageCount
+                pagerState.animateScrollToPage(pagerState.currentPage + diff)
+            }
+        }
+
+        HorizontalPager(
+            state = pagerState,
+            userScrollEnabled = realPageCount > 1
+        ) { page ->
+            val safeCount = realPageCount.coerceAtLeast(1)
+            val profileIndex = (page % safeCount).coerceIn(0, (profiles.size - 1).coerceAtLeast(0))
+            val pageProfile = profiles.getOrNull(profileIndex) ?: return@HorizontalPager
+            val activeApps = viewModel.apps.toList()
+
+            val pageApps = if (pageProfile.id == viewModel.activeProfileId.value) {
+                activeApps
+            } else {
+                remember(pageProfile.id) { viewModel.appManager.loadApps(pageProfile.id) }
+            }
+
+            Column(
+                horizontalAlignment = Alignment.Start,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(maxPanelHeight)
-                    .focusProperties { canFocus = false }
-                    .padding(horizontal = settings.value.padding.dp)
-                    .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp))
-                    .background(MaterialTheme.colorScheme.inverseSurface)
-                    .padding(settings.value.padding.dp)
-                    .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(3).dp)),
-                horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp),
-                verticalArrangement = Arrangement.spacedBy(settings.value.padding.dp),
             ) {
-                var visualItemCount = 0
+                val pageAppsKey = pageApps.map { it.id }.hashCode()
 
-                if (viewModel.isSortingButtons.value) {
-                    val opt = viewModel.inspectingOption.value
-                    val canLeft = opt != null && viewModel.canMoveOptionLeft(opt, settings.value)
-                    val canRight = opt != null && viewModel.canMoveOptionRight(opt, settings.value)
-                    val isHidden = opt != null && viewModel.isOptionHidden(opt, settings.value)
-                    val canHide = opt != null &&
-                            opt != marcinlowercase.a.core.enum_class.BrowserOption.SETTINGS &&
-                            opt != marcinlowercase.a.core.enum_class.BrowserOption.SORT_BUTTONS
-                    // 1. Move Left
-                    if (canLeft) {
-                        item(key = "sort_left", span = { GridItemSpan(1) }) {
-                            PlaceholderIcon(
-                                modifier = Modifier.animateItem(), // Smoothly slides when appearing/disappearing
-                                iconRes = R.drawable.ic_arrow_back,
-                                onClick = { viewModel.moveOptionLeft() },
-                                buttonDescription = stringResource(R.string.desc_move_button_left)
-                            )
-                        }
-                        visualItemCount++
-                    }
+                androidx.compose.runtime.key(pageProfile.id, pageAppsKey) {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(4),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(maxPanelHeight)
+                            .focusProperties { canFocus = false }
+                            .padding(horizontal = settings.value.padding.dp)
+                            .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp))
+                            .background(MaterialTheme.colorScheme.inverseSurface)
+                            .padding(settings.value.padding.dp)
+                            .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(3).dp)),
+                        horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp),
+                        verticalArrangement = Arrangement.spacedBy(settings.value.padding.dp),
+                    ) {
+                        var visualItemCount = 0
 
-                    // 2. Hide / Show
-                    if (canHide) {
-                        item(key = "sort_hide", span = { GridItemSpan(1) }) {
-                            PlaceholderIcon(
-                                modifier = Modifier.animateItem(),
-                                iconRes = if (isHidden) R.drawable.ic_visibility_off else R.drawable.ic_visibility,
-                                onClick = { viewModel.toggleOptionVisibility() },
-                                buttonDescription = stringResource(if (isHidden) R.string.desc_show_button else R.string.desc_hide_button)
-                            )
-                        }
-                        visualItemCount++
-                    }
-
-                    // 3. Move Right
-                    if (canRight) {
-                        item(key = "sort_right", span = { GridItemSpan(1) }) {
-                            PlaceholderIcon(
-                                modifier = Modifier.animateItem(),
-                                iconRes = R.drawable.ic_arrow_forward,
-                                onClick = { viewModel.moveOptionRight() },
-                                buttonDescription = stringResource(R.string.desc_move_button_right)
-                            )
-                        }
-                        visualItemCount++
-                    }
-
-                    // 4. Done Button (Always visible when sorting)
-                    item(key = "sort_done", span = { GridItemSpan(1) }) {
-                        PlaceholderIcon(
-                            modifier = Modifier.animateItem(),
-                            iconRes = R.drawable.ic_check,
-                            onClick = {
-                                viewModel.isSortingButtons.value = false
-                                viewModel.inspectingOption.value = null
-                                viewModel.updateUI { it.copy(isAppsPanelVisible = false) }
-                            },
-                            buttonDescription = stringResource(R.string.desc_done_sorting),
-                            otherColor = Color(settings.value.highlightColor)
-                        )
-                    }
-                    visualItemCount++
-                } else {
-                    val inspectingId = viewModel.inspectingAppId.longValue
-
-                    // We loop manually to inject items.
-                    pageApps.forEachIndexed { index, app ->
-                        val isInspectingThisApp = (inspectingId == app.id)
-
-                        // 1. Move Backward Button
-                        if (isInspectingThisApp && index > 0) {
-                            item(key = "prev_${app.id}", contentType = "action_button") {
-                                AnimatedVisibility(
-                                    visible = true,
-                                    enter = scaleIn(animationSpec = spring(stiffness = Spring.StiffnessMedium)) + fadeIn(),
-                                    modifier = Modifier.animateItem()
-                                ) {
+                        if (viewModel.isSortingButtons.value) {
+                            val opt = viewModel.inspectingOption.value
+                            val canLeft =
+                                opt != null && viewModel.canMoveOptionLeft(opt, settings.value)
+                            val canRight =
+                                opt != null && viewModel.canMoveOptionRight(opt, settings.value)
+                            val isHidden =
+                                opt != null && viewModel.isOptionHidden(opt, settings.value)
+                            val canHide = opt != null &&
+                                    opt != marcinlowercase.a.core.enum_class.BrowserOption.SETTINGS &&
+                                    opt != marcinlowercase.a.core.enum_class.BrowserOption.SORT_BUTTONS
+                            // 1. Move Left
+                            if (canLeft) {
+                                item(key = "sort_left", span = { GridItemSpan(1) }) {
                                     PlaceholderIcon(
-                                        iconRes = R.drawable.ic_arrow_upward,
-                                        onClick = {
-                                            if (isInteractive()) {
-                                                val currentIndex =
-                                                    viewModel.apps.indexOfFirst { it.id == app.id }
-                                                if (currentIndex > 0) {
-                                                    viewModel.swapApps(
-                                                        currentIndex,
-                                                        currentIndex - 1
-                                                    )
-                                                }
-                                            }
-                                        },
-                                        buttonDescription = stringResource(R.string.desc_move_pin_up)
+                                        modifier = Modifier.animateItem(), // Smoothly slides when appearing/disappearing
+                                        iconRes = R.drawable.ic_arrow_back,
+                                        onClick = { viewModel.moveOptionLeft() },
+                                        buttonDescription = stringResource(R.string.desc_move_button_left)
                                     )
                                 }
+                                visualItemCount++
+                            }
+
+                            // 2. Hide / Show
+                            if (canHide) {
+                                item(key = "sort_hide", span = { GridItemSpan(1) }) {
+                                    PlaceholderIcon(
+                                        modifier = Modifier.animateItem(),
+                                        iconRes = if (isHidden) R.drawable.ic_visibility_off else R.drawable.ic_visibility,
+                                        onClick = { viewModel.toggleOptionVisibility() },
+                                        buttonDescription = stringResource(if (isHidden) R.string.desc_show_button else R.string.desc_hide_button)
+                                    )
+                                }
+                                visualItemCount++
+                            }
+
+                            // 3. Move Right
+                            if (canRight) {
+                                item(key = "sort_right", span = { GridItemSpan(1) }) {
+                                    PlaceholderIcon(
+                                        modifier = Modifier.animateItem(),
+                                        iconRes = R.drawable.ic_arrow_forward,
+                                        onClick = { viewModel.moveOptionRight() },
+                                        buttonDescription = stringResource(R.string.desc_move_button_right)
+                                    )
+                                }
+                                visualItemCount++
+                            }
+
+                            // 4. Done Button (Always visible when sorting)
+                            item(key = "sort_done", span = { GridItemSpan(1) }) {
+                                PlaceholderIcon(
+                                    modifier = Modifier.animateItem(),
+                                    iconRes = R.drawable.ic_check,
+                                    onClick = {
+                                        viewModel.isSortingButtons.value = false
+                                        viewModel.inspectingOption.value = null
+                                        viewModel.updateUI { it.copy(isAppsPanelVisible = false) }
+                                    },
+                                    buttonDescription = stringResource(R.string.desc_done_sorting),
+                                    otherColor = Color(settings.value.highlightColor)
+                                )
                             }
                             visualItemCount++
-                        }
+                        } else {
+                            val inspectingId = viewModel.inspectingAppId.longValue
 
-                        // 2. The App Icon
-                        item(key = "app_${app.id}", contentType = "app") {
-                            AppIcon(
-                                app = app,
-                                onClick = {
-                                    if (isInteractive()) {
-                                        if (inspectingId != 0L && inspectingId != app.id) {
-                                            viewModel.inspectingAppId.longValue = app.id
-                                        } else {
-                                            onAppClick(app)
-                                        }
-                                    }
-                                },
-                                onDoubleClick = {
-                                    if (isInteractive()) {
-                                        viewModel.createNewTab(
-                                            viewModel.activeTabIndex.value + 1,
-                                            app.url
-                                        )
-                                        viewModel.updateUI {
-                                            it.copy(
-                                                isSettingsPanelVisible = false,
-                                                isUrlBarVisible = false
+                            // We loop manually to inject items.
+                            pageApps.forEachIndexed { index, app ->
+                                val isInspectingThisApp = (inspectingId == app.id)
+
+                                // 1. Move Backward Button
+                                if (isInspectingThisApp && index > 0) {
+                                    item(key = "prev_${app.id}", contentType = "action_button") {
+                                        AnimatedVisibility(
+                                            visible = true,
+                                            enter = scaleIn(animationSpec = spring(stiffness = Spring.StiffnessMedium)) + fadeIn(),
+                                            modifier = Modifier.animateItem()
+                                        ) {
+                                            PlaceholderIcon(
+                                                iconRes = R.drawable.ic_arrow_upward,
+                                                onClick = {
+                                                    if (isInteractive()) {
+                                                        val currentIndex =
+                                                            viewModel.apps.indexOfFirst { it.id == app.id }
+                                                        if (currentIndex > 0) {
+                                                            viewModel.swapApps(
+                                                                currentIndex,
+                                                                currentIndex - 1
+                                                            )
+                                                        }
+                                                    }
+                                                },
+                                                buttonDescription = stringResource(R.string.desc_move_pin_up)
                                             )
                                         }
                                     }
-                                },
-                                onLongClick = {
-                                    if (isInteractive()) {
+                                    visualItemCount++
+                                }
 
-                                        viewModel.inspectingAppId.longValue =
-                                            if (inspectingId != app.id) app.id else 0L
-                                    }
-                                },
-                                modifier = Modifier.animateItem()
-                            )
-                        }
-                        visualItemCount++
-
-                        // 3. Move Forward Button
-                        if (isInspectingThisApp && index < pageApps.size - 1) {
-                            item(key = "next_${app.id}", contentType = "action_button") {
-                                AnimatedVisibility(
-                                    visible = true,
-                                    enter = scaleIn(animationSpec = spring(stiffness = Spring.StiffnessMedium)) + fadeIn(),
-                                    modifier = Modifier.animateItem()
-                                ) {
-                                    PlaceholderIcon(
-                                        iconRes = R.drawable.ic_arrow_downward,
+                                // 2. The App Icon
+                                item(key = "app_${app.id}", contentType = "app") {
+                                    AppIcon(
+                                        app = app,
                                         onClick = {
                                             if (isInteractive()) {
-                                                val currentIndex =
-                                                    viewModel.apps.indexOfFirst { it.id == app.id }
-                                                if (currentIndex != -1 && currentIndex < pageApps.size - 1) {
-                                                    viewModel.swapApps(
-                                                        currentIndex,
-                                                        currentIndex + 1
+                                                if (inspectingId != 0L && inspectingId != app.id) {
+                                                    viewModel.inspectingAppId.longValue = app.id
+                                                } else {
+                                                    onAppClick(app)
+                                                }
+                                            }
+                                        },
+                                        onDoubleClick = {
+                                            if (isInteractive()) {
+                                                viewModel.createNewTab(
+                                                    viewModel.activeTabIndex.value + 1,
+                                                    app.url
+                                                )
+                                                viewModel.updateUI {
+                                                    it.copy(
+                                                        isSettingsPanelVisible = false,
+                                                        isUrlBarVisible = false
                                                     )
                                                 }
                                             }
                                         },
-                                        buttonDescription = stringResource(R.string.desc_move_pin_down)
-                                    )
-                                }
-                            }
-                            visualItemCount++
-                        }
-
-                        // 4. Delete Button
-                        if (isInspectingThisApp) {
-                            item(key = "del_${app.id}", contentType = "action_button") {
-                                AnimatedVisibility(
-                                    visible = true,
-                                    enter = scaleIn(animationSpec = spring(stiffness = Spring.StiffnessMedium)) + fadeIn(),
-                                    modifier = Modifier.animateItem()
-                                ) {
-                                    PlaceholderIcon(
-                                        iconRes = R.drawable.ic_delete_forever,
-                                        onClick = {
+                                        onLongClick = {
                                             if (isInteractive()) {
-                                                viewModel.removeApp(app.id)
-                                                viewModel.inspectingAppId.longValue = 0L
+
+                                                viewModel.inspectingAppId.longValue =
+                                                    if (inspectingId != app.id) app.id else 0L
                                             }
                                         },
-                                        buttonDescription = stringResource(R.string.desc_delete_pin)
+                                        modifier = Modifier.animateItem()
                                     )
                                 }
+                                visualItemCount++
+
+                                // 3. Move Forward Button
+                                if (isInspectingThisApp && index < pageApps.size - 1) {
+                                    item(key = "next_${app.id}", contentType = "action_button") {
+                                        AnimatedVisibility(
+                                            visible = true,
+                                            enter = scaleIn(animationSpec = spring(stiffness = Spring.StiffnessMedium)) + fadeIn(),
+                                            modifier = Modifier.animateItem()
+                                        ) {
+                                            PlaceholderIcon(
+                                                iconRes = R.drawable.ic_arrow_downward,
+                                                onClick = {
+                                                    if (isInteractive()) {
+                                                        val currentIndex =
+                                                            viewModel.apps.indexOfFirst { it.id == app.id }
+                                                        if (currentIndex != -1 && currentIndex < pageApps.size - 1) {
+                                                            viewModel.swapApps(
+                                                                currentIndex,
+                                                                currentIndex + 1
+                                                            )
+                                                        }
+                                                    }
+                                                },
+                                                buttonDescription = stringResource(R.string.desc_move_pin_down)
+                                            )
+                                        }
+                                    }
+                                    visualItemCount++
+                                }
+
+                                // 4. Delete Button
+                                if (isInspectingThisApp) {
+                                    item(key = "del_${app.id}", contentType = "action_button") {
+                                        AnimatedVisibility(
+                                            visible = true,
+                                            enter = scaleIn(animationSpec = spring(stiffness = Spring.StiffnessMedium)) + fadeIn(),
+                                            modifier = Modifier.animateItem()
+                                        ) {
+                                            PlaceholderIcon(
+                                                iconRes = R.drawable.ic_delete_forever,
+                                                onClick = {
+                                                    if (isInteractive()) {
+                                                        viewModel.removeApp(app.id)
+                                                        viewModel.inspectingAppId.longValue = 0L
+                                                    }
+                                                },
+                                                buttonDescription = stringResource(R.string.desc_delete_pin)
+                                            )
+                                        }
+                                    }
+                                    visualItemCount++
+                                }
+
+                                // 4. Done Button
+                                if (isInspectingThisApp) {
+                                    item(key = "done_${app.id}", contentType = "action_button") {
+                                        AnimatedVisibility(
+                                            visible = true,
+                                            enter = scaleIn(animationSpec = spring(stiffness = Spring.StiffnessMedium)) + fadeIn(),
+                                            modifier = Modifier.animateItem()
+                                        ) {
+                                            PlaceholderIcon(
+                                                iconRes = R.drawable.ic_check,
+                                                onClick = {
+                                                    if (isInteractive()) {
+                                                        viewModel.inspectingAppId.longValue = 0L
+                                                    }
+                                                },
+                                                buttonDescription = stringResource(R.string.desc_done_editing)
+                                            )
+                                        }
+                                    }
+                                    visualItemCount++
+                                }
+                            }
+
+                            // --- FOOTER / PLACEHOLDERS ---
+
+
+                            item(
+                                span = { GridItemSpan(1) },
+                                key = "pin_tab_${pageProfile.id}",
+                                contentType = "action_button"
+                            ) {
+                                PlaceholderIcon(
+                                    iconRes = R.drawable.ic_keep,
+                                    onClick = { if (isInteractive()) addAppToPin() },
+                                    modifier = Modifier.animateItem(),
+                                    buttonDescription = stringResource(R.string.desc_pin_current_tab)
+                                )
                             }
                             visualItemCount++
                         }
-
-                        // 4. Done Button
-                        if (isInspectingThisApp) {
-                            item(key = "done_${app.id}", contentType = "action_button") {
-                                AnimatedVisibility(
-                                    visible = true,
-                                    enter = scaleIn(animationSpec = spring(stiffness = Spring.StiffnessMedium)) + fadeIn(),
-                                    modifier = Modifier.animateItem()
-                                ) {
-                                    PlaceholderIcon(
-                                        iconRes = R.drawable.ic_check,
-                                        onClick = {
-                                            if (isInteractive()) {
-                                                viewModel.inspectingAppId.longValue = 0L
-                                            }
-                                        },
-                                        buttonDescription = stringResource(R.string.desc_done_editing)
-                                    )
-                                }
-                            }
-                            visualItemCount++
-                        }
-                    }
-
-                    // --- FOOTER / PLACEHOLDERS ---
-
-
-
-                    item(
-                        span = { GridItemSpan(1) },
-                        key = "pin_tab_${pageProfile.id}",
-                        contentType = "action_button"
-                    ) {
-                        PlaceholderIcon(
-                            iconRes = R.drawable.ic_keep,
-                            onClick = { if (isInteractive()) addAppToPin() },
-                            modifier = Modifier.animateItem(),
-                            buttonDescription = stringResource(R.string.desc_pin_current_tab)
-                        )
-                    }
-                    visualItemCount++
-                }
 
 //                item(
 //                    span = { GridItemSpan(1) },
@@ -424,106 +434,111 @@ fun AppsPanel(
 //                }
 //                visualItemCount++
 
-                val remainder = visualItemCount % 4
-                val needsGapFiller = remainder == 3
-                if (needsGapFiller) {
-                    item(
-                        span = { GridItemSpan(1) },
-                        key = "gap_filler_page_${pageProfile.id}",
-                        contentType = "placeholder"
-                    ) {
-                        PlaceholderIcon(modifier = Modifier.animateItem())
-                    }
-                    visualItemCount++
-                }
-                // 1. Profile Name (Span 2)
-                item(
-                    span = { GridItemSpan(2) },
-                    key = "profile_name_${pageProfile.id}",
-                    contentType = "profile_header"
-                ) {
-                    PlaceholderIcon(
-                        text = pageProfile.name,
-                        modifier = Modifier.animateItem(),
-                        buttonDescription = stringResource(R.string.desc_rename_profile),
-                        onClick = {
-                            if (isInteractive()) {
-                                renameProfile()
+                        val remainder = visualItemCount % 4
+                        val needsGapFiller = remainder == 3
+                        if (needsGapFiller) {
+                            item(
+                                span = { GridItemSpan(1) },
+                                key = "gap_filler_page_${pageProfile.id}",
+                                contentType = "placeholder"
+                            ) {
+                                PlaceholderIcon(modifier = Modifier.animateItem())
                             }
-                        })
-                }
-                visualItemCount += 2
+                            visualItemCount++
+                        }
+                        // 1. Profile Name (Span 2)
+                        item(
+                            span = { GridItemSpan(2) },
+                            key = "profile_name_${pageProfile.id}",
+                            contentType = "profile_header"
+                        ) {
+                            PlaceholderIcon(
+                                text = pageProfile.name,
+                                modifier = Modifier.animateItem(),
+                                buttonDescription = stringResource(R.string.desc_rename_profile),
+                                onClick = {
+                                    if (isInteractive()) {
+                                        renameProfile()
+                                    }
+                                })
+                        }
+                        visualItemCount += 2
 
-                item(
-                    span = { GridItemSpan(1) },
-                    key = "sync_profile_${pageProfile.id}",
-                    contentType = "action_button"
-                ) {
-                    PlaceholderIcon(
-                        iconRes = R.drawable.ic_person_cloud,
-                        // Glows with theme highlight color when ON, default dim when OFF
-                        otherColor = if (pageProfile.isSyncEnabled) Color(settings.value.highlightColor) else null,
-                        onClick = {
-                            if (isInteractive()) {
-                                viewModel.toggleProfileSync(pageProfile.id)
+                        item(
+                            span = { GridItemSpan(1) },
+                            key = "sync_profile_${pageProfile.id}",
+                            contentType = "action_button"
+                        ) {
+                            PlaceholderIcon(
+                                iconRes = R.drawable.ic_person_cloud,
+                                // Glows with theme highlight color when ON, default dim when OFF
+                                otherColor = if (pageProfile.isSyncEnabled) Color(settings.value.highlightColor) else null,
+                                onClick = {
+                                    if (isInteractive()) {
+                                        viewModel.toggleProfileSync(pageProfile.id)
+                                    }
+                                },
+                                modifier = Modifier.animateItem(),
+                                buttonDescription = stringResource(R.string.desc_sync_profile)
+                            )
+                        }
+                        visualItemCount++
+
+                        item(
+                            span = { GridItemSpan(1) },
+                            key = "new_profile_${pageProfile.id}",
+                            contentType = "action_button"
+                        ) {
+                            PlaceholderIcon(
+                                iconRes = R.drawable.ic_person_add,
+                                onClick = { if (isInteractive()) createNewProfile() },
+                                modifier = Modifier.animateItem(),
+                                buttonDescription = stringResource(R.string.desc_new_profile)
+                            )
+                        }
+                        visualItemCount++
+
+                        // 4. Delete Profile
+                        if (profiles.size > 1) {
+                            item(
+                                span = { GridItemSpan(1) },
+                                key = "delete_profile_${pageProfile.id}",
+                                contentType = "action_button"
+                            ) {
+                                PlaceholderIcon(
+                                    iconRes = R.drawable.ic_person_off,
+                                    onClick = {
+                                        if (profiles.size > 1 && isInteractive()) {
+                                            deleteProfile()
+                                        }
+                                    },
+                                    modifier = Modifier.animateItem(),
+                                    buttonDescription = stringResource(R.string.desc_delete_profile)
+                                )
                             }
-                        },
-                        modifier = Modifier.animateItem(),
-                        buttonDescription = stringResource(R.string.desc_sync_profile)
-                    )
-                }
-                visualItemCount++
+                            visualItemCount++
+                        }
+                        val minRows =
+                            ceil(settings.value.getMaxListHeight(uiState.value.windowMode)).toInt()
+                        val currentRows = ceil(visualItemCount / 4f).toInt()
+                        val targetRows = maxOf(minRows, currentRows)
+                        val remainingPlaceholders =
+                            ((targetRows * 4) - visualItemCount).coerceAtLeast(0)
 
-                item(
-                    span = { GridItemSpan(1) },
-                    key = "new_profile_${pageProfile.id}",
-                    contentType = "action_button"
-                ) {
-                    PlaceholderIcon(
-                        iconRes = R.drawable.ic_person_add,
-                        onClick = { if (isInteractive()) createNewProfile() },
-                        modifier = Modifier.animateItem(),
-                        buttonDescription = stringResource(R.string.desc_new_profile)
-                    )
-                }
-                visualItemCount++
+                        items(
+                            count = remainingPlaceholders,
+                            key = { index -> "empty_slot_${pageProfile.id}_$index" },
+                            contentType = { "placeholder" }
+                        ) {
+                            PlaceholderIcon(modifier = Modifier.animateItem())
+                        }
 
-                // 4. Delete Profile
-                if (profiles.size > 1) {
-                    item(
-                        span = { GridItemSpan(1) },
-                        key = "delete_profile_${pageProfile.id}",
-                        contentType = "action_button"
-                    ) {
-                        PlaceholderIcon(
-                            iconRes = R.drawable.ic_person_off,
-                            onClick = {
-                                if (profiles.size > 1 && isInteractive()) {
-                                    deleteProfile()
-                                }
-                            },
-                            modifier = Modifier.animateItem(),
-                            buttonDescription = stringResource(R.string.desc_delete_profile)
-                        )
+
                     }
-                    visualItemCount++
                 }
-                val minRows = ceil(settings.value.getMaxListHeight(uiState.value.windowMode)).toInt()
-                val currentRows = ceil(visualItemCount / 4f).toInt()
-                val targetRows = maxOf(minRows, currentRows)
-                val remainingPlaceholders = ((targetRows * 4) - visualItemCount).coerceAtLeast(0)
-
-                items(
-                    count = remainingPlaceholders,
-                    key = { index -> "empty_slot_${pageProfile.id}_$index" },
-                    contentType = { "placeholder" }
-                ) {
-                    PlaceholderIcon(modifier = Modifier.animateItem())
-                }
-
-
             }
         }
+
     }
 }
 
@@ -604,9 +619,10 @@ fun PlaceholderIcon(
         if (text != null) {
             Text(
                 text = text,
-                color = if (otherColor != null) Color(settings.value.activeOnHighlight()
+                color = if (otherColor != null) Color(
+                    settings.value.activeOnHighlight()
                 ) else {
-                    if (!isSystemInDarkTheme() && settings.value.isMaterialYou())MaterialTheme.colorScheme.onSurface  else
+                    if (!isSystemInDarkTheme() && settings.value.isMaterialYou()) MaterialTheme.colorScheme.onSurface else
                         MaterialTheme.colorScheme.surfaceContainer
                 },
                 maxLines = 1,
@@ -620,16 +636,18 @@ fun PlaceholderIcon(
             Icon(
                 painter = painterResource(id = iconRes),
                 contentDescription = null,
-                tint = if (otherColor != null) Color(settings.value.activeOnHighlight()
-                    ) else {
-                    if (!isSystemInDarkTheme() && settings.value.isMaterialYou())MaterialTheme.colorScheme.onSurface  else
-                    MaterialTheme.colorScheme.surfaceContainer
+                tint = if (otherColor != null) Color(
+                    settings.value.activeOnHighlight()
+                ) else {
+                    if (!isSystemInDarkTheme() && settings.value.isMaterialYou()) MaterialTheme.colorScheme.onSurface else
+                        MaterialTheme.colorScheme.surfaceContainer
                 },
                 modifier = Modifier.size(24.dp)
             )
         }
     }
 }
+
 
 @Composable
 fun AppIcon(

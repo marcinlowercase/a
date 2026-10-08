@@ -2079,8 +2079,6 @@ fun BrowserScreen(
                     viewModel.updateUI { it.copy(isLoading = (int < 100)) }
                 },
                 onLocationChangeFun = { eventTabId, _, url, _, _ ->
-
-
                     if (eventTabId == viewModel.activeTab!!.id
                         && url != null
                         && !url.startsWith("javascript:")
@@ -2089,21 +2087,31 @@ fun BrowserScreen(
                             url == "about:blank" && viewModel.activeTab!!.currentURL != "about:blank" && viewModel.activeTab!!.currentURL.isNotBlank()
 
                         if (!isGhostBlank) {
+                            val activeTab = viewModel.activeTab
+                            val isCurrentLocal = activeTab?.currentURL?.startsWith("local://", ignoreCase = true) == true
+                            val isIncomingDataUri = url.startsWith("data:", ignoreCase = true)
+
+                            // Protect local:// scheme from being overwritten by GeckoView's internal data: URI
+                            val finalUrl = if (isCurrentLocal && isIncomingDataUri) {
+                                activeTab!!.currentURL
+                            } else {
+                                url
+                            }
+
                             if (!uiState.value.isFocusOnUrlTextField) {
-                                textFieldState.setTextAndPlaceCursorAtEnd(url.toDomain())
+                                textFieldState.setTextAndPlaceCursorAtEnd(finalUrl.toDomain())
                             }
                             viewModel.updateTabById(eventTabId) { tab ->
-                                val cachedIcon = tab.faviconCache[url] ?: ""
+                                val cachedIcon = tab.faviconCache[finalUrl] ?: ""
 
                                 tab.copy(
-                                    currentURL = url,
+                                    currentURL = finalUrl,
                                     currentFaviconUrl = cachedIcon
                                 )
                             }
                         }
                     }
                 },
-
                 onNewSessionFunWithId = { id, uri ->
                     viewModel.handleNewSession(id, uri)
                 },
@@ -2184,9 +2192,20 @@ fun BrowserScreen(
                         if (!isGhostBlank) {
                             viewModel.updateUI { it.copy(isLoading = true) }
 
-                            if (!uiState.value.isFocusOnUrlTextField) textFieldState.setTextAndPlaceCursorAtEnd(
+                            val activeTab = viewModel.activeTab
+                            val isCurrentLocal = activeTab?.currentURL?.startsWith("local://", ignoreCase = true) == true
+                            val isIncomingDataUri = url.startsWith("data:", ignoreCase = true)
+
+                            // Keep the active tab's local:// address while loading
+                            val displayUrl = if (isCurrentLocal && isIncomingDataUri) {
+                                activeTab!!.currentURL
+                            } else {
                                 url.toDomain()
-                            )
+                            }
+
+                            if (!uiState.value.isFocusOnUrlTextField) {
+                                textFieldState.setTextAndPlaceCursorAtEnd(displayUrl)
+                            }
                         }
                     }
 
@@ -2384,7 +2403,7 @@ fun BrowserScreen(
 
                     val urlToLoad = baseLoad.ifBlank { "about:blank" }
                     Log.d("marcBlank", "load blank from launched effect, $urlToLoad")
-                    webViewLoad(activeSession, urlToLoad)
+                    webViewLoad(activeSession, urlToLoad, context)
                 }
             }
         }

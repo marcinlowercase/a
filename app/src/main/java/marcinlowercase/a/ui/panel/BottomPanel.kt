@@ -1278,7 +1278,13 @@ fun BottomPanel(
 
                         AppsPanel(
                             onAppClick = { app ->
-                                webViewLoad(activeSession, app.url)
+                                viewModel.activeTab?.let { tab ->
+                                    viewModel.updateTabById(tab.id) {
+                                        it.copy(currentURL = app.url, currentTitle = app.label)
+                                    }
+                                }
+                                textFieldState.setTextAndPlaceCursorAtEnd(app.url)
+                                webViewLoad(activeSession, app.url, context)
                                 viewModel.updateUI { it.copy(isSettingsPanelVisible = false) }
                                 viewModel.updateUI { it.copy(isUrlBarVisible = false) }
                             },

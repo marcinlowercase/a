@@ -967,10 +967,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
             if (!jsonString.isNullOrBlank()) {
                 try {
-                    // 1. Heavy JSON decode on IO thread
                     val cloudData = jsonParser.decodeFromString<SyncPayload>(jsonString)
 
-                    // 2. Guard: Never wipe local data if cloud backup has 0 profiles
                     if (cloudData.profiles.isEmpty()) {
                         withContext(Dispatchers.Main) {
                             updateUI { it.copy(isLoading = false) }
@@ -979,16 +977,14 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                         return@executeWithDriveToken
                     }
 
-                    // 3. Apply changes cleanly on Main thread without intermediate empty frames
+                    // Directly restore on Main without withMutableSnapshot
                     withContext(Dispatchers.Main) {
-                        androidx.compose.runtime.snapshots.Snapshot.withMutableSnapshot {
-                            wipeAllLocalData()
-                            restoreFromCloud(cloudData, isMerge = false)
-                        }
+                        restoreFromCloud(cloudData, isMerge = false)
                         updateUI { it.copy(isLoading = false) }
                         showCustomNotification(context.getString(R.string.ui_sync_successful))
                     }
                 } catch (e: Exception) {
+                    Log.e("BrowserSync", "Pull failed", e)
                     withContext(Dispatchers.Main) {
                         updateUI { it.copy(isLoading = false) }
                         showCustomNotification(context.getString(R.string.ui_sync_failed))
@@ -1014,9 +1010,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 try {
                     val cloudData = jsonParser.decodeFromString<SyncPayload>(jsonString)
                     withContext(Dispatchers.Main) {
-                        androidx.compose.runtime.snapshots.Snapshot.withMutableSnapshot {
-                            restoreFromCloud(cloudData, isMerge = true)
-                        }
+                        restoreFromCloud(cloudData, isMerge = true)
                     }
 
                     // Push the merged super-state back up to Drive on IO thread
@@ -1588,9 +1582,61 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     val inspectingAppId = mutableLongStateOf(0L)
 
     fun pinApp(title: String, url: String, iconUrl: String) {
+        val cleanTitle = title.ifBlank { "app" }
+        val isLocalHtml = url.startsWith("<") || url.startsWith("data:", ignoreCase = true)
+
+        if (isLocalHtml) {
+            val slug = cleanTitle.lowercase()
+                .replace(Regex("[^a-z0-9]+"), "_")
+                .trim('_')
+                .ifBlank { "app_${System.currentTimeMillis()}" }
+
+            val context = getApplication<Application>()
+            val htmlContent = if (url.startsWith("data:", ignoreCase = true)) {
+                try {
+                    val base64Part = url.substringAfter("base64,")
+                    String(android.util.Base64.decode(base64Part, android.util.Base64.DEFAULT), Charsets.UTF_8)
+                } catch (_: Exception) { url }
+            } else {
+                url
+            }
+
+            viewModelScope.launch(Dispatchers.IO) {
+                // 1. Save on-device cache in context.filesDir/apps/<slug>.html
+                val appsDir = File(context.filesDir, "apps")
+                if (!appsDir.exists()) appsDir.mkdirs()
+                File(appsDir, "$slug.html").writeText(htmlContent)
+
+                // 2. Silently push to user's Google Drive: the_browser_of_oo1_studio/<slug>/index.html
+                val token = driveSyncManager.getFreshAccessToken()
+                if (!token.isNullOrBlank()) {
+                    val driveFileManager = marcinlowercase.a.core.manager.DriveFileManager(driveSyncManager)
+                    driveFileManager.saveText(token, slug, "index.html", htmlContent, "text/html")
+                }
+            }
+
+            // 3. Register lightweight pointer in Apps Panel
+            val virtualUrl = "local://$slug"
+            val newApp = App(
+                id = System.currentTimeMillis(),
+                label = cleanTitle,
+                url = virtualUrl,
+                iconUrl = iconUrl
+            )
+            apps.add(newApp)
+            saveApps()
+
+            // 4. Update the active tab's URL to the clean short scheme
+            activeTab?.let { tab ->
+                updateTabById(tab.id) { it.copy(currentURL = virtualUrl) }
+            }
+            return
+        }
+
+        // Standard remote web link pinning
         val newApp = App(
             id = System.currentTimeMillis(),
-            label = title,
+            label = cleanTitle,
             url = url,
             iconUrl = iconUrl
         )
