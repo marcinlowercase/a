@@ -413,9 +413,33 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
         if (currentIndex == -1) return // Safety check if not found
 
-        // Determine which profile to switch to BEFORE removing it.
-        // If deleting the very first one (index 0), fallback to index 1.
-        // Otherwise, move to the previous one (index - 1).
+        // --- Clean up local apps that belong exclusively to this profile ---
+        val appsInDeletedProfile = appManager.loadApps(idToDelete)
+        val otherProfiles = profiles.filter { it.id != idToDelete }
+        val appsInOtherProfiles = otherProfiles
+            .flatMap { appManager.loadApps(it.id) }
+            .map { it.url }
+            .toSet()
+
+        val context = getApplication<Application>()
+        val appsDir = File(context.filesDir, "apps")
+
+        appsInDeletedProfile.forEach { app ->
+            if (app.url.startsWith("local://apps/", ignoreCase = true)) {
+                // If NO other profile has this app pinned, delete its local files and record tombstone
+                if (!appsInOtherProfiles.contains(app.url)) {
+                    val slug = app.url.removePrefix("local://apps/")
+                        .removeSuffix("/index.html")
+                        .removeSuffix("/index.htm")
+                        .trim('/')
+
+                    File(appsDir, "$slug.html").delete()
+                    File(appsDir, "${slug}_icon.png").delete()
+                    recordDeletedAppSlug(slug)
+                }
+            }
+        }
+
         val targetIndex = if (currentIndex > 0) currentIndex - 1 else 1
         val profileIdToSwitchTo = profiles[targetIndex].id
 
@@ -828,29 +852,44 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     //region Sync Logic
 
-    // Uploads all on-device apps and icons from filesDir/apps to Google Drive on IO thread
+    // Uploads only active on-device apps and icons from filesDir/apps to Google Drive on IO thread
     private suspend fun syncLocalAppsToDriveOnIO(token: String) {
         val context = getApplication<Application>()
         val appsDir = File(context.filesDir, "apps")
         if (!appsDir.exists()) return
+
+        // Only upload files that belong to currently pinned apps across remaining profiles
+        val activeSlugs = profileManager.loadProfiles()
+            .flatMap { appManager.loadApps(it.id) }
+            .filter { it.url.startsWith("local://apps/", ignoreCase = true) }
+            .map {
+                it.url.removePrefix("local://apps/")
+                    .removeSuffix("/index.html")
+                    .removeSuffix("/index.htm")
+                    .trim('/')
+            }.toSet()
 
         val driveFileManager = marcinlowercase.a.core.manager.DriveFileManager(driveSyncManager)
 
         appsDir.listFiles()?.forEach { file ->
             val fileName = file.name
             try {
-                // Upload HTML code files
+                // Upload HTML code files only if pinned in at least one profile
                 if (fileName.endsWith(".html")) {
                     val slug = fileName.removeSuffix(".html")
-                    val htmlContent = file.readText()
-                    driveFileManager.saveText(token, slug, "index.html", htmlContent, "text/html")
+                    if (activeSlugs.contains(slug)) {
+                        val htmlContent = file.readText()
+                        driveFileManager.saveText(token, slug, "index.html", htmlContent, "text/html")
+                    }
                 }
-                // Upload icon image files
+                // Upload icon image files only if pinned in at least one profile
                 else if (fileName.endsWith("_icon.png")) {
                     val slug = fileName.removeSuffix("_icon.png")
-                    val iconBytes = file.readBytes()
-                    val iconBase64 = android.util.Base64.encodeToString(iconBytes, android.util.Base64.NO_WRAP)
-                    driveFileManager.saveText(token, slug, "icon.png", iconBase64, "image/png")
+                    if (activeSlugs.contains(slug)) {
+                        val iconBytes = file.readBytes()
+                        val iconBase64 = android.util.Base64.encodeToString(iconBytes, android.util.Base64.NO_WRAP)
+                        driveFileManager.saveText(token, slug, "icon.png", iconBase64, "image/png")
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("DriveSync", "Failed to upload local app asset: $fileName", e)
@@ -864,6 +903,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         val appsDir = File(context.filesDir, "apps").apply { if (!exists()) mkdirs() }
         val driveFileManager = marcinlowercase.a.core.manager.DriveFileManager(driveSyncManager)
 
+        val deletedSlugs = getDeletedAppSlugs()
+
         cloudData.profiles.forEach { profile ->
             profile.pinnedApps.forEach { app ->
                 if (app.url.startsWith("local://apps/", ignoreCase = true)) {
@@ -871,6 +912,9 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                         .removeSuffix("/index.html")
                         .removeSuffix("/index.htm")
                         .trim('/')
+
+                    // Skip downloading if deleted locally
+                    if (deletedSlugs.contains(slug)) return@forEach
 
                     // 1. Pull missing HTML code
                     val localHtmlFile = File(appsDir, "$slug.html")
@@ -896,6 +940,48 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             }
         }
     }
+
+    // PUSH RECONCILIATION: Finds any app folders on Google Drive that were deleted locally and permanently deletes them
+    private suspend fun deleteOrphanedDriveAppFoldersOnIO(token: String) {
+        try {
+            val allLocalSlugs = profileManager.loadProfiles().flatMap { appManager.loadApps(it.id) }
+                .filter { it.url.startsWith("local://apps/", ignoreCase = true) }
+                .map {
+                    it.url.removePrefix("local://apps/")
+                        .removeSuffix("/index.html")
+                        .removeSuffix("/index.htm")
+                        .trim('/')
+                }.toSet()
+
+            val service = com.google.api.services.drive.Drive.Builder(
+                com.google.api.client.http.javanet.NetHttpTransport(),
+                com.google.api.client.json.gson.GsonFactory.getDefaultInstance()
+            ) { request ->
+                request.headers.authorization = "Bearer $token"
+            }.setApplicationName("browser").build()
+
+            val folderList = service.files().list()
+                .setQ("mimeType = 'application/vnd.google-apps.folder' and trashed = false")
+                .setFields("files(id, name)")
+                .execute()
+
+            folderList.files?.forEach { folder ->
+                val folderName = folder.name
+                // If this is an app folder that was deleted locally, delete it from Google Drive
+                if (folderName != null && !allLocalSlugs.contains(folderName) && folderName != "the_browser_of_oo1_studio") {
+                    try {
+                        service.files().delete(folder.id).execute()
+                        Log.i("DriveSync", "Permanently deleted orphan app folder from Drive: $folderName")
+                    } catch (e: Exception) {
+                        Log.e("DriveSync", "Failed to delete orphan folder: $folderName", e)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("DriveSync", "Failed to reconcile orphaned Drive folders", e)
+        }
+    }
+
     val driveSyncManager = marcinlowercase.a.core.manager.DriveSyncManager(application)
     val userEmail = mutableStateOf(driveSyncManager.getSavedEmail())
 
@@ -1001,10 +1087,13 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         updateUI { it.copy(isLoading = true) }
 
         executeWithDriveToken { token ->
-            // 1. Upload all local .html apps and icons to Google Drive
+            // 1. Reconcile deletions: permanently remove apps from Google Drive that were deleted locally
+            deleteOrphanedDriveAppFoldersOnIO(token)
+
+            // 2. Upload remaining local .html apps and icons to Google Drive
             syncLocalAppsToDriveOnIO(token)
 
-            // 2. Heavy operations happen on background IO thread
+            // 3. Heavy operations happen on background IO thread
             val payload = buildSyncPayloadOnIO()
             // Guard: Don't push an empty payload if user unchecked all profiles
             if (payload.profiles.isEmpty()) {
@@ -1048,6 +1137,9 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                         return@executeWithDriveToken
                     }
 
+                    // Clear local tombstones so Pull acts as a complete cloud restore
+                    clearDeletedAppSlugs()
+
                     // Download missing .html code and icons from Drive on IO thread
                     pullCloudAppsToDiskOnIO(token, cloudData)
 
@@ -1073,6 +1165,47 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+
+
+    // Preserves cloud apps in Google Drive so Merge never deletes other devices' apps
+    private fun buildMergedSyncPayloadOnIO(cloudData: SyncPayload): SyncPayload {
+        val allProfiles = profileManager.loadProfiles()
+        val syncProfiles = allProfiles.filter { it.isSyncEnabled }.map { profile ->
+            val localApps = appManager.loadApps(profile.id).map { app ->
+                AppSyncDTO(id = app.id, label = app.label, url = app.url, iconUrl = app.iconUrl)
+            }
+
+            // Find matching cloud profile and preserve its apps on Drive
+            val cloudProfile = cloudData.profiles.find { it.id == profile.id }
+            val mergedAppsList = localApps.toMutableList()
+            val existingUrls = localApps.map { it.url }.toSet()
+
+            cloudProfile?.pinnedApps?.forEach { cloudApp ->
+                if (!existingUrls.contains(cloudApp.url)) {
+                    mergedAppsList.add(cloudApp)
+                }
+            }
+
+            val historyMap = visitedUrlManager.loadUrlMap(profile.id)
+            val historyList = historyMap.map { VisitedUrlSyncDTO(url = it.key, title = it.value) }
+            val settingsObj = loadSettingsFromPrefs(profile.id)
+            val settingsJsonString = jsonParser.encodeToString(settingsObj)
+
+            ProfileSyncDTO(
+                id = profile.id,
+                name = profile.name,
+                settings = settingsJsonString,
+                pinnedApps = mergedAppsList,
+                visitedUrls = historyList
+            )
+        }
+
+        return SyncPayload(
+            timestamp = System.currentTimeMillis(),
+            profiles = syncProfiles
+        )
+    }
+
     fun triggerSmartMerge() {
         val context = getApplication<Application>()
         updateUI { it.copy(isLoading = true) }
@@ -1087,14 +1220,14 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                         restoreFromCloud(cloudData, isMerge = true)
                     }
 
-                    // Push the merged super-state back up to Drive on IO thread
-                    // 1. Pull missing cloud apps to this device
+                    // 1. Pull missing cloud apps to this device (skipping tombstones)
                     pullCloudAppsToDiskOnIO(token, cloudData)
 
-                    // 2. Upload any local apps to Google Drive
+                    // 2. Upload any new local apps to Google Drive (non-destructive)
                     syncLocalAppsToDriveOnIO(token)
 
-                    val mergedPayload = buildSyncPayloadOnIO()
+                    // 3. Upload merged super-state preserving cloud apps
+                    val mergedPayload = buildMergedSyncPayloadOnIO(cloudData)
                     val mergedJsonString = jsonParser.encodeToString(mergedPayload)
                     val pushSuccess = driveSyncManager.uploadToDrive(token, mergedJsonString)
 
@@ -1238,8 +1371,18 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             val localApps = if (isMerge) appManager.loadApps(cloudProfile.id).toMutableList() else mutableListOf()
             val localAppUrls = localApps.map { it.url }.toSet()
 
+            val deletedSlugs = if (isMerge) getDeletedAppSlugs() else emptySet()
+
             cloudProfile.pinnedApps.forEach { cloudApp ->
-                if (!localAppUrls.contains(cloudApp.url)) {
+                val isDeletedLocally = if (cloudApp.url.startsWith("local://apps/", ignoreCase = true)) {
+                    val slug = cloudApp.url.removePrefix("local://apps/")
+                        .removeSuffix("/index.html")
+                        .removeSuffix("/index.htm")
+                        .trim('/')
+                    deletedSlugs.contains(slug)
+                } else false
+
+                if (!isDeletedLocally && !localAppUrls.contains(cloudApp.url)) {
                     localApps.add(
                         App(
                             id = cloudApp.id,
@@ -1743,11 +1886,45 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             }
         }
     }
+
+    private fun getDeletedAppSlugs(): Set<String> {
+        val prefs = getApplication<Application>().getSharedPreferences("BrowserApps", Context.MODE_PRIVATE)
+        return prefs.getStringSet("deleted_app_slugs", emptySet())?.toSet() ?: emptySet()
+    }
+
+    private fun recordDeletedAppSlug(slug: String) {
+        val prefs = getApplication<Application>().getSharedPreferences("BrowserApps", Context.MODE_PRIVATE)
+        val current = getDeletedAppSlugs().toMutableSet()
+        current.add(slug)
+        prefs.edit().putStringSet("deleted_app_slugs", current).apply()
+    }
+
+    private fun clearDeletedAppSlugs() {
+        val prefs = getApplication<Application>().getSharedPreferences("BrowserApps", Context.MODE_PRIVATE)
+        prefs.edit().remove("deleted_app_slugs").apply()
+    }
+
     fun removeApp(appId: Long) {
         val index = apps.indexOfFirst { it.id == appId }
         if (index != -1) {
+            val app = apps[index]
             apps.removeAt(index)
             saveApps()
+
+            // Delete local on-device files and record tombstone
+            if (app.url.startsWith("local://apps/", ignoreCase = true)) {
+                val slug = app.url.removePrefix("local://apps/")
+                    .removeSuffix("/index.html")
+                    .removeSuffix("/index.htm")
+                    .trim('/')
+
+                recordDeletedAppSlug(slug)
+
+                val context = getApplication<Application>()
+                val appsDir = File(context.filesDir, "apps")
+                File(appsDir, "$slug.html").delete()
+                File(appsDir, "${slug}_icon.png").delete()
+            }
         }
     }
 
