@@ -414,28 +414,43 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         if (currentIndex == -1) return // Safety check if not found
 
         // --- Clean up local apps that belong exclusively to this profile ---
-        val appsInDeletedProfile = appManager.loadApps(idToDelete)
+        // 1. Read live in-memory apps if deleting active profile, otherwise load from disk
+        val appsInDeletedProfile = if (idToDelete == activeProfileId.value) apps.toList() else appManager.loadApps(idToDelete)
+
+        // 2. Extract slugs from all OTHER remaining profiles
         val otherProfiles = profiles.filter { it.id != idToDelete }
-        val appsInOtherProfiles = otherProfiles
+        val slugsInOtherProfiles = otherProfiles
             .flatMap { appManager.loadApps(it.id) }
-            .map { it.url }
-            .toSet()
+            .filter { it.url.startsWith("local://", ignoreCase = true) }
+            .map {
+                it.url.removePrefix("local://apps/")
+                    .removePrefix("local://")
+                    .removeSuffix("/index.html")
+                    .removeSuffix("/index.htm")
+                    .trim('/')
+            }.toSet()
 
         val context = getApplication<Application>()
         val appsDir = File(context.filesDir, "apps")
 
+        // 3. Delete only if the slug does not exist in ANY other profile
         appsInDeletedProfile.forEach { app ->
-            if (app.url.startsWith("local://apps/", ignoreCase = true)) {
-                // If NO other profile has this app pinned, delete its local files and record tombstone
-                if (!appsInOtherProfiles.contains(app.url)) {
-                    val slug = app.url.removePrefix("local://apps/")
-                        .removeSuffix("/index.html")
-                        .removeSuffix("/index.htm")
-                        .trim('/')
+            if (app.url.startsWith("local://", ignoreCase = true)) {
+                val slug = app.url.removePrefix("local://apps/")
+                    .removePrefix("local://")
+                    .removeSuffix("/index.html")
+                    .removeSuffix("/index.htm")
+                    .trim('/')
 
-                    File(appsDir, "$slug.html").delete()
-                    File(appsDir, "${slug}_icon.png").delete()
+                if (!slugsInOtherProfiles.contains(slug)) {
+                    val htmlFile = File(appsDir, "$slug.html")
+                    val iconFile = File(appsDir, "${slug}_icon.png")
+
+                    if (htmlFile.exists()) htmlFile.delete()
+                    if (iconFile.exists()) iconFile.delete()
+
                     recordDeletedAppSlug(slug)
+                    Log.i("DeleteProfile", "Deleted local app: $slug.html")
                 }
             }
         }
