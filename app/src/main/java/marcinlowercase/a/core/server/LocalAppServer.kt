@@ -11,7 +11,7 @@ import java.io.BufferedReader
 import java.io.File
 import java.io.InputStreamReader
 import java.io.OutputStream
-import java.net.InetAddress
+import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
 
@@ -21,17 +21,63 @@ class LocalAppServer(private val context: Context) {
     private var serverJob: Job? = null
     private val scope = CoroutineScope(Dispatchers.IO)
 
-    // In-memory buffer for unpinned/drafting code
+    // In-memory buffer for unpinned draft code
     @Volatile
     var currentDraftHtml: String = ""
 
     companion object {
         const val PORT = 12321
-        const val BASE_URL = "http://127.0.0.1:$PORT"
+        private const val LOCALHOST_PREFIX = "http://127.0.0.1:$PORT/"
+        const val VIRTUAL_SCHEME = "local://"
+
+        /**
+         * Translates virtual "local://" URLs to internal loopback "http://127.0.0.1:12321/".
+         * Used by webViewLoad before passing the URL to GeckoView.
+         */
+        fun toInternalUrl(url: String): String {
+            val trimmed = url.trim()
+            return if (trimmed.startsWith(VIRTUAL_SCHEME, ignoreCase = true)) {
+                val path = trimmed.removePrefix(VIRTUAL_SCHEME).removePrefix("/")
+                LOCALHOST_PREFIX + path
+            } else {
+                trimmed
+            }
+        }
+
+        /**
+         * Translates internal loopback "http://127.0.0.1:12321/" back to virtual "local://".
+         * Used by onLocationChangeFun, tabs, and clipboard.
+         */
+        fun toVirtualUrl(url: String): String {
+            val trimmed = url.trim()
+            return if (trimmed.startsWith(LOCALHOST_PREFIX, ignoreCase = true)) {
+                val path = trimmed.removePrefix(LOCALHOST_PREFIX)
+                VIRTUAL_SCHEME + path
+            } else {
+                trimmed
+            }
+        }
+
+        /**
+         * Formats URL for clean address bar display:
+         * "local://draft/index.html" -> "local://draft"
+         * "local://apps/inventory_checker/index.html" -> "local://apps/inventory_checker"
+         */
+        fun formatForDisplay(url: String): String {
+            val virtual = toVirtualUrl(url)
+            return if (virtual.startsWith(VIRTUAL_SCHEME, ignoreCase = true)) {
+                virtual.removeSuffix("/index.html")
+                    .removeSuffix("/index.htm")
+                    .removeSuffix("/")
+                    .lowercase()
+            } else {
+                virtual
+            }
+        }
     }
 
-    val port: Int = PORT
-    val baseUrl: String = BASE_URL
+    val baseUrl: String
+        get() = "http://127.0.0.1:$PORT"
 
     fun start() {
         if (serverSocket != null && !serverSocket!!.isClosed) return
@@ -39,10 +85,10 @@ class LocalAppServer(private val context: Context) {
         serverJob = scope.launch {
             try {
                 serverSocket = ServerSocket().apply {
-                    reuseAddress = true // Allows instant rebinding without TIME_WAIT errors
-                    bind(java.net.InetSocketAddress("127.0.0.1", PORT), 50)
+                    reuseAddress = true
+                    bind(InetSocketAddress("127.0.0.1", PORT), 50)
                 }
-                Log.i("LocalAppServer", "Loopback server started on $baseUrl")
+                Log.i("LocalAppServer", "Loopback server bound on $baseUrl")
 
                 while (isActive && !serverSocket!!.isClosed) {
                     val clientSocket = serverSocket!!.accept()
@@ -78,17 +124,25 @@ class LocalAppServer(private val context: Context) {
                 val output = s.getOutputStream()
 
                 when {
-                    // 1. DRAFTING ROUTE: /drafting/index.html
-                    rawPath == "/drafting/index.html" || rawPath == "/drafting" -> {
+                    // 1. DRAFT ROUTE: /draft/index.html
+                    rawPath == "/draft/index.html" || rawPath == "/draft" || rawPath == "/draft/" -> {
                         sendResponse(output, "text/html; charset=utf-8", currentDraftHtml.toByteArray(Charsets.UTF_8))
                     }
 
                     // 2. PINNED APP CODE: /apps/<app_id>/index.html
-                    rawPath.startsWith("/apps/") && rawPath.endsWith("/index.html") -> {
-                        val appId = rawPath.removePrefix("/apps/").removeSuffix("/index.html").trim('/')
-                        val file = File(File(context.filesDir, "apps"), "$appId.html")
-                        if (file.exists()) {
-                            sendResponse(output, "text/html; charset=utf-8", file.readBytes())
+                    rawPath.startsWith("/apps/") && (rawPath.endsWith("/index.html") || rawPath.endsWith("/index.htm")) -> {
+                        val appId = rawPath.removePrefix("/apps/")
+                            .removeSuffix("/index.html")
+                            .removeSuffix("/index.htm")
+                            .trim('/')
+
+                        val appsDir = File(context.filesDir, "apps")
+                        val file = File(appsDir, "$appId.html")
+                        val nestedFile = File(File(appsDir, appId), "index.html")
+
+                        val fileToServe = if (file.exists()) file else if (nestedFile.exists()) nestedFile else null
+                        if (fileToServe != null) {
+                            sendResponse(output, "text/html; charset=utf-8", fileToServe.readBytes())
                         } else {
                             send404(output)
                         }
@@ -96,10 +150,17 @@ class LocalAppServer(private val context: Context) {
 
                     // 3. PINNED APP ICON: /apps/<app_id>/icon.png
                     rawPath.startsWith("/apps/") && rawPath.endsWith("/icon.png") -> {
-                        val appId = rawPath.removePrefix("/apps/").removeSuffix("/icon.png").trim('/')
-                        val file = File(File(context.filesDir, "apps"), "${appId}_icon.png")
-                        if (file.exists()) {
-                            sendResponse(output, "image/png", file.readBytes())
+                        val appId = rawPath.removePrefix("/apps/")
+                            .removeSuffix("/icon.png")
+                            .trim('/')
+
+                        val appsDir = File(context.filesDir, "apps")
+                        val file = File(appsDir, "${appId}_icon.png")
+                        val nestedFile = File(File(appsDir, appId), "icon.png")
+
+                        val iconToServe = if (file.exists()) file else if (nestedFile.exists()) nestedFile else null
+                        if (iconToServe != null) {
+                            sendResponse(output, "image/png", iconToServe.readBytes())
                         } else {
                             send404(output)
                         }
@@ -108,9 +169,7 @@ class LocalAppServer(private val context: Context) {
                     else -> send404(output)
                 }
             }
-        } catch (_: Exception) {
-            // Sockets closing cleanly or client aborting request
-        }
+        } catch (_: Exception) {}
     }
 
     private fun sendResponse(out: OutputStream, contentType: String, data: ByteArray) {

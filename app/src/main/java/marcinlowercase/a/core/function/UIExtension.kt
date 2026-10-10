@@ -170,29 +170,20 @@ fun getFaviconUrlFromGoogleServer(pageUrl: String): String {
 }
 
 fun String.toDomain(): String {
-    // 1. Direct local scheme address
-    if (startsWith("local://", ignoreCase = true)) {
-        return this.lowercase().trimEnd('/')
+    // 1. Handles local:// and strips /index.html cleanly (e.g. "local://draft" or "local://apps/inventory_checker")
+    if (this.startsWith("local://", ignoreCase = true) || this.startsWith("http://127.0.0.1:${marcinlowercase.a.core.server.LocalAppServer.PORT}")) {
+        return marcinlowercase.a.core.server.LocalAppServer.formatForDisplay(this)
     }
 
-    // 2. Unpinned code in-memory or files opened from storage
-    if (startsWith("data:", ignoreCase = true) || startsWith("<")) {
-        return "local://draft"
-    }
-    if (startsWith("content:", ignoreCase = true)) {
-        return "local://file"
-    }
-
-    // 3. Web URLs
+    // 2. Standard Web Domains
     return try {
-        URL(this).host?.let {
+        java.net.URL(this).host?.let {
             if (it.startsWith("www.", ignoreCase = true)) it.substring(4) else it
         } ?: this
     } catch (_: Exception) {
         this
     }
 }
-
 fun formatArgbToCss(argb: String): String {
     // Remove the '#' if the user accidentally included it
     val cleanHex = argb.removePrefix("#")
