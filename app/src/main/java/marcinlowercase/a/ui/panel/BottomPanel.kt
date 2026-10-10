@@ -106,6 +106,7 @@ import marcinlowercase.a.core.enum_class.SearchEngine
 import marcinlowercase.a.core.enum_class.SuggestionSource
 import marcinlowercase.a.core.function.toDomain
 import marcinlowercase.a.core.function.webViewLoad
+import marcinlowercase.a.core.server.LocalAppServer
 import marcinlowercase.a.ui.component.CustomIconButton
 import marcinlowercase.a.ui.component.LoadingIndicator
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
@@ -839,8 +840,9 @@ fun BottomPanel(
                                                             it.copy(isTabsPanelVisible = savedState.tabs)
                                                         }
                                                     }
+                                                    val liveUrl = viewModel.activeTab?.currentURL ?: ""
                                                     textFieldState.setTextAndPlaceCursorAtEnd(
-                                                        resetUrl.toDomain()
+                                                        LocalAppServer.formatForDisplay(liveUrl)
                                                     )
                                                     viewModel.updateUI {
                                                         it.copy(
@@ -945,7 +947,10 @@ fun BottomPanel(
 
                                         focusManager.clearFocus()
                                         keyboardController?.hide()
-                                        textFieldState.setTextAndPlaceCursorAtEnd(resetUrl.toDomain())
+                                        val liveUrl = viewModel.activeTab?.currentURL ?: ""
+                                        textFieldState.setTextAndPlaceCursorAtEnd(
+                                            LocalAppServer.formatForDisplay(liveUrl)
+                                        )
 
                                         viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
                                         return@TextField
@@ -966,7 +971,6 @@ fun BottomPanel(
                                         }
 
                                         uiState.value.isPinningApp -> {
-
                                             val customIconInput =
                                                 (customIconUrlState.text).toString().trim()
                                             val finalIconUrl =
@@ -976,6 +980,10 @@ fun BottomPanel(
                                                 title = input,
                                                 url = resetUrl,
                                                 iconUrl = finalIconUrl,
+                                                onPinned = { finalUrl ->
+                                                    onNewUrl(finalUrl)
+                                                    textFieldState.setTextAndPlaceCursorAtEnd(LocalAppServer.formatForDisplay(finalUrl))
+                                                }
                                             )
                                             viewModel.updateUI { it.copy(isPinningApp = false) }
                                         }
@@ -987,22 +995,46 @@ fun BottomPanel(
                                                     (input.startsWith("<") && input.contains("</html>", ignoreCase = true))
 
                                             if (isRawHtml) {
-                                                // 1. Extract title for clean UI display
                                                 val extractedTitle = Regex("<title>(.*?)</title>", RegexOption.IGNORE_CASE)
                                                     .find(input)?.groupValues?.get(1)?.trim() ?: "Local App"
 
-                                                // 2. Update the active tab's URL with the raw code (ready for later pinning)
+                                                // 1. Buffer raw HTML in the loopback server
+                                                (context.applicationContext as? marcinlowercase.a.CustomApplication)?.localAppServer?.currentDraftHtml = input
+
+                                                // 2. Set tab URL to the standardized draft address
+                                                val virtualDraftUrl = "local://draft/index.html"
                                                 viewModel.activeTab?.let { tab ->
                                                     viewModel.updateTabById(tab.id) {
-                                                        it.copy(currentURL = input, currentTitle = extractedTitle)
+                                                        it.copy(currentURL = virtualDraftUrl, currentTitle = extractedTitle)
                                                     }
                                                 }
 
-                                                // 3. Run the code in GeckoView
-                                                onNewUrl(input)
+                                                // 3. Load via loopback server
+                                                onNewUrl(virtualDraftUrl)
 
-                                                // 4. Clean UI: Display title instead of 5,000 characters of code
-                                                textFieldState.setTextAndPlaceCursorAtEnd(extractedTitle)
+                                                // 4. Format URL bar to "local://draft"
+                                                textFieldState.setTextAndPlaceCursorAtEnd(LocalAppServer.formatForDisplay(virtualDraftUrl))
+                                                focusManager.clearFocus()
+                                                keyboardController?.hide()
+                                                viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
+                                                return@TextField
+                                            }
+
+                                            // Direct local:// URL entry
+                                            if (input.startsWith("local:", ignoreCase = true)) {
+                                                val virtualUrl = if (input.startsWith(LocalAppServer.VIRTUAL_SCHEME, ignoreCase = true)) {
+                                                    input
+                                                } else {
+                                                    "local://${input.removePrefix("local:").removePrefix("/")}"
+                                                }
+
+                                                // Update tab URL only (do not touch title or favicon)
+                                                viewModel.activeTab?.let { tab ->
+                                                    viewModel.updateTabById(tab.id) { it.copy(currentURL = virtualUrl) }
+                                                }
+
+                                                onNewUrl(virtualUrl)
+                                                textFieldState.setTextAndPlaceCursorAtEnd(LocalAppServer.formatForDisplay(virtualUrl))
                                                 focusManager.clearFocus()
                                                 keyboardController?.hide()
                                                 viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
@@ -1280,10 +1312,10 @@ fun BottomPanel(
                             onAppClick = { app ->
                                 viewModel.activeTab?.let { tab ->
                                     viewModel.updateTabById(tab.id) {
-                                        it.copy(currentURL = app.url, currentTitle = app.label)
+                                        it.copy(currentURL = app.url)
                                     }
                                 }
-                                textFieldState.setTextAndPlaceCursorAtEnd(app.url)
+                                textFieldState.setTextAndPlaceCursorAtEnd(LocalAppServer.formatForDisplay(app.url))
                                 webViewLoad(activeSession, app.url, context)
                                 viewModel.updateUI { it.copy(isSettingsPanelVisible = false) }
                                 viewModel.updateUI { it.copy(isUrlBarVisible = false) }
@@ -1331,20 +1363,21 @@ fun BottomPanel(
                             uiState.value.isPinningApp ||
                             (uiState.value.isFocusOnUrlTextField && textFieldState.text.isBlank()),
                     onCopyClick = {
-                        val clipData =
-                            ClipData.newPlainText("url", viewModel.activeTab!!.currentURL)
+                        val activeUrl = viewModel.activeTab!!.currentURL
+                        val cleanUrl = LocalAppServer.formatForDisplay(activeUrl)
+                        val clipData = ClipData.newPlainText("url", cleanUrl)
                         clipboard.nativeClipboardManager.setPrimaryClip(clipData)
                     },
                     onEditClick = {
+                        val activeUrl = viewModel.activeTab!!.currentURL
+                        val cleanUrl = LocalAppServer.formatForDisplay(activeUrl)
                         textFieldState.setTextAndPlaceCursorAtEnd(
                             when {
                                 uiState.value.isCreatingProfile -> "$profileText "
-                                uiState.value.isRenamingProfile -> viewModel.profiles.find { it.id == viewModel.activeProfileId.value }?.name
-                                    ?: ""
-
+                                uiState.value.isRenamingProfile -> viewModel.profiles.find { it.id == viewModel.activeProfileId.value }?.name ?: ""
                                 uiState.value.isPinningApp -> viewModel.activeTab!!.currentTitle
-                                else -> viewModel.activeTab!!.errorState?.failingUrl
-                                    ?: viewModel.activeTab!!.currentURL
+                                cleanUrl.startsWith(LocalAppServer.VIRTUAL_SCHEME) -> cleanUrl
+                                else -> viewModel.activeTab!!.errorState?.failingUrl ?: activeUrl
                             }
                         )
                         urlBarFocusRequester.requestFocus()

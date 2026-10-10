@@ -7,8 +7,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import marcinlowercase.a.CustomApplication
 import marcinlowercase.a.core.manager.DriveFileManager
 import marcinlowercase.a.core.manager.DriveSyncManager
+import marcinlowercase.a.core.server.LocalAppServer
 import org.mozilla.geckoview.GeckoSession
 import java.io.File
 
@@ -17,27 +19,93 @@ fun webViewLoad(session: GeckoSession?, url: String, context: Context? = null) {
     if (session == null) return
 
     val trimmed = url.trim()
+    val server = (context?.applicationContext as? CustomApplication)?.localAppServer
 
     // -------------------------------------------------------------
-    // 1. VIRTUAL LOCAL SCHEME: local://<app_id>
+    // 1. RAW HTML STRING: Store in draft buffer and route to localhost
     // -------------------------------------------------------------
-    if (trimmed.startsWith("local://", ignoreCase = true) && context != null) {
-        val appId = trimmed.removePrefix("local://").trim('/').replace("/", "_")
-        val appsDir = File(context.filesDir, "apps")
-        val localFile = File(appsDir, "$appId.html")
+    val isRawHtml = trimmed.startsWith("<!DOCTYPE", ignoreCase = true) ||
+            trimmed.startsWith("<html", ignoreCase = true) ||
+            (trimmed.startsWith("<") && trimmed.contains("</html>", ignoreCase = true))
 
-        // FAST PATH: Device internal storage cache hit (sub-5ms)
-        if (localFile.exists()) {
-            val htmlBytes = localFile.readBytes()
+    if (isRawHtml && server != null) {
+        server.currentDraftHtml = trimmed
+        val internalUrl = LocalAppServer.toInternalUrl("local://draft/index.html")
+        session.load(
+            GeckoSession.Loader()
+                .uri(internalUrl)
+                .flags(GeckoSession.LOAD_FLAGS_NONE)
+        )
+        return
+    }
+
+    // -------------------------------------------------------------
+    // 2. ANDROID content:// STREAMS: Read into draft buffer and route to localhost
+    // -------------------------------------------------------------
+    if (trimmed.startsWith("content://", ignoreCase = true) && context != null && server != null) {
+        try {
+            val contentUri = Uri.parse(trimmed)
+            val htmlContent = context.contentResolver.openInputStream(contentUri)?.use {
+                it.bufferedReader().readText()
+            }
+            if (!htmlContent.isNullOrBlank()) {
+                server.currentDraftHtml = htmlContent
+                val internalUrl = LocalAppServer.toInternalUrl("local://draft/index.html")
+                session.load(
+                    GeckoSession.Loader()
+                        .uri(internalUrl)
+                        .flags(GeckoSession.LOAD_FLAGS_NONE)
+                )
+                return
+            }
+        } catch (e: Exception) {
+            Log.e("webViewLoad", "Failed to stream content URI", e)
+        }
+    }
+
+    // -------------------------------------------------------------
+    // 3. VIRTUAL LOCAL SCHEME: local://...
+    // -------------------------------------------------------------
+    if (trimmed.startsWith(LocalAppServer.VIRTUAL_SCHEME, ignoreCase = true) && context != null && server != null) {
+        val virtualUrl = if (trimmed.endsWith("/index.html") || trimmed.endsWith("/index.htm")) {
+            trimmed
+        } else {
+            "${trimmed.trimEnd('/')}/index.html"
+        }
+
+        // A. Draft Route
+        if (virtualUrl.startsWith("local://draft/", ignoreCase = true)) {
+            val internalUrl = LocalAppServer.toInternalUrl(virtualUrl)
             session.load(
                 GeckoSession.Loader()
-                    .data(htmlBytes, "text/html")
+                    .uri(internalUrl)
                     .flags(GeckoSession.LOAD_FLAGS_NONE)
             )
             return
         }
 
-        // FALLBACK: Query Google Drive via DriveFileManager (Network Path)
+        // B. Installed App Route: local://apps/<app_id>/index.html
+        val appId = virtualUrl.removePrefix("local://apps/")
+            .removeSuffix("/index.html")
+            .removeSuffix("/index.htm")
+            .trim('/')
+            .replace("/", "_")
+
+        val appsDir = File(context.filesDir, "apps")
+        val localFile = File(appsDir, "$appId.html")
+        val internalUrl = LocalAppServer.toInternalUrl(virtualUrl)
+
+        // Fast path: cached on disk
+        if (localFile.exists()) {
+            session.load(
+                GeckoSession.Loader()
+                    .uri(internalUrl)
+                    .flags(GeckoSession.LOAD_FLAGS_NONE)
+            )
+            return
+        }
+
+        // Fallback: fetch from Google Drive if missing (e.g. Device B)
         MainScope().launch {
             val driveSyncManager = DriveSyncManager(context)
             val driveFileManager = DriveFileManager(driveSyncManager)
@@ -49,44 +117,24 @@ fun webViewLoad(session: GeckoSession?, url: String, context: Context? = null) {
                 }
 
                 if (!cloudCode.isNullOrBlank() && !cloudCode.startsWith("ERROR")) {
-                    // Cache to on-device storage for future zero-latency boots
                     withContext(Dispatchers.IO) {
                         if (!appsDir.exists()) appsDir.mkdirs()
                         localFile.writeText(cloudCode)
                     }
 
-                    // Render in-memory
                     session.load(
                         GeckoSession.Loader()
-                            .data(cloudCode.toByteArray(Charsets.UTF_8), "text/html")
+                            .uri(internalUrl)
                             .flags(GeckoSession.LOAD_FLAGS_NONE)
                     )
                     return@launch
                 }
             }
 
-            // NOT FOUND IN LOCAL DISK OR CLOUD
-            val errorHtml = """
-                <!DOCTYPE html>
-                <html>
-                <head>
-                  <meta name="viewport" content="width=device-width,initial-scale=1">
-                  <style>
-                    body { background: #09090b; color: #f4f4f5; font-family: system-ui; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; text-align: center; padding: 24px; box-sizing: border-box; }
-                    h2 { color: #ef4444; margin: 0 0 8px; }
-                    p { color: #a1a1aa; font-size: 14px; margin: 0; }
-                  </style>
-                </head>
-                <body>
-                  <h2>App Not Found</h2>
-                  <p>Could not locate "$appId" locally or in your Google Drive.</p>
-                </body>
-                </html>
-            """.trimIndent()
-
+            // Not found locally or in Drive: show 404
             session.load(
                 GeckoSession.Loader()
-                    .data(errorHtml.toByteArray(Charsets.UTF_8), "text/html")
+                    .uri(internalUrl)
                     .flags(GeckoSession.LOAD_FLAGS_NONE)
             )
         }
@@ -94,41 +142,7 @@ fun webViewLoad(session: GeckoSession?, url: String, context: Context? = null) {
     }
 
     // -------------------------------------------------------------
-    // 2. Raw HTML Strings
-    // -------------------------------------------------------------
-    val isRawHtml = trimmed.startsWith("<!DOCTYPE", ignoreCase = true) ||
-            trimmed.startsWith("<html", ignoreCase = true) ||
-            (trimmed.startsWith("<") && trimmed.contains("</html>", ignoreCase = true))
-
-    if (isRawHtml) {
-        session.load(
-            GeckoSession.Loader()
-                .data(trimmed.toByteArray(Charsets.UTF_8), "text/html")
-                .flags(GeckoSession.LOAD_FLAGS_NONE)
-        )
-        return
-    }
-
-    // -------------------------------------------------------------
-    // 3. Android content:// streams
-    // -------------------------------------------------------------
-    if (trimmed.startsWith("content://") && context != null) {
-        try {
-            val contentUri = Uri.parse(trimmed)
-            val bytes = context.contentResolver.openInputStream(contentUri)?.use { it.readBytes() }
-            if (bytes != null) {
-                session.load(
-                    GeckoSession.Loader()
-                        .data(bytes, "text/html")
-                        .flags(GeckoSession.LOAD_FLAGS_NONE)
-                )
-                return
-            }
-        } catch (_: Exception) {}
-    }
-
-    // -------------------------------------------------------------
-    // 4. Standard HTTP/HTTPS URIs
+    // 4. Standard Remote Web URIs (http/https/about)
     // -------------------------------------------------------------
     session.load(
         GeckoSession.Loader()

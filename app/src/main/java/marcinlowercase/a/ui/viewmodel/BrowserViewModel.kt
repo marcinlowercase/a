@@ -827,6 +827,75 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
 
     //region Sync Logic
+
+    // Uploads all on-device apps and icons from filesDir/apps to Google Drive on IO thread
+    private suspend fun syncLocalAppsToDriveOnIO(token: String) {
+        val context = getApplication<Application>()
+        val appsDir = File(context.filesDir, "apps")
+        if (!appsDir.exists()) return
+
+        val driveFileManager = marcinlowercase.a.core.manager.DriveFileManager(driveSyncManager)
+
+        appsDir.listFiles()?.forEach { file ->
+            val fileName = file.name
+            try {
+                // Upload HTML code files
+                if (fileName.endsWith(".html")) {
+                    val slug = fileName.removeSuffix(".html")
+                    val htmlContent = file.readText()
+                    driveFileManager.saveText(token, slug, "index.html", htmlContent, "text/html")
+                }
+                // Upload icon image files
+                else if (fileName.endsWith("_icon.png")) {
+                    val slug = fileName.removeSuffix("_icon.png")
+                    val iconBytes = file.readBytes()
+                    val iconBase64 = android.util.Base64.encodeToString(iconBytes, android.util.Base64.NO_WRAP)
+                    driveFileManager.saveText(token, slug, "icon.png", iconBase64, "image/png")
+                }
+            } catch (e: Exception) {
+                Log.e("DriveSync", "Failed to upload local app asset: $fileName", e)
+            }
+        }
+    }
+
+    // Downloads missing .html code and icons from Google Drive into filesDir/apps on IO thread
+    private suspend fun pullCloudAppsToDiskOnIO(token: String, cloudData: SyncPayload) {
+        val context = getApplication<Application>()
+        val appsDir = File(context.filesDir, "apps").apply { if (!exists()) mkdirs() }
+        val driveFileManager = marcinlowercase.a.core.manager.DriveFileManager(driveSyncManager)
+
+        cloudData.profiles.forEach { profile ->
+            profile.pinnedApps.forEach { app ->
+                if (app.url.startsWith("local://apps/", ignoreCase = true)) {
+                    val slug = app.url.removePrefix("local://apps/")
+                        .removeSuffix("/index.html")
+                        .removeSuffix("/index.htm")
+                        .trim('/')
+
+                    // 1. Pull missing HTML code
+                    val localHtmlFile = File(appsDir, "$slug.html")
+                    if (!localHtmlFile.exists()) {
+                        val cloudCode = driveFileManager.readText(token, slug, "index.html")
+                        if (!cloudCode.isNullOrBlank() && !cloudCode.startsWith("ERROR")) {
+                            localHtmlFile.writeText(cloudCode)
+                        }
+                    }
+
+                    // 2. Pull missing icon
+                    val localIconFile = File(appsDir, "${slug}_icon.png")
+                    if (!localIconFile.exists()) {
+                        val cloudIconBase64 = driveFileManager.readText(token, slug, "icon.png")
+                        if (!cloudIconBase64.isNullOrBlank() && !cloudIconBase64.startsWith("ERROR")) {
+                            try {
+                                val bytes = android.util.Base64.decode(cloudIconBase64, android.util.Base64.DEFAULT)
+                                localIconFile.writeBytes(bytes)
+                            } catch (_: Exception) {}
+                        }
+                    }
+                }
+            }
+        }
+    }
     val driveSyncManager = marcinlowercase.a.core.manager.DriveSyncManager(application)
     val userEmail = mutableStateOf(driveSyncManager.getSavedEmail())
 
@@ -932,9 +1001,11 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         updateUI { it.copy(isLoading = true) }
 
         executeWithDriveToken { token ->
-            // Heavy operations happen on background IO thread
-            val payload = buildSyncPayloadOnIO()
+            // 1. Upload all local .html apps and icons to Google Drive
+            syncLocalAppsToDriveOnIO(token)
 
+            // 2. Heavy operations happen on background IO thread
+            val payload = buildSyncPayloadOnIO()
             // Guard: Don't push an empty payload if user unchecked all profiles
             if (payload.profiles.isEmpty()) {
                 withContext(Dispatchers.Main) {
@@ -977,6 +1048,9 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                         return@executeWithDriveToken
                     }
 
+                    // Download missing .html code and icons from Drive on IO thread
+                    pullCloudAppsToDiskOnIO(token, cloudData)
+
                     // Directly restore on Main without withMutableSnapshot
                     withContext(Dispatchers.Main) {
                         restoreFromCloud(cloudData, isMerge = false)
@@ -1014,6 +1088,12 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                     }
 
                     // Push the merged super-state back up to Drive on IO thread
+                    // 1. Pull missing cloud apps to this device
+                    pullCloudAppsToDiskOnIO(token, cloudData)
+
+                    // 2. Upload any local apps to Google Drive
+                    syncLocalAppsToDriveOnIO(token)
+
                     val mergedPayload = buildSyncPayloadOnIO()
                     val mergedJsonString = jsonParser.encodeToString(mergedPayload)
                     val pushSuccess = driveSyncManager.uploadToDrive(token, mergedJsonString)
@@ -1581,74 +1661,88 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     }
     val inspectingAppId = mutableLongStateOf(0L)
 
-    fun pinApp(title: String, url: String, iconUrl: String) {
+    fun pinApp(title: String, url: String, iconUrl: String, onPinned: ((String) -> Unit)? = null) {
         val cleanTitle = title.ifBlank { "app" }
-        val isLocalHtml = url.startsWith("<") || url.startsWith("data:", ignoreCase = true)
+        val virtualSourceUrl = marcinlowercase.a.core.server.LocalAppServer.toVirtualUrl(url)
+        val isLocalApp = virtualSourceUrl.startsWith("local://", ignoreCase = true) ||
+                virtualSourceUrl.startsWith("<") ||
+                virtualSourceUrl.startsWith("data:", ignoreCase = true)
 
-        if (isLocalHtml) {
-            var slug = cleanTitle.lowercase()
-                .replace(Regex("[^a-z0-9]+"), "_")
-                .trim('_')
-                .ifBlank { "app_${System.currentTimeMillis()}" }
+        var slug = cleanTitle.lowercase()
+            .replace(Regex("[^a-z0-9]+"), "_")
+            .trim('_')
+            .ifBlank { "app_${System.currentTimeMillis()}" }
 
-            // If an app with this slug already exists, append a unique timestamp suffix
-            if (apps.any { it.url == "local://$slug" }) {
-                slug = "${slug}_${System.currentTimeMillis()}"
-            }
+        val baseVirtualUrl = if (isLocalApp) "local://apps/$slug/index.html" else virtualSourceUrl
 
-            val context = getApplication<Application>()
-            val htmlContent = if (url.startsWith("data:", ignoreCase = true)) {
+        // Collision check
+        if (apps.any { it.url == baseVirtualUrl }) {
+            slug = "${slug}_${System.currentTimeMillis()}"
+        }
+        val finalVirtualUrl = if (isLocalApp) "local://apps/$slug/index.html" else virtualSourceUrl
+
+        val context = getApplication<Application>()
+
+        viewModelScope.launch(Dispatchers.IO) {
+            // 1. Save custom icon locally if picked from gallery
+            var finalPersistentIcon = iconUrl
+            if (iconUrl.startsWith("content://", ignoreCase = true)) {
                 try {
-                    val base64Part = url.substringAfter("base64,")
-                    String(android.util.Base64.decode(base64Part, android.util.Base64.DEFAULT), Charsets.UTF_8)
-                } catch (_: Exception) { url }
-            } else {
-                url
-            }
-
-            viewModelScope.launch(Dispatchers.IO) {
-                // 1. Save on-device cache in context.filesDir/apps/<slug>.html
-                val appsDir = File(context.filesDir, "apps")
-                if (!appsDir.exists()) appsDir.mkdirs()
-                File(appsDir, "$slug.html").writeText(htmlContent)
-
-                // 2. Silently push to user's Google Drive: the_browser_of_oo1_studio/<slug>/index.html
-                val token = driveSyncManager.getFreshAccessToken()
-                if (!token.isNullOrBlank()) {
-                    val driveFileManager = marcinlowercase.a.core.manager.DriveFileManager(driveSyncManager)
-                    driveFileManager.saveText(token, slug, "index.html", htmlContent, "text/html")
+                    val appsDir = File(context.filesDir, "apps").apply { if (!exists()) mkdirs() }
+                    val iconFile = File(appsDir, "${slug}_icon.png")
+                    context.contentResolver.openInputStream(android.net.Uri.parse(iconUrl))?.use { input ->
+                        iconFile.outputStream().use { output -> input.copyTo(output) }
+                    }
+                    if (iconFile.exists()) {
+                        finalPersistentIcon = android.net.Uri.fromFile(iconFile).toString()
+                    }
+                } catch (e: Exception) {
+                    Log.e("PinApp", "Failed to persist icon locally", e)
                 }
             }
 
-            // 3. Register lightweight pointer in Apps Panel
-            val virtualUrl = "local://$slug"
-            val newApp = App(
-                id = System.currentTimeMillis(),
-                label = cleanTitle,
-                url = virtualUrl,
-                iconUrl = iconUrl
-            )
-            apps.add(newApp)
-            saveApps()
+            // 2. Save HTML code locally (Stays 100% on-device)
+            if (isLocalApp) {
+                val htmlContent = when {
+                    url.startsWith("data:", ignoreCase = true) -> {
+                        try {
+                            val base64Part = url.substringAfter("base64,")
+                            String(android.util.Base64.decode(base64Part, android.util.Base64.DEFAULT), Charsets.UTF_8)
+                        } catch (_: Exception) { url }
+                    }
+                    url.startsWith("<") -> url
+                    else -> (context as? CustomApplication)?.localAppServer?.currentDraftHtml ?: ""
+                }
 
-            // 4. Update the active tab's URL to the clean short scheme
-            activeTab?.let { tab ->
-                updateTabById(tab.id) { it.copy(currentURL = virtualUrl) }
+                if (htmlContent.isNotBlank()) {
+                    val appsDir = File(context.filesDir, "apps").apply { if (!exists()) mkdirs() }
+                    File(appsDir, "$slug.html").writeText(htmlContent)
+                }
             }
-            return
+
+            withContext(Dispatchers.Main) {
+                val finalIconToUse = finalPersistentIcon.ifBlank { activeTab?.currentFaviconUrl ?: "" }
+
+                // 3. Register in Apps Panel
+                val newApp = App(
+                    id = System.currentTimeMillis(),
+                    label = cleanTitle,
+                    url = finalVirtualUrl,
+                    iconUrl = finalIconToUse
+                )
+                apps.add(newApp)
+                saveApps()
+
+                // 4. Update Active Tab URL only
+                activeTab?.let { tab ->
+                    updateTabById(tab.id) {
+                        it.copy(currentURL = finalVirtualUrl)
+                    }
+                }
+                onPinned?.invoke(finalVirtualUrl)
+            }
         }
-
-        // Standard remote web link pinning
-        val newApp = App(
-            id = System.currentTimeMillis(),
-            label = cleanTitle,
-            url = url,
-            iconUrl = iconUrl
-        )
-        apps.add(newApp)
-        saveApps()
     }
-
     fun removeApp(appId: Long) {
         val index = apps.indexOfFirst { it.id == appId }
         if (index != -1) {
