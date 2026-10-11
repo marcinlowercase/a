@@ -20,32 +20,41 @@ class DriveFileManager(private val syncManager: DriveSyncManager) {
         }.setApplicationName("oo1_browser").build()
     }
 
-    // Ensures: Google Drive -> the_browser_of_oo1_studio -> {appId}
-    private suspend fun getOrCreateAppFolderId(service: Drive, appId: String): String = withContext(Dispatchers.IO) {
+    // Read-only search: returns folder ID or null if missing (never creates folders)
+    private suspend fun findAppFolderId(service: Drive, appId: String): String? = withContext(Dispatchers.IO) {
         val rootFolderName = "the_browser_of_oo1_studio"
 
-        // 1. Find or create root 'the_browser_of_oo1_studio' folder
-        val rootQuery = service.files().list()
+        val rootFolderId = service.files().list()
             .setQ("name = '$rootFolderName' and mimeType = 'application/vnd.google-apps.folder' and trashed = false and 'root' in parents")
             .setFields("files(id)")
             .execute()
+            .files?.firstOrNull()?.id ?: return@withContext null
 
-        val rootFolderId = rootQuery.files?.firstOrNull()?.id ?: run {
-            val folderMetadata = File().apply {
-                name = rootFolderName
-                mimeType = "application/vnd.google-apps.folder"
-                parents = listOf("root")
-            }
-            service.files().create(folderMetadata).setFields("id").execute().id
-        }
-
-        // 2. Find or create subfolder for this specific appId
-        val appQuery = service.files().list()
+        service.files().list()
             .setQ("name = '$appId' and mimeType = 'application/vnd.google-apps.folder' and trashed = false and '$rootFolderId' in parents")
             .setFields("files(id)")
             .execute()
+            .files?.firstOrNull()?.id
+    }
 
-        appQuery.files?.firstOrNull()?.id ?: run {
+    // Write-only helper: only creates folders when saving a file
+    private suspend fun getOrCreateAppFolderId(service: Drive, appId: String): String = withContext(Dispatchers.IO) {
+        findAppFolderId(service, appId) ?: run {
+            val rootFolderName = "the_browser_of_oo1_studio"
+
+            val rootFolderId = service.files().list()
+                .setQ("name = '$rootFolderName' and mimeType = 'application/vnd.google-apps.folder' and trashed = false and 'root' in parents")
+                .setFields("files(id)")
+                .execute()
+                .files?.firstOrNull()?.id ?: run {
+                    val folderMetadata = File().apply {
+                        name = rootFolderName
+                        mimeType = "application/vnd.google-apps.folder"
+                        parents = listOf("root")
+                    }
+                    service.files().create(folderMetadata).setFields("id").execute().id
+                }
+
             val appFolderMetadata = File().apply {
                 name = appId
                 mimeType = "application/vnd.google-apps.folder"
@@ -104,7 +113,7 @@ class DriveFileManager(private val syncManager: DriveSyncManager) {
     ): String? = withContext(Dispatchers.IO) {
         try {
             val service = getDriveService(accessToken)
-            val folderId = getOrCreateAppFolderId(service, appId)
+            val folderId = findAppFolderId(service, appId) ?: return@withContext null
 
             val file = service.files().list()
                 .setQ("name = '$fileName' and '$folderId' in parents and trashed = false")
@@ -127,7 +136,7 @@ class DriveFileManager(private val syncManager: DriveSyncManager) {
     ): List<Map<String, Any>> = withContext(Dispatchers.IO) {
         try {
             val service = getDriveService(accessToken)
-            val folderId = getOrCreateAppFolderId(service, appId)
+            val folderId = findAppFolderId(service, appId) ?: return@withContext emptyList()
 
             val fileList = service.files().list()
                 .setQ("'$folderId' in parents and trashed = false")
@@ -156,7 +165,7 @@ class DriveFileManager(private val syncManager: DriveSyncManager) {
     ): Boolean = withContext(Dispatchers.IO) {
         try {
             val service = getDriveService(accessToken)
-            val folderId = getOrCreateAppFolderId(service, appId)
+            val folderId = findAppFolderId(service, appId) ?: return@withContext false
 
             val file = service.files().list()
                 .setQ("name = '$fileName' and '$folderId' in parents and trashed = false")
