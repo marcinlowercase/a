@@ -842,7 +842,7 @@ fun BottomPanel(
                                                     }
                                                     val liveUrl = viewModel.activeTab?.currentURL ?: ""
                                                     textFieldState.setTextAndPlaceCursorAtEnd(
-                                                        LocalAppServer.formatForDisplay(liveUrl)
+                                                        liveUrl.toDomain()
                                                     )
                                                     viewModel.updateUI {
                                                         it.copy(
@@ -1315,7 +1315,7 @@ fun BottomPanel(
                                         it.copy(currentURL = app.url)
                                     }
                                 }
-                                textFieldState.setTextAndPlaceCursorAtEnd(LocalAppServer.formatForDisplay(app.url))
+                                textFieldState.setTextAndPlaceCursorAtEnd(app.url.toDomain())
                                 webViewLoad(activeSession, app.url, context)
                                 viewModel.updateUI { it.copy(isSettingsPanelVisible = false) }
                                 viewModel.updateUI { it.copy(isUrlBarVisible = false) }
