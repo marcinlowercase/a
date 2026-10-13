@@ -18,7 +18,7 @@ fun webViewLoad(session: GeckoSession?, url: String, context: Context? = null) {
     Log.i("webViewLoad", "url: $url")
     if (session == null) return
 
-    val trimmed = url.trim()
+    val trimmed = LocalAppServer.toVirtualUrl(url)
     val server = (context?.applicationContext as? CustomApplication)?.localAppServer
 
     // -------------------------------------------------------------

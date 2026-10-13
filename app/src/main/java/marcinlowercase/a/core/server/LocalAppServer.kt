@@ -44,32 +44,32 @@ class LocalAppServer(private val context: Context) {
         }
 
     companion object {
-        const val PORT = 12321
-        private const val LOCALHOST_PREFIX = "http://127.0.0.1:$PORT/"
+        val PORT = if (marcinlowercase.a.BuildConfig.DEBUG) 12322 else 12321
+        private val LOCALHOST_PREFIX = "http://127.0.0.1:$PORT/"
         const val VIRTUAL_SCHEME = "local://"
 
+        private val LOOPBACK_REGEX = Regex("^https?://(127\\.0\\.0\\.1|localhost):\\d+/?", RegexOption.IGNORE_CASE)
+
         /**
-         * Translates virtual "local://" URLs to internal loopback "http://127.0.0.1:12321/".
-         * Used by webViewLoad before passing the URL to GeckoView.
+         * Translates virtual "local://" URLs (or legacy loopback URLs) to the current active loopback address.
          */
         fun toInternalUrl(url: String): String {
-            val trimmed = url.trim()
-            return if (trimmed.startsWith(VIRTUAL_SCHEME, ignoreCase = true)) {
-                val path = trimmed.removePrefix(VIRTUAL_SCHEME).removePrefix("/")
+            val virtual = toVirtualUrl(url)
+            return if (virtual.startsWith(VIRTUAL_SCHEME, ignoreCase = true)) {
+                val path = virtual.removePrefix(VIRTUAL_SCHEME).removePrefix("/")
                 LOCALHOST_PREFIX + path
             } else {
-                trimmed
+                virtual
             }
         }
 
         /**
-         * Translates internal loopback "http://127.0.0.1:12321/" back to virtual "local://".
-         * Used by onLocationChangeFun, tabs, and clipboard.
+         * Translates ANY internal loopback port (12321, 12322, localhost) back to virtual "local://".
          */
         fun toVirtualUrl(url: String): String {
             val trimmed = url.trim()
-            return if (trimmed.startsWith(LOCALHOST_PREFIX, ignoreCase = true)) {
-                val path = trimmed.removePrefix(LOCALHOST_PREFIX)
+            return if (LOOPBACK_REGEX.containsMatchIn(trimmed)) {
+                val path = trimmed.replace(LOOPBACK_REGEX, "")
                 VIRTUAL_SCHEME + path
             } else {
                 trimmed

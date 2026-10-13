@@ -2092,14 +2092,15 @@ fun BrowserScreen(
                             val isIncomingDataUri = url.startsWith("data:", ignoreCase = true)
 
                             // Protect local:// scheme from being overwritten by GeckoView's internal data: URI
-                            val finalUrl = if (isCurrentLocal && isIncomingDataUri) {
+                            val rawUrl = if (isCurrentLocal && isIncomingDataUri) {
                                 activeTab!!.currentURL
                             } else {
                                 url
                             }
+                            val finalUrl = marcinlowercase.a.core.server.LocalAppServer.toVirtualUrl(rawUrl)
 
                             if (!uiState.value.isFocusOnUrlTextField) {
-                                textFieldState.setTextAndPlaceCursorAtEnd(finalUrl.toDomain())
+                                textFieldState.setTextAndPlaceCursorAtEnd(marcinlowercase.a.core.server.LocalAppServer.formatForDisplay(finalUrl))
                             }
                             viewModel.updateTabById(eventTabId) { tab ->
                                 val cachedIcon = tab.faviconCache[finalUrl] ?: ""
