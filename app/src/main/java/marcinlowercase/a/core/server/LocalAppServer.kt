@@ -21,9 +21,27 @@ class LocalAppServer(private val context: Context) {
     private var serverJob: Job? = null
     private val scope = CoroutineScope(Dispatchers.IO)
 
-    // In-memory buffer for unpinned draft code
+    private val draftFile = File(context.filesDir, "draft.html")
+
+    // In-memory buffer backed by disk persistence for unpinned draft code
     @Volatile
-    var currentDraftHtml: String = ""
+    var currentDraftHtml: String = try {
+        if (draftFile.exists()) draftFile.readText(Charsets.UTF_8) else ""
+    } catch (_: Exception) {
+        ""
+    }
+        set(value) {
+            field = value
+            try {
+                if (value.isNotEmpty()) {
+                    draftFile.writeText(value, Charsets.UTF_8)
+                } else if (draftFile.exists()) {
+                    draftFile.delete()
+                }
+            } catch (e: Exception) {
+                Log.e("LocalAppServer", "Failed to persist draft.html", e)
+            }
+        }
 
     companion object {
         const val PORT = 12321
