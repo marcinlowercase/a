@@ -75,6 +75,7 @@ import marcinlowercase.a.core.enum_class.SearchEngine
 import marcinlowercase.a.core.enum_class.SuggestionSource
 import marcinlowercase.a.core.enum_class.TabState
 import marcinlowercase.a.core.enum_class.WindowMode
+import marcinlowercase.a.core.function.toDomain
 import marcinlowercase.a.core.manager.AppManager
 import marcinlowercase.a.core.manager.BrowserDownloadManager
 import marcinlowercase.a.core.manager.GeminiManager
@@ -2307,9 +2308,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     val denyCurrentPermissionRequest = {
         val request = pendingPermissionRequest.value
         if (request != null) {
-            // FIX: fallback so Deny also persists
-            val domain = siteSettingsManager.getDomain(request.origin)
-                ?: request.origin.removePrefix("https://").removePrefix("http://")
+            val domain = siteSettingsManager.getDomain(request.origin) ?: request.origin.toDomain()
 
             if (domain.isNotBlank()) {
                 val deniedPermissions = request.permissionsToRequest.associateWith { false }
@@ -2322,14 +2321,12 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     val allowMediaPermissionRequest = { permissions: Map<String, Boolean> ->
         val request = pendingPermissionRequest.value
         if (request != null) {
-            // 1. Identify domain and save the "Allow" decision
-            siteSettingsManager.getDomain(request.origin)?.let { domain ->
+            val domain = siteSettingsManager.getDomain(request.origin) ?: request.origin.toDomain()
+            if (domain.isNotBlank()) {
                 savePermissionDecision(domain, permissions)
             }
 
-            // 2. Invoke the callback to tell GeckoView the result
             request.onResult.invoke(permissions, pendingPermissionRequest)
-
         }
     }
 

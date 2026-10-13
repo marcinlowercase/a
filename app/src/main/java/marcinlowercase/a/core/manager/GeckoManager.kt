@@ -34,9 +34,6 @@ import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
-import com.google.mlkit.vision.barcode.common.Barcode
-import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
-import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
@@ -74,6 +71,10 @@ import org.mozilla.geckoview.WebResponse
 import java.io.File
 import kotlin.coroutines.resume
 import kotlin.math.abs
+import android.graphics.BitmapFactory
+import android.util.Base64
+import com.google.mlkit.vision.barcode.BarcodeScanning
+import com.google.mlkit.vision.common.InputImage
 
 private const val UBLOCK_ID = "uBlock0@raymondhill.net"
 private const val FAVICON_ID = "browser_core_extension@marcinlowercase"
@@ -301,26 +302,34 @@ class GeckoManager(private val context: Context) {
     private var toneGenerator: ToneGenerator? = null
 
 
-    private suspend fun scanBarcodeNatively(): String = suspendCancellableCoroutine { continuation ->
-        val options = GmsBarcodeScannerOptions.Builder()
-            .setBarcodeFormats(Barcode.FORMAT_ALL_FORMATS)
-            .enableAutoZoom()
-            .build()
-
-        val scanner = GmsBarcodeScanning.getClient(context, options)
-
-        scanner.startScan()
-            .addOnSuccessListener { barcode ->
-                val rawValue = barcode.rawValue ?: ""
-                if (continuation.isActive) continuation.resume(rawValue)
+    private suspend fun decodeBarcodeFromBase64(base64Data: String): String = suspendCancellableCoroutine { continuation ->
+        if (base64Data.isBlank()) {
+            if (continuation.isActive) continuation.resume("")
+            return@suspendCancellableCoroutine
+        }
+        try {
+            val cleanBase64 = if (base64Data.contains(",")) base64Data.substringAfter(",") else base64Data
+            val imageBytes = Base64.decode(cleanBase64, Base64.DEFAULT)
+            val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+            if (bitmap == null) {
+                if (continuation.isActive) continuation.resume("ERROR_INVALID_IMAGE")
+                return@suspendCancellableCoroutine
             }
-            .addOnCanceledListener {
-                if (continuation.isActive) continuation.resume("CANCELED")
-            }
-            .addOnFailureListener { e ->
-                Log.e("GeckoScanner", "Barcode scan failed", e)
-                if (continuation.isActive) continuation.resume("ERROR")
-            }
+            val image = InputImage.fromBitmap(bitmap, 0)
+            val scanner = BarcodeScanning.getClient()
+            scanner.process(image)
+                .addOnSuccessListener { barcodes ->
+                    val result = barcodes.firstOrNull()?.rawValue ?: ""
+                    if (continuation.isActive) continuation.resume(result)
+                }
+                .addOnFailureListener { e ->
+                    Log.e("GeckoScanner", "Barcode decode failed", e)
+                    if (continuation.isActive) continuation.resume("ERROR")
+                }
+        } catch (e: Exception) {
+            Log.e("GeckoScanner", "Failed to parse base64 for barcode", e)
+            if (continuation.isActive) continuation.resume("ERROR")
+        }
     }
     private fun playAudioEffect(type: String) {
         try {
@@ -1264,10 +1273,15 @@ class GeckoManager(private val context: Context) {
                                 playAudioEffect(soundType)
                                 return GeckoResult.fromValue("SUCCESS")
                             }
-                            "scannerBarcode" -> {
+                            "scannerBarcode", "scannerDecode" -> {
+                                val base64Data = when (message) {
+                                    is JSONObject -> message.optString("base64Data", "")
+                                    is Map<*, *> -> message["base64Data"] as? String ?: ""
+                                    else -> ""
+                                }
                                 val result = GeckoResult<Any>()
-                                MainScope().launch(Dispatchers.Main) {
-                                    val code = scanBarcodeNatively()
+                                MainScope().launch(Dispatchers.Default) {
+                                    val code = decodeBarcodeFromBase64(base64Data)
                                     result.complete(code)
                                 }
                                 return result

@@ -109,15 +109,15 @@
   }
 
   // ==========================================
-  // 5. HARDWARE SCANNER MODULE (Google ML Kit)
-  // ==========================================
-  function scanBarcode() {
-    return new window.Promise((resolve) => {
-      send("scannerBarcode")
-      .then((res) => resolve(res))
-      .catch(() => resolve("ERROR"));
-    });
-  }
+    // 5. HARDWARE SCANNER MODULE (On-Device ML Kit Frame Decoder)
+    // ==========================================
+    function scanBarcode(base64Data) {
+      return new window.Promise((resolve) => {
+        send("scannerDecode", { base64Data: base64Data || "" })
+        .then((res) => resolve(res))
+        .catch(() => resolve("ERROR"));
+      });
+    }
 
   // ==========================================
   // 6. EXACT ALARM MODULE (Android AlarmManager)
@@ -226,6 +226,7 @@
     // 5. Scanner
     const scannerObj = cloneInto({}, pageWin);
     exportFunction(scanBarcode, scannerObj, { defineAs: "scan" });
+    exportFunction(scanBarcode, scannerObj, { defineAs: "decode" });
     root.scanner = scannerObj;
 
     // 6. Alarm
@@ -271,7 +272,8 @@
         play: playAudio
       },
       scanner: {
-        scan: scanBarcode
+              scan: scanBarcode,
+              decode: scanBarcode
       },
       flashlight: {
         toggle: toggleFlashlight,

@@ -461,9 +461,7 @@ fun BottomPanel(
                                 val grantedMap = request.permissionsToRequest.associateWith { true }
 
                                 // FIX: fallback to request.origin if getDomain() returns null
-                                val domain = viewModel.siteSettingsManager.getDomain(request.origin)
-                                    ?: request.origin.removePrefix("https://")
-                                        .removePrefix("http://")
+                                val domain = request.origin.toDomain()
 
                                 viewModel.savePermissionDecision(domain, grantedMap)
                                 request.onResult(grantedMap, viewModel.pendingPermissionRequest)

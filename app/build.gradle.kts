@@ -112,7 +112,12 @@ android {
 }
 
 dependencies {
-    implementation(libs.play.services.code.scanner)
+    implementation("com.google.mlkit:barcode-scanning:17.3.0")
+    val cameraxVersion = "1.4.1"
+    implementation("androidx.camera:camera-core:$cameraxVersion")
+    implementation("androidx.camera:camera-camera2:$cameraxVersion")
+    implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
+    implementation("androidx.camera:camera-view:$cameraxVersion")
     implementation(libs.android.apksig)
     implementation(libs.androidx.media)
     implementation(libs.androidx.lifecycle.viewmodel)

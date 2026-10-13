@@ -352,6 +352,18 @@ class CustomPermissionDelegate(
     private var cameraPermissionGranted: Boolean = false
 
 
+    private fun getEffectiveDomain(uri: String): String {
+        val isLoopback = uri.startsWith("http://127.0.0.1", ignoreCase = true) ||
+                uri.startsWith("http://localhost", ignoreCase = true) ||
+                uri.startsWith("local://", ignoreCase = true)
+
+        return if (isLoopback) {
+            tab.value.currentURL.toDomain()
+        } else {
+            uri.toDomain()
+        }
+    }
+
     override fun onMediaPermissionRequest(
         session: GeckoSession,
         uri: String,
@@ -384,7 +396,7 @@ class CustomPermissionDelegate(
             callback.reject()
             return
         }
-        val domain = uri.toDomain()
+        val domain = getEffectiveDomain(uri)
 
         val videoDecision = siteSettings[domain]?.permissionDecisions?.get(Manifest.permission.CAMERA)
         val audioDecision = siteSettings[domain]?.permissionDecisions?.get(Manifest.permission.RECORD_AUDIO)
@@ -500,10 +512,17 @@ class CustomPermissionDelegate(
             allowIcon = R.drawable.ic_mic_on
             denyIcon = R.drawable.ic_mic_off
         }
+        val targetOrigin = if (uri.startsWith("http://127.0.0.1", ignoreCase = true) ||
+            uri.startsWith("http://localhost", ignoreCase = true)) {
+            tab.value.currentURL
+        } else {
+            uri
+        }
+
         val customRequest = CustomPermissionRequest(
-            origin = uri,
+            origin = targetOrigin,
             title = permissionName,
-            rationale = "$uri wants to use your $type.",
+            rationale = "$targetOrigin wants to use your $type.",
             iconResAllow = allowIcon,
             iconResDeny = denyIcon,
             permissionsToRequest = listOf(permission),

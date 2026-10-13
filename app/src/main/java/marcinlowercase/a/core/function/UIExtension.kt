@@ -170,12 +170,12 @@ fun getFaviconUrlFromGoogleServer(pageUrl: String): String {
 }
 
 fun String.toDomain(): String {
-    // 1. Handles local:// and strips /index.html cleanly (e.g. "local://draft" or "local://apps/inventory_checker")
-    if (this.startsWith("local://", ignoreCase = true) || this.startsWith("http://127.0.0.1:${marcinlowercase.a.core.server.LocalAppServer.PORT}")) {
-        return marcinlowercase.a.core.server.LocalAppServer.formatForDisplay(this)
+    val virtual = marcinlowercase.a.core.server.LocalAppServer.toVirtualUrl(this)
+    if (virtual.startsWith(marcinlowercase.a.core.server.LocalAppServer.VIRTUAL_SCHEME, ignoreCase = true)) {
+        val formatted = marcinlowercase.a.core.server.LocalAppServer.formatForDisplay(virtual)
+        return if (formatted.isNotBlank() && formatted != "local:") formatted else "local://draft"
     }
 
-    // 2. Standard Web Domains
     return try {
         java.net.URL(this).host?.let {
             if (it.startsWith("www.", ignoreCase = true)) it.substring(4) else it

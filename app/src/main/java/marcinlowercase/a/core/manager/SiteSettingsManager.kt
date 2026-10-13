@@ -5,6 +5,7 @@ import androidx.core.content.edit
 import androidx.core.net.toUri
 import kotlinx.serialization.json.Json
 import marcinlowercase.a.core.data_class.SiteSettings
+import marcinlowercase.a.core.function.toDomain
 
 class SiteSettingsManager(context: Context) {
     private val prefs = context.getSharedPreferences("BrowserSiteSettings", Context.MODE_PRIVATE)
@@ -25,6 +26,6 @@ class SiteSettingsManager(context: Context) {
     }
 
     fun getDomain(url: String?): String? {
-        return url?.toUri()?.host?.removePrefix("www.")
+        return url?.toDomain()
     }
 }
