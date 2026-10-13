@@ -2100,7 +2100,12 @@ fun BrowserScreen(
                             val finalUrl = marcinlowercase.a.core.server.LocalAppServer.toVirtualUrl(rawUrl)
 
                             if (!uiState.value.isFocusOnUrlTextField) {
-                                textFieldState.setTextAndPlaceCursorAtEnd(marcinlowercase.a.core.server.LocalAppServer.formatForDisplay(finalUrl))
+                                val displayUrl = if (finalUrl.startsWith(marcinlowercase.a.core.server.LocalAppServer.VIRTUAL_SCHEME, ignoreCase = true)) {
+                                    marcinlowercase.a.core.server.LocalAppServer.formatForDisplay(finalUrl)
+                                } else {
+                                    finalUrl.toDomain()
+                                }
+                                textFieldState.setTextAndPlaceCursorAtEnd(displayUrl)
                             }
                             viewModel.updateTabById(eventTabId) { tab ->
                                 val cachedIcon = tab.faviconCache[finalUrl] ?: ""
@@ -2197,11 +2202,16 @@ fun BrowserScreen(
                             val isCurrentLocal = activeTab?.currentURL?.startsWith("local://", ignoreCase = true) == true
                             val isIncomingDataUri = url.startsWith("data:", ignoreCase = true)
 
-                            // Keep the active tab's local:// address while loading
-                            val displayUrl = if (isCurrentLocal && isIncomingDataUri) {
+                            val rawDisplay = if (isCurrentLocal && isIncomingDataUri) {
                                 activeTab!!.currentURL
                             } else {
-                                url.toDomain()
+                                marcinlowercase.a.core.server.LocalAppServer.toVirtualUrl(url)
+                            }
+
+                            val displayUrl = if (rawDisplay.startsWith(marcinlowercase.a.core.server.LocalAppServer.VIRTUAL_SCHEME, ignoreCase = true)) {
+                                marcinlowercase.a.core.server.LocalAppServer.formatForDisplay(rawDisplay)
+                            } else {
+                                rawDisplay.toDomain()
                             }
 
                             if (!uiState.value.isFocusOnUrlTextField) {
