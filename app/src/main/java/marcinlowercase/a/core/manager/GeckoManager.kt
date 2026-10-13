@@ -71,6 +71,7 @@ import org.mozilla.geckoview.WebNotification
 import org.mozilla.geckoview.WebNotificationDelegate
 import org.mozilla.geckoview.WebRequestError
 import org.mozilla.geckoview.WebResponse
+import java.io.File
 import kotlin.coroutines.resume
 import kotlin.math.abs
 
@@ -110,7 +111,25 @@ class GeckoManager(private val context: Context) {
 //    }
 
     val runtime: GeckoRuntime by lazy {
+        val configFile = File(context.filesDir, "geckoview-config.yaml").apply {
+            writeText(
+                """
+                prefs:
+                  dom.webgpu.enabled: true
+                  gfx.webgpu.force-enabled: true
+                  gfx.webgpu.ignore-blocklist: true
+                  gfx.webrender.all: true
+                  gfx.webrender.compositor: true
+                  gfx.webrender.compositor.force-enabled: true
+                  layers.acceleration.force-enabled: true
+                  dom.webgpu.workers.enabled: true
+                """.trimIndent()
+            )
+        }
+
         val settings = GeckoRuntimeSettings.Builder()
+            .configFilePath(configFile.absolutePath)
+            .aboutConfigEnabled(true)
             .inputAutoZoomEnabled(false)
             .consoleOutput(true) // Forces console logs ON immediately
             .build()
