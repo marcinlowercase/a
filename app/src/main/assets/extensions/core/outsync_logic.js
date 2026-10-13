@@ -108,16 +108,24 @@
     });
   }
 
-  // ==========================================
-    // 5. HARDWARE SCANNER MODULE (On-Device ML Kit Frame Decoder)
-    // ==========================================
-    function scanBarcode(base64Data) {
-      return new window.Promise((resolve) => {
-        send("scannerDecode", { base64Data: base64Data || "" })
-        .then((res) => resolve(res))
-        .catch(() => resolve("ERROR"));
-      });
-    }
+ // ==========================================
+   // 5. CAMERA & SCANNER MODULE (Native Loopback Stream & ML Kit)
+   // ==========================================
+   function startCamera(options = {}) {
+     return new window.Promise((resolve) => {
+       send("cameraStart", { torch: Boolean(options.torch) })
+       .then((res) => resolve(res === "SUCCESS"))
+       .catch(() => resolve(false));
+     });
+   }
+
+   function stopCamera() {
+     return new window.Promise((resolve) => {
+       send("cameraStop")
+       .then((res) => resolve(res === "SUCCESS"))
+       .catch(() => resolve(false));
+     });
+   }
 
   // ==========================================
   // 6. EXACT ALARM MODULE (Android AlarmManager)
@@ -223,11 +231,11 @@
     exportFunction(playAudio, audioObj, { defineAs: "play" });
     root.audio = audioObj;
 
-    // 5. Scanner
-    const scannerObj = cloneInto({}, pageWin);
-    exportFunction(scanBarcode, scannerObj, { defineAs: "scan" });
-    exportFunction(scanBarcode, scannerObj, { defineAs: "decode" });
-    root.scanner = scannerObj;
+    // 5. Camera & Scanner
+    const cameraObj = cloneInto({}, pageWin);
+    exportFunction(startCamera, cameraObj, { defineAs: "start" });
+    exportFunction(stopCamera, cameraObj, { defineAs: "stop" });
+    root.camera = cameraObj;
 
     // 6. Alarm
 
@@ -271,10 +279,10 @@
       audio: {
         play: playAudio
       },
-      scanner: {
-              scan: scanBarcode,
-              decode: scanBarcode
-      },
+      camera: {
+              start: startCamera,
+              stop: stopCamera
+            },
       flashlight: {
         toggle: toggleFlashlight,
         on: turnOnFlashlight,

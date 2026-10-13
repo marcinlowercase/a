@@ -148,6 +148,14 @@ class LocalAppServer(private val context: Context) {
             socket.use { s ->
                 val reader = BufferedReader(InputStreamReader(s.getInputStream()))
                 val requestLine = reader.readLine() ?: return
+                Log.i("LocalAppServer", "Request: $requestLine")
+
+                // Consume remaining HTTP headers to keep socket clean
+                var headerLine = reader.readLine()
+                while (!headerLine.isNullOrBlank()) {
+                    headerLine = reader.readLine()
+                }
+
                 val parts = requestLine.split(" ")
                 if (parts.size < 2 || parts[0] != "GET") {
                     send404(s.getOutputStream())
@@ -158,6 +166,11 @@ class LocalAppServer(private val context: Context) {
                 val output = s.getOutputStream()
 
                 when {
+                    // CAMERA MJPEG STREAM ROUTE: /camera/stream
+                    rawPath == "/camera/stream" -> {
+                        handleCameraStream(s, output)
+                    }
+
                     // 1. DRAFT ROUTE: /draft/index.html
                     rawPath == "/draft/index.html" || rawPath == "/draft" || rawPath == "/draft/" -> {
                         sendResponse(output, "text/html; charset=utf-8", currentDraftHtml.toByteArray(Charsets.UTF_8))
@@ -227,5 +240,58 @@ class LocalAppServer(private val context: Context) {
         out.write(header.toByteArray(Charsets.UTF_8))
         out.write(body)
         out.flush()
+    }
+
+    private fun handleCameraStream(socket: Socket, out: OutputStream) {
+        val app = context.applicationContext as? marcinlowercase.a.CustomApplication
+        val cameraManager = app?.cameraStreamManager ?: run {
+            Log.e("LocalAppServer", "CameraStreamManager is NULL")
+            send404(out)
+            return
+        }
+
+        Log.i("LocalAppServer", "handleCameraStream: isRunning=${cameraManager.isRunning}")
+
+        try {
+            val header = "HTTP/1.1 200 OK\r\n" +
+                    "Content-Type: multipart/x-mixed-replace; boundary=frame\r\n" +
+                    "Cache-Control: no-cache, no-store, must-revalidate\r\n" +
+                    "Access-Control-Allow-Origin: *\r\n" +
+                    "Connection: close\r\n\r\n"
+            out.write(header.toByteArray(Charsets.UTF_8))
+            out.flush()
+            Log.i("LocalAppServer", "Stream header sent to browser")
+
+            var frameCount = 0
+            val listener: (ByteArray) -> Unit = { jpegBytes ->
+                try {
+                    synchronized(out) {
+                        val frameHeader = "--frame\r\n" +
+                                "Content-Type: image/jpeg\r\n" +
+                                "Content-Length: ${jpegBytes.size}\r\n\r\n"
+                        out.write(frameHeader.toByteArray(Charsets.UTF_8))
+                        out.write(jpegBytes)
+                        out.write("\r\n".toByteArray(Charsets.UTF_8))
+                        out.flush()
+                        frameCount++
+                        if (frameCount % 30 == 0) {
+                            Log.d("LocalAppServer", "Stream sent $frameCount frames (${jpegBytes.size} bytes/frame)")
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w("LocalAppServer", "Socket write failed (client disconnected): ${e.message}")
+                    try { socket.close() } catch (_: Exception) {}
+                }
+            }
+
+            cameraManager.frameListeners.add(listener)
+            while (!socket.isClosed && socket.isConnected && cameraManager.isRunning) {
+                Thread.sleep(100)
+            }
+            cameraManager.frameListeners.remove(listener)
+            Log.i("LocalAppServer", "Camera stream loop ended. Total frames sent: $frameCount")
+        } catch (e: Exception) {
+            Log.e("LocalAppServer", "handleCameraStream error", e)
+        }
     }
 }

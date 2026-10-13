@@ -446,6 +446,26 @@ class GeckoManager(private val context: Context) {
             }
         }
     }
+    var onDomainCameraPermissionRequested: ((domain: String, onDecision: (Boolean) -> Unit) -> Unit)? = null
+
+    private suspend fun checkOrRequestCameraPermission(domain: String, siteSettings: Map<String, SiteSettings>): Boolean {
+        val existingDecision = siteSettings[domain]?.permissionDecisions?.get(Manifest.permission.CAMERA)
+        if (existingDecision != null) {
+            return existingDecision
+        }
+
+        return suspendCancellableCoroutine { continuation ->
+            val requestPrompt = onDomainCameraPermissionRequested
+            if (requestPrompt != null) {
+                requestPrompt(domain) { isAllowed ->
+                    if (continuation.isActive) continuation.resume(isAllowed)
+                }
+            } else {
+                if (continuation.isActive) continuation.resume(false)
+            }
+        }
+    }
+
     var onDomainDrivePermissionRequested: ((domain: String, onDecision: (Boolean) -> Unit) -> Unit)? = null
 
     private suspend fun checkOrRequestDrivePermission(domain: String, siteSettings: Map<String, SiteSettings>): Boolean {
@@ -1287,7 +1307,88 @@ class GeckoManager(private val context: Context) {
                                 return result
                             }
 
+                            "cameraStart" -> {
+                                val torch = when (message) {
+                                    is JSONObject -> message.optBoolean("torch", false)
+                                    is Map<*, *> -> (message["torch"] as? Boolean) ?: false
+                                    else -> false
+                                }
+                                val app = context.applicationContext as? marcinlowercase.a.CustomApplication
+                                val activity = marcinlowercase.a.MainActivity.currentFullBrowserInstance?.get()
+                                val domain = (sender.url ?: tab.value.currentURL).toDomain()
+
+                                Log.i("GeckoManager", "cameraStart received for domain: $domain, torch: $torch")
+
+                                val result = GeckoResult<Any>()
+                                MainScope().launch(Dispatchers.Main) {
+                                    // 1. Check or prompt for website-level camera permission
+                                    val isAllowedBySite = checkOrRequestCameraPermission(domain, siteSettings)
+                                    if (!isAllowedBySite) {
+                                        Log.i("GeckoManager", "Camera denied by site permission for domain: $domain")
+                                        result.complete("PERMISSION_DENIED")
+                                        return@launch
+                                    }
+
+                                    if (app == null || activity == null) {
+                                        Log.e("GeckoManager", "cameraStart failed: app or activity was null")
+                                        result.complete("FAIL")
+                                        return@launch
+                                    }
+
+                                    // 2. Check Android OS-level camera permission
+                                    val hasCamera = ContextCompat.checkSelfPermission(
+                                        activity,
+                                        Manifest.permission.CAMERA
+                                    ) == PackageManager.PERMISSION_GRANTED
+
+                                    if (!hasCamera) {
+                                        Log.i("GeckoManager", "Requesting OS CAMERA permission from Activity...")
+                                        androidx.core.app.ActivityCompat.requestPermissions(
+                                            activity,
+                                            arrayOf(Manifest.permission.CAMERA),
+                                            101
+                                        )
+                                        result.complete("PERMISSION_REQUESTED")
+                                        return@launch
+                                    }
+
+                                    // 3. Both site and OS permission granted -> Start stream
+                                    app.cameraStreamManager.onBarcodeScanned = { code ->
+                                        val escaped = code.replace("\\", "\\\\").replace("'", "\\'")
+                                        val js = "javascript:void(window.dispatchEvent(new CustomEvent('outsync_barcode', { detail: '$escaped' })));"
+                                        session.load(GeckoSession.Loader().uri(js))
+                                    }
+                                    app.cameraStreamManager.start(activity, torch) {
+                                        Log.i("GeckoManager", "CameraStreamManager start callback completed")
+                                        result.complete("SUCCESS")
+                                    }
+                                }
+                                return result
+                            }
+
+                            "cameraStop" -> {
+                                val app = context.applicationContext as? marcinlowercase.a.CustomApplication
+                                app?.cameraStreamManager?.stop()
+                                return GeckoResult.fromValue("SUCCESS")
+                            }
+
                             "flashlightToggle" -> {
+                                val app = context.applicationContext as? marcinlowercase.a.CustomApplication
+                                val cameraMgr = app?.cameraStreamManager
+
+                                // 1. If CameraX is actively streaming, control the flash directly via CameraX
+                                if (cameraMgr?.isRunning == true) {
+                                    val state = when (message) {
+                                        is JSONObject -> if (!message.isNull("enabled")) message.optBoolean("enabled") else null
+                                        is Map<*, *> -> message["enabled"] as? Boolean
+                                        else -> null
+                                    }
+                                    val newTorch = state ?: !cameraMgr.isTorchOn
+                                    cameraMgr.setTorch(newTorch)
+                                    return GeckoResult.fromValue(if (cameraMgr.isTorchOn) "ON" else "OFF")
+                                }
+
+                                // 2. If camera is stopped, use native CameraManager (100% uptime)
                                 val state = when (message) {
                                     is JSONObject -> if (!message.isNull("enabled")) message.optBoolean("enabled") else null
                                     is Map<*, *> -> message["enabled"] as? Boolean

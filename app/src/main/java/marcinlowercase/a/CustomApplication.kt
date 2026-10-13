@@ -12,6 +12,7 @@ import marcinlowercase.a.core.server.LocalAppServer
 
 class CustomApplication : Application() {
     val geckoManager by lazy { GeckoManager(this) }
+    val cameraStreamManager by lazy { marcinlowercase.a.core.manager.CameraStreamManager(this) }
 
     // Server only exists in the main process
     var localAppServer: LocalAppServer? = null

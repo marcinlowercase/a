@@ -1647,7 +1647,33 @@ fun BrowserScreen(
         // In MainActivity.kt -> BrowserScreen
         val googleDriveAppFolderString = stringResource(R.string.desc_permission_google_drive_app_folder)
         val saveFileToDevice = stringResource(R.string.desc_permission_save_file_to_device)
+        val cameraPermissionString = stringResource(R.string.desc_permission_camera)
         DisposableEffect(viewModel.activeProfileId.value) {
+            viewModel.geckoManager.onDomainCameraPermissionRequested = { domain, onDecision ->
+                val activeDomain = viewModel.activeTab?.currentURL?.toDomain()
+
+                if (domain == activeDomain) {
+                    val cameraRequest = CustomPermissionRequest(
+                        origin = if (domain.startsWith("http") || domain.startsWith("local://")) domain else "https://$domain",
+                        title = cameraPermissionString,
+                        rationale = "$domain wants to use your device's camera.",
+                        iconResAllow = R.drawable.ic_camera_on,
+                        iconResDeny = R.drawable.ic_camera_off,
+                        permissionsToRequest = listOf(Manifest.permission.CAMERA),
+                        onResult = { permissionsMap, pendingRequest ->
+                            val isGranted = permissionsMap[Manifest.permission.CAMERA] == true
+                            viewModel.savePermissionDecision(domain, mapOf(Manifest.permission.CAMERA to isGranted))
+                            onDecision(isGranted)
+                            pendingRequest.value = null
+                        },
+                        isSystemRequest = false
+                    )
+                    viewModel.pendingPermissionRequest.value = cameraRequest
+                } else {
+                    onDecision(false)
+                }
+            }
+
             viewModel.geckoManager.onDomainDrivePermissionRequested = { domain, onDecision ->
                 val activeDomain = viewModel.activeTab?.currentURL?.toDomain()
 
@@ -1697,6 +1723,7 @@ fun BrowserScreen(
             }
 
             onDispose {
+                viewModel.geckoManager.onDomainCameraPermissionRequested = null
                 viewModel.geckoManager.onDomainDrivePermissionRequested = null
                 viewModel.geckoManager.onDomainFileStoragePermissionRequested = null
             }
