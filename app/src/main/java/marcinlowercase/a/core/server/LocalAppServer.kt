@@ -97,8 +97,16 @@ class LocalAppServer(private val context: Context) {
     val baseUrl: String
         get() = "http://127.0.0.1:$PORT"
 
+    fun ensureRunning() {
+        if (serverSocket == null || serverSocket!!.isClosed || serverJob?.isActive != true) {
+            stop()
+            start()
+        }
+    }
+
     fun start() {
-        if (serverSocket != null && !serverSocket!!.isClosed) return
+        if (serverSocket != null && !serverSocket!!.isClosed && serverJob?.isActive == true) return
+        stop()
 
         serverJob = scope.launch {
             try {
@@ -108,12 +116,20 @@ class LocalAppServer(private val context: Context) {
                 }
                 Log.i("LocalAppServer", "Loopback server bound on $baseUrl")
 
-                while (isActive && !serverSocket!!.isClosed) {
-                    val clientSocket = serverSocket!!.accept()
-                    launch { handleClient(clientSocket) }
+                while (isActive && serverSocket?.isClosed == false) {
+                    try {
+                        val clientSocket = serverSocket!!.accept()
+                        launch { handleClient(clientSocket) }
+                    } catch (e: Exception) {
+                        if (!isActive || serverSocket?.isClosed == true) break
+                        Log.e("LocalAppServer", "Socket accept exception, continuing...", e)
+                    }
                 }
             } catch (e: Exception) {
                 if (isActive) Log.e("LocalAppServer", "Server exception", e)
+            } finally {
+                try { serverSocket?.close() } catch (_: Exception) {}
+                serverSocket = null
             }
         }
     }

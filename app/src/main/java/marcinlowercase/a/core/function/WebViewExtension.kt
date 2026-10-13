@@ -1,5 +1,5 @@
+// WebViewExtension.kt
 package marcinlowercase.a.core.function
-
 import android.content.Context
 import android.net.Uri
 import android.util.Log
@@ -27,6 +27,14 @@ fun webViewLoad(session: GeckoSession?, url: String, context: Context? = null) {
     val isRawHtml = trimmed.startsWith("<!DOCTYPE", ignoreCase = true) ||
             trimmed.startsWith("<html", ignoreCase = true) ||
             (trimmed.startsWith("<") && trimmed.contains("</html>", ignoreCase = true))
+
+    val isLocalTarget = isRawHtml ||
+            trimmed.startsWith("content://", ignoreCase = true) ||
+            trimmed.startsWith(LocalAppServer.VIRTUAL_SCHEME, ignoreCase = true)
+
+    if (isLocalTarget) {
+        server?.ensureRunning()
+    }
 
     if (isRawHtml && server != null) {
         server.currentDraftHtml = trimmed
