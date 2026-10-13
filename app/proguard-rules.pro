@@ -13,3 +13,6 @@
 }
 -dontwarn com.google.api.client.**
 -dontwarn org.apache.http.**
+
+-keep class org.yaml.snakeyaml.** { *; }
+-keep class org.mozilla.gecko.util.DebugConfig** { *; }
