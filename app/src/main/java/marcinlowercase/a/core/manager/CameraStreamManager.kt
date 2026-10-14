@@ -21,7 +21,14 @@ import java.util.concurrent.Executors
 class CameraStreamManager(private val context: Context) {
 
     private val cameraExecutor = Executors.newSingleThreadExecutor()
-    private val barcodeScanner = BarcodeScanning.getClient()
+    private val barcodeScanner by lazy {
+        try {
+            com.google.mlkit.vision.barcode.BarcodeScanning.getClient()
+        } catch (e: Exception) {
+            Log.e("CameraStreamManager", "Failed to init BarcodeScanner", e)
+            null
+        }
+    }
     private var camera: Camera? = null
     private var cameraProvider: ProcessCameraProvider? = null
 
@@ -148,18 +155,20 @@ class CameraStreamManager(private val context: Context) {
 
                 val now = System.currentTimeMillis()
                 if (now - lastScanTime > 500) {
-                    // Bitmap is already upright, rotationDegrees is 0
-                    val inputImage = InputImage.fromBitmap(bitmap, 0)
-                    barcodeScanner.process(inputImage)
-                        .addOnSuccessListener { barcodes ->
-                            val code = barcodes.firstOrNull()?.rawValue
-                            if (!code.isNullOrBlank() && (code != lastScannedCode || now - lastScanTime > 2000)) {
-                                lastScannedCode = code
-                                lastScanTime = now
-                                Log.i("CameraStreamManager", "Barcode detected: $code")
-                                onBarcodeScanned?.invoke(code)
+                    val scanner = barcodeScanner
+                    if (scanner != null) {
+                        val inputImage = InputImage.fromBitmap(bitmap, 0)
+                        scanner.process(inputImage)
+                            .addOnSuccessListener { barcodes ->
+                                val code = barcodes.firstOrNull()?.rawValue
+                                if (!code.isNullOrBlank() && (code != lastScannedCode || now - lastScanTime > 2000)) {
+                                    lastScannedCode = code
+                                    lastScanTime = now
+                                    Log.i("CameraStreamManager", "Barcode detected: $code")
+                                    onBarcodeScanned?.invoke(code)
+                                }
                             }
-                        }
+                    }
                 }
             } else {
                 Log.w("CameraStreamManager", "imageProxy.toBitmap() returned null")

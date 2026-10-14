@@ -1,7 +1,3 @@
-# --- WebAPK Builder / ApkSigner Rules ---
-# Keep the entire apksig library intact so it doesn't crash during runtime signing in Release mode
--keep class com.android.apksig.** { *; }
--dontwarn com.android.apksig.**
 
 # Keep standard cryptography and security classes just in case R8 tries to aggressively shrink them
 -keep class java.security.** { *; }
@@ -16,3 +12,15 @@
 
 -keep class org.yaml.snakeyaml.** { *; }
 -keep class org.mozilla.gecko.util.DebugConfig** { *; }
+
+# Preserve ML Kit Barcode Scanning & Common Component Registrars
+-keep class com.google.mlkit.** { *; }
+-dontwarn com.google.mlkit.**
+-keep class com.google.android.gms.internal.mlkit_vision_barcode.** { *; }
+-dontwarn com.google.android.gms.internal.mlkit_vision_barcode.**
+
+# Preserve CameraX service loaders and config
+-keep class androidx.camera.core.** { *; }
+-keep class androidx.camera.camera2.** { *; }
+-keep class androidx.camera.lifecycle.** { *; }
+-dontwarn androidx.camera.**
