@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>outsync 4x8 matrix</title>
+    <style>
+        :root {
+            /* unit scaling: 4 buttons + 5 gaps (0.4u) = 6u, 8 buttons + 9 gaps (0.4u) = 11.6u */
+            --unit: min(calc(100vw / 6), calc(100dvh / 11.6));
+            --gap: calc(var(--unit) * 0.4);
+
+            /* circle radius equals half of button size */
+            --radius: calc(var(--unit) / 2);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* viewport */
+        html, body {
+            width: 100%;
+            height: 100%;
+            height: 100dvh;
+            overflow: hidden;
+            background-color: white;
+            font-family: system-ui, -apple-system, blinkmacsystemfont, "segoe ui", roboto, sans-serif;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* 4x8 matrix canvas permanently centered */
+        .o-s-grid {
+            width: calc(var(--unit) * 6);
+            height: calc(var(--unit) * 11.6);
+            padding: var(--gap);
+            gap: var(--gap);
+
+            display: grid;
+            grid-template-columns: repeat(4, var(--unit));
+            grid-template-rows: repeat(8, var(--unit));
+            position: relative;
+        }
+
+        /* grid slot container */
+        .o-s-grid-slot {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 0;
+            min-height: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* coordinate mapping */
+        [o-s-col="1"] { grid-column-start: 1; }
+        [o-s-col="2"] { grid-column-start: 2; }
+        [o-s-col="3"] { grid-column-start: 3; }
+        [o-s-col="4"] { grid-column-start: 4; }
+
+        [o-s-row="1"] { grid-row-start: 1; }
+        [o-s-row="2"] { grid-row-start: 2; }
+        [o-s-row="3"] { grid-row-start: 3; }
+        [o-s-row="4"] { grid-row-start: 4; }
+        [o-s-row="5"] { grid-row-start: 5; }
+        [o-s-row="6"] { grid-row-start: 6; }
+        [o-s-row="7"] { grid-row-start: 7; }
+        [o-s-row="8"] { grid-row-start: 8; }
+
+        [o-s-w="1"] { grid-column-end: span 1; }
+        [o-s-w="2"] { grid-column-end: span 2; }
+        [o-s-w="3"] { grid-column-end: span 3; }
+        [o-s-w="4"] { grid-column-end: span 4; }
+
+        [o-s-h="1"] { grid-row-end: span 1; }
+        [o-s-h="2"] { grid-row-end: span 2; }
+        [o-s-h="3"] { grid-row-end: span 3; }
+        [o-s-h="4"] { grid-row-end: span 4; }
+
+        /* button surfaces */
+        .o-s-button {
+            width: 100%;
+            height: 100%;
+            border-radius: var(--radius);
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            position: relative;
+            cursor: pointer;
+            border: 1px solid silver;
+            background: whitesmoke;
+            color: black;
+            transition: transform 120ms ease, opacity 120ms ease;
+            overflow: hidden;
+        }
+
+        .o-s-button:active {
+            transform: scale(0.96);
+            opacity: 0.85;
+        }
+
+        .o-s-button.primary {
+            background: blue;
+            color: white;
+            border: none;
+        }
+
+        .o-s-button.dark {
+            background: black;
+            color: white;
+            border: none;
+        }
+
+        .label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            opacity: 0.7;
+        }
+
+        .value {
+            font-size: 20px;
+            font-weight: 700;
+            line-height: 1.1;
+        }
+
+        .icon {
+            font-size: 20px;
+            line-height: 1;
+        }
+    </style>
+</head>
+<body>
+
+<main class="o-s-grid" id="matrix-canvas">
+
+    <!-- rows 1-2: main banner -->
+    <div class="o-s-grid-slot" o-s-col="1" o-s-row="1" o-s-w="4" o-s-h="2">
+        <div class="o-s-button dark" onclick="haptic('success')">
+            <span class="label">overview</span>
+            <span class="value" style="font-size: 24px; margin: 4px 0;">4×8 matrix</span>
+            <span class="label" style="opacity: 0.5;">centered layout</span>
+        </div>
+    </div>
+
+    <!-- rows 3-4: 2x2 counter card -->
+    <div class="o-s-grid-slot" o-s-col="1" o-s-row="3" o-s-w="2" o-s-h="2">
+        <div class="o-s-button primary" onclick="incrementCounter()">
+            <span class="label">counter</span>
+            <span class="value" id="counter-val" style="font-size: 32px; margin: 4px 0;">0</span>
+            <span class="label" style="opacity: 0.8;">tap to +1</span>
+        </div>
+    </div>
+
+    <!-- row 3: 2x1 status pill -->
+    <div class="o-s-grid-slot" o-s-col="3" o-s-row="3" o-s-w="2" o-s-h="1">
+        <div class="o-s-button">
+            <span class="label">status</span>
+            <span class="value" style="font-size: 13px;">ready</span>
+        </div>
+    </div>
+
+    <!-- row 4: 1x1 circle flashlight -->
+    <div class="o-s-grid-slot" o-s-col="3" o-s-row="4" o-s-w="1" o-s-h="1">
+        <div class="o-s-button" onclick="triggerTorch()">
+            <span class="icon">🔦</span>
+            <span class="label" style="font-size: 9px; margin-top: 2px;">flash</span>
+        </div>
+    </div>
+
+    <!-- row 4: 1x1 circle audio -->
+    <div class="o-s-grid-slot" o-s-col="4" o-s-row="4" o-s-w="1" o-s-h="1">
+        <div class="o-s-button" onclick="playAudio()">
+            <span class="icon">🔔</span>
+            <span class="label" style="font-size: 9px; margin-top: 2px;">audio</span>
+        </div>
+    </div>
+
+    <!-- rows 5-7: 2x3 drive sync -->
+    <div class="o-s-grid-slot" o-s-col="1" o-s-row="5" o-s-w="2" o-s-h="3">
+        <div class="o-s-button" style="justify-content: space-between; padding: 12px;">
+            <span class="label">drive sync</span>
+            <div>
+                <span class="value" id="sync-status" style="font-size: 14px;">connected</span>
+                <div class="label" style="margin-top: 4px;">local database</div>
+            </div>
+            <div class="label" style="font-size: 9px; opacity: 0.5;">auto-mirrored</div>
+        </div>
+    </div>
+
+    <!-- rows 5-7: 2x3 camera loopback stream -->
+    <div class="o-s-grid-slot" o-s-col="3" o-s-row="5" o-s-w="2" o-s-h="3">
+        <div class="o-s-button" style="padding: 0; overflow: hidden; position: relative;" onclick="toggleCamera()">
+            <img id="cam-feed" alt="camera stream" style="width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius); background: black; display: none;">
+            <div id="cam-overlay" style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: black; color: white;">
+                <span class="icon">📷</span>
+                <span id="cam-overlay-label" class="label" style="margin-top: 4px; color: white;">tap to start</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- row 8: 4x1 bottom dock pill -->
+    <div class="o-s-grid-slot" o-s-col="1" o-s-row="8" o-s-w="4" o-s-h="1">
+        <div class="o-s-button primary" onclick="haptic('celebration')">
+            <span class="value" style="font-size: 16px;">action dock</span>
+        </div>
+    </div>
+
+</main>
+
+<script>
+    function haptic(type = 'click') {
+        if (window.outsync?.haptic) window.outsync.haptic.vibrate(type);
+    }
+
+    function sound(type = 'beep') {
+        if (window.outsync?.audio) window.outsync.audio.play(type);
+    }
+
+    let counter = 0;
+    function incrementCounter() {
+        counter++;
+        document.getElementById('counter-val').innerText = counter;
+        haptic('click');
+    }
+
+    function playAudio() {
+        haptic('click');
+        sound('beep');
+    }
+
+    function triggerTorch() {
+        haptic('tick');
+        if (window.outsync?.flashlight) {
+            window.outsync.flashlight.toggle();
+        }
+    }
+
+    /* camerax loopback stream lifecycle */
+    let isCameraActive = false;
+
+    async function toggleCamera() {
+        const img = document.getElementById('cam-feed');
+        const overlay = document.getElementById('cam-overlay');
+        const label = document.getElementById('cam-overlay-label');
+
+        if (!window.outsync?.camera) {
+            alert('error: window.outsync.camera is undefined.');
+            return;
+        }
+
+        if (!isCameraActive) {
+            haptic('click');
+            label.innerText = 'starting camera...';
+
+            const ok = await window.outsync.camera.start({ torch: false });
+            if (ok) {
+                isCameraActive = true;
+                img.src = '/camera/stream?' + Date.now();
+                img.style.display = 'block';
+                overlay.style.display = 'none';
+            } else {
+                label.innerText = 'start failed';
+            }
+        } else {
+            haptic('click');
+            await window.outsync.camera.stop();
+            isCameraActive = false;
+            img.src = '';
+            img.style.display = 'none';
+            overlay.style.display = 'flex';
+            label.innerText = 'tap to start';
+        }
+    }
+
+    window.addEventListener('outsync_barcode', (e) => {
+        haptic('success');
+        sound('success');
+        alert('found code: ' + e.detail);
+    });
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden && isCameraActive) {
+            toggleCamera();
+        }
+    });
+</script>
+</body>
+</html>
