@@ -109,7 +109,7 @@ fun BuildPanel(
             viewModel.activeTab?.let { tab ->
                 val session = viewModel.geckoManager.getSession(tab)
                 session.load(
-                    GeckoSession.Loader().uri("resource://android/assets/preview/template.html")
+                    GeckoSession.Loader().uri("resource://android/assets/preview/old-template.html")
                 )
             }
         }
