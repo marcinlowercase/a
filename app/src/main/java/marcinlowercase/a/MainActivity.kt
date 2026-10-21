@@ -1678,8 +1678,9 @@ fun BrowserScreen(
                 val activeDomain = viewModel.activeTab?.currentURL?.toDomain()
 
                 if (domain == activeDomain) {
+                    val targetOrigin = if (domain.startsWith("http") || domain.startsWith("local://")) domain else "https://$domain"
                     val driveRequest = CustomPermissionRequest(
-                        origin = if (domain.startsWith("http")) domain else "https://$domain",
+                        origin = targetOrigin,
                         title = googleDriveAppFolderString,
                         rationale = "Allow $domain to save and read files in your Google Drive.",
                         iconResAllow = R.drawable.ic_drive_access_allow,
@@ -1687,6 +1688,7 @@ fun BrowserScreen(
                         permissionsToRequest = listOf(google_drive_access_permission),
                         onResult = { permissionsMap, pendingRequest ->
                             val isGranted = permissionsMap[google_drive_access_permission] == true
+                            viewModel.savePermissionDecision(domain, mapOf(google_drive_access_permission to isGranted))
                             onDecision(isGranted)
                             pendingRequest.value = null
                         },
@@ -1694,7 +1696,6 @@ fun BrowserScreen(
                     )
                     viewModel.pendingPermissionRequest.value = driveRequest
                 } else {
-                    // Tab was closed or user switched away: drop the request
                     onDecision(false)
                 }
             }
@@ -1702,8 +1703,9 @@ fun BrowserScreen(
                 val activeDomain = viewModel.activeTab?.currentURL?.toDomain()
 
                 if (domain == activeDomain) {
+                    val targetOrigin = if (domain.startsWith("http") || domain.startsWith("local://")) domain else "https://$domain"
                     val fileRequest = CustomPermissionRequest(
-                        origin = if (domain.startsWith("http")) domain else "https://$domain",
+                        origin = targetOrigin,
                         title = saveFileToDevice,
                         rationale = "Allow $domain to save files directly to your device storage.",
                         iconResAllow = R.drawable.ic_write_file,
@@ -1711,6 +1713,7 @@ fun BrowserScreen(
                         permissionsToRequest = listOf(marcinlowercase.a.core.constant.local_file_storage_permission),
                         onResult = { permissionsMap, pendingRequest ->
                             val isGranted = permissionsMap[marcinlowercase.a.core.constant.local_file_storage_permission] == true
+                            viewModel.savePermissionDecision(domain, mapOf(marcinlowercase.a.core.constant.local_file_storage_permission to isGranted))
                             onDecision(isGranted)
                             pendingRequest.value = null
                         },
@@ -2120,7 +2123,7 @@ fun BrowserScreen(
 
                             // Protect local:// scheme from being overwritten by GeckoView's internal data: URI
                             val rawUrl = if (isCurrentLocal && isIncomingDataUri) {
-                                activeTab!!.currentURL
+                                activeTab.currentURL
                             } else {
                                 url
                             }
@@ -2230,7 +2233,7 @@ fun BrowserScreen(
                             val isIncomingDataUri = url.startsWith("data:", ignoreCase = true)
 
                             val rawDisplay = if (isCurrentLocal && isIncomingDataUri) {
-                                activeTab!!.currentURL
+                                activeTab.currentURL
                             } else {
                                 marcinlowercase.a.core.server.LocalAppServer.toVirtualUrl(url)
                             }

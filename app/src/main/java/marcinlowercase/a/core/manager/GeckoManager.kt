@@ -75,6 +75,7 @@ import android.graphics.BitmapFactory
 import android.util.Base64
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.common.InputImage
+import kotlinx.serialization.json.Json
 
 private const val UBLOCK_ID = "uBlock0@raymondhill.net"
 private const val FAVICON_ID = "browser_core_extension@marcinlowercase"
@@ -463,6 +464,121 @@ class GeckoManager(private val context: Context) {
             } else {
                 if (continuation.isActive) continuation.resume(false)
             }
+        }
+    }
+
+    /* extracts clean folder slug without schemes or paths */
+    private fun extractAppId(url: String?): String {
+        if (url.isNullOrBlank()) return "standalone_app"
+        val virtual = marcinlowercase.a.core.server.LocalAppServer.toVirtualUrl(url)
+        return when {
+            virtual.startsWith("local://apps/", ignoreCase = true) -> {
+                virtual.removePrefix("local://apps/")
+                    .removeSuffix("/index.html")
+                    .removeSuffix("/index.htm")
+                    .trim('/')
+                    .replace("/", "_")
+                    .ifBlank { "app" }
+            }
+            virtual.startsWith("local://draft", ignoreCase = true) -> {
+                "draft"
+            }
+            else -> {
+                virtual.toDomain().replace(".", "_").replace("/", "_").replace(":", "_")
+            }
+        }
+    }
+
+    private val jsonParser = Json { ignoreUnknownKeys = true }
+    private val appManager = AppManager(context)
+
+    /* purges previous test files from the draft folder on drive to prevent storage bloat */
+    private suspend fun cleanOldDraftFiles(token: String, currentFilename: String) {
+        try {
+            val existingFiles = driveFileManager.listFiles(token, "draft")
+            for (fileMap in existingFiles) {
+                val fileName = fileMap["name"] as? String ?: continue
+                if (fileName != currentFilename) {
+                    driveFileManager.deleteFile(token, "draft", fileName)
+                    Log.i("DriveSync", "purged old draft file from drive: $fileName")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("DriveSync", "failed to clean old draft files", e)
+        }
+    }
+
+    /* ensures app html code and icon are present on drive for pinned apps */
+    private suspend fun ensureAppHtmlSyncedToDrive(token: String, appId: String) {
+        if (appId == "draft") return
+
+        try {
+            val cloudHtml = driveFileManager.readText(token, appId, "index.html")
+            if (!cloudHtml.isNullOrBlank() && !cloudHtml.startsWith("ERROR")) {
+                return
+            }
+
+            val appsDir = java.io.File(context.filesDir, "apps")
+            val singleFile = java.io.File(appsDir, "$appId.html")
+            val nestedFile = java.io.File(java.io.File(appsDir, appId), "index.html")
+
+            val localHtml = when {
+                singleFile.exists() -> singleFile.readText(Charsets.UTF_8)
+                nestedFile.exists() -> nestedFile.readText(Charsets.UTF_8)
+                else -> ""
+            }
+
+            if (localHtml.isNotBlank()) {
+                driveFileManager.saveText(token, appId, "index.html", localHtml, "text/html")
+                Log.i("DriveSync", "auto-synced app html to drive: $appId/index.html")
+            }
+
+            val iconFile = java.io.File(appsDir, "${appId}_icon.png")
+            if (iconFile.exists()) {
+                val iconBytes = iconFile.readBytes()
+                val iconBase64 = android.util.Base64.encodeToString(iconBytes, android.util.Base64.NO_WRAP)
+                driveFileManager.saveText(token, appId, "icon.png", iconBase64, "image/png")
+            }
+        } catch (e: Exception) {
+            Log.e("DriveSync", "failed to auto-sync app html for $appId", e)
+        }
+    }
+
+    /* ensures pinned app metadata is attached to the cloud profile payload for device b */
+    private suspend fun ensureAppInCloudSyncPayload(token: String, profileId: String, appId: String) {
+        try {
+            val localApps = appManager.loadApps(profileId)
+            val matchingLocalApp = localApps.find { it.url.contains(appId, ignoreCase = true) } ?: return
+
+            val cloudJson = driveSyncManager.downloadFromDrive(token)
+            if (!cloudJson.isNullOrBlank()) {
+                val cloudPayload = jsonParser.decodeFromString<marcinlowercase.a.core.data_class.SyncPayload>(cloudJson)
+                val targetProfile = cloudPayload.profiles.find { it.id == profileId }
+                val alreadyInCloud = targetProfile?.pinnedApps?.any { it.url.contains(appId, ignoreCase = true) } == true
+
+                if (!alreadyInCloud && targetProfile != null) {
+                    val appDto = marcinlowercase.a.core.data_class.AppSyncDTO(
+                        id = matchingLocalApp.id,
+                        label = matchingLocalApp.label,
+                        url = matchingLocalApp.url,
+                        iconUrl = matchingLocalApp.iconUrl
+                    )
+                    val updatedPinned = targetProfile.pinnedApps + appDto
+                    val updatedProfile = targetProfile.copy(pinnedApps = updatedPinned)
+                    val updatedProfiles = cloudPayload.profiles.map {
+                        if (it.id == profileId) updatedProfile else it
+                    }
+                    val updatedPayload = cloudPayload.copy(
+                        timestamp = System.currentTimeMillis(),
+                        profiles = updatedProfiles
+                    )
+                    val newJson = jsonParser.encodeToString(updatedPayload)
+                    driveSyncManager.uploadToDrive(token, newJson)
+                    Log.i("DriveSync", "attached $appId to cloud profile payload")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("DriveSync", "failed to update cloud sync payload for $appId", e)
         }
     }
 
@@ -1160,26 +1276,37 @@ class GeckoManager(private val context: Context) {
                                     else -> "application/json"
                                 }
 
-                                val domain = sender.url?.toDomain() ?: "standalone_app"
-                                val appId = domain.replace(".", "_")
+                                val sourceUrl = sender.url ?: tab.value.currentURL
+                                val domain = sourceUrl.toDomain()
+                                val appId = extractAppId(sourceUrl)
 
                                 val result = GeckoResult<Any>()
                                 MainScope().launch(Dispatchers.IO) {
-                                    // 1. Check per-domain permission
                                     val isDomainAllowed = checkOrRequestDrivePermission(domain, siteSettings)
                                     if (!isDomainAllowed) {
                                         result.complete("ERROR_PERMISSION_DENIED")
                                         return@launch
                                     }
 
-                                    // 2. Browser-level Google OAuth check
                                     val token = driveSyncManager.getFreshAccessToken()
                                     if (token.isNullOrBlank()) {
                                         result.complete("ERROR_NOT_AUTHENTICATED")
                                         return@launch
                                     }
 
-                                    // 3. Perform file operation
+                                    val isDraft = appId == "draft" || sourceUrl.startsWith("local://draft", ignoreCase = true)
+
+                                    if (isDraft) {
+                                        /* draft mode: purge old files from drive draft folder, never upload html */
+                                        cleanOldDraftFiles(token, filename)
+                                    } else {
+                                        /* pinned app: auto-sync html and register app to cloud profile payload */
+                                        if (filename != "index.html" && filename != "index.htm") {
+                                            ensureAppHtmlSyncedToDrive(token, appId)
+                                            ensureAppInCloudSyncPayload(token, tab.value.profileId, appId)
+                                        }
+                                    }
+
                                     val success = driveFileManager.saveText(token, appId, filename, content, mimeType)
                                     result.complete(if (success) "SUCCESS" else "ERROR_SAVING")
                                 }
@@ -1193,26 +1320,24 @@ class GeckoManager(private val context: Context) {
                                     else -> null
                                 } ?: "").replace("/", "_")
 
-                                val domain = sender.url?.toDomain() ?: "standalone_app"
-                                val appId = domain.replace(".", "_")
+                                val sourceUrl = sender.url ?: tab.value.currentURL
+                                val domain = sourceUrl.toDomain()
+                                val appId = extractAppId(sourceUrl)
 
                                 val result = GeckoResult<Any>()
                                 MainScope().launch(Dispatchers.IO) {
-                                    // 1. Check per-domain permission
                                     val isDomainAllowed = checkOrRequestDrivePermission(domain, siteSettings)
                                     if (!isDomainAllowed) {
                                         result.complete("ERROR_PERMISSION_DENIED")
                                         return@launch
                                     }
 
-                                    // 2. Browser-level Google OAuth check
                                     val token = driveSyncManager.getFreshAccessToken()
                                     if (token.isNullOrBlank()) {
                                         result.complete("ERROR_NOT_AUTHENTICATED")
                                         return@launch
                                     }
 
-                                    // 3. Perform file read operation
                                     val content = driveFileManager.readText(token, appId, filename)
                                     result.complete(content ?: "ERROR_NOT_FOUND")
                                 }
@@ -1220,8 +1345,9 @@ class GeckoManager(private val context: Context) {
                             }
 
                             "driveListFiles" -> {
-                                val domain = sender.url?.toDomain() ?: "standalone_app"
-                                val appId = domain.replace(".", "_")
+                                val sourceUrl = sender.url ?: tab.value.currentURL
+                                val domain = sourceUrl.toDomain()
+                                val appId = extractAppId(sourceUrl)
 
                                 val result = GeckoResult<Any>()
                                 MainScope().launch(Dispatchers.IO) {
@@ -1237,7 +1363,6 @@ class GeckoManager(private val context: Context) {
                                     }
 
                                     val files = driveFileManager.listFiles(token, appId)
-                                    // Convert to JSON Array string so it passes cleanly over WebExtension IPC
                                     val jsonArray = org.json.JSONArray(files)
                                     result.complete(jsonArray.toString())
                                 }
@@ -1251,8 +1376,9 @@ class GeckoManager(private val context: Context) {
                                     else -> null
                                 } ?: "").replace("/", "_")
 
-                                val domain = sender.url?.toDomain() ?: "standalone_app"
-                                val appId = domain.replace(".", "_")
+                                val sourceUrl = sender.url ?: tab.value.currentURL
+                                val domain = sourceUrl.toDomain()
+                                val appId = extractAppId(sourceUrl)
 
                                 val result = GeckoResult<Any>()
                                 MainScope().launch(Dispatchers.IO) {

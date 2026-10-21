@@ -18,14 +18,14 @@ plugins {
 android {
     namespace = "marcinlowercase.a"
     compileSdk = 37
-    compileSdkMinor = 1
+    compileSdkMinor = 2
 
     ndkVersion = "29.0.14206865"
     defaultConfig {
         minSdk = 29 // android 10
         targetSdk = 37
-        versionCode = 76
-        versionName = "1.4.4"
+        versionCode = 77
+        versionName = "1.4.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

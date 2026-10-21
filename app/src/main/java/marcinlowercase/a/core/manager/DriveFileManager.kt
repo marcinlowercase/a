@@ -20,48 +20,77 @@ class DriveFileManager(private val syncManager: DriveSyncManager) {
         }.setApplicationName("oo1_browser").build()
     }
 
-    // Read-only search: returns folder ID or null if missing (never creates folders)
+    /* in-memory cache to prevent race-condition folder duplicates */
+    private val folderIdCache = java.util.concurrent.ConcurrentHashMap<String, String>()
+
+    /* read-only search: returns folder id or null if missing */
     private suspend fun findAppFolderId(service: Drive, appId: String): String? = withContext(Dispatchers.IO) {
+        folderIdCache[appId]?.let { return@withContext it }
+
         val rootFolderName = "the_browser_of_oo1_studio"
 
-        val rootFolderId = service.files().list()
+        val rootFolderId = folderIdCache["_root_"] ?: service.files().list()
             .setQ("name = '$rootFolderName' and mimeType = 'application/vnd.google-apps.folder' and trashed = false and 'root' in parents")
             .setFields("files(id)")
             .execute()
-            .files?.firstOrNull()?.id ?: return@withContext null
+            .files?.firstOrNull()?.id
 
-        service.files().list()
+        if (rootFolderId == null) return@withContext null
+        folderIdCache["_root_"] = rootFolderId
+
+        val appFolders = service.files().list()
             .setQ("name = '$appId' and mimeType = 'application/vnd.google-apps.folder' and trashed = false and '$rootFolderId' in parents")
             .setFields("files(id)")
             .execute()
-            .files?.firstOrNull()?.id
+            .files
+
+        val primaryFolderId = appFolders?.firstOrNull()?.id
+        if (primaryFolderId != null) {
+            folderIdCache[appId] = primaryFolderId
+
+            /* purge any accidental duplicate folders created earlier */
+            if (appFolders.size > 1) {
+                for (i in 1 until appFolders.size) {
+                    try { service.files().delete(appFolders[i].id).execute() } catch (_: Exception) {}
+                }
+            }
+        }
+        primaryFolderId
     }
 
-    // Write-only helper: only creates folders when saving a file
+    /* write helper: guarantees only one folder per app */
     private suspend fun getOrCreateAppFolderId(service: Drive, appId: String): String = withContext(Dispatchers.IO) {
-        findAppFolderId(service, appId) ?: run {
-            val rootFolderName = "the_browser_of_oo1_studio"
+        val existing = findAppFolderId(service, appId)
+        if (existing != null) return@withContext existing
 
-            val rootFolderId = service.files().list()
+        val rootFolderName = "the_browser_of_oo1_studio"
+        val rootFolderId = folderIdCache["_root_"] ?: run {
+            val foundRoot = service.files().list()
                 .setQ("name = '$rootFolderName' and mimeType = 'application/vnd.google-apps.folder' and trashed = false and 'root' in parents")
                 .setFields("files(id)")
                 .execute()
-                .files?.firstOrNull()?.id ?: run {
-                    val folderMetadata = File().apply {
-                        name = rootFolderName
-                        mimeType = "application/vnd.google-apps.folder"
-                        parents = listOf("root")
-                    }
-                    service.files().create(folderMetadata).setFields("id").execute().id
-                }
+                .files?.firstOrNull()?.id
 
-            val appFolderMetadata = File().apply {
-                name = appId
-                mimeType = "application/vnd.google-apps.folder"
-                parents = listOf(rootFolderId)
+            val finalRoot = foundRoot ?: run {
+                val folderMetadata = File().apply {
+                    name = rootFolderName
+                    mimeType = "application/vnd.google-apps.folder"
+                    parents = listOf("root")
+                }
+                service.files().create(folderMetadata).setFields("id").execute().id
             }
-            service.files().create(appFolderMetadata).setFields("id").execute().id
+            folderIdCache["_root_"] = finalRoot
+            finalRoot
         }
+
+        val appFolderMetadata = File().apply {
+            name = appId
+            mimeType = "application/vnd.google-apps.folder"
+            parents = listOf(rootFolderId)
+        }
+        val createdId = service.files().create(appFolderMetadata).setFields("id").execute().id
+        folderIdCache[appId] = createdId
+        createdId
     }
 
     // ==========================================
@@ -79,20 +108,26 @@ class DriveFileManager(private val syncManager: DriveSyncManager) {
             val service = getDriveService(accessToken)
             val folderId = getOrCreateAppFolderId(service, appId)
 
-            // Check if file already exists in the app folder
-            val existing = service.files().list()
+            /* fetch all matching files to deduplicate and update */
+            val existingFiles = service.files().list()
                 .setQ("name = '$fileName' and '$folderId' in parents and trashed = false")
                 .setFields("files(id)")
                 .execute()
-                .files?.firstOrNull()
+                .files
 
             val mediaContent = ByteArrayContent.fromString(mimeType, content)
 
-            if (existing != null) {
-                // Overwrite existing file
-                service.files().update(existing.id, null, mediaContent).execute()
+            if (!existingFiles.isNullOrEmpty()) {
+                val primaryFile = existingFiles.first()
+                service.files().update(primaryFile.id, null, mediaContent).execute()
+
+                /* purge any duplicate files created by previous runs */
+                if (existingFiles.size > 1) {
+                    for (i in 1 until existingFiles.size) {
+                        try { service.files().delete(existingFiles[i].id).execute() } catch (_: Exception) {}
+                    }
+                }
             } else {
-                // Create new file
                 val metadata = File().apply {
                     name = fileName
                     parents = listOf(folderId)
