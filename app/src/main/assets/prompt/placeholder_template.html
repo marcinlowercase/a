@@ -1,19 +1,10 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>outsync 4x8 placeholder matrix</title>
     <style>
-        :root {
-            /* unit scaling: 4 buttons + 5 gaps (0.4u) = 6u, 8 buttons + 9 gaps (0.4u) = 11.6u */
-            --unit: min(calc(100vw / 6), calc(100dvh / 11.6));
-            --gap: calc(var(--unit) * 0.4);
-
-            /* circle radius equals half of button size */
-            --radius: calc(var(--unit) / 2);
-        }
-
         * {
             box-sizing: border-box;
             margin: 0;
@@ -26,8 +17,10 @@
             width: 100%;
             height: 100%;
             height: 100dvh;
+            margin: 0;
+            padding: 0;
             overflow: hidden;
-            background-color: white;
+            background-color: whitesmoke;
             font-family: system-ui, -apple-system, blinkmacsystemfont, "segoe ui", roboto, sans-serif;
             user-select: none;
             display: flex;
@@ -35,17 +28,20 @@
             justify-content: center;
         }
 
-        /* 4x8 matrix canvas */
+        /* fluid mobile canvas clamped only when squarer than 4:3 */
         .o-s-grid {
-            width: calc(var(--unit) * 6);
-            height: calc(var(--unit) * 11.6);
-            padding: var(--gap);
-            gap: var(--gap);
+            width: 100vw;
+            height: 100dvh;
+            max-width: min(540px, calc(100dvh * 0.75));
+            max-height: 100dvh;
 
             display: grid;
-            grid-template-columns: repeat(4, var(--unit));
-            grid-template-rows: repeat(8, var(--unit));
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(8, 1fr);
+            padding: 0;
+            gap: 0;
             position: relative;
+            background-color: white;
         }
 
         /* grid slot container */
@@ -84,11 +80,11 @@
         [o-s-h="3"] { grid-row-end: span 3; }
         [o-s-h="4"] { grid-row-end: span 4; }
 
-        /* button surfaces */
+        /* flush button tile surfaces with thick black internal borders */
         .o-s-button {
             width: 100%;
             height: 100%;
-            border-radius: var(--radius);
+            border-radius: 0;
             padding: 8px;
             display: flex;
             flex-direction: column;
@@ -97,28 +93,53 @@
             text-align: center;
             position: relative;
             cursor: pointer;
-            border: none;
-            background: black;
-            color: white;
-            transition: transform 120ms ease, opacity 120ms ease;
+            border-top: none;
+            border-left: none;
+            border-right: 2px solid black;
+            border-bottom: 2px solid black;
+            background: white;
+            color: black;
+            transition: opacity 120ms ease, background 120ms ease;
             overflow: hidden;
         }
 
         .o-s-button:active {
-            transform: scale(0.92);
             opacity: 0.8;
+            background: lightgray;
+        }
+
+        /* remove borders on right screen edge */
+        [o-s-col="4"] > .o-s-button,
+        [o-s-col="3"][o-s-w="2"] > .o-s-button,
+        [o-s-col="2"][o-s-w="3"] > .o-s-button,
+        [o-s-col="1"][o-s-w="4"] > .o-s-button,
+        [o-s-w="4"] > .o-s-button {
+            border-right: none;
+        }
+
+        /* remove borders on bottom screen edge */
+        [o-s-row="8"] > .o-s-button,
+        [o-s-row="7"][o-s-h="2"] > .o-s-button,
+        [o-s-row="6"][o-s-h="3"] > .o-s-button,
+        [o-s-row="5"][o-s-h="4"] > .o-s-button,
+        [o-s-h="8"] > .o-s-button {
+            border-bottom: none;
+        }
+
+        /* side borders when dark space is visible */
+        @media (min-aspect-ratio: 3/4), (min-width: 540px) {
+            .o-s-grid {
+                border-left: 2px solid black;
+                border-right: 2px solid black;
+            }
         }
 
         .label {
             font-size: 10px;
-            font-weight: 600;
+            font-weight: 700;
             letter-spacing: 0.05em;
-            opacity: 0.8;
-        }
-
-        .icon {
-            font-size: 18px;
-            line-height: 1;
+            opacity: 0.85;
+            pointer-events: none;
         }
     </style>
 </head>
@@ -242,11 +263,15 @@
 
 <script>
     function haptic(type = 'click') {
-        if (window.outsync?.haptic) window.outsync.haptic.vibrate(type);
+        if (window.outsync?.haptic) {
+            window.outsync.haptic.vibrate(type);
+        }
     }
 
     function sound(type = 'beep') {
-        if (window.outsync?.audio) window.outsync.audio.play(type);
+        if (window.outsync?.audio) {
+            window.outsync.audio.play(type);
+        }
     }
 
     function triggerTorch() {

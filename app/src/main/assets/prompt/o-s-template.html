@@ -1,19 +1,10 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>outsync 4x8 matrix</title>
+    <title>barista inventory matrix</title>
     <style>
-        :root {
-            /* unit scaling: 4 buttons + 5 gaps (0.4u) = 6u, 8 buttons + 9 gaps (0.4u) = 11.6u */
-            --unit: min(calc(100vw / 6), calc(100dvh / 11.6));
-            --gap: calc(var(--unit) * 0.4);
-
-            /* circle radius equals half of button size */
-            --radius: calc(var(--unit) / 2);
-        }
-
         * {
             box-sizing: border-box;
             margin: 0;
@@ -26,8 +17,10 @@
             width: 100%;
             height: 100%;
             height: 100dvh;
+            margin: 0;
+            padding: 0;
             overflow: hidden;
-            background-color: white;
+            background-color: whitesmoke;
             font-family: system-ui, -apple-system, blinkmacsystemfont, "segoe ui", roboto, sans-serif;
             user-select: none;
             display: flex;
@@ -35,17 +28,20 @@
             justify-content: center;
         }
 
-        /* 4x8 matrix canvas permanently centered */
+        /* fluid mobile canvas clamped only when squarer than 4:3 */
         .o-s-grid {
-            width: calc(var(--unit) * 6);
-            height: calc(var(--unit) * 11.6);
-            padding: var(--gap);
-            gap: var(--gap);
+            width: 100vw;
+            height: 100dvh;
+            max-width: min(540px, calc(100dvh * 0.75));
+            max-height: 100dvh;
 
             display: grid;
-            grid-template-columns: repeat(4, var(--unit));
-            grid-template-rows: repeat(8, var(--unit));
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(8, 1fr);
+            padding: 0;
+            gap: 0;
             position: relative;
+            background-color: white;
         }
 
         /* grid slot container */
@@ -84,11 +80,11 @@
         [o-s-h="3"] { grid-row-end: span 3; }
         [o-s-h="4"] { grid-row-end: span 4; }
 
-        /* button surfaces */
+        /* flush button tile surfaces with thick black internal borders */
         .o-s-button {
             width: 100%;
             height: 100%;
-            border-radius: var(--radius);
+            border-radius: 0;
             padding: 8px;
             display: flex;
             flex-direction: column;
@@ -97,47 +93,104 @@
             text-align: center;
             position: relative;
             cursor: pointer;
-            border: 1px solid silver;
-            background: whitesmoke;
+            border-top: none;
+            border-left: none;
+            border-right: 2px solid black;
+            border-bottom: 2px solid black;
+            background: white;
             color: black;
-            transition: transform 120ms ease, opacity 120ms ease;
+            transition: opacity 120ms ease, background 120ms ease;
             overflow: hidden;
         }
 
         .o-s-button:active {
-            transform: scale(0.96);
-            opacity: 0.85;
+            opacity: 0.8;
+            background: lightgray;
+        }
+
+        /* remove borders on right screen edge */
+        [o-s-col="4"] > .o-s-button,
+        [o-s-col="3"][o-s-w="2"] > .o-s-button,
+        [o-s-col="2"][o-s-w="3"] > .o-s-button,
+        [o-s-col="1"][o-s-w="4"] > .o-s-button,
+        [o-s-w="4"] > .o-s-button {
+            border-right: none;
+        }
+
+        /* remove borders on bottom screen edge */
+        [o-s-row="8"] > .o-s-button,
+        [o-s-row="7"][o-s-h="2"] > .o-s-button,
+        [o-s-row="6"][o-s-h="3"] > .o-s-button,
+        [o-s-row="5"][o-s-h="4"] > .o-s-button,
+        [o-s-h="8"] > .o-s-button {
+            border-bottom: none;
+        }
+
+        /* side borders when dark space is visible */
+        @media (min-aspect-ratio: 3/4), (min-width: 540px) {
+            .o-s-grid {
+                border-left: 2px solid black;
+                border-right: 2px solid black;
+            }
         }
 
         .o-s-button.primary {
             background: blue;
             color: white;
-            border: none;
         }
 
         .o-s-button.dark {
             background: black;
             color: white;
-            border: none;
+        }
+
+        .o-s-button.action-plus {
+            background: green;
+            color: white;
+        }
+
+        .o-s-button.action-minus {
+            background: red;
+            color: white;
         }
 
         .label {
-            font-size: 11px;
-            font-weight: 600;
+            font-size: 10px;
+            font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            opacity: 0.7;
+            opacity: 0.85;
+            pointer-events: none;
         }
 
         .value {
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 700;
             line-height: 1.1;
+            pointer-events: none;
         }
 
         .icon {
             font-size: 20px;
             line-height: 1;
+            pointer-events: none;
+        }
+
+        .text-input {
+            width: 90%;
+            border: none;
+            background: transparent;
+            text-align: center;
+            font-size: 15px;
+            font-weight: 700;
+            color: black;
+            outline: none;
+            font-family: inherit;
+        }
+
+        .text-input::placeholder {
+            color: gray;
+            font-weight: 500;
         }
     </style>
 </head>
@@ -145,154 +198,355 @@
 
 <main class="o-s-grid" id="matrix-canvas">
 
-    <!-- rows 1-2: main banner -->
+    <!-- rows 1-2, cols 1-4: camerax loopback stream viewfinder -->
     <div class="o-s-grid-slot" o-s-col="1" o-s-row="1" o-s-w="4" o-s-h="2">
-        <div class="o-s-button dark" onclick="haptic('success')">
-            <span class="label">overview</span>
-            <span class="value" style="font-size: 24px; margin: 4px 0;">4×8 matrix</span>
-            <span class="label" style="opacity: 0.5;">centered layout</span>
-        </div>
-    </div>
-
-    <!-- rows 3-4: 2x2 counter card -->
-    <div class="o-s-grid-slot" o-s-col="1" o-s-row="3" o-s-w="2" o-s-h="2">
-        <div class="o-s-button primary" onclick="incrementCounter()">
-            <span class="label">counter</span>
-            <span class="value" id="counter-val" style="font-size: 32px; margin: 4px 0;">0</span>
-            <span class="label" style="opacity: 0.8;">tap to +1</span>
-        </div>
-    </div>
-
-    <!-- row 3: 2x1 status pill -->
-    <div class="o-s-grid-slot" o-s-col="3" o-s-row="3" o-s-w="2" o-s-h="1">
-        <div class="o-s-button">
-            <span class="label">status</span>
-            <span class="value" style="font-size: 13px;">ready</span>
-        </div>
-    </div>
-
-    <!-- row 4: 1x1 circle flashlight -->
-    <div class="o-s-grid-slot" o-s-col="3" o-s-row="4" o-s-w="1" o-s-h="1">
-        <div class="o-s-button" onclick="triggerTorch()">
-            <span class="icon">🔦</span>
-            <span class="label" style="font-size: 9px; margin-top: 2px;">flash</span>
-        </div>
-    </div>
-
-    <!-- row 4: 1x1 circle audio -->
-    <div class="o-s-grid-slot" o-s-col="4" o-s-row="4" o-s-w="1" o-s-h="1">
-        <div class="o-s-button" onclick="playAudio()">
-            <span class="icon">🔔</span>
-            <span class="label" style="font-size: 9px; margin-top: 2px;">audio</span>
-        </div>
-    </div>
-
-    <!-- rows 5-7: 2x3 drive sync -->
-    <div class="o-s-grid-slot" o-s-col="1" o-s-row="5" o-s-w="2" o-s-h="3">
-        <div class="o-s-button" style="justify-content: space-between; padding: 12px;">
-            <span class="label">drive sync</span>
-            <div>
-                <span class="value" id="sync-status" style="font-size: 14px;">connected</span>
-                <div class="label" style="margin-top: 4px;">local database</div>
-            </div>
-            <div class="label" style="font-size: 9px; opacity: 0.5;">auto-mirrored</div>
-        </div>
-    </div>
-
-    <!-- rows 5-7: 2x3 camera loopback stream -->
-    <div class="o-s-grid-slot" o-s-col="3" o-s-row="5" o-s-w="2" o-s-h="3">
-        <div class="o-s-button" style="padding: 0; overflow: hidden; position: relative;" onclick="toggleCamera()">
-            <img id="cam-feed" alt="camera stream" style="width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius); background: black; display: none;">
+        <div class="o-s-button dark" style="padding: 0; position: relative;" onclick="toggleCamera()">
+            <img id="cam-feed" alt="camera stream" style="width: 100%; height: 100%; object-fit: cover; border-radius: 0; background: black; display: none;">
             <div id="cam-overlay" style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: black; color: white;">
-                <span class="icon">📷</span>
-                <span id="cam-overlay-label" class="label" style="margin-top: 4px; color: white;">tap to start</span>
+                <span class="icon" style="font-size: 32px; margin-bottom: 4px;">📷</span>
+                <span id="cam-status-label" class="label" style="opacity: 0.9;">tap to open scanner</span>
             </div>
         </div>
     </div>
 
-    <!-- row 8: 4x1 bottom dock pill -->
-    <div class="o-s-grid-slot" o-s-col="1" o-s-row="8" o-s-w="4" o-s-h="1">
-        <div class="o-s-button primary" onclick="haptic('celebration')">
-            <span class="value" style="font-size: 16px;">action dock</span>
+    <!-- row 3, cols 1-2: barcode and sync trigger -->
+    <div class="o-s-grid-slot" o-s-col="1" o-s-row="3" o-s-w="2" o-s-h="1">
+        <div class="o-s-button" onclick="manualSync()" style="background: whitesmoke;">
+            <span class="label" id="sync-label">barcode • ☁️ ready</span>
+            <span class="value" id="barcode-display" style="font-size: 13px; margin-top: 3px; letter-spacing: 0.04em;">scan to begin</span>
+        </div>
+    </div>
+
+    <!-- row 3, col 3: stock count on-hand -->
+    <div class="o-s-grid-slot" o-s-col="3" o-s-row="3" o-s-w="1" o-s-h="1">
+        <div class="o-s-button dark">
+            <span class="label" style="opacity: 0.85;">stock</span>
+            <span class="value" id="stock-display" style="font-size: 22px; margin-top: 2px;">--</span>
+        </div>
+    </div>
+
+    <!-- row 3, col 4: delta qty modifier -->
+    <div class="o-s-grid-slot" o-s-col="4" o-s-row="3" o-s-w="1" o-s-h="1">
+        <div class="o-s-button" style="background: aliceblue; color: navy;">
+            <span class="label" style="color: navy;">qty</span>
+            <span class="value" id="qty-display" style="font-size: 22px; margin-top: 2px;">1</span>
+        </div>
+    </div>
+
+    <!-- row 4, cols 1-4: editable item name -->
+    <div class="o-s-grid-slot" o-s-col="1" o-s-row="4" o-s-w="4" o-s-h="1">
+        <div class="o-s-button" onclick="document.getElementById('item-name-input').focus()" style="background: whitesmoke;">
+            <span class="label" id="name-status-label">item name (tap to rename)</span>
+            <input id="item-name-input" class="text-input" type="text" placeholder="scan or name item..." autocomplete="off" oninput="handleNameInput(this.value)">
+        </div>
+    </div>
+
+    <!-- row 5: numpad digits 1, 2, 3 and plus button top half -->
+    <div class="o-s-grid-slot" o-s-col="1" o-s-row="5" o-s-w="1" o-s-h="1">
+        <div class="o-s-button" onclick="pressDigit('1')"><span class="value" style="font-size: 22px;">1</span></div>
+    </div>
+    <div class="o-s-grid-slot" o-s-col="2" o-s-row="5" o-s-w="1" o-s-h="1">
+        <div class="o-s-button" onclick="pressDigit('2')"><span class="value" style="font-size: 22px;">2</span></div>
+    </div>
+    <div class="o-s-grid-slot" o-s-col="3" o-s-row="5" o-s-w="1" o-s-h="1">
+        <div class="o-s-button" onclick="pressDigit('3')"><span class="value" style="font-size: 22px;">3</span></div>
+    </div>
+    <div class="o-s-grid-slot" o-s-col="4" o-s-row="5" o-s-w="1" o-s-h="2">
+        <div class="o-s-button action-plus" onclick="applyDelta(1)">
+            <span class="icon" style="font-size: 28px; font-weight: 700;">+</span>
+            <span class="label" style="color: white; opacity: 0.95; margin-top: 4px;">receive</span>
+        </div>
+    </div>
+
+    <!-- row 6: numpad digits 4, 5, 6 -->
+    <div class="o-s-grid-slot" o-s-col="1" o-s-row="6" o-s-w="1" o-s-h="1">
+        <div class="o-s-button" onclick="pressDigit('4')"><span class="value" style="font-size: 22px;">4</span></div>
+    </div>
+    <div class="o-s-grid-slot" o-s-col="2" o-s-row="6" o-s-w="1" o-s-h="1">
+        <div class="o-s-button" onclick="pressDigit('5')"><span class="value" style="font-size: 22px;">5</span></div>
+    </div>
+    <div class="o-s-grid-slot" o-s-col="3" o-s-row="6" o-s-w="1" o-s-h="1">
+        <div class="o-s-button" onclick="pressDigit('6')"><span class="value" style="font-size: 22px;">6</span></div>
+    </div>
+
+    <!-- row 7: numpad digits 7, 8, 9 and minus button top half -->
+    <div class="o-s-grid-slot" o-s-col="1" o-s-row="7" o-s-w="1" o-s-h="1">
+        <div class="o-s-button" onclick="pressDigit('7')"><span class="value" style="font-size: 22px;">7</span></div>
+    </div>
+    <div class="o-s-grid-slot" o-s-col="2" o-s-row="7" o-s-w="1" o-s-h="1">
+        <div class="o-s-button" onclick="pressDigit('8')"><span class="value" style="font-size: 22px;">8</span></div>
+    </div>
+    <div class="o-s-grid-slot" o-s-col="3" o-s-row="7" o-s-w="1" o-s-h="1">
+        <div class="o-s-button" onclick="pressDigit('9')"><span class="value" style="font-size: 22px;">9</span></div>
+    </div>
+    <div class="o-s-grid-slot" o-s-col="4" o-s-row="7" o-s-w="1" o-s-h="2">
+        <div class="o-s-button action-minus" onclick="applyDelta(-1)">
+            <span class="icon" style="font-size: 28px; font-weight: 700;">−</span>
+            <span class="label" style="color: white; opacity: 0.95; margin-top: 4px;">use</span>
+        </div>
+    </div>
+
+    <!-- row 8: camera toggle, zero, backspace -->
+    <div class="o-s-grid-slot" o-s-col="1" o-s-row="8" o-s-w="1" o-s-h="1">
+        <div class="o-s-button" id="cam-quick-btn" onclick="toggleCamera()" style="background: whitesmoke;">
+            <span class="icon">📷</span>
+            <span class="label" style="font-size: 8px; margin-top: 2px;">cam</span>
+        </div>
+    </div>
+    <div class="o-s-grid-slot" o-s-col="2" o-s-row="8" o-s-w="1" o-s-h="1">
+        <div class="o-s-button" onclick="pressDigit('0')"><span class="value" style="font-size: 22px;">0</span></div>
+    </div>
+    <div class="o-s-grid-slot" o-s-col="3" o-s-row="8" o-s-w="1" o-s-h="1">
+        <div class="o-s-button" onclick="pressBackspace()" style="background: whitesmoke;">
+            <span class="icon" style="font-size: 19px;">⌫</span>
+            <span class="label" style="font-size: 8px; margin-top: 2px;">del</span>
         </div>
     </div>
 
 </main>
 
 <script>
+    const DRIVE_FILE = 'coffee_inventory.json';
+
+    const state = {
+        inventory: {},
+        activeBarcode: null,
+        qtyBuffer: '',
+        isCameraActive: false,
+        saveTimer: null
+    };
+
     function haptic(type = 'click') {
-        if (window.outsync?.haptic) window.outsync.haptic.vibrate(type);
+        if (window.outsync?.haptic) {
+            window.outsync.haptic.vibrate(type);
+        }
     }
 
     function sound(type = 'beep') {
-        if (window.outsync?.audio) window.outsync.audio.play(type);
-    }
-
-    let counter = 0;
-    function incrementCounter() {
-        counter++;
-        document.getElementById('counter-val').innerText = counter;
-        haptic('click');
-    }
-
-    function playAudio() {
-        haptic('click');
-        sound('beep');
-    }
-
-    function triggerTorch() {
-        haptic('tick');
-        if (window.outsync?.flashlight) {
-            window.outsync.flashlight.toggle();
+        if (window.outsync?.audio) {
+            window.outsync.audio.play(type);
         }
     }
 
-    /* camerax loopback stream lifecycle */
-    let isCameraActive = false;
+    function setSyncStatus(text) {
+        const el = document.getElementById('sync-label');
+        if (el) el.innerText = 'barcode • ' + text;
+    }
 
-    async function toggleCamera() {
-        const img = document.getElementById('cam-feed');
-        const overlay = document.getElementById('cam-overlay');
-        const label = document.getElementById('cam-overlay-label');
+    /* multi-device cloud fetch routine */
+    async function loadDatabase() {
+        if (!window.outsync?.drive) return;
+        try {
+            setSyncStatus('⏳ loading');
+            const dataStr = await window.outsync.drive.readText(DRIVE_FILE);
+            if (dataStr) {
+                state.inventory = JSON.parse(dataStr);
+                setSyncStatus('☁️ synced');
+                renderActiveItem();
+            } else {
+                setSyncStatus('☁️ ready');
+            }
+        } catch (err) {
+            setSyncStatus('☁️ new db');
+        }
+    }
 
-        if (!window.outsync?.camera) {
-            alert('error: window.outsync.camera is undefined.');
+    /* debounced background save to avoid blocking the ui */
+    function scheduleSave() {
+        setSyncStatus('⏳ saving');
+        if (state.saveTimer) clearTimeout(state.saveTimer);
+        state.saveTimer = setTimeout(async () => {
+            if (window.outsync?.drive) {
+                try {
+                    await window.outsync.drive.saveText(DRIVE_FILE, JSON.stringify(state.inventory), 'application/json');
+                    setSyncStatus('☁️ synced');
+                } catch (e) {
+                    setSyncStatus('⚠️ err sync');
+                }
+            } else {
+                setSyncStatus('☁️ local');
+            }
+        }, 1000);
+    }
+
+    async function manualSync() {
+        haptic('tick');
+        if (state.saveTimer) {
+            clearTimeout(state.saveTimer);
+            state.saveTimer = null;
+        }
+        if (window.outsync?.drive) {
+            try {
+                setSyncStatus('⏳ saving');
+                await window.outsync.drive.saveText(DRIVE_FILE, JSON.stringify(state.inventory), 'application/json');
+                haptic('success');
+                sound('notification');
+                setSyncStatus('☁️ synced');
+            } catch (e) {
+                haptic('error');
+                sound('error');
+                setSyncStatus('⚠️ err sync');
+            }
+        }
+    }
+
+    /* render active item and real-time stock */
+    function renderActiveItem() {
+        const barcodeDisplay = document.getElementById('barcode-display');
+        const stockDisplay = document.getElementById('stock-display');
+        const nameInput = document.getElementById('item-name-input');
+        const nameLabel = document.getElementById('name-status-label');
+
+        if (!state.activeBarcode) {
+            barcodeDisplay.innerText = 'scan to begin';
+            stockDisplay.innerText = '--';
+            nameInput.value = '';
+            nameLabel.innerText = 'item name';
+        } else {
+            const item = state.inventory[state.activeBarcode] || { name: '', stock: 0 };
+            nameInput.value = item.name || '';
+            const qtyMod = state.qtyBuffer !== '' ? parseInt(state.qtyBuffer, 10) : 1;
+            const currStockVal = document.getElementById('curr-stock-val');
+            if (currStockVal) {
+                currStockVal.innerText = `stock: ${item.stock} (qty: ${qtyMod})`;
+            }
+            nameLabel.innerText = item.name ? 'item name (tap to rename)' : 'new item (enter name)';
+        }
+    }
+
+    /* native barcode detection listener */
+    function handleBarcode(code) {
+        if (!code) return;
+        const cleanCode = String(code).trim();
+        state.activeBarcode = cleanCode;
+
+        if (!state.inventory[cleanCode]) {
+            state.inventory[cleanCode] = { name: '', stock: 0 };
+            renderActiveItem();
+            document.getElementById('item-name-input').focus();
+        } else {
+            renderActiveItem();
+        }
+
+        state.qtyBuffer = '';
+        haptic('success');
+        sound('success');
+    }
+
+    function handleNameInput(val) {
+        if (!state.activeBarcode) return;
+        if (!state.inventory[state.activeBarcode]) {
+            state.inventory[state.activeBarcode] = { name: '', stock: 0 };
+        }
+        state.inventory[state.activeBarcode].name = val;
+        scheduleSave();
+    }
+
+    function pressDigit(digit) {
+        haptic('tick');
+        if (state.qtyBuffer.length >= 4) return;
+        if (state.qtyBuffer === '' && digit === '0') return;
+        state.qtyBuffer += digit;
+        renderActiveItem();
+    }
+
+    function pressBackspace() {
+        haptic('click');
+        state.qtyBuffer = state.qtyBuffer.slice(0, -1);
+        renderActiveItem();
+    }
+
+    /* optimistic stock adjustments */
+    function applyDelta(direction) {
+        if (!state.activeBarcode) {
+            haptic('error');
+            sound('error');
+            const barcodeDisplay = document.getElementById('barcode-display');
+            const prevText = barcodeDisplay.innerText;
+            barcodeDisplay.innerText = 'scan barcode first';
+            setTimeout(() => { barcodeDisplay.innerText = prevText; }, 1200);
             return;
         }
 
-        if (!isCameraActive) {
-            haptic('click');
-            label.innerText = 'starting camera...';
+        const deltaUnits = parseInt(state.qtyBuffer, 10) || 1;
+        const item = state.inventory[state.activeBarcode] || { name: '', stock: 0 };
+        const oldStock = item.stock;
+        item.stock = Math.max(0, item.stock + (deltaUnits * direction));
+        state.inventory[state.activeBarcode] = item;
 
-            const ok = await window.outsync.camera.start({ torch: false });
+        /* update dom immediately with zero network delay */
+        const currStockVal = document.getElementById('curr-stock-val');
+        const sign = direction > 0 ? '+' : '';
+        if (currStockVal) {
+            currStockVal.innerText = `stock: ${oldStock} ➔ ${item.stock} (${sign}${deltaUnits * direction})`;
+        }
+
+        state.qtyBuffer = '';
+
+        if (direction > 0) {
+            haptic('success');
+            sound('beep');
+        } else {
+            haptic('click');
+            sound('beep');
+        }
+
+        scheduleSave();
+    }
+
+    /* camerax loopback stream lifecycle */
+    async function toggleCamera() {
+        const img = document.getElementById('cam-feed');
+        const overlay = document.getElementById('cam-overlay');
+        const quickBtn = document.getElementById('cam-quick-btn');
+
+        if (!state.isCameraActive) {
+            haptic('click');
+            let ok = true;
+            if (window.outsync?.camera) {
+                ok = await window.outsync.camera.start({ torch: true });
+            }
             if (ok) {
-                isCameraActive = true;
+                state.isCameraActive = true;
+                if (window.outsync?.flashlight) {
+                    window.outsync.flashlight.on();
+                }
                 img.src = '/camera/stream?' + Date.now();
                 img.style.display = 'block';
                 overlay.style.display = 'none';
-            } else {
-                label.innerText = 'start failed';
+                quickBtn.style.background = 'blue';
+                quickBtn.style.color = 'white';
             }
         } else {
-            haptic('click');
-            await window.outsync.camera.stop();
-            isCameraActive = false;
+            if (window.outsync?.camera) {
+                await window.outsync.camera.stop();
+            }
+            if (window.outsync?.flashlight) {
+                window.outsync.flashlight.off();
+            }
+            state.isCameraActive = false;
             img.src = '';
             img.style.display = 'none';
             overlay.style.display = 'flex';
-            label.innerText = 'tap to start';
+            quickBtn.style.background = 'whitesmoke';
+            quickBtn.style.color = 'black';
         }
     }
 
     window.addEventListener('outsync_barcode', (e) => {
-        haptic('success');
-        sound('success');
-        alert('found code: ' + e.detail);
+        handleBarcode(e.detail);
+    });
+
+    /* multi-device sync lifecycle: re-fetch on cold load, cache restore, and app resume */
+    window.addEventListener('pageshow', () => {
+        loadDatabase();
     });
 
     document.addEventListener('visibilitychange', () => {
-        if (document.hidden && isCameraActive) {
-            toggleCamera();
+        if (document.hidden) {
+            if (state.isCameraActive) toggleCamera();
+        } else {
+            loadDatabase();
         }
     });
 </script>
