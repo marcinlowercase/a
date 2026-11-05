@@ -50,6 +50,7 @@ import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
+import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
@@ -727,7 +728,11 @@ fun BottomPanel(
                                             focusedIndicatorColor = Color.Transparent,
                                             unfocusedIndicatorColor = Color.Transparent,
                                             disabledIndicatorColor = Color.Transparent,
-                                            errorIndicatorColor = Color.Transparent
+                                            errorIndicatorColor = Color.Transparent,
+                                            selectionColors = TextSelectionColors(
+                                                handleColor = MaterialTheme.colorScheme.surfaceContainer,
+                                                backgroundColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.25f)
+                                            ),
                                         )
                                     )
 
@@ -1118,7 +1123,11 @@ fun BottomPanel(
                                     focusedIndicatorColor = Color.Transparent,
                                     unfocusedIndicatorColor = Color.Transparent,
                                     disabledIndicatorColor = Color.Transparent,
-                                    errorIndicatorColor = Color.Transparent
+                                    errorIndicatorColor = Color.Transparent,
+                                    selectionColors = TextSelectionColors(
+                                        handleColor = MaterialTheme.colorScheme.onSurface,
+                                        backgroundColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f)
+                                    ),
                                 ),
                             )
                         }
