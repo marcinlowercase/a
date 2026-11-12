@@ -88,6 +88,7 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import marcinlowercase.a.core.enum_class.SharpMode
 import marcinlowercase.a.core.enum_class.WindowMode
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -413,23 +414,28 @@ fun rememberBrowserOptionsRegistry(
             // --- Toggles (Movable) ---
             BrowserOption.SHARP_MODE to OptionItem(
                 id = BrowserOption.SHARP_MODE,
-                iconRes = if (settings.value.isSharpMode) R.drawable.ic_rounded_corner else R.drawable.ic_sharp_corner,
-                contentDescription = R.string.desc_sharp_mode,
-                enabled = settings.value.isSharpMode || settings.value.cornerRadiusForLayer(0) == 0f
+                iconRes = when (settings.value.currentSharpMode()) {
+                    SharpMode.ROUND -> R.drawable.ic_semi_sharp_mode
+                    SharpMode.SEMI_SHARP -> R.drawable.ic_sharp_mode
+                    SharpMode.SHARP -> R.drawable.ic_round_mode
+                },
+                contentDescription = when (settings.value.currentSharpMode()) {
+                    SharpMode.ROUND -> R.string.desc_semi_sharp_mode
+                    SharpMode.SEMI_SHARP -> R.string.desc_sharp_mode
+                    SharpMode.SHARP -> R.string.desc_round_mode
+                },
+                enabled = true
             ) {
                 if (settings.value.cornerRadiusForLayer(0) == 0f) {
                     viewModel.showCustomNotification(disabledSharpModeText)
                 } else {
-                    viewModel.updateSettings { it.copy(isSharpMode = !it.isSharpMode) }
-                    viewModel.updateUI {
-                        it.copy(
-                            isOptionsPanelVisible = false,
-                            isAppsPanelVisible = false
-                        )
+                    val nextMode = when (settings.value.currentSharpMode()) {
+                        SharpMode.ROUND -> SharpMode.SEMI_SHARP
+                        SharpMode.SEMI_SHARP -> SharpMode.SHARP
+                        SharpMode.SHARP -> SharpMode.ROUND
                     }
+                    viewModel.updateSettings { it.copy(sharpMode = nextMode.ordinal) }
                 }
-
-
             },
             BrowserOption.REOPEN_TAB to OptionItem(
                 id = BrowserOption.REOPEN_TAB,
@@ -765,7 +771,9 @@ fun SettingsPanel(
     }
     LaunchedEffect(currentView) {
         if (currentView == SettingPanelView.CORNER_RADIUS) {
-            if (settings.value.isSharpMode) viewModel.updateSettings { it.copy(isSharpMode = false) }
+            if (settings.value.currentSharpMode() != SharpMode.ROUND) {
+                viewModel.updateSettings { it.copy(sharpMode = SharpMode.ROUND.ordinal) }
+            }
             viewModel.backgroundColor.value = Color.Red
             viewModel.updateUI {
                 it.copy(

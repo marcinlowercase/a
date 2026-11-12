@@ -72,6 +72,7 @@ import marcinlowercase.a.core.enum_class.BrowserSettingField
 import marcinlowercase.a.core.enum_class.DownloadStatus
 import marcinlowercase.a.core.enum_class.GestureNavAction
 import marcinlowercase.a.core.enum_class.SearchEngine
+import marcinlowercase.a.core.enum_class.SharpMode
 import marcinlowercase.a.core.enum_class.SuggestionSource
 import marcinlowercase.a.core.enum_class.TabState
 import marcinlowercase.a.core.enum_class.WindowMode
@@ -601,7 +602,11 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             // --- PROFILE-SPECIFIC SETTINGS ---
             defaultUrl = prefsToUse.getString("default_url", d.URL) ?: d.URL,
             animationSpeed = prefsToUse.getFloat("animation_speed", d.ANIMATION_SPEED),
-            isSharpMode = prefsToUse.getBoolean("is_sharp_mode", d.IS_SHARP_MODE),
+            sharpMode = if (prefsToUse.contains("sharp_mode")) {
+                prefsToUse.getInt("sharp_mode", d.SHARP_MODE)
+            } else {
+                if (prefsToUse.getBoolean("is_sharp_mode", false)) SharpMode.SHARP.ordinal else SharpMode.ROUND.ordinal
+            },
             cursorContainerSize = prefsToUse.getFloat(
                 "cursor_container_size",
                 d.CURSOR_CONTAINER_SIZE
@@ -733,7 +738,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 defaultUrl = d.URL,
                 showSuggestions = d.SHOW_SUGGESTIONS,
                 animationSpeed = d.ANIMATION_SPEED,
-                isSharpMode = d.IS_SHARP_MODE,
+                sharpMode = d.SHARP_MODE,
                 isDesktopMode = d.IS_DESKTOP_MODE,
                 cursorContainerSize = d.CURSOR_CONTAINER_SIZE,
                 cursorPointerSize = d.CURSOR_POINTER_SIZE,
@@ -786,7 +791,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         profilePrefs.edit().apply {
             putString("default_url", settings.defaultUrl)
             putFloat("animation_speed", settings.animationSpeed)
-            putBoolean("is_sharp_mode", settings.isSharpMode)
+            putInt("sharp_mode", settings.sharpMode)
             putFloat("cursor_container_size", settings.cursorContainerSize)
             putFloat("cursor_pointer_size", settings.cursorPointerSize)
             putFloat("cursor_tracking_speed", settings.cursorTrackingSpeed)

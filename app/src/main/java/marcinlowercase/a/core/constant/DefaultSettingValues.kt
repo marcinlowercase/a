@@ -7,7 +7,7 @@ object DefaultSettingValues {
     const val URL = "https://oo1.studio"
     const val SHOW_SUGGESTIONS = false
     const val ANIMATION_SPEED = 300f
-    const val IS_SHARP_MODE = false
+    const val SHARP_MODE = 0
     const val IS_DESKTOP_MODE = false
     const val CURSOR_CONTAINER_SIZE = 50f
     const val CURSOR_POINTER_SIZE = 5f

@@ -140,6 +140,7 @@ import marcinlowercase.a.core.enum_class.DownloadStatus
 import marcinlowercase.a.core.enum_class.GestureNavAction
 import marcinlowercase.a.core.enum_class.MediaControlOption
 import marcinlowercase.a.core.enum_class.RevealState
+import marcinlowercase.a.core.enum_class.SharpMode
 import marcinlowercase.a.core.enum_class.WindowMode
 import marcinlowercase.a.core.function.createNotificationChannel
 import marcinlowercase.a.core.function.isBubbleMode
@@ -688,17 +689,22 @@ fun BrowserScreen(
 //    tab: Tab, isDesktopMode: Boolean = false, isEnabledBackgroundPlayback: Boolean = true
 
 
-//    val offsetY = remember { Animatable(0f) }
-    val animatedCornerRadius by animateDpAsState(
-        targetValue = if (settings.isSharpMode
+val sharpMode = settings.currentSharpMode()
+    val hasSharpTopCorners = sharpMode != SharpMode.ROUND
+    val hasSharpBottomCorners = sharpMode == SharpMode.SHARP
 
-        ) 0.dp else settings.cornerRadiusForLayer(0).dp,
-        label = "Corner Radius Animation",
+    val animatedTopCornerRadius by animateDpAsState(
+        targetValue = if (hasSharpTopCorners) 0.dp else settings.cornerRadiusForLayer(0).dp,
+        label = "Top Corner Radius Animation",
+    )
+    val animatedBottomCornerRadius by animateDpAsState(
+        targetValue = if (hasSharpBottomCorners) 0.dp else settings.cornerRadiusForLayer(0).dp,
+        label = "Bottom Corner Radius Animation",
     )
 
 
     //region Container Shape
-    // Device Cutout
+    // device cutout
     // get the raw cutout padding values
     val cutoutPaddingValues = WindowInsets.displayCutout.asPaddingValues()
     val cutoutTop = cutoutPaddingValues.calculateTopPadding()
@@ -712,19 +718,19 @@ fun BrowserScreen(
         spring(visibilityThreshold = Dp.VisibilityThreshold)
     }
     val isEffectivelyFullscreen = when (uiState.value.windowMode) {
-        WindowMode.FLOAT -> true                         // Bubbles are always fullscreen (no status/nav bar insets)
-        WindowMode.SPLIT -> false                        // Split screen always keeps system bars
-        WindowMode.FULLSCREEN -> settings.isFullscreenMode // Regular mode respects the user's saved preference
+        WindowMode.FLOAT -> true
+        WindowMode.SPLIT -> false
+        WindowMode.FULLSCREEN -> settings.isFullscreenMode
     } || uiState.value.isOnFullscreenVideo || uiState.value.isLandscapeByButton
-    // Top Padding
 
-    val webViewTopPaddingFullscreen = if (settings.isSharpMode && !uiState.value.isLandscape) {
+    // top padding
+    val webViewTopPaddingFullscreen = if (hasSharpTopCorners && !uiState.value.isLandscape) {
         maxOf(cutoutTop, settings.cornerRadiusForLayer(0).dp)
     } else {
         cutoutTop
     }
 
-    val webViewTopPaddingRegular = if (settings.isSharpMode) {
+    val webViewTopPaddingRegular = if (hasSharpTopCorners) {
         maxOf(
             maxOf(cutoutTop, settings.cornerRadiusForLayer(0).dp),
             innerPadding.calculateTopPadding()
@@ -749,21 +755,21 @@ fun BrowserScreen(
         animationSpec = paddingAnimationSpec,
         label = "WebView Top Padding Animation",
     )
-    // Bottom Padding
+
+    // bottom padding
     val webViewBottomPaddingFullscreen =
-        if (settings.isSharpMode && !uiState.value.isLandscape) {
+        if (hasSharpBottomCorners && !uiState.value.isLandscape) {
             maxOf(cutoutBottom, settings.cornerRadiusForLayer(0).dp)
         } else {
             cutoutBottom
         }
-    val webViewBottomPaddingRegular = if (settings.isSharpMode) {
+    val webViewBottomPaddingRegular = if (hasSharpBottomCorners) {
         maxOf(
             maxOf(cutoutBottom, settings.cornerRadiusForLayer(0).dp),
             innerPadding.calculateBottomPadding()
         )
     } else {
         innerPadding.calculateBottomPadding()
-
     }
     val webViewBottomPaddingNormalScreen = if (isEffectivelyFullscreen) {
         webViewBottomPaddingFullscreen
@@ -771,19 +777,10 @@ fun BrowserScreen(
         webViewBottomPaddingRegular
     }
 
-//    val targetWebViewBottomPadding =
-//        if (uiState.value.isSettingCornerRadius
-//            || isPipMode
-//        ) {
-//            0.dp
-////        } else if (isKeyboardVisible && !uiState.value.isFocusOnTextField) {
-////            settings.padding.dp
-//        } else webViewBottomPaddingNormalScreen
-
     val targetWebViewBottomPadding = when {
         uiState.value.isSettingCornerRadius || isPipMode -> 0.dp
 
-        // When typing inside GeckoView, remove the nav bar padding so WebView sticks to the keyboard
+        // when typing inside GeckoView, remove the nav bar padding so webview sticks to the keyboard
         isKeyboardVisible && !uiState.value.isFocusOnTextField && uiState.value.appState != AppState.BUILD -> 0.dp
         else -> webViewBottomPaddingNormalScreen
     }
@@ -794,10 +791,9 @@ fun BrowserScreen(
         label = "WebView Bottom Padding Animation",
     )
 
-    // Start Padding
-
+    // start padding
     val webViewStartPaddingFullscreen =
-        if (settings.isSharpMode && uiState.value.isLandscape) {
+        if (hasSharpTopCorners && uiState.value.isLandscape) {
             maxOf(cutoutLeft, settings.cornerRadiusForLayer(0).dp)
         } else {
             cutoutLeft
@@ -812,9 +808,8 @@ fun BrowserScreen(
         label = "WebView Start Padding Animation"
     )
 
-    // End Padding
-
-    val webViewEndPaddingFullscreen = if (settings.isSharpMode && uiState.value.isLandscape) {
+    // end padding
+    val webViewEndPaddingFullscreen = if (hasSharpTopCorners && uiState.value.isLandscape) {
         maxOf(cutoutRight, settings.cornerRadiusForLayer(0).dp)
     } else {
         cutoutRight
@@ -2910,10 +2905,10 @@ fun BrowserScreen(
 //                                        )
                                         .clip(
                                             RoundedCornerShape(
-                                                topStart = animatedCornerRadius,
-                                                topEnd = animatedCornerRadius,
-                                                bottomEnd = if (isKeyboardVisible && !uiState.value.isFocusOnTextField) 0.dp else animatedCornerRadius,
-                                                bottomStart = if (isKeyboardVisible && !uiState.value.isFocusOnTextField) 0.dp else animatedCornerRadius
+                                                topStart = animatedTopCornerRadius,
+                                                topEnd = animatedTopCornerRadius,
+                                                bottomEnd = if (isKeyboardVisible && !uiState.value.isFocusOnTextField) 0.dp else animatedBottomCornerRadius,
+                                                bottomStart = if (isKeyboardVisible && !uiState.value.isFocusOnTextField) 0.dp else animatedBottomCornerRadius
                                             )
                                         )
                                         .testTag("WebViewContainer")

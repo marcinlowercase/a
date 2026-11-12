@@ -5,11 +5,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.toArgb
 import kotlinx.serialization.Serializable
+import marcinlowercase.a.core.constant.DefaultSettingValues
 import marcinlowercase.a.core.enum_class.WindowMode
 import marcinlowercase.a.ui.panel.isColorDark
 import kotlin.math.ceil
 import kotlin.math.round
 import kotlin.math.roundToInt
+import marcinlowercase.a.core.enum_class.SharpMode
 
 const val BASE_RADIUS = 28f
 @Serializable
@@ -27,7 +29,7 @@ data class BrowserSettings(
     val singleLineHeight: Float,
     val isAdBlockEnabled: Boolean = true,
     val isDesktopMode: Boolean,
-    val isSharpMode: Boolean,
+    val sharpMode: Int = DefaultSettingValues.SHARP_MODE,
     val cursorContainerSize: Float,
     val cursorPointerSize: Float,
     val cursorTrackingSpeed: Float,
@@ -128,6 +130,8 @@ data class BrowserSettings(
         WindowMode.SPLIT -> isFirstSplitLoad
         WindowMode.FLOAT -> isFirstFloatLoad
     }
+
+    fun currentSharpMode(): SharpMode = SharpMode.entries.getOrElse(sharpMode) { SharpMode.ROUND }
 
 }
 @Composable
