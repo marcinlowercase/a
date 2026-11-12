@@ -1770,8 +1770,10 @@ class GeckoManager(private val context: Context) {
             override fun onExternalResponse(session: GeckoSession, response: WebResponse) {
                 // Extract metadata from the WebResponse object
                 val url = response.uri
-                val contentDisposition = response.headers["Content-Disposition"]
-                val mimeType = response.headers["Content-Type"]
+                val contentDisposition = response.headers.entries
+                    .firstOrNull { it.key.equals("Content-Disposition", ignoreCase = true) }?.value
+                val mimeType = response.headers.entries
+                    .firstOrNull { it.key.equals("Content-Type", ignoreCase = true) }?.value
 
                 // Get the User Agent (needed for the system DownloadManager to match the browser's request)
                 val userAgent = if (!session.settings.userAgentOverride.isNullOrBlank()) {

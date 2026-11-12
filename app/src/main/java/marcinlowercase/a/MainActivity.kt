@@ -1270,7 +1270,7 @@ val sharpMode = settings.currentSharpMode()
             if (url.startsWith("blob:") || url.startsWith("data:")) {
                 if (stream != null) {
                     // 1. Guess the file name
-                    var fileName = android.webkit.URLUtil.guessFileName(url, contentDisposition, mimeType)
+                    var fileName = viewModel.getBestGuessFilename(url, contentDisposition, mimeType)
                     if (fileName.startsWith("downloadfile")) {
                         val ext = android.webkit.MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType) ?: "bin"
                         fileName = "download_${System.currentTimeMillis()}.$ext"

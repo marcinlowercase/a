@@ -2163,35 +2163,87 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         downloadTracker.saveDownloads(downloads)
     }
 
-    // Helper functions (moved from UI)
-    private fun getBestGuessFilename(
+    fun getBestGuessFilename(
         url: String,
         contentDisposition: String?,
         mimeType: String?
     ): String {
-        if (contentDisposition != null) {
-            val pattern =
-                Pattern.compile("filename\\*?=['\"]?([^'\"\\s]+)['\"]?", Pattern.CASE_INSENSITIVE)
-            val matcher = pattern.matcher(contentDisposition)
-            if (matcher.find()) {
-                val filename = matcher.group(1)
-                if (filename != null) {
-                    try {
-                        return URLDecoder.decode(filename, "UTF-8")
-                    } catch (_: Exception) {
+        val cleanMime = mimeType?.substringBefore(';')?.trim()?.lowercase()
+        val mimeExt = cleanMime?.let {
+            android.webkit.MimeTypeMap.getSingleton().getExtensionFromMimeType(it)
+        }
+
+        fun sanitize(raw: String): String {
+            return raw.trim()
+                .replace('/', '_')
+                .replace('\\', '_')
+                .trim('.', ' ')
+        }
+
+        fun ensureExtension(name: String, forceMimeExt: Boolean = false): String {
+            if (mimeExt.isNullOrBlank()) return name
+            val hasExt = name.contains('.') && name.substringAfterLast('.').isNotBlank()
+            return when {
+                forceMimeExt -> "${name.substringBeforeLast('.')}.$mimeExt"
+                !hasExt -> "$name.$mimeExt"
+                else -> name
+            }
+        }
+
+        if (!contentDisposition.isNullOrBlank()) {
+            // check rfc 5987 filename* first
+            val extPattern = Pattern.compile(
+                "(?:^|[;\\s])filename\\*\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^;\\r\\n]+))",
+                Pattern.CASE_INSENSITIVE
+            )
+            val extMatcher = extPattern.matcher(contentDisposition)
+            if (extMatcher.find()) {
+                val raw = (extMatcher.group(1) ?: extMatcher.group(2) ?: extMatcher.group(3))?.trim()
+                if (!raw.isNullOrBlank()) {
+                    val firstQuote = raw.indexOf('\'')
+                    val secondQuote = if (firstQuote != -1) raw.indexOf('\'', firstQuote + 1) else -1
+                    val encodedName = if (secondQuote != -1) raw.substring(secondQuote + 1) else raw
+                    val clean = sanitize(android.net.Uri.decode(encodedName))
+                    if (clean.isNotBlank()) return ensureExtension(clean)
+                }
+            }
+
+            // fallback to standard filename parameter preserving spaces
+            val stdPattern = Pattern.compile(
+                "(?:^|[;\\s])filename\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^;\\r\\n]+))",
+                Pattern.CASE_INSENSITIVE
+            )
+            val stdMatcher = stdPattern.matcher(contentDisposition)
+            if (stdMatcher.find()) {
+                val raw = (stdMatcher.group(1) ?: stdMatcher.group(2) ?: stdMatcher.group(3))?.trim()
+                if (!raw.isNullOrBlank()) {
+                    val decoded = if (raw.contains(Regex("%[0-9A-Fa-f]{2}"))) {
+                        android.net.Uri.decode(raw)
+                    } else {
+                        raw
                     }
+                    val clean = sanitize(decoded)
+                    if (clean.isNotBlank()) return ensureExtension(clean)
                 }
             }
         }
+
+        // extract from url path
         try {
-            val path = url.toUri().path
-            if (path != null) {
-                val lastSegment = path.substringAfterLast('/')
-                if (lastSegment.isNotBlank()) return lastSegment
+            val parsed = url.toUri()
+            val lastSegment = parsed.path?.substringAfterLast('/')
+            if (!lastSegment.isNullOrBlank()) {
+                val clean = sanitize(android.net.Uri.decode(lastSegment))
+                if (clean.isNotBlank()) {
+                    // url extension is unreliable if url has a query string
+                    val hasQuery = !parsed.query.isNullOrBlank()
+                    return ensureExtension(clean, forceMimeExt = hasQuery)
+                }
             }
         } catch (_: Exception) {
         }
-        return URLUtil.guessFileName(url, contentDisposition, mimeType)
+
+        return URLUtil.guessFileName(url, contentDisposition, cleanMime)
     }
 
     private fun generateUniqueFilename(
