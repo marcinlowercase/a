@@ -1,5 +1,6 @@
 package marcinlowercase.a.core.provider
 
+import android.os.Build
 import android.content.ContentProvider
 import android.content.ContentValues
 import android.content.Context
@@ -43,14 +44,31 @@ class BrowserSettingsProvider : ContentProvider() {
         val hardwareCornerRadius = globalPrefs.getFloat("hardware_corner_radius", DefaultSettingValues.CORNER_RADIUS)
         val padding = globalPrefs.getFloat("padding", DefaultSettingValues.PADDING)
 
+        val isMaterialYou = prefsToUse.getBoolean(
+            "is_enabled_material_you",
+            DefaultSettingValues.IS_ENABLED_MATERIAL_YOU
+        ) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+        val highlightColor = prefsToUse.getInt("highlight_color", DefaultSettingValues.HIGHLIGHT_COLOR)
+
         val columns = arrayOf(
             "sharp_mode",
             "current_corner_radius",
             "hardware_corner_radius",
-            "padding"
+            "padding",
+            "is_material_you",
+            "highlight_color"
         )
         return MatrixCursor(columns, 1).apply {
-            addRow(arrayOf<Any>(sharpMode, currentCornerRadius, hardwareCornerRadius, padding))
+            addRow(
+                arrayOf<Any>(
+                    sharpMode,
+                    currentCornerRadius,
+                    hardwareCornerRadius,
+                    padding,
+                    if (isMaterialYou) 1 else 0,
+                    highlightColor
+                )
+            )
             setNotificationUri(ctx.contentResolver, uri)
         }
     }
