@@ -104,6 +104,12 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <provider
+            android:name=".core.provider.BrowserSettingsProvider"
+            android:authorities="${applicationId}.settingsprovider"
+            android:exported="true"
+            tools:ignore="ExportedContentProvider" />
         <service
             android:name=".core.service.MediaPlaybackService"
             android:enabled="true"

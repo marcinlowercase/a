@@ -272,8 +272,9 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         // 8. Set new Active Index
         _activeTabIndex.value = tabManager.getActiveTabIndex(newProfileId).coerceAtLeast(0)
 
-        // 9. Force UI to update session
+        // force ui to update session
         sessionRefreshTrigger.intValue++
+        notifySettingsProviderChanged()
     }
 
 
@@ -815,6 +816,13 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             putString("hidden_options", settings.hiddenOptions)
             apply()
         }
+        notifySettingsProviderChanged()
+    }
+
+    private fun notifySettingsProviderChanged() {
+        val context = getApplication<Application>()
+        val uri = "content://${context.packageName}.settingsprovider/design".toUri()
+        context.contentResolver.notifyChange(uri, null)
     }
 
 
