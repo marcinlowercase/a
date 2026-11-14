@@ -1039,6 +1039,7 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
 
     val targetTopBarColor = when {
         uiState.value.isSettingCornerRadius -> viewModel.backgroundColor.value
+        !settings.isEnabledImmersiveWebview -> Color.Black
         uiState.value.isOnFullscreenVideo -> Color.Black
         uiState.value.appState == AppState.BUILD && !uiState.value.isBuildPreview -> Color.Black
         viewModel.activeTab?.errorState != null -> Color.Black
@@ -1048,6 +1049,7 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
 
     val targetBottomBarColor = when {
         uiState.value.isSettingCornerRadius -> viewModel.backgroundColor.value
+        !settings.isEnabledImmersiveWebview -> Color.Black
         uiState.value.isOnFullscreenVideo -> Color.Black
         uiState.value.appState == AppState.BUILD && !uiState.value.isBuildPreview -> Color.Black
         viewModel.activeTab?.errorState != null -> Color.Black
@@ -1072,6 +1074,7 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
 
     LaunchedEffect(
         sampleTrigger,
+        settings.isEnabledImmersiveWebview,
         viewModel.activeTab?.id,
         viewModel.activeTab?.currentURL,
         uiState.value.appState,
@@ -1079,7 +1082,8 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
         uiState.value.isOnFullscreenVideo
     ) {
         val tab = viewModel.activeTab
-        val isShowingWeb = tab != null &&
+        val isShowingWeb = settings.isEnabledImmersiveWebview &&
+            tab != null &&
             tab.errorState == null &&
             tab.currentURL.isNotBlank() &&
             tab.currentURL != "about:blank" &&

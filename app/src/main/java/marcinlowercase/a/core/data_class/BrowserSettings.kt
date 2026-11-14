@@ -57,6 +57,7 @@ data class BrowserSettings(
 
     val isEnabledMediaControl: Boolean,
     val isEnabledOutSync: Boolean,
+    val isEnabledImmersiveWebview: Boolean = DefaultSettingValues.IS_ENABLED_IMMERSIVE_WEBVIEW,
     val memoryUsage: Int,
 ) {
 

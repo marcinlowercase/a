@@ -645,6 +645,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 d.IS_ENABLED_MEDIA_CONTROL
             ),
             isEnabledOutSync = prefsToUse.getBoolean("is_enabled_out_sync", d.IS_ENABLED_OUT_SYNC),
+            isEnabledImmersiveWebview = prefsToUse.getBoolean("is_enabled_immersive_webview", d.IS_ENABLED_IMMERSIVE_WEBVIEW),
             isEnabledConfirmation = prefsToUse.getBoolean("is_enabled_confirmation", d.IS_ENABLED_CONFIRMATION),
             isEnabledBackgroundPlayback = prefsToUse.getBoolean("is_enabled_background_playback", d.IS_ENABLED_BACKGROUND_PLAYBACK),
             isEnabledMaterialYou = prefsToUse.getBoolean("is_enabled_material_you", d.IS_ENABLED_MATERIAL_YOU),
@@ -760,6 +761,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 hiddenOptions = d.HIDDEN_OPTIONS,
                 isEnabledMediaControl = d.IS_ENABLED_MEDIA_CONTROL,
                 isEnabledOutSync = d.IS_ENABLED_OUT_SYNC,
+                isEnabledImmersiveWebview = d.IS_ENABLED_IMMERSIVE_WEBVIEW,
                 memoryUsage = d.MEMORY_USAGE,
                 isEnabledConfirmation = d.IS_ENABLED_CONFIRMATION,
                 isEnabledBackgroundPlayback = d.IS_ENABLED_BACKGROUND_PLAYBACK,
@@ -813,6 +815,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             putBoolean("is_desktop_mode", settings.isDesktopMode)
             putBoolean("is_enabled_media_control", settings.isEnabledMediaControl)
             putBoolean("is_enabled_out_sync", settings.isEnabledOutSync)
+            putBoolean("is_enabled_immersive_webview", settings.isEnabledImmersiveWebview)
             putBoolean("is_enabled_confirmation", settings.isEnabledConfirmation)
             putBoolean("is_enabled_background_playback", settings.isEnabledBackgroundPlayback)
             putBoolean("is_enabled_material_you", settings.isEnabledMaterialYou)

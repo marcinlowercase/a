@@ -73,6 +73,7 @@
     <string name="desc_suggestions">suggestions</string>
     <string name="desc_media_control">media control</string>
     <string name="desc_out_sync">out sync</string>
+    <string name="desc_immersive_webview">immersive webview</string>
     <string name="desc_optimize_memory">optimize memory</string>
     <string name="desc_memory_usage">memory usage</string>
 

@@ -545,6 +545,14 @@ fun rememberBrowserOptionsRegistry(
                 )
             }
             },
+            BrowserOption.IMMERSIVE_WEBVIEW to OptionItem(
+                id = BrowserOption.IMMERSIVE_WEBVIEW,
+                iconRes = R.drawable.ic_immersive_webview,
+                contentDescription = R.string.desc_immersive_webview,
+                enabled = settings.value.isEnabledImmersiveWebview
+            ) {
+                viewModel.updateSettings { it.copy(isEnabledImmersiveWebview = !it.isEnabledImmersiveWebview) }
+            },
             BrowserOption.OPTIMIZE_MEMORY to OptionItem(
                 id = BrowserOption.OPTIMIZE_MEMORY,
                 iconRes = if (viewModel.tabs.size > 1 || viewModel.geckoManager.sessionPoolSize > 1) R.drawable.ic_rocket_launch else R.drawable.ic_rocket,

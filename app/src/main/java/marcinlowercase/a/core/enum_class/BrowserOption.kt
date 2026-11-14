@@ -48,4 +48,5 @@ enum class BrowserOption(val type: OptionType) {
     CONFIRMATION(OptionType.TOGGLE_ACTION),
     BACKGROUND_PLAYBACK(OptionType.TOGGLE_ACTION),
     MATERIAL_YOU(OptionType.TOGGLE_ACTION),
+    IMMERSIVE_WEBVIEW(OptionType.TOGGLE_ACTION),
 }
