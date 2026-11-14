@@ -185,6 +185,7 @@ import kotlin.time.Duration.Companion.milliseconds
 import androidx.compose.animation.animateColorAsState
 import marcinlowercase.a.core.function.extractEdgeColorsFromBitmap
 import marcinlowercase.a.ui.panel.isColorDark
+import android.view.KeyEvent
 
 //region Composable
 
@@ -451,6 +452,14 @@ class MainActivity : ComponentActivity() {
         if (currentFullBrowserInstance?.get() == this) {
             currentFullBrowserInstance = null
         }
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        val viewModel: BrowserViewModel by viewModels()
+        if (viewModel.keyboardShortcutManager.handleKeyEvent(event, viewModel)) {
+            return true
+        }
+        return super.dispatchKeyEvent(event)
     }
 
 

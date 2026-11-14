@@ -90,6 +90,7 @@ import java.net.URLEncoder
 import java.util.Collections
 import java.util.regex.Pattern
 import kotlin.time.Duration.Companion.milliseconds
+import marcinlowercase.a.core.manager.KeyboardShortcutManager
 
 val LocalBrowserViewModel = staticCompositionLocalOf<BrowserViewModel> {
     error("No BrowserViewModel provided! Check your root Composable.")
@@ -108,6 +109,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     val profileManager = ProfileManager(application)
 
     val geminiManager = GeminiManager(application)
+    val keyboardShortcutManager = KeyboardShortcutManager(application)
 
     //endregion
 

@@ -117,15 +117,11 @@ import org.mozilla.geckoview.GeckoView
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import kotlin.time.Duration.Companion.milliseconds
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.isAltPressed
-import androidx.compose.ui.input.key.isCtrlPressed
-import androidx.compose.ui.input.key.isShiftPressed
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onPreviewKeyEvent
-import androidx.compose.ui.input.key.type
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.text.TextRange
+import marcinlowercase.a.core.enum_class.BrowserShortcut
 import marcinlowercase.a.core.function.rememberIsStudioKeyboard
+import marcinlowercase.a.core.manager.KeyboardShortcutManager
 
 @OptIn(ExperimentalLayoutApi::class)
 @SuppressLint("FrequentlyChangingValue")
@@ -591,9 +587,25 @@ fun BottomPanel(
                 }
 
                 val dismissUrlBar: () -> Unit = {
+                    viewModel.keyboardShortcutManager.clearPendingUrlFocusAction()
                     viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
                     focusManager.clearFocus()
                     keyboardController?.hide()
+                }
+
+                LaunchedEffect(Unit) {
+                    viewModel.keyboardShortcutManager.shortcutEvents.collect { shortcut ->
+                        when (shortcut) {
+                            BrowserShortcut.DISMISS_URL_BAR -> dismissUrlBar()
+                            BrowserShortcut.FOCUS_OR_EDIT_URL -> editCurrentUrl()
+                            BrowserShortcut.NEW_TAB -> {
+                                textFieldState.setTextAndPlaceCursorAtEnd("")
+                                urlBarFocusRequester.requestFocus()
+                                keyboardController?.show()
+                            }
+                            else -> {}
+                        }
+                    }
                 }
 
                 // URL BAR
@@ -626,6 +638,17 @@ fun BottomPanel(
                         )
                     )
                 ) {
+                    val pendingUrlFocusAction by viewModel.keyboardShortcutManager.pendingUrlFocusAction.collectAsState()
+                    LaunchedEffect(pendingUrlFocusAction) {
+                        if (pendingUrlFocusAction != null) {
+                            // wait one frame so url bar textfield is attached before requesting focus
+                            withFrameNanos {}
+                            geckoViewRef.value?.clearFocus()
+                            urlBarFocusRequester.requestFocus()
+                            keyboardController?.show()
+                        }
+                    }
+
                     Box(modifier = Modifier) {
                         Column(
                             modifier = Modifier.onSizeChanged { size ->
@@ -806,26 +829,6 @@ fun BottomPanel(
                                     }
                                     .fillMaxWidth()
                                     .focusRequester(urlBarFocusRequester)
-                                    .onPreviewKeyEvent { keyEvent ->
-                                        val isCtrl = keyEvent.isCtrlPressed
-                                        val isShift = keyEvent.isShiftPressed
-                                        val isAlt = keyEvent.isAltPressed
-
-                                        val isEscape = keyEvent.key == Key.Escape && !isCtrl && !isShift && !isAlt
-                                        val isCopyUrl = keyEvent.key == Key.C && isCtrl && isShift && !isAlt
-                                        val isEditUrl = keyEvent.key == Key.L && isCtrl && !isShift && !isAlt
-
-                                        if (!isEscape && !isCopyUrl && !isEditUrl) return@onPreviewKeyEvent false
-
-                                        if (keyEvent.type == KeyEventType.KeyDown && keyEvent.nativeKeyEvent.repeatCount == 0) {
-                                            when {
-                                                isEscape -> dismissUrlBar()
-                                                isCopyUrl -> copyCurrentUrl()
-                                                isEditUrl -> editCurrentUrl()
-                                            }
-                                        }
-                                        true
-                                    }
 
                                     .onFocusChanged { focusState ->
                                         val resetUrl = viewModel.activeTab!!.currentURL
@@ -862,7 +865,25 @@ fun BottomPanel(
                                                         isAppsPanelVisible = false,
                                                     )
                                                 }
-                                                textFieldState.setTextAndPlaceCursorAtEnd("")
+                                                when (viewModel.keyboardShortcutManager.consumePendingUrlFocusAction()) {
+                                                    KeyboardShortcutManager.UrlFocusAction.SELECT_ALL -> {
+                                                        val activeUrl = viewModel.activeTab?.currentURL ?: ""
+                                                        val cleanUrl = LocalAppServer.formatForDisplay(activeUrl)
+                                                        val fullUrl = if (cleanUrl.startsWith(LocalAppServer.VIRTUAL_SCHEME)) {
+                                                            cleanUrl
+                                                        } else {
+                                                            viewModel.activeTab?.errorState?.failingUrl ?: activeUrl
+                                                        }
+                                                        textFieldState.edit {
+                                                            replace(0, length, fullUrl)
+                                                            selection = TextRange(0, length)
+                                                        }
+                                                    }
+                                                    KeyboardShortcutManager.UrlFocusAction.EMPTY,
+                                                    null -> {
+                                                        textFieldState.setTextAndPlaceCursorAtEnd("")
+                                                    }
+                                                }
                                             }
 
                                         } else {
