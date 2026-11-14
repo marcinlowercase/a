@@ -596,7 +596,14 @@ fun OptionsPanel(
     val settings = viewModel.browserSettings.collectAsState()
     val uiState = viewModel.uiState.collectAsState()
 
-    // 1. Compute IDs first
+    // build registry first so page count always matches rendered items
+    val registry = rememberBrowserOptionsRegistry(
+        onCloseAllTabs = onCloseAllTabs,
+        onNavigateToSetting = {},
+        confirmationPopup = confirmationPopup,
+        onLoginClick = onLoginClick,
+    )
+
     val currentOrderIds = settings.value.optionsOrder.split(",")
         .mapNotNull {
             try {
@@ -606,14 +613,13 @@ fun OptionsPanel(
             }
         }
 
-    val visibleIds = currentOrderIds.filter { opt ->
+    val displayOptions = currentOrderIds.filter { opt ->
         if (uiState.value.windowMode != WindowMode.FULLSCREEN && opt == BrowserOption.FULLSCREEN) return@filter false
         viewModel.isSortingButtons.value || !viewModel.isOptionHidden(opt, settings.value)
-    }
+    }.mapNotNull { registry[it] }
 
-    // 2. Setup Pager State
-    val optionPagesIds = visibleIds.chunked(4)
-    val realPageCount = optionPagesIds.size
+    val optionPages = displayOptions.chunked(4)
+    val realPageCount = optionPages.size
     val initialInfinitePage =
         if (realPageCount > 0) (Int.MAX_VALUE / 2) - ((Int.MAX_VALUE / 2) % realPageCount) else 0
 
@@ -622,23 +628,11 @@ fun OptionsPanel(
 
     val actualPageIndexForSync =
         if (realPageCount > 0) pagerState.currentPage % realPageCount else 0
-    val topOption = optionPagesIds.getOrNull(actualPageIndexForSync)?.firstOrNull()
+    val topOption = optionPages.getOrNull(actualPageIndexForSync)?.firstOrNull()?.id
 
     LaunchedEffect(topOption) {
         viewModel.topVisibleOptionsPanelItem.value = topOption
     }
-
-    val registry = rememberBrowserOptionsRegistry(
-        onCloseAllTabs = onCloseAllTabs,
-        onNavigateToSetting = {},
-        confirmationPopup = confirmationPopup,
-        onLoginClick = onLoginClick,
-
-        )
-
-    // 4. Map IDs to UI Items
-    val displayOptions = visibleIds.mapNotNull { registry[it] }
-    val optionPages = displayOptions.chunked(4)
     val inspectingOpt = viewModel.inspectingOption.value
     LaunchedEffect(inspectingOpt, displayOptions) {
         if (inspectingOpt != null && displayOptions.isNotEmpty() && realPageCount > 0) {
@@ -665,7 +659,7 @@ fun OptionsPanel(
                 userScrollEnabled = realPageCount > 1
             ) { pageIndex ->
                 val actualPageIndex = if (realPageCount > 0) pageIndex % realPageCount else 0
-                val pageOptions = optionPages[actualPageIndex]
+                val pageOptions = optionPages.getOrNull(actualPageIndex) ?: emptyList()
 
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(4),
@@ -805,7 +799,14 @@ fun SettingsPanel(
         }
     }
 
-    // 1. Compute IDs first
+    // build registry first so page count always matches rendered items
+    val registry = rememberBrowserOptionsRegistry(
+        onCloseAllTabs = onCloseAllTabs,
+        onNavigateToSetting = { currentView = it },
+        confirmationPopup = confirmationPopup,
+        onLoginClick = onLoginClick
+    )
+
     val currentOrderIds = settings.value.settingsOrder.split(",")
         .mapNotNull {
             try {
@@ -815,30 +816,18 @@ fun SettingsPanel(
             }
         }
 
-    val visibleIds = currentOrderIds.filter { opt ->
+    val displayOptions = currentOrderIds.filter { opt ->
         if (uiState.value.windowMode != WindowMode.FULLSCREEN && opt == BrowserOption.FULLSCREEN) return@filter false
         viewModel.isSortingButtons.value || !viewModel.isOptionHidden(opt, settings.value)
-    }
+    }.mapNotNull { registry[it] }
 
-    // 2. Setup Pager State
-    val optionPagesIds = visibleIds.chunked(4)
-    val realPageCount = optionPagesIds.size
+    val optionPages = displayOptions.chunked(4)
+    val realPageCount = optionPages.size
     val initialInfinitePage =
         if (realPageCount > 0) (Int.MAX_VALUE / 2) - ((Int.MAX_VALUE / 2) % realPageCount) else 0
 
     val pagerState =
         rememberPagerState(initialPage = initialInfinitePage, pageCount = { Int.MAX_VALUE })
-
-    // 3. Build Registry
-    val registry = rememberBrowserOptionsRegistry(
-        onCloseAllTabs = onCloseAllTabs,
-        onNavigateToSetting = { currentView = it },
-        confirmationPopup = confirmationPopup,
-        onLoginClick = onLoginClick
-    )
-    // 4. Map IDs to UI items
-    val displayOptions = visibleIds.mapNotNull { registry[it] }
-    val optionPages = displayOptions.chunked(4)
     val inspectingOpt = viewModel.inspectingOption.value
     LaunchedEffect(inspectingOpt, displayOptions) {
         if (inspectingOpt != null && displayOptions.isNotEmpty() && realPageCount > 0) {
@@ -907,7 +896,7 @@ fun SettingsPanel(
                             ) { pageIndex ->
                                 val actualPageIndex =
                                     if (realPageCount > 0) pageIndex % realPageCount else 0
-                                val pageOptions = optionPages[actualPageIndex]
+                                val pageOptions = optionPages.getOrNull(actualPageIndex) ?: emptyList()
 
                                 LazyVerticalGrid(
                                     columns = GridCells.Fixed(4),
