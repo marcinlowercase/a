@@ -26,7 +26,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import marcinlowercase.a.core.data_class.BrowserSettings
-import java.lang.Integer.min
+import android.graphics.Bitmap
 
 import java.net.URL
 import java.util.Locale
@@ -228,4 +228,54 @@ fun isBubbleMode(activity: Activity?): Boolean {
     }
 
     return false
+}
+
+fun extractEdgeColorsFromBitmap(bitmap: Bitmap): Pair<Color, Color> {
+    val height = bitmap.height
+    if (bitmap.width <= 0 || height <= 0) return Color.Black to Color.Black
+    val topColor = sampleDominantRowColor(bitmap, listOf(1, 3))
+    val bottomColor = sampleDominantRowColor(bitmap, listOf(height - 2, height - 4))
+    return topColor to bottomColor
+}
+
+private fun sampleDominantRowColor(bitmap: Bitmap, ys: List<Int>): Color {
+    val width = bitmap.width
+    val height = bitmap.height
+    val sampleCount = 24
+    val startX = (width * 0.04f).toInt().coerceIn(0, width - 1)
+    val endX = (width * 0.96f).toInt().coerceIn(startX, width - 1)
+    val step = ((endX - startX).toFloat() / (sampleCount - 1)).coerceAtLeast(1f)
+
+    val bucketCounts = HashMap<Int, Int>()
+    val bucketSumR = HashMap<Int, Long>()
+    val bucketSumG = HashMap<Int, Long>()
+    val bucketSumB = HashMap<Int, Long>()
+
+    for (rawY in ys) {
+        val y = rawY.coerceIn(0, height - 1)
+        var fx = startX.toFloat()
+        while (fx <= endX + 0.5f) {
+            val x = fx.toInt().coerceIn(0, width - 1)
+            val pixel = bitmap.getPixel(x, y)
+            if (android.graphics.Color.alpha(pixel) >= 128) {
+                val r = android.graphics.Color.red(pixel)
+                val g = android.graphics.Color.green(pixel)
+                val b = android.graphics.Color.blue(pixel)
+                // quantize into 5-bit buckets to ignore small icons or text
+                val key = ((r shr 3) shl 10) or ((g shr 3) shl 5) or (b shr 3)
+                bucketCounts[key] = (bucketCounts[key] ?: 0) + 1
+                bucketSumR[key] = (bucketSumR[key] ?: 0L) + r
+                bucketSumG[key] = (bucketSumG[key] ?: 0L) + g
+                bucketSumB[key] = (bucketSumB[key] ?: 0L) + b
+            }
+            fx += step
+        }
+    }
+
+    val winningKey = bucketCounts.maxByOrNull { it.value }?.key ?: return Color.Black
+    val count = bucketCounts[winningKey] ?: 1
+    val avgR = (bucketSumR[winningKey]!! / count).toInt().coerceIn(0, 255)
+    val avgG = (bucketSumG[winningKey]!! / count).toInt().coerceIn(0, 255)
+    val avgB = (bucketSumB[winningKey]!! / count).toInt().coerceIn(0, 255)
+    return Color(avgR, avgG, avgB)
 }

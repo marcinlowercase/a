@@ -182,7 +182,9 @@ import kotlin.math.round
 import kotlin.math.roundToInt
 import kotlin.system.exitProcess
 import kotlin.time.Duration.Companion.milliseconds
-
+import androidx.compose.animation.animateColorAsState
+import marcinlowercase.a.core.function.extractEdgeColorsFromBitmap
+import marcinlowercase.a.ui.panel.isColorDark
 
 //region Composable
 
@@ -1033,6 +1035,85 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
 
 
     val geckoViewRef = remember { mutableStateOf<GeckoView?>(null) }
+    var sampleTrigger by remember { mutableIntStateOf(0) }
+
+    val targetTopBarColor = when {
+        uiState.value.isSettingCornerRadius -> viewModel.backgroundColor.value
+        uiState.value.isOnFullscreenVideo -> Color.Black
+        uiState.value.appState == AppState.BUILD && !uiState.value.isBuildPreview -> Color.Black
+        viewModel.activeTab?.errorState != null -> Color.Black
+        viewModel.activeTab?.currentURL.isNullOrBlank() || viewModel.activeTab?.currentURL == "about:blank" -> Color.Black
+        else -> viewModel.sampledTopBarColor.value
+    }
+
+    val targetBottomBarColor = when {
+        uiState.value.isSettingCornerRadius -> viewModel.backgroundColor.value
+        uiState.value.isOnFullscreenVideo -> Color.Black
+        uiState.value.appState == AppState.BUILD && !uiState.value.isBuildPreview -> Color.Black
+        viewModel.activeTab?.errorState != null -> Color.Black
+        viewModel.activeTab?.currentURL.isNullOrBlank() || viewModel.activeTab?.currentURL == "about:blank" -> Color.Black
+        uiState.value.isLandscape -> targetTopBarColor
+        else -> viewModel.sampledBottomBarColor.value
+    }
+
+    val animatedTopBarColor by animateColorAsState(
+        targetValue = targetTopBarColor,
+        animationSpec = tween(settings.animationSpeedForLayer(0)),
+        label = "Top Bar Color Animation"
+    )
+
+    val animatedBottomBarColor by animateColorAsState(
+        targetValue = targetBottomBarColor,
+        animationSpec = tween(settings.animationSpeedForLayer(0)),
+        label = "Bottom Bar Color Animation"
+    )
+
+
+
+    LaunchedEffect(
+        sampleTrigger,
+        viewModel.activeTab?.id,
+        viewModel.activeTab?.currentURL,
+        uiState.value.appState,
+        uiState.value.isBuildPreview,
+        uiState.value.isOnFullscreenVideo
+    ) {
+        val tab = viewModel.activeTab
+        val isShowingWeb = tab != null &&
+            tab.errorState == null &&
+            tab.currentURL.isNotBlank() &&
+            tab.currentURL != "about:blank" &&
+            !uiState.value.isOnFullscreenVideo &&
+            !(uiState.value.appState == AppState.BUILD && !uiState.value.isBuildPreview)
+
+        if (!isShowingWeb) {
+            viewModel.sampledTopBarColor.value = Color.Black
+            viewModel.sampledBottomBarColor.value = Color.Black
+            return@LaunchedEffect
+        }
+
+        // debounce rapid scroll and load events before capturing surface pixels
+        delay(120.milliseconds)
+        val gv = geckoViewRef.value ?: return@LaunchedEffect
+        gv.capturePixels().accept(
+            { bitmap ->
+                if (bitmap != null) {
+                    coroutineScope.launch(Dispatchers.Default) {
+                        try {
+                            val (topColor, bottomColor) = extractEdgeColorsFromBitmap(bitmap)
+                            withContext(Dispatchers.Main) {
+                                viewModel.sampledTopBarColor.value = topColor
+                                viewModel.sampledBottomBarColor.value = bottomColor
+                            }
+                        } finally {
+                            bitmap.recycle()
+                        }
+                    }
+                }
+            },
+            { /* ignore if compositor is not ready yet */ }
+        )
+    }
 
     val insetsController = activity.let {
         WindowCompat.getInsetsController(
@@ -2037,16 +2118,16 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
             }
 
         }
+        val isLightTopBar = !uiState.value.isSettingCornerRadius && !isColorDark(targetTopBarColor.toArgb())
+        val isLightBottomBar = !uiState.value.isSettingCornerRadius && !isColorDark(targetBottomBarColor.toArgb())
+
         if (!view.isInEditMode) {
             SideEffect {
                 val window = (view.context as Activity).window
                 val insetsController = WindowCompat.getInsetsController(window, view)
 
-                // 1. Make the status bar transparent
-
-                // 2. FORCE White Icons (set to false)
-                insetsController.isAppearanceLightNavigationBars = false
-                insetsController.isAppearanceLightStatusBars = false
+                insetsController.isAppearanceLightNavigationBars = isLightBottomBar
+                insetsController.isAppearanceLightStatusBars = isLightTopBar
             }
         }
         LaunchedEffect(uiState.value.isSettingsPanelVisible) {
@@ -2322,7 +2403,7 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                             isFirstLoadPWA = false,
                         )
                     }
-
+                    sampleTrigger++
                 },
                 onFaviconChanged = { tabId, faviconUrl ->
                     if (faviconUrl.isNotBlank()) {
@@ -2493,6 +2574,16 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
 
                 onExternalAppRequest = { url ->
                     viewModel.handleExternalIntent(activity, url)
+                },
+                onContentPaintedFun = { eventTabId ->
+                    if (eventTabId == viewModel.activeTab?.id) {
+                        sampleTrigger++
+                    }
+                },
+                onScrollChangedFun = { eventTabId ->
+                    if (eventTabId == viewModel.activeTab?.id) {
+                        sampleTrigger++
+                    }
                 }
             )
 
@@ -2566,6 +2657,7 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                                 gv.requestLayout()
                                 gv.invalidate()
                             }
+                            sampleTrigger++
                         }
                     }
 
@@ -2832,8 +2924,21 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(viewModel.backgroundColor.value)
         ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .background(animatedTopBarColor)
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .background(animatedBottomBarColor)
+                )
+            }
             Box(
                 modifier = Modifier
                     .size(1.dp)
@@ -3017,7 +3122,9 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                                                         // Create the View ONCE.
                                                         // We never need to recreate this View during tab switching.
                                                         SafeGeckoView(context).apply {
-                                                            setBackgroundColor(android.graphics.Color.BLACK)
+                                                            setViewBackend(GeckoView.BACKEND_TEXTURE_VIEW)
+                                                            setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                                                            coverUntilFirstPaint(android.graphics.Color.TRANSPARENT)
                                                             layoutParams = ViewGroup.LayoutParams(
                                                                 ViewGroup.LayoutParams.MATCH_PARENT,
                                                                 ViewGroup.LayoutParams.MATCH_PARENT

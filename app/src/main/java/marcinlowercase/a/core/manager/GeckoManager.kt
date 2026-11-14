@@ -1135,7 +1135,9 @@ class GeckoManager(private val context: Context) {
         onColorPromptFun: (JsColorState) -> Unit,
         onDateTimePromptFun: (JsDateTimeState) -> Unit,
         onCloseTabFun: (Long) -> Unit,
-        onExternalAppRequest: (String) -> Unit
+        onExternalAppRequest: (String) -> Unit,
+        onContentPaintedFun: (Long) -> Unit = {},
+        onScrollChangedFun: (Long) -> Unit = {}
 
 
     ) {
@@ -1762,6 +1764,10 @@ class GeckoManager(private val context: Context) {
                 onCloseTabFun(eventTabId)
             }
 
+            override fun onFirstContentfulPaint(session: GeckoSession) {
+                onContentPaintedFun(eventTabId)
+            }
+
             override fun onFullScreen(session: GeckoSession, fullScreen: Boolean) {
                 onFullScreenFun(fullScreen)
             }
@@ -1895,6 +1901,15 @@ class GeckoManager(private val context: Context) {
             ) {
                 //Log.i("GeckoNav","onHistoryStateChange")
                 onHistoryStateChangeFun(eventTabId, session, realtimeHistory)
+            }
+        }
+
+        session.compositorScrollDelegate = object : GeckoSession.CompositorScrollDelegate {
+            override fun onScrollChanged(
+                session: GeckoSession,
+                update: GeckoSession.ScrollPositionUpdate
+            ) {
+                onScrollChangedFun(eventTabId)
             }
         }
 
