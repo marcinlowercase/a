@@ -16,7 +16,7 @@ import com.google.android.gms.auth.api.identity.AuthorizationRequest
 import com.google.android.gms.auth.api.identity.AuthorizationResult
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.android.gms.common.api.Scope
-import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.api.client.http.ByteArrayContent
 import com.google.api.client.http.javanet.NetHttpTransport
@@ -48,14 +48,12 @@ class DriveSyncManager(private val context: Context) {
     // ==========================================
     suspend fun signInWithGoogle(activity: Activity): String? {
         return withContext(Dispatchers.Main) {
-            val googleIdOption = GetGoogleIdOption.Builder()
-                .setFilterByAuthorizedAccounts(false)
-                .setServerClientId(context.getString(R.string.default_web_client_id))
-                .setAutoSelectEnabled(true)
-                .build()
+            val signInWithGoogleOption = GetSignInWithGoogleOption.Builder(
+                serverClientId = context.getString(R.string.default_web_client_id)
+            ).build()
 
             val request = GetCredentialRequest.Builder()
-                .addCredentialOption(googleIdOption)
+                .addCredentialOption(signInWithGoogleOption)
                 .build()
 
             try {
