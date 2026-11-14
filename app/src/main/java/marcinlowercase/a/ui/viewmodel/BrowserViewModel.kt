@@ -245,7 +245,12 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         // 3. Freeze current tabs to disk before switching
         tabManager.saveTabs(activeProfileId.value, updatedTabsForSave, _activeTabIndex.value)
 
-        // 4. Update Profile ID
+        // reset domain tracking so switching profiles does not copy across profiles
+        lastObservedTabId = null
+        lastObservedDomain = null
+        lastObservedSharpMode = SharpMode.ROUND
+
+        // update profile id
         activeProfileId.value = newProfileId
         profileManager.saveActiveProfileId(newProfileId)
         setupPrefsListener(newProfileId)
@@ -1524,7 +1529,19 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     }
 
     val handleNewSession = { engineId: Long, uri: String ->
-        // 1. Deactivate current active tab
+        // copy sharp mode from opener tab if target domain has no sharp mode yet
+        val parentDomain = siteSettingsManager.getDomain(activeTab?.currentURL)
+            ?.takeIf { it.isNotBlank() && it != "about:blank" }
+        val parentSharpMode = parentDomain?.let { siteSettings[it]?.currentSharpMode() } ?: SharpMode.ROUND
+        val newDomain = siteSettingsManager.getDomain(uri)
+            ?.takeIf { it.isNotBlank() && it != "about:blank" }
+        if (newDomain != null && siteSettings[newDomain]?.sharpMode == null && parentSharpMode != SharpMode.ROUND) {
+            val base = siteSettings[newDomain] ?: SiteSettings(domain = newDomain)
+            siteSettings[newDomain] = base.copy(sharpMode = parentSharpMode.ordinal)
+            siteSettingsManager.saveSettings(currentProfileId, siteSettings)
+        }
+
+        // deactivate current active tab
         val currentIndex = _activeTabIndex.value
         if (currentIndex in tabs.indices) {
             tabs[currentIndex] = tabs[currentIndex].copy(state = TabState.BACKGROUND)
@@ -1799,17 +1816,25 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     }
 
     val updateTabById = { tabId: Long, transform: (Tab) -> Tab ->
-        // If we are in a PWA, apply the updates directly to the isolated PWA Tab!
+        // if we are in a pwa, apply the updates directly to the isolated pwa tab
         if (isStandaloneMode.value && pwaTab.value?.id == tabId) {
-            pwaTab.value = transform(pwaTab.value!!)
+            val oldTab = pwaTab.value!!
+            val newTab = transform(oldTab)
+            if (oldTab.currentURL != newTab.currentURL) {
+                onActiveDomainChanged(tabId, siteSettingsManager.getDomain(newTab.currentURL))
+            }
+            pwaTab.value = newTab
         } else {
-            // Normal Browser Tab update
+            // normal browser tab update
             val index = tabs.indexOfFirst { it.id == tabId }
             if (index != -1) {
                 val oldTab = tabs[index]
                 val newTab = transform(oldTab)
 
                 if (oldTab != newTab) {
+                    if (tabId == activeTab?.id && oldTab.currentURL != newTab.currentURL) {
+                        onActiveDomainChanged(tabId, siteSettingsManager.getDomain(newTab.currentURL))
+                    }
                     tabs[index] = newTab
                     saveTabs()
                 }
@@ -2324,8 +2349,37 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         siteSettingsManager.saveSettings(currentProfileId, siteSettings)
     }
 
+    private var lastObservedTabId: Long? = null
+    private var lastObservedDomain: String? = null
+    private var lastObservedSharpMode: SharpMode = SharpMode.ROUND
+
+    fun onActiveDomainChanged(tabId: Long?, newDomain: String?) {
+        val cleanDomain = newDomain?.takeIf { it.isNotBlank() && it != "about:blank" }
+        if (tabId == null || cleanDomain == null) {
+            lastObservedTabId = tabId
+            lastObservedDomain = cleanDomain
+            lastObservedSharpMode = SharpMode.ROUND
+            return
+        }
+
+        val isSameTab = (tabId == lastObservedTabId)
+        val isDomainChanged = (cleanDomain != lastObservedDomain)
+
+        val existingSite = siteSettings[cleanDomain]
+        if (isSameTab && isDomainChanged && existingSite?.sharpMode == null && lastObservedSharpMode != SharpMode.ROUND) {
+            val base = existingSite ?: SiteSettings(domain = cleanDomain)
+            siteSettings[cleanDomain] = base.copy(sharpMode = lastObservedSharpMode.ordinal)
+            siteSettingsManager.saveSettings(currentProfileId, siteSettings)
+        }
+
+        lastObservedTabId = tabId
+        lastObservedDomain = cleanDomain
+        lastObservedSharpMode = siteSettings[cleanDomain]?.currentSharpMode() ?: SharpMode.ROUND
+    }
+
     fun cycleSharpModeForCurrentTab() {
-        val domain = siteSettingsManager.getDomain(activeTab?.currentURL)?.takeIf { it.isNotBlank() }
+        val domain = siteSettingsManager.getDomain(activeTab?.currentURL)
+            ?.takeIf { it.isNotBlank() && it != "about:blank" }
             ?: return
         val current = siteSettings[domain] ?: SiteSettings(domain = domain)
         val nextMode = when (current.currentSharpMode()) {
@@ -2336,6 +2390,9 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         val updated = current.copy(sharpMode = nextMode.ordinal)
         siteSettings[domain] = updated
         siteSettingsManager.saveSettings(currentProfileId, siteSettings)
+        if (domain == lastObservedDomain) {
+            lastObservedSharpMode = nextMode
+        }
         syncActiveSharpModeForProvider(nextMode.ordinal)
     }
 

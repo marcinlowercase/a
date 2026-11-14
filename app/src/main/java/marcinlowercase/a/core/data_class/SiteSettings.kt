@@ -9,7 +9,9 @@ data class SiteSettings(
     // map of <PermissionConstant, isGranted> e.g., <"android.permission.CAMERA", true>
     val permissionDecisions: MutableMap<String, Boolean> = mutableMapOf(),
     val isDesktopMode: Boolean = false,
-    val sharpMode: Int = 0
+    val sharpMode: Int? = null
 ) {
-    fun currentSharpMode(): SharpMode = SharpMode.entries.getOrElse(sharpMode) { SharpMode.ROUND }
+    fun currentSharpMode(): SharpMode = sharpMode?.let {
+        SharpMode.entries.getOrElse(it) { SharpMode.ROUND }
+    } ?: SharpMode.ROUND
 }

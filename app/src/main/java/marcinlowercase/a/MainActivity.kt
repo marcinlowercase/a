@@ -689,10 +689,14 @@ fun BrowserScreen(
 //    tab: Tab, isDesktopMode: Boolean = false, isEnabledBackgroundPlayback: Boolean = true
 
 
-val sharpMode = if (uiState.value.isSettingCornerRadius) {
+LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
+        viewModel.onActiveDomainChanged(viewModel.activeTab?.id, currentDomain)
+    }
+
+    val sharpMode = if (uiState.value.isSettingCornerRadius) {
         SharpMode.ROUND
     } else {
-        currentDomain?.takeIf { it.isNotBlank() }?.let {
+        currentDomain?.takeIf { it.isNotBlank() && it != "about:blank" }?.let {
             viewModel.siteSettings[it]?.currentSharpMode()
         } ?: SharpMode.ROUND
     }
