@@ -132,6 +132,9 @@ fun rememberBrowserOptionsRegistry(
 
     val currentDomain = viewModel.siteSettingsManager.getDomain(viewModel.activeTab?.currentURL)
     val isDomainDesktop = currentDomain?.let { viewModel.siteSettings[it]?.isDesktopMode } ?: false
+    val domainSharpMode = currentDomain?.takeIf { it.isNotBlank() }?.let {
+        viewModel.siteSettings[it]?.currentSharpMode()
+    } ?: SharpMode.ROUND
 
     LaunchedEffect(isCornerRadiusZero) {
         if (!hasInitializedCornerRadius) {
@@ -158,7 +161,8 @@ fun rememberBrowserOptionsRegistry(
         viewModel.isSortingButtons.value,
         dynamicPrimaryColor,
         viewModel.userEmail.value,
-        isDomainDesktop
+        isDomainDesktop,
+        domainSharpMode
     ) {
         mapOf(
             // --- Options Panel Exclusives ---
@@ -414,12 +418,12 @@ fun rememberBrowserOptionsRegistry(
             // --- Toggles (Movable) ---
             BrowserOption.SHARP_MODE to OptionItem(
                 id = BrowserOption.SHARP_MODE,
-                iconRes = when (settings.value.currentSharpMode()) {
+                iconRes = when (domainSharpMode) {
                     SharpMode.ROUND -> R.drawable.ic_semi_sharp_mode
                     SharpMode.SEMI_SHARP -> R.drawable.ic_sharp_mode
                     SharpMode.SHARP -> R.drawable.ic_round_mode
                 },
-                contentDescription = when (settings.value.currentSharpMode()) {
+                contentDescription = when (domainSharpMode) {
                     SharpMode.ROUND -> R.string.desc_semi_sharp_mode
                     SharpMode.SEMI_SHARP -> R.string.desc_sharp_mode
                     SharpMode.SHARP -> R.string.desc_round_mode
@@ -429,12 +433,7 @@ fun rememberBrowserOptionsRegistry(
                 if (settings.value.cornerRadiusForLayer(0) == 0f) {
                     viewModel.showCustomNotification(disabledSharpModeText)
                 } else {
-                    val nextMode = when (settings.value.currentSharpMode()) {
-                        SharpMode.ROUND -> SharpMode.SEMI_SHARP
-                        SharpMode.SEMI_SHARP -> SharpMode.SHARP
-                        SharpMode.SHARP -> SharpMode.ROUND
-                    }
-                    viewModel.updateSettings { it.copy(sharpMode = nextMode.ordinal) }
+                    viewModel.cycleSharpModeForCurrentTab()
                 }
             },
             BrowserOption.REOPEN_TAB to OptionItem(
@@ -771,9 +770,6 @@ fun SettingsPanel(
     }
     LaunchedEffect(currentView) {
         if (currentView == SettingPanelView.CORNER_RADIUS) {
-            if (settings.value.currentSharpMode() != SharpMode.ROUND) {
-                viewModel.updateSettings { it.copy(sharpMode = SharpMode.ROUND.ordinal) }
-            }
             viewModel.backgroundColor.value = Color.Red
             viewModel.updateUI {
                 it.copy(

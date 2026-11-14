@@ -8,7 +8,6 @@ import android.database.Cursor
 import android.database.MatrixCursor
 import android.net.Uri
 import marcinlowercase.a.core.constant.DefaultSettingValues
-import marcinlowercase.a.core.enum_class.SharpMode
 
 class BrowserSettingsProvider : ContentProvider() {
 
@@ -34,11 +33,7 @@ class BrowserSettingsProvider : ContentProvider() {
             globalPrefs
         }
 
-        val sharpMode = if (prefsToUse.contains("sharp_mode")) {
-            prefsToUse.getInt("sharp_mode", DefaultSettingValues.SHARP_MODE)
-        } else {
-            if (prefsToUse.getBoolean("is_sharp_mode", false)) SharpMode.SHARP.ordinal else SharpMode.ROUND.ordinal
-        }
+        val sharpMode = globalPrefs.getInt("current_sharp_mode", DefaultSettingValues.SHARP_MODE)
 
         val currentCornerRadius = globalPrefs.getFloat("current_corner_radius", DefaultSettingValues.CORNER_RADIUS)
         val hardwareCornerRadius = globalPrefs.getFloat("hardware_corner_radius", DefaultSettingValues.CORNER_RADIUS)

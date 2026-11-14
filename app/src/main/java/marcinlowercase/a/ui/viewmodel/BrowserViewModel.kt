@@ -2324,6 +2324,30 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         siteSettingsManager.saveSettings(currentProfileId, siteSettings)
     }
 
+    fun cycleSharpModeForCurrentTab() {
+        val domain = siteSettingsManager.getDomain(activeTab?.currentURL)?.takeIf { it.isNotBlank() }
+            ?: return
+        val current = siteSettings[domain] ?: SiteSettings(domain = domain)
+        val nextMode = when (current.currentSharpMode()) {
+            SharpMode.ROUND -> SharpMode.SEMI_SHARP
+            SharpMode.SEMI_SHARP -> SharpMode.SHARP
+            SharpMode.SHARP -> SharpMode.ROUND
+        }
+        val updated = current.copy(sharpMode = nextMode.ordinal)
+        siteSettings[domain] = updated
+        siteSettingsManager.saveSettings(currentProfileId, siteSettings)
+        syncActiveSharpModeForProvider(nextMode.ordinal)
+    }
+
+    fun syncActiveSharpModeForProvider(modeOrdinal: Int) {
+        val context = getApplication<Application>()
+        val globalPrefs = context.getSharedPreferences("BrowserPrefs", Context.MODE_PRIVATE)
+        if (globalPrefs.getInt("current_sharp_mode", DefaultSettingValues.SHARP_MODE) != modeOrdinal) {
+            globalPrefs.edit { putInt("current_sharp_mode", modeOrdinal) }
+            notifySettingsProviderChanged()
+        }
+    }
+
     //endregion
     //region Permission Logic
     val pendingPermissionRequest = mutableStateOf<CustomPermissionRequest?>(null)

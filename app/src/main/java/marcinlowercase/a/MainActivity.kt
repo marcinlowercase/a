@@ -689,7 +689,18 @@ fun BrowserScreen(
 //    tab: Tab, isDesktopMode: Boolean = false, isEnabledBackgroundPlayback: Boolean = true
 
 
-val sharpMode = settings.currentSharpMode()
+val sharpMode = if (uiState.value.isSettingCornerRadius) {
+        SharpMode.ROUND
+    } else {
+        currentDomain?.takeIf { it.isNotBlank() }?.let {
+            viewModel.siteSettings[it]?.currentSharpMode()
+        } ?: SharpMode.ROUND
+    }
+
+    LaunchedEffect(sharpMode) {
+        viewModel.syncActiveSharpModeForProvider(sharpMode.ordinal)
+    }
+
     val hasSharpTopCorners = sharpMode != SharpMode.ROUND
     val hasSharpBottomCorners = sharpMode == SharpMode.SHARP
 
