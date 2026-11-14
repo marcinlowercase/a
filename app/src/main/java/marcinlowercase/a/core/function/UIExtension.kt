@@ -31,7 +31,17 @@ import android.graphics.Bitmap
 import java.net.URL
 import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
-
+import android.content.ComponentName
+import android.database.ContentObserver
+import android.os.Handler
+import android.os.Looper
+import android.provider.Settings
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 @Composable
 fun Modifier.buttonSettingsForLayer(
     layer: Int,
@@ -278,4 +288,35 @@ private fun sampleDominantRowColor(bitmap: Bitmap, ys: List<Int>): Color {
     val avgG = (bucketSumG[winningKey]!! / count).toInt().coerceIn(0, 255)
     val avgB = (bucketSumB[winningKey]!! / count).toInt().coerceIn(0, 255)
     return Color(avgR, avgG, avgB)
+}
+
+
+@Composable
+fun rememberIsStudioKeyboard(): Boolean {
+    val context = LocalContext.current
+    fun check(): Boolean {
+        val ime = Settings.Secure.getString(
+            context.contentResolver,
+            Settings.Secure.DEFAULT_INPUT_METHOD
+        ) ?: return false
+        val pkg = ComponentName.unflattenFromString(ime)?.packageName ?: ime.substringBefore('/')
+        return pkg == "studio.oo1.keyboard"
+    }
+
+    var isStudioKeyboard by remember { mutableStateOf(check()) }
+
+    DisposableEffect(context) {
+        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) {
+                isStudioKeyboard = check()
+            }
+        }
+        val uri = Settings.Secure.getUriFor(Settings.Secure.DEFAULT_INPUT_METHOD)
+        context.contentResolver.registerContentObserver(uri, false, observer)
+        onDispose {
+            context.contentResolver.unregisterContentObserver(observer)
+        }
+    }
+
+    return isStudioKeyboard
 }

@@ -117,6 +117,15 @@ import org.mozilla.geckoview.GeckoView
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import kotlin.time.Duration.Companion.milliseconds
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isAltPressed
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import marcinlowercase.a.core.function.rememberIsStudioKeyboard
 
 @OptIn(ExperimentalLayoutApi::class)
 @SuppressLint("FrequentlyChangingValue")
@@ -554,6 +563,39 @@ fun BottomPanel(
                     }
                 }
                 ConfirmationPanel()
+
+                val profileText = stringResource(R.string.placeholder_profile)
+                val isStudioKeyboard = rememberIsStudioKeyboard()
+
+                val copyCurrentUrl: () -> Unit = {
+                    val activeUrl = viewModel.activeTab!!.currentURL
+                    val cleanUrl = LocalAppServer.formatForDisplay(activeUrl)
+                    val clipData = ClipData.newPlainText("url", cleanUrl)
+                    clipboard.nativeClipboardManager.setPrimaryClip(clipData)
+                }
+
+                val editCurrentUrl: () -> Unit = {
+                    val activeUrl = viewModel.activeTab!!.currentURL
+                    val cleanUrl = LocalAppServer.formatForDisplay(activeUrl)
+                    textFieldState.setTextAndPlaceCursorAtEnd(
+                        when {
+                            uiState.value.isCreatingProfile -> "$profileText "
+                            uiState.value.isRenamingProfile -> viewModel.profiles.find { it.id == viewModel.activeProfileId.value }?.name ?: ""
+                            uiState.value.isPinningApp -> viewModel.activeTab!!.currentTitle
+                            cleanUrl.startsWith(LocalAppServer.VIRTUAL_SCHEME) -> cleanUrl
+                            else -> viewModel.activeTab!!.errorState?.failingUrl ?: activeUrl
+                        }
+                    )
+                    urlBarFocusRequester.requestFocus()
+                    keyboardController?.show()
+                }
+
+                val dismissUrlBar: () -> Unit = {
+                    viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
+                }
+
                 // URL BAR
                 AnimatedVisibility(
                     modifier = modifier
@@ -764,6 +806,26 @@ fun BottomPanel(
                                     }
                                     .fillMaxWidth()
                                     .focusRequester(urlBarFocusRequester)
+                                    .onPreviewKeyEvent { keyEvent ->
+                                        val isCtrl = keyEvent.isCtrlPressed
+                                        val isShift = keyEvent.isShiftPressed
+                                        val isAlt = keyEvent.isAltPressed
+
+                                        val isEscape = keyEvent.key == Key.Escape && !isCtrl && !isShift && !isAlt
+                                        val isCopyUrl = keyEvent.key == Key.C && isCtrl && isShift && !isAlt
+                                        val isEditUrl = keyEvent.key == Key.L && isCtrl && !isShift && !isAlt
+
+                                        if (!isEscape && !isCopyUrl && !isEditUrl) return@onPreviewKeyEvent false
+
+                                        if (keyEvent.type == KeyEventType.KeyDown && keyEvent.nativeKeyEvent.repeatCount == 0) {
+                                            when {
+                                                isEscape -> dismissUrlBar()
+                                                isCopyUrl -> copyCurrentUrl()
+                                                isEditUrl -> editCurrentUrl()
+                                            }
+                                        }
+                                        true
+                                    }
 
                                     .onFocusChanged { focusState ->
                                         val resetUrl = viewModel.activeTab!!.currentURL
@@ -1363,70 +1425,14 @@ fun BottomPanel(
                     }
                 }
 
-                val profileText = stringResource(R.string.placeholder_profile)
-
                 TextEditPanel(
-                    isVisible =
-                            uiState.value.isPinningApp ||
-                            (uiState.value.isFocusOnUrlTextField && textFieldState.text.isBlank()),
-                    onCopyClick = {
-                        val activeUrl = viewModel.activeTab!!.currentURL
-                        val cleanUrl = LocalAppServer.formatForDisplay(activeUrl)
-                        val clipData = ClipData.newPlainText("url", cleanUrl)
-                        clipboard.nativeClipboardManager.setPrimaryClip(clipData)
-                    },
-                    onEditClick = {
-                        val activeUrl = viewModel.activeTab!!.currentURL
-                        val cleanUrl = LocalAppServer.formatForDisplay(activeUrl)
-                        textFieldState.setTextAndPlaceCursorAtEnd(
-                            when {
-                                uiState.value.isCreatingProfile -> "$profileText "
-                                uiState.value.isRenamingProfile -> viewModel.profiles.find { it.id == viewModel.activeProfileId.value }?.name ?: ""
-                                uiState.value.isPinningApp -> viewModel.activeTab!!.currentTitle
-                                cleanUrl.startsWith(LocalAppServer.VIRTUAL_SCHEME) -> cleanUrl
-                                else -> viewModel.activeTab!!.errorState?.failingUrl ?: activeUrl
-                            }
-                        )
-                        urlBarFocusRequester.requestFocus()
-                        keyboardController?.show()
-                    },
-                    onDismiss = {
-                        when {
-//                            uiState.value.isEnteringLoginCode -> {
-//                                // Step back to Email
-//                                viewModel.updateUI {
-//                                    it.copy(
-//                                        isEnteringLoginCode = false,
-//                                        isEnteringEmail = true
-//                                    )
-//                                }
-//                                textFieldState.setTextAndPlaceCursorAtEnd(viewModel.userEmailToLogin)
-//                                urlBarFocusRequester.requestFocus()
-//                                keyboardController?.show()
-//                            }
-//
-//                            uiState.value.isEnteringEmail -> {
-//                                // Cancel login entirely
-//                                viewModel.updateUI {
-//                                    it.copy(
-//                                        isEnteringEmail = false,
-//                                        isFocusOnUrlTextField = false
-//                                    )
-//                                }
-//                                viewModel.userEmailToLogin = ""
-//                                focusManager.clearFocus()
-//                                keyboardController?.hide()
-//                                textFieldState.setTextAndPlaceCursorAtEnd(viewModel.activeTab!!.currentURL.toDomain())
-//                            }
-
-                            else -> {
-                                // Default dismiss
-                                viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
-                                focusManager.clearFocus()
-                                keyboardController?.hide()
-                            }
-                        }
-                    },
+                    isVisible = !isStudioKeyboard && (
+                        uiState.value.isPinningApp ||
+                        (uiState.value.isFocusOnUrlTextField && textFieldState.text.isBlank())
+                    ),
+                    onCopyClick = copyCurrentUrl,
+                    onEditClick = editCurrentUrl,
+                    onDismiss = dismissUrlBar,
                     onAddToHomeScreen = {
 //                        val input = (textFieldState.text).toString().trim()
 //                        val finalTitle = input.ifEmpty { viewModel.activeTab!!.currentTitle }
