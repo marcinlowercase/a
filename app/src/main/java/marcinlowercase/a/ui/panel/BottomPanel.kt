@@ -593,6 +593,173 @@ fun BottomPanel(
                     keyboardController?.hide()
                 }
 
+                val submitUrlBar: (Boolean) -> Unit = { openInNewTab ->
+                    val input = (textFieldState.text as String).trim()
+                    val resetUrl = viewModel.activeTab!!.currentURL
+
+                    if (input.isEmpty()) {
+                        if (openInNewTab && !uiState.value.isCreatingProfile && !uiState.value.isPinningApp && !uiState.value.isRenamingProfile) {
+                            viewModel.createNewTab(viewModel.activeTabIndex.value + 1, "")
+                            focusManager.clearFocus()
+                            keyboardController?.hide()
+                            viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
+                        } else {
+                            when {
+                                uiState.value.isCreatingProfile -> {
+                                    viewModel.createNewProfile()
+                                    viewModel.updateUI { it.copy(isAppsPanelVisible = true) }
+                                }
+
+                                uiState.value.isPinningApp -> {
+                                    viewModel.pinApp(
+                                        title = viewModel.activeTab!!.currentTitle,
+                                        url = resetUrl,
+                                        iconUrl = viewModel.activeTab!!.currentFaviconUrl,
+                                    )
+                                    viewModel.updateUI { it.copy(isPinningApp = false) }
+                                }
+
+                                uiState.value.isRenamingProfile -> {
+                                }
+
+                                else -> activeSession.reload()
+                            }
+
+                            focusManager.clearFocus()
+                            keyboardController?.hide()
+                            val liveUrl = viewModel.activeTab?.currentURL ?: ""
+                            textFieldState.setTextAndPlaceCursorAtEnd(
+                                LocalAppServer.formatForDisplay(liveUrl)
+                            )
+                            viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
+                        }
+                    } else {
+                        when {
+                            uiState.value.isRenamingProfile -> {
+                                viewModel.renameProfile(input)
+                                viewModel.updateUI { it.copy(isAppsPanelVisible = true) }
+                            }
+
+                            uiState.value.isCreatingProfile -> {
+                                viewModel.createNewProfile(input)
+                                viewModel.updateUI { it.copy(isAppsPanelVisible = true) }
+                            }
+
+                            uiState.value.isPinningApp -> {
+                                val customIconInput =
+                                    (customIconUrlState.text).toString().trim()
+                                val finalIconUrl =
+                                    customIconInput.ifEmpty { viewModel.activeTab!!.currentFaviconUrl }
+
+                                viewModel.pinApp(
+                                    title = input,
+                                    url = resetUrl,
+                                    iconUrl = finalIconUrl,
+                                    onPinned = { finalUrl ->
+                                        onNewUrl(finalUrl)
+                                        textFieldState.setTextAndPlaceCursorAtEnd(
+                                            LocalAppServer.formatForDisplay(finalUrl)
+                                        )
+                                    }
+                                )
+                                viewModel.updateUI { it.copy(isPinningApp = false) }
+                            }
+
+                            else -> {
+                                val isRawHtml = input.startsWith("<!DOCTYPE", ignoreCase = true) ||
+                                    input.startsWith("<html", ignoreCase = true) ||
+                                    (input.startsWith("<") && input.contains("</html>", ignoreCase = true))
+
+                                if (isRawHtml) {
+                                    val extractedTitle = Regex("<title>(.*?)</title>", RegexOption.IGNORE_CASE)
+                                        .find(input)?.groupValues?.get(1)?.trim() ?: "Local App"
+
+                                    // buffer raw html in the loopback server
+                                    (context.applicationContext as? marcinlowercase.a.CustomApplication)?.localAppServer?.currentDraftHtml = input
+
+                                    val virtualDraftUrl = "local://draft/index.html"
+                                    if (openInNewTab) {
+                                        viewModel.createNewTab(viewModel.activeTabIndex.value + 1, virtualDraftUrl)
+                                    } else {
+                                        viewModel.activeTab?.let { tab ->
+                                            viewModel.updateTabById(tab.id) {
+                                                it.copy(currentURL = virtualDraftUrl, currentTitle = extractedTitle)
+                                            }
+                                        }
+                                        onNewUrl(virtualDraftUrl)
+                                        textFieldState.setTextAndPlaceCursorAtEnd(
+                                            LocalAppServer.formatForDisplay(virtualDraftUrl)
+                                        )
+                                    }
+                                } else if (input.startsWith("local:", ignoreCase = true)) {
+                                    val virtualUrl = if (input.startsWith(LocalAppServer.VIRTUAL_SCHEME, ignoreCase = true)) {
+                                        input
+                                    } else {
+                                        "local://${input.removePrefix("local:").removePrefix("/")}"
+                                    }
+
+                                    if (openInNewTab) {
+                                        viewModel.createNewTab(viewModel.activeTabIndex.value + 1, virtualUrl)
+                                    } else {
+                                        viewModel.activeTab?.let { tab ->
+                                            viewModel.updateTabById(tab.id) { it.copy(currentURL = virtualUrl) }
+                                        }
+                                        onNewUrl(virtualUrl)
+                                        textFieldState.setTextAndPlaceCursorAtEnd(
+                                            LocalAppServer.formatForDisplay(virtualUrl)
+                                        )
+                                    }
+                                } else {
+                                    val isUrl = try {
+                                        input.startsWith("about:", ignoreCase = true) ||
+                                            input.startsWith("javascript:", ignoreCase = true) ||
+                                            input.startsWith("file:", ignoreCase = true) ||
+                                            input.startsWith("data:", ignoreCase = true) ||
+                                            Patterns.WEB_URL.matcher(input).matches() ||
+                                            (input.contains(".") && !input.contains(" ")) &&
+                                            !input.endsWith(".") &&
+                                            !input.startsWith(".")
+                                    } catch (_: Exception) {
+                                        false
+                                    }
+
+                                    val finalUrl = if (isUrl) {
+                                        if (input.startsWith("http://", ignoreCase = true) ||
+                                            input.startsWith("https://", ignoreCase = true) ||
+                                            input.startsWith("about:", ignoreCase = true) ||
+                                            input.startsWith("javascript:", ignoreCase = true) ||
+                                            input.startsWith("file:", ignoreCase = true) ||
+                                            input.startsWith("data:", ignoreCase = true)
+                                        ) {
+                                            input
+                                        } else {
+                                            "https://$input"
+                                        }
+                                    } else {
+                                        val encodedQuery = URLEncoder.encode(
+                                            input,
+                                            StandardCharsets.UTF_8.toString()
+                                        )
+                                        SearchEngine.entries[settings.value.searchEngine].getSearchUrl(
+                                            encodedQuery
+                                        )
+                                    }
+
+                                    if (openInNewTab) {
+                                        viewModel.createNewTab(viewModel.activeTabIndex.value + 1, finalUrl)
+                                    } else {
+                                        onNewUrl(finalUrl)
+                                    }
+                                }
+                            }
+                        }
+
+                        focusManager.clearFocus()
+                        keyboardController?.hide()
+                        viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
+                    }
+                }
+
                 LaunchedEffect(Unit) {
                     viewModel.keyboardShortcutManager.shortcutEvents.collect { shortcut ->
                         when (shortcut) {
@@ -603,6 +770,7 @@ fun BottomPanel(
                                 urlBarFocusRequester.requestFocus()
                                 keyboardController?.show()
                             }
+                            BrowserShortcut.OPEN_URL_IN_NEW_TAB -> submitUrlBar(true)
                             else -> {}
                         }
                     }
@@ -1000,199 +1168,7 @@ fun BottomPanel(
                                     }
                                 ),
                                 onKeyboardAction = {
-                                    val input = (textFieldState.text as String).trim()
-                                    val resetUrl = viewModel.activeTab!!.currentURL
-
-
-                                    if (input.isEmpty()) {
-
-                                        when {
-
-                                            uiState.value.isCreatingProfile -> {
-                                                viewModel.createNewProfile()
-                                                viewModel.updateUI { it.copy(isAppsPanelVisible = true) }
-                                            }
-
-                                            uiState.value.isPinningApp -> {
-                                                viewModel.pinApp(
-                                                    title = viewModel.activeTab!!.currentTitle,
-                                                    url = resetUrl,
-                                                    iconUrl = viewModel.activeTab!!.currentFaviconUrl,
-                                                )
-                                                viewModel.updateUI { it.copy(isPinningApp = false) }
-                                            }
-
-
-
-                                            uiState.value.isRenamingProfile -> {
-
-                                            }
-
-                                            else -> activeSession.reload()
-                                        }
-
-                                        focusManager.clearFocus()
-                                        keyboardController?.hide()
-                                        val liveUrl = viewModel.activeTab?.currentURL ?: ""
-                                        textFieldState.setTextAndPlaceCursorAtEnd(
-                                            LocalAppServer.formatForDisplay(liveUrl)
-                                        )
-
-                                        viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
-                                        return@TextField
-                                    }
-
-
-
-
-                                    when {
-                                        uiState.value.isRenamingProfile -> {
-                                            viewModel.renameProfile(input)
-                                            viewModel.updateUI { it.copy(isAppsPanelVisible = true) }
-                                        }
-
-                                        uiState.value.isCreatingProfile -> {
-                                            viewModel.createNewProfile(input)
-                                            viewModel.updateUI { it.copy(isAppsPanelVisible = true) }
-                                        }
-
-                                        uiState.value.isPinningApp -> {
-                                            val customIconInput =
-                                                (customIconUrlState.text).toString().trim()
-                                            val finalIconUrl =
-                                                customIconInput.ifEmpty { viewModel.activeTab!!.currentFaviconUrl }
-
-                                            viewModel.pinApp(
-                                                title = input,
-                                                url = resetUrl,
-                                                iconUrl = finalIconUrl,
-                                                onPinned = { finalUrl ->
-                                                    onNewUrl(finalUrl)
-                                                    textFieldState.setTextAndPlaceCursorAtEnd(LocalAppServer.formatForDisplay(finalUrl))
-                                                }
-                                            )
-                                            viewModel.updateUI { it.copy(isPinningApp = false) }
-                                        }
-
-
-                                        else -> {
-                                            val isRawHtml = input.startsWith("<!DOCTYPE", ignoreCase = true) ||
-                                                    input.startsWith("<html", ignoreCase = true) ||
-                                                    (input.startsWith("<") && input.contains("</html>", ignoreCase = true))
-
-                                            if (isRawHtml) {
-                                                val extractedTitle = Regex("<title>(.*?)</title>", RegexOption.IGNORE_CASE)
-                                                    .find(input)?.groupValues?.get(1)?.trim() ?: "Local App"
-
-                                                // 1. Buffer raw HTML in the loopback server
-                                                (context.applicationContext as? marcinlowercase.a.CustomApplication)?.localAppServer?.currentDraftHtml = input
-
-                                                // 2. Set tab URL to the standardized draft address
-                                                val virtualDraftUrl = "local://draft/index.html"
-                                                viewModel.activeTab?.let { tab ->
-                                                    viewModel.updateTabById(tab.id) {
-                                                        it.copy(currentURL = virtualDraftUrl, currentTitle = extractedTitle)
-                                                    }
-                                                }
-
-                                                // 3. Load via loopback server
-                                                onNewUrl(virtualDraftUrl)
-
-                                                // 4. Format URL bar to "local://draft"
-                                                textFieldState.setTextAndPlaceCursorAtEnd(LocalAppServer.formatForDisplay(virtualDraftUrl))
-                                                focusManager.clearFocus()
-                                                keyboardController?.hide()
-                                                viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
-                                                return@TextField
-                                            }
-
-                                            // Direct local:// URL entry
-                                            if (input.startsWith("local:", ignoreCase = true)) {
-                                                val virtualUrl = if (input.startsWith(LocalAppServer.VIRTUAL_SCHEME, ignoreCase = true)) {
-                                                    input
-                                                } else {
-                                                    "local://${input.removePrefix("local:").removePrefix("/")}"
-                                                }
-
-                                                // Update tab URL only (do not touch title or favicon)
-                                                viewModel.activeTab?.let { tab ->
-                                                    viewModel.updateTabById(tab.id) { it.copy(currentURL = virtualUrl) }
-                                                }
-
-                                                onNewUrl(virtualUrl)
-                                                textFieldState.setTextAndPlaceCursorAtEnd(LocalAppServer.formatForDisplay(virtualUrl))
-                                                focusManager.clearFocus()
-                                                keyboardController?.hide()
-                                                viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
-                                                return@TextField
-                                            }
-
-                                            // search
-                                            val isUrl = try {
-                                                input.startsWith("about:", ignoreCase = true) ||
-                                                        input.startsWith(
-                                                            "javascript:",
-                                                            ignoreCase = true
-                                                        ) ||
-                                                        input.startsWith(
-                                                            "file:",
-                                                            ignoreCase = true
-                                                        ) ||
-                                                        input.startsWith(
-                                                            "data:",
-                                                            ignoreCase = true
-                                                        ) ||
-                                                        Patterns.WEB_URL.matcher(input).matches() ||
-                                                        (input.contains(".") && !input.contains(" "))
-                                                        && !input.endsWith(".")
-                                                        && !input.startsWith(".")
-                                            } catch (_: Exception) {
-                                                false
-                                            }
-                                            val finalUrl = if (isUrl) {
-                                                if (input.startsWith(
-                                                        "http://",
-                                                        ignoreCase = true
-                                                    ) ||
-                                                    input.startsWith(
-                                                        "https://",
-                                                        ignoreCase = true
-                                                    ) ||
-                                                    input.startsWith("about:", ignoreCase = true) ||
-                                                    input.startsWith(
-                                                        "javascript:",
-                                                        ignoreCase = true
-                                                    ) ||
-                                                    input.startsWith("file:", ignoreCase = true) ||
-                                                    input.startsWith("data:", ignoreCase = true)
-                                                ) {
-                                                    input
-                                                } else {
-                                                    "https://$input"
-                                                }
-                                            } else {
-                                                val encodedQuery =
-                                                    URLEncoder.encode(
-                                                        input,
-                                                        StandardCharsets.UTF_8.toString()
-                                                    )
-                                                //                                                "https://www.google.com/search?q=$encodedQuery"
-                                                //                                                "https://duckduckgo.com/?q=$encodedQuery"
-                                                //                                                "https://www.bing.com/search?q=$encodedQuery"
-                                                SearchEngine.entries[settings.value.searchEngine].getSearchUrl(
-                                                    encodedQuery
-                                                )
-                                            }
-
-                                            onNewUrl(finalUrl)
-                                        }
-                                    }
-
-                                    focusManager.clearFocus()
-                                    keyboardController?.hide()
-                                    viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
-
-
+                                    submitUrlBar(false)
                                 },
                                 shape = RoundedCornerShape(
                                     settings.value.cornerRadiusForLayer(2).dp

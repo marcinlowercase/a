@@ -80,6 +80,15 @@ class KeyboardShortcutManager(private val context: Context) {
                 BrowserShortcut.NEW_TAB
             }
 
+            // ctrl + enter opens url bar input in a new tab
+            (event.keyCode == KeyEvent.KEYCODE_ENTER || event.keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) &&
+                    isCtrl && !isShift && !isAlt && !isMeta &&
+                    !viewModel.isStandaloneMode.value &&
+                    uiState.appState == AppState.REGULAR &&
+                    uiState.isFocusOnUrlTextField -> {
+                BrowserShortcut.OPEN_URL_IN_NEW_TAB
+            }
+
             else -> null
         } ?: return false
 
@@ -147,6 +156,10 @@ class KeyboardShortcutManager(private val context: Context) {
                         )
                     }
                 }
+            }
+
+            BrowserShortcut.OPEN_URL_IN_NEW_TAB -> {
+                _shortcutEvents.tryEmit(BrowserShortcut.OPEN_URL_IN_NEW_TAB)
             }
         }
     }

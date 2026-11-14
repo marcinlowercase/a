@@ -5,5 +5,6 @@ enum class BrowserShortcut {
     COPY_URL,
     FOCUS_OR_EDIT_URL,
     REFRESH_TAB,
-    NEW_TAB
+    NEW_TAB,
+    OPEN_URL_IN_NEW_TAB
 }
