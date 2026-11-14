@@ -2588,6 +2588,11 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                     if (eventTabId == viewModel.activeTab?.id) {
                         sampleTrigger++
                     }
+                },
+                onVisualChangeFun = { eventTabId ->
+                    if (eventTabId == viewModel.activeTab?.id) {
+                        sampleTrigger++
+                    }
                 }
             )
 
@@ -3169,6 +3174,9 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                                                                         viewModel.colorState.value =
                                                                             null
                                                                     }
+                                                                }
+                                                                if (event.action == MotionEvent.ACTION_UP) {
+                                                                    sampleTrigger++
                                                                 }
                                                                 false
                                                             }

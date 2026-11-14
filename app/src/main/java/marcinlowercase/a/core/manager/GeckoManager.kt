@@ -1137,7 +1137,8 @@ class GeckoManager(private val context: Context) {
         onCloseTabFun: (Long) -> Unit,
         onExternalAppRequest: (String) -> Unit,
         onContentPaintedFun: (Long) -> Unit = {},
-        onScrollChangedFun: (Long) -> Unit = {}
+        onScrollChangedFun: (Long) -> Unit = {},
+        onVisualChangeFun: (Long) -> Unit = {}
 
 
     ) {
@@ -1175,7 +1176,11 @@ class GeckoManager(private val context: Context) {
                                 if (!iconUrl.isNullOrEmpty()) {
                                     onFaviconChanged(eventTabId, iconUrl)
                                 }
-                                // BYPASS BUG: Return a simple primitive String
+                                // bypass bug: return a simple primitive string
+                                return GeckoResult.fromValue("OK")
+                            }
+                            "visualChange" -> {
+                                onVisualChangeFun(eventTabId)
                                 return GeckoResult.fromValue("OK")
                             }
                             "getSettings" -> {

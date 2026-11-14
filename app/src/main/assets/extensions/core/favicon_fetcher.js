@@ -76,4 +76,45 @@
       attributeFilter: ["href"],
     });
   }
+
+  // notify native when root or body styles change or large layout transitions end
+  var visualTimer = null;
+  function notifyVisualChange() {
+    if (visualTimer) clearTimeout(visualTimer);
+    visualTimer = setTimeout(function () {
+      visualTimer = null;
+      browser.runtime.sendNativeMessage("browser", {
+        type: "visualChange",
+      }).catch(function () {});
+    }, 100);
+  }
+
+  var rootObserver = new MutationObserver(function () {
+    notifyVisualChange();
+  });
+
+  if (document.documentElement) {
+    rootObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["style", "class", "data-theme", "theme", "bgcolor"],
+    });
+  }
+  if (document.body) {
+    rootObserver.observe(document.body, {
+      attributes: true,
+      attributeFilter: ["style", "class", "data-theme", "theme", "bgcolor"],
+    });
+  }
+
+  document.addEventListener("transitionend", function (e) {
+    try {
+      var target = e.target;
+      if (target && target.getBoundingClientRect) {
+        var rect = target.getBoundingClientRect();
+        if (rect.width >= window.innerWidth * 0.5) {
+          notifyVisualChange();
+        }
+      }
+    } catch (_) {}
+  }, true);
 })();
