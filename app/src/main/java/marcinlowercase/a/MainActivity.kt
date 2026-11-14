@@ -289,19 +289,73 @@ class MainActivity : ComponentActivity() {
         pendingFilePrompt = prompt
         pendingFileResult = result
 
-        // Use GET_CONTENT for widest compatibility with standard web uploads
+        val rawTypes = prompt.mimeTypes?.filter { it.isNotBlank() }.orEmpty()
+        val resolvedTypes = mutableListOf<String>()
+        var hasUnresolvedOrWildcard = rawTypes.isEmpty()
+
+        for (raw in rawTypes) {
+            val token = raw.substringBefore(';').trim().lowercase()
+            if (token == "*/*") {
+                hasUnresolvedOrWildcard = true
+                break
+            } else if (token.startsWith(".")) {
+                val ext = token.removePrefix(".")
+                val mapped = android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext)
+                if (mapped != null) {
+                    resolvedTypes.add(mapped)
+                } else {
+                    hasUnresolvedOrWildcard = true
+                    break
+                }
+            } else if (token.contains('/') && token.substringBefore('/').isNotBlank() && token.substringAfter('/').isNotBlank()) {
+                resolvedTypes.add(token)
+            } else {
+                hasUnresolvedOrWildcard = true
+                break
+            }
+        }
+
+        // use get_content for widest compatibility with standard web uploads
         val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
-            type = if (!prompt.mimeTypes.isNullOrEmpty()) prompt.mimeTypes!![0] else "*/*"
-
-            if (prompt.mimeTypes != null && prompt.mimeTypes!!.size > 1) {
-                putExtra(Intent.EXTRA_MIME_TYPES, prompt.mimeTypes)
+            if (hasUnresolvedOrWildcard || resolvedTypes.isEmpty()) {
+                type = "*/*"
+            } else if (resolvedTypes.size == 1 && (
+                    resolvedTypes[0].startsWith("image/") ||
+                        resolvedTypes[0].startsWith("video/") ||
+                        resolvedTypes[0].startsWith("audio/")
+                    )
+            ) {
+                type = resolvedTypes[0]
+            } else {
+                type = "*/*"
+                putExtra(Intent.EXTRA_MIME_TYPES, resolvedTypes.distinct().toTypedArray())
             }
+
             if (prompt.type == GeckoSession.PromptDelegate.FilePrompt.Type.MULTIPLE) {
                 putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
             }
         }
-        filePickerLauncher.launch(Intent.createChooser(intent, "Select File"))
+
+        try {
+            filePickerLauncher.launch(Intent.createChooser(intent, "Select File"))
+        } catch (_: ActivityNotFoundException) {
+            // fallback to open_document if no app handles get_content
+            val fallbackIntent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = "*/*"
+                if (prompt.type == GeckoSession.PromptDelegate.FilePrompt.Type.MULTIPLE) {
+                    putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+                }
+            }
+            try {
+                filePickerLauncher.launch(fallbackIntent)
+            } catch (_: Exception) {
+                pendingFilePrompt = null
+                pendingFileResult = null
+                result.complete(prompt.dismiss())
+            }
+        }
     }
 
     @SuppressLint(
