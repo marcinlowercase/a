@@ -126,33 +126,11 @@ fun rememberBrowserOptionsRegistry(
 
     val disabledSharpModeText =  stringResource(R.string.toast_sharp_mode_setting_disabled)
 
-    val isCornerRadiusZero = settings.value.cornerRadiusForLayer(0) == 0f
-    var hasInitializedCornerRadius by remember { mutableStateOf(false) }
-
-
     val currentDomain = viewModel.siteSettingsManager.getDomain(viewModel.activeTab?.currentURL)
     val isDomainDesktop = currentDomain?.let { viewModel.siteSettings[it]?.isDesktopMode } ?: false
     val domainSharpMode = currentDomain?.takeIf { it.isNotBlank() }?.let {
         viewModel.siteSettings[it]?.currentSharpMode()
     } ?: SharpMode.ROUND
-
-    LaunchedEffect(isCornerRadiusZero) {
-        if (!hasInitializedCornerRadius) {
-            hasInitializedCornerRadius = true
-            // On cold start: only hide if 0; don't unhide if user previously hid it
-            if (isCornerRadiusZero) {
-                viewModel.toggleOptionVisibility(BrowserOption.SHARP_MODE, true)
-            }
-            return@LaunchedEffect
-        }
-
-        // Dynamic slider adjustment during usage:
-        if (isCornerRadiusZero) {
-            viewModel.toggleOptionVisibility(BrowserOption.SHARP_MODE, true)
-        } else {
-            viewModel.toggleOptionVisibility(BrowserOption.SHARP_MODE, false)
-        }
-    }
 
     return remember(
         uiState.value,
@@ -615,6 +593,7 @@ fun OptionsPanel(
 
     val displayOptions = currentOrderIds.filter { opt ->
         if (uiState.value.windowMode != WindowMode.FULLSCREEN && opt == BrowserOption.FULLSCREEN) return@filter false
+        if (settings.value.cornerRadiusForLayer(0) == 0f && opt == BrowserOption.SHARP_MODE) return@filter false
         viewModel.isSortingButtons.value || !viewModel.isOptionHidden(opt, settings.value)
     }.mapNotNull { registry[it] }
 
@@ -818,6 +797,7 @@ fun SettingsPanel(
 
     val displayOptions = currentOrderIds.filter { opt ->
         if (uiState.value.windowMode != WindowMode.FULLSCREEN && opt == BrowserOption.FULLSCREEN) return@filter false
+        if (settings.value.cornerRadiusForLayer(0) == 0f && opt == BrowserOption.SHARP_MODE) return@filter false
         viewModel.isSortingButtons.value || !viewModel.isOptionHidden(opt, settings.value)
     }.mapNotNull { registry[it] }
 
