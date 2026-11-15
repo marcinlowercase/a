@@ -1133,6 +1133,14 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
         )
     }
 
+    LaunchedEffect(keyboardHeight, settings.isEnabledImmersiveWebview) {
+        if (settings.isEnabledImmersiveWebview) {
+            // resample after ime open or close animation finishes
+            delay(250.milliseconds)
+            sampleTrigger++
+        }
+    }
+
     val insetsController = activity.let {
         WindowCompat.getInsetsController(
             it.window,

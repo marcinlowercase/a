@@ -198,6 +198,10 @@
     notifyVisualChange();
   }, true);
 
+  window.addEventListener("resize", function () {
+    notifyVisualChange();
+  });
+
   document.addEventListener("transitionend", function (e) {
     try {
       var target = e.target;

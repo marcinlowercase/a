@@ -91,6 +91,7 @@ import java.util.Collections
 import java.util.regex.Pattern
 import kotlin.time.Duration.Companion.milliseconds
 import marcinlowercase.a.core.manager.KeyboardShortcutManager
+import marcinlowercase.a.core.data_class.SiteSettingSyncDTO
 
 val LocalBrowserViewModel = staticCompositionLocalOf<BrowserViewModel> {
     error("No BrowserViewModel provided! Check your root Composable.")
@@ -1103,13 +1104,23 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             val historyList = historyMap.map { VisitedUrlSyncDTO(url = it.key, title = it.value) }
             val settingsObj = loadSettingsFromPrefs(profile.id)
             val settingsJsonString = jsonParser.encodeToString(settingsObj)
+            val siteSettingsList = siteSettingsManager.loadSettings(profile.id).values
+                .filter { it.sharpMode != null || it.isDesktopMode }
+                .map {
+                    SiteSettingSyncDTO(
+                        domain = it.domain,
+                        sharpMode = it.sharpMode,
+                        isDesktopMode = it.isDesktopMode
+                    )
+                }
 
             ProfileSyncDTO(
                 id = profile.id,
                 name = profile.name,
                 settings = settingsJsonString,
                 pinnedApps = apps,
-                visitedUrls = historyList
+                visitedUrls = historyList,
+                siteSettings = siteSettingsList
             )
         }
 
@@ -1229,13 +1240,23 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             val historyList = historyMap.map { VisitedUrlSyncDTO(url = it.key, title = it.value) }
             val settingsObj = loadSettingsFromPrefs(profile.id)
             val settingsJsonString = jsonParser.encodeToString(settingsObj)
+            val siteSettingsList = siteSettingsManager.loadSettings(profile.id).values
+                .filter { it.sharpMode != null || it.isDesktopMode }
+                .map {
+                    SiteSettingSyncDTO(
+                        domain = it.domain,
+                        sharpMode = it.sharpMode,
+                        isDesktopMode = it.isDesktopMode
+                    )
+                }
 
             ProfileSyncDTO(
                 id = profile.id,
                 name = profile.name,
                 settings = settingsJsonString,
                 pinnedApps = mergedAppsList,
-                visitedUrls = historyList
+                visitedUrls = historyList,
+                siteSettings = siteSettingsList
             )
         }
 
@@ -1433,9 +1454,53 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 }
             }
             appManager.saveApps(cloudProfile.id, localApps)
+
+            // sync per-site sharp mode and desktop mode while preserving device permissions
+            val localSiteMap = siteSettingsManager.loadSettings(cloudProfile.id)
+            if (!isMerge) {
+                val iter = localSiteMap.entries.iterator()
+                while (iter.hasNext()) {
+                    val entry = iter.next()
+                    if (entry.value.permissionDecisions.isEmpty()) {
+                        iter.remove()
+                    } else {
+                        entry.setValue(entry.value.copy(sharpMode = null, isDesktopMode = false))
+                    }
+                }
+            }
+            cloudProfile.siteSettings.forEach { cloudSite ->
+                val existing = localSiteMap[cloudSite.domain]
+                if (existing == null) {
+                    localSiteMap[cloudSite.domain] = SiteSettings(
+                        domain = cloudSite.domain,
+                        isDesktopMode = cloudSite.isDesktopMode,
+                        sharpMode = cloudSite.sharpMode
+                    )
+                } else {
+                    val mergedSharp = if (isMerge) {
+                        existing.sharpMode ?: cloudSite.sharpMode
+                    } else {
+                        cloudSite.sharpMode
+                    }
+                    val mergedDesktop = if (isMerge) {
+                        existing.isDesktopMode || cloudSite.isDesktopMode
+                    } else {
+                        cloudSite.isDesktopMode
+                    }
+                    localSiteMap[cloudSite.domain] = existing.copy(
+                        sharpMode = mergedSharp,
+                        isDesktopMode = mergedDesktop
+                    )
+                }
+            }
+            siteSettingsManager.saveSettings(cloudProfile.id, localSiteMap)
         }
 
-        // 3. Refresh RAM so the UI instantly updates without restarting!
+        lastObservedTabId = null
+        lastObservedDomain = null
+        lastObservedSharpMode = SharpMode.ROUND
+
+        // refresh ram so the ui instantly updates without restarting
         val currentActiveId = activeProfileId.value
 
         val targetProfileId = if (isMerge) {

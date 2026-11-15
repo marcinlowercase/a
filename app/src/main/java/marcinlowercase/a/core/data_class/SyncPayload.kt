@@ -14,7 +14,15 @@ data class ProfileSyncDTO(
     val name: String,
     val settings: String,
     val pinnedApps: List<AppSyncDTO>,
-    val visitedUrls: List<VisitedUrlSyncDTO>
+    val visitedUrls: List<VisitedUrlSyncDTO>,
+    val siteSettings: List<SiteSettingSyncDTO> = emptyList()
+)
+
+@Serializable
+data class SiteSettingSyncDTO(
+    val domain: String,
+    val sharpMode: Int? = null,
+    val isDesktopMode: Boolean = false
 )
 
 
