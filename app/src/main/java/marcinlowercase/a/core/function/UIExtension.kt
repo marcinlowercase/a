@@ -240,54 +240,109 @@ fun isBubbleMode(activity: Activity?): Boolean {
     return false
 }
 
-fun extractEdgeColorsFromBitmap(bitmap: Bitmap): Pair<Color, Color> {
+fun parseHexColorOrNull(hex: String?): Color? {
+    if (hex.isNullOrBlank()) return null
+    return try {
+        Color(android.graphics.Color.parseColor(hex))
+    } catch (_: Exception) {
+        null
+    }
+}
+
+fun extractEdgeColorsFromBitmap(
+    bitmap: Bitmap,
+    jsTopBg: Color? = null,
+    jsBottomBg: Color? = null
+): Pair<Color, Color> {
     val height = bitmap.height
-    if (bitmap.width <= 0 || height <= 0) return Color.Black to Color.Black
-    val topColor = sampleDominantRowColor(bitmap, listOf(1, 3))
-    val bottomColor = sampleDominantRowColor(bitmap, listOf(height - 2, height - 4))
+    if (bitmap.width <= 0 || height <= 0) {
+        return (jsTopBg ?: Color.Black) to (jsBottomBg ?: Color.Black)
+    }
+    val topColor = sampleEdgeColor(bitmap, listOf(1, 3), jsTopBg)
+    val bottomColor = sampleEdgeColor(bitmap, listOf(height - 2, height - 4), jsBottomBg)
     return topColor to bottomColor
 }
 
-private fun sampleDominantRowColor(bitmap: Bitmap, ys: List<Int>): Color {
+private fun sampleEdgeColor(bitmap: Bitmap, ys: List<Int>, jsFallbackColor: Color?): Color {
     val width = bitmap.width
     val height = bitmap.height
-    val sampleCount = 24
-    val startX = (width * 0.04f).toInt().coerceIn(0, width - 1)
-    val endX = (width * 0.96f).toInt().coerceIn(startX, width - 1)
-    val step = ((endX - startX).toFloat() / (sampleCount - 1)).coerceAtLeast(1f)
+    val sampleCount = 32
+    val leftX = 2.coerceIn(0, width - 1)
+    val rightX = (width - 3).coerceIn(leftX, width - 1)
+    val step = ((rightX - leftX).toFloat() / (sampleCount - 1)).coerceAtLeast(1f)
 
     val bucketCounts = HashMap<Int, Int>()
     val bucketSumR = HashMap<Int, Long>()
     val bucketSumG = HashMap<Int, Long>()
     val bucketSumB = HashMap<Int, Long>()
+    var totalOpaque = 0
+
+    val leftKeys = mutableListOf<Int>()
+    val rightKeys = mutableListOf<Int>()
+
+    fun recordPixel(x: Int, y: Int, edgeList: MutableList<Int>? = null) {
+        val pixel = bitmap.getPixel(x, y)
+        if (android.graphics.Color.alpha(pixel) < 128) return
+        val r = android.graphics.Color.red(pixel)
+        val g = android.graphics.Color.green(pixel)
+        val b = android.graphics.Color.blue(pixel)
+        // quantize into 5-bit buckets to ignore small icons or text
+        val key = ((r shr 3) shl 10) or ((g shr 3) shl 5) or (b shr 3)
+        bucketCounts[key] = (bucketCounts[key] ?: 0) + 1
+        bucketSumR[key] = (bucketSumR[key] ?: 0L) + r
+        bucketSumG[key] = (bucketSumG[key] ?: 0L) + g
+        bucketSumB[key] = (bucketSumB[key] ?: 0L) + b
+        totalOpaque++
+        edgeList?.add(key)
+    }
 
     for (rawY in ys) {
         val y = rawY.coerceIn(0, height - 1)
-        var fx = startX.toFloat()
-        while (fx <= endX + 0.5f) {
-            val x = fx.toInt().coerceIn(0, width - 1)
-            val pixel = bitmap.getPixel(x, y)
-            if (android.graphics.Color.alpha(pixel) >= 128) {
-                val r = android.graphics.Color.red(pixel)
-                val g = android.graphics.Color.green(pixel)
-                val b = android.graphics.Color.blue(pixel)
-                // quantize into 5-bit buckets to ignore small icons or text
-                val key = ((r shr 3) shl 10) or ((g shr 3) shl 5) or (b shr 3)
-                bucketCounts[key] = (bucketCounts[key] ?: 0) + 1
-                bucketSumR[key] = (bucketSumR[key] ?: 0L) + r
-                bucketSumG[key] = (bucketSumG[key] ?: 0L) + g
-                bucketSumB[key] = (bucketSumB[key] ?: 0L) + b
-            }
+        recordPixel(leftX, y, leftKeys)
+        recordPixel(rightX, y, rightKeys)
+
+        var fx = leftX + step
+        while (fx < rightX - 0.5f) {
+            recordPixel(fx.toInt().coerceIn(0, width - 1), y)
             fx += step
         }
     }
 
-    val winningKey = bucketCounts.maxByOrNull { it.value }?.key ?: return Color.Black
-    val count = bucketCounts[winningKey] ?: 1
-    val avgR = (bucketSumR[winningKey]!! / count).toInt().coerceIn(0, 255)
-    val avgG = (bucketSumG[winningKey]!! / count).toInt().coerceIn(0, 255)
-    val avgB = (bucketSumB[winningKey]!! / count).toInt().coerceIn(0, 255)
-    return Color(avgR, avgG, avgB)
+    if (totalOpaque == 0) return jsFallbackColor ?: Color.Black
+
+    val winningEntry = bucketCounts.maxByOrNull { it.value } ?: return jsFallbackColor ?: Color.Black
+    val winningKey = winningEntry.key
+    val winningCount = winningEntry.value
+    val winningRatio = winningCount.toFloat() / totalOpaque
+
+    fun colorForKey(key: Int): Color {
+        val count = bucketCounts[key] ?: 1
+        val avgR = (bucketSumR[key]!! / count).toInt().coerceIn(0, 255)
+        val avgG = (bucketSumG[key]!! / count).toInt().coerceIn(0, 255)
+        val avgB = (bucketSumB[key]!! / count).toInt().coerceIn(0, 255)
+        return Color(avgR, avgG, avgB)
+    }
+
+    val leftMatchesWinner = leftKeys.any { it == winningKey }
+    val rightMatchesWinner = rightKeys.any { it == winningKey }
+
+    // use pixel dominant color only when it truly spans edge to edge
+    if (winningRatio >= 0.85f && leftMatchesWinner && rightMatchesWinner) {
+        return colorForKey(winningKey)
+    }
+
+    // prefer js page background when a centered card touches the edge
+    if (jsFallbackColor != null) {
+        return jsFallbackColor
+    }
+
+    // fallback to matching outer edge pixel color for gradient or image backgrounds
+    val sharedEdgeKey = leftKeys.firstOrNull { it in rightKeys }
+    if (sharedEdgeKey != null) {
+        return colorForKey(sharedEdgeKey)
+    }
+
+    return colorForKey(winningKey)
 }
 
 

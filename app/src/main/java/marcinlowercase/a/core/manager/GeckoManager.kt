@@ -1138,7 +1138,7 @@ class GeckoManager(private val context: Context) {
         onExternalAppRequest: (String) -> Unit,
         onContentPaintedFun: (Long) -> Unit = {},
         onScrollChangedFun: (Long) -> Unit = {},
-        onVisualChangeFun: (Long) -> Unit = {}
+        onVisualChangeFun: (tabId: Long, topBgHex: String?, bottomBgHex: String?) -> Unit = { _, _, _ -> }
 
 
     ) {
@@ -1180,7 +1180,17 @@ class GeckoManager(private val context: Context) {
                                 return GeckoResult.fromValue("OK")
                             }
                             "visualChange" -> {
-                                onVisualChangeFun(eventTabId)
+                                val topBg = when (message) {
+                                    is JSONObject -> message.optString("topBg").takeIf { it.isNotBlank() && it != "null" }
+                                    is Map<*, *> -> message["topBg"] as? String
+                                    else -> null
+                                }
+                                val bottomBg = when (message) {
+                                    is JSONObject -> message.optString("bottomBg").takeIf { it.isNotBlank() && it != "null" }
+                                    is Map<*, *> -> message["bottomBg"] as? String
+                                    else -> null
+                                }
+                                onVisualChangeFun(eventTabId, topBg, bottomBg)
                                 return GeckoResult.fromValue("OK")
                             }
                             "getSettings" -> {

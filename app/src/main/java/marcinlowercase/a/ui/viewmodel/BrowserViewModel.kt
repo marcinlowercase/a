@@ -2604,6 +2604,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     val backgroundColor = mutableStateOf(Color.Black)
     val sampledTopBarColor = mutableStateOf(Color.Black)
     val sampledBottomBarColor = mutableStateOf(Color.Black)
+    val jsTopBackgroundColor = mutableStateOf<Color?>(null)
+    val jsBottomBackgroundColor = mutableStateOf<Color?>(null)
 
 
     //endregion

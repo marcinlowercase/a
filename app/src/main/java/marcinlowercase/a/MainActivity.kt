@@ -3,6 +3,7 @@ package marcinlowercase.a
 import android.Manifest
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import marcinlowercase.a.core.function.parseHexColorOrNull
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.DownloadManager
@@ -1113,7 +1114,11 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                 if (bitmap != null) {
                     coroutineScope.launch(Dispatchers.Default) {
                         try {
-                            val (topColor, bottomColor) = extractEdgeColorsFromBitmap(bitmap)
+                            val (topColor, bottomColor) = extractEdgeColorsFromBitmap(
+                                bitmap = bitmap,
+                                jsTopBg = viewModel.jsTopBackgroundColor.value,
+                                jsBottomBg = viewModel.jsBottomBackgroundColor.value
+                            )
                             withContext(Dispatchers.Main) {
                                 viewModel.sampledTopBarColor.value = topColor
                                 viewModel.sampledBottomBarColor.value = bottomColor
@@ -1975,6 +1980,8 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
             viewModel.choiceState.value = null
             viewModel.colorState.value = null
             viewModel.dateTimeState.value = null
+            viewModel.jsTopBackgroundColor.value = null
+            viewModel.jsBottomBackgroundColor.value = null
 
             val currentUrl = viewModel.activeTab?.currentURL ?: ""
             if (!uiState.value.isFocusOnUrlTextField) {
@@ -2384,6 +2391,8 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
 
                     if (eventTabId == viewModel.activeTab!!.id) {
                         if (!isGhostBlank) {
+                            viewModel.jsTopBackgroundColor.value = null
+                            viewModel.jsBottomBackgroundColor.value = null
                             viewModel.updateUI { it.copy(isLoading = true) }
 
                             val activeTab = viewModel.activeTab
@@ -2598,8 +2607,10 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                         sampleTrigger++
                     }
                 },
-                onVisualChangeFun = { eventTabId ->
-                    if (eventTabId == viewModel.activeTab?.id) {
+                onVisualChangeFun = { eventTabId, topBgHex, bottomBgHex ->
+                    if (eventTabId == viewModel.activeTab?.id && settingsState.value.isEnabledImmersiveWebview) {
+                        viewModel.jsTopBackgroundColor.value = parseHexColorOrNull(topBgHex)
+                        viewModel.jsBottomBackgroundColor.value = parseHexColorOrNull(bottomBgHex)
                         sampleTrigger++
                     }
                 }
