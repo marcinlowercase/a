@@ -108,6 +108,7 @@ class GeckoManager(private val context: Context) {
     var lastArtist = mutableStateOf("")
 
     var isActiveMediaSessionPaused by mutableStateOf(true)
+    var onMediaPlaybackStateChanged: (() -> Unit)? = null
 
 //    val runtime: GeckoRuntime by lazy {
 //        GeckoRuntime.getDefault(context)
@@ -967,8 +968,6 @@ class GeckoManager(private val context: Context) {
         when (command) {
             "play" -> controller.play()
             "pause" -> controller.pause()
-            "next_track" -> controller.nextTrack()
-            "prev_track" -> controller.previousTrack()
             "next_5" -> {
                 val target = if (totalDuration > 0.0) {
                     (currentLivePos + 5.0).coerceAtMost(totalDuration)
@@ -1014,6 +1013,7 @@ class GeckoManager(private val context: Context) {
     }
 
     fun syncMediaNotification() {
+        onMediaPlaybackStateChanged?.invoke()
         if (activeGeckoMediaSession == null) return
         val title = lastTitle.value.ifBlank { "Browser Video" }
         val artist = lastArtist.value

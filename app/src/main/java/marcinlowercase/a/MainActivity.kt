@@ -204,7 +204,7 @@ class MainActivity : ComponentActivity() {
         // keeps track of the one allowed full browser window globally
         var currentFullBrowserInstance: java.lang.ref.WeakReference<MainActivity>? = null
         const val ACTION_PIP_PREV_5 = "marcinlowercase.a.PIP_PREV_5"
-        const val ACTION_PIP_NEXT_VIDEO = "marcinlowercase.a.PIP_NEXT_VIDEO"
+        const val ACTION_PIP_PLAY_PAUSE = "marcinlowercase.a.PIP_PLAY_PAUSE"
         const val ACTION_PIP_NEXT_5 = "marcinlowercase.a.PIP_NEXT_5"
     }
     val newUrlFromIntent = MutableStateFlow<String?>(null)
@@ -427,11 +427,19 @@ class MainActivity : ComponentActivity() {
             pipActionReceiver,
             IntentFilter().apply {
                 addAction(ACTION_PIP_PREV_5)
-                addAction(ACTION_PIP_NEXT_VIDEO)
+                addAction(ACTION_PIP_PLAY_PAUSE)
                 addAction(ACTION_PIP_NEXT_5)
             },
             ContextCompat.RECEIVER_NOT_EXPORTED
         )
+
+        (application as CustomApplication).geckoManager.onMediaPlaybackStateChanged = {
+            runOnUiThread {
+                if (isCurrentlyFullscreen || isInPictureInPictureMode) {
+                    updatePipParams(isCurrentlyFullscreen)
+                }
+            }
+        }
 
         val startupViewModel: BrowserViewModel by viewModels()
         if (startupViewModel.browserSettings.value.isFullscreenMode) {
@@ -471,6 +479,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        (application as CustomApplication).geckoManager.onMediaPlaybackStateChanged = null
         try {
             unregisterReceiver(pipActionReceiver)
         } catch (_: Exception) {
@@ -587,11 +596,14 @@ class MainActivity : ComponentActivity() {
 
     private val pipActionReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            val viewModel: BrowserViewModel by viewModels()
+            val gm = (application as CustomApplication).geckoManager
             when (intent?.action) {
-                ACTION_PIP_PREV_5 -> viewModel.geckoManager.sendVideoCommand("prev_5")
-                ACTION_PIP_NEXT_VIDEO -> viewModel.geckoManager.sendVideoCommand("next_track")
-                ACTION_PIP_NEXT_5 -> viewModel.geckoManager.sendVideoCommand("next_5")
+                ACTION_PIP_PREV_5 -> gm.sendVideoCommand("prev_5")
+                ACTION_PIP_PLAY_PAUSE -> {
+                    if (gm.isActiveMediaSessionPaused) gm.sendVideoCommand("play")
+                    else gm.sendVideoCommand("pause")
+                }
+                ACTION_PIP_NEXT_5 -> gm.sendVideoCommand("next_5")
             }
         }
     }
@@ -613,9 +625,16 @@ class MainActivity : ComponentActivity() {
             )
         }
 
+        val isPaused = (application as CustomApplication).geckoManager.isActiveMediaSessionPaused
+        val playPauseAction = if (isPaused) {
+            makeAction(102, ACTION_PIP_PLAY_PAUSE, R.drawable.ic_play_arrow, "Play")
+        } else {
+            makeAction(102, ACTION_PIP_PLAY_PAUSE, R.drawable.ic_pause, "Pause")
+        }
+
         return listOf(
             makeAction(101, ACTION_PIP_PREV_5, R.drawable.ic_replay_5, "Back 5s"),
-            makeAction(102, ACTION_PIP_NEXT_VIDEO, R.drawable.ic_skip_next, "Next video"),
+            playPauseAction,
             makeAction(103, ACTION_PIP_NEXT_5, R.drawable.ic_forward_5, "Forward 5s")
         )
     }
@@ -641,6 +660,12 @@ class MainActivity : ComponentActivity() {
             val params = android.app.PictureInPictureParams.Builder()
                 .setAutoEnterEnabled(isDataFullscreen)
                 .setSeamlessResizeEnabled(false)
+                .setAspectRatio(pipAspectRatio)
+                .setActions(buildPipActions())
+                .build()
+            setPictureInPictureParams(params)
+        } else if (isInPictureInPictureMode) {
+            val params = android.app.PictureInPictureParams.Builder()
                 .setAspectRatio(pipAspectRatio)
                 .setActions(buildPipActions())
                 .build()
