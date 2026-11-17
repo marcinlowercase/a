@@ -14,6 +14,7 @@
 
   let isPointerHolding = false;
   let normalPlaybackRate = 1;
+  let bottomEdgeStartY = -1;
 
   let maxArea = (window.outerWidth || 0) * (window.outerHeight || 0);
   let lastNormalOuterW = window.outerWidth || (window.screen && window.screen.availWidth) || 0;
@@ -79,6 +80,31 @@
         padding: 0 !important;
         overflow: hidden !important;
         background: #000 !important;
+      }
+      html.${PIP_CLASS} :fullscreen,
+      html.${PIP_CLASS} #player-container-id,
+      html.${PIP_CLASS} .player-container,
+      html.${PIP_CLASS} ytm-player,
+      html.${PIP_CLASS} #movie_player,
+      html.${PIP_CLASS} .html5-video-player,
+      html.${PIP_CLASS} .html5-video-container {
+        position: fixed !important;
+        inset: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        max-width: 100% !important;
+        max-height: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        transform: none !important;
+      }
+      html.${PIP_CLASS} .ytm-fullscreen-watch-next-renderer,
+      html.${PIP_CLASS} ytm-fullscreen-watch-next-renderer,
+      html.${PIP_CLASS} .fullscreen-recommendations-wrapper,
+      html.${PIP_CLASS} .ytp-fullscreen-grid,
+      html.${PIP_CLASS} .ytp-ce-element,
+      html.${PIP_CLASS} .ytp-cards-teaser {
+        display: none !important;
       }
       .${PIP_CLASS} :fullscreen video,
       .${PIP_CLASS} video:fullscreen,
@@ -202,15 +228,42 @@
     try { delete pageDoc.visibilityState; } catch (_) {}
   }
 
-  document.addEventListener("pointerdown", () => {
-    if (!isInPip()) isPointerHolding = true;
+  document.addEventListener("pointerdown", (e) => {
+    if (!isInPip()) {
+      isPointerHolding = true;
+      if (document.fullscreenElement && e.clientY >= (window.innerHeight - 24)) {
+        bottomEdgeStartY = e.clientY;
+      } else {
+        bottomEdgeStartY = -1;
+      }
+    }
   }, true);
-  document.addEventListener("touchstart", () => {
-    if (!isInPip()) isPointerHolding = true;
+  document.addEventListener("touchstart", (e) => {
+    if (!isInPip()) {
+      isPointerHolding = true;
+      const y = e.touches && e.touches[0] ? e.touches[0].clientY : 0;
+      if (document.fullscreenElement && y >= (window.innerHeight - 24)) {
+        bottomEdgeStartY = y;
+      } else {
+        bottomEdgeStartY = -1;
+      }
+    }
+  }, true);
+  document.addEventListener("pointermove", (e) => {
+    if (bottomEdgeStartY >= 0 && document.fullscreenElement && (bottomEdgeStartY - e.clientY) > 6) {
+      e.stopImmediatePropagation();
+    }
+  }, true);
+  document.addEventListener("touchmove", (e) => {
+    const y = e.touches && e.touches[0] ? e.touches[0].clientY : bottomEdgeStartY;
+    if (bottomEdgeStartY >= 0 && document.fullscreenElement && (bottomEdgeStartY - y) > 6) {
+      e.stopImmediatePropagation();
+    }
   }, true);
   ["pointerup", "pointercancel", "touchend", "touchcancel"].forEach((ev) => {
     document.addEventListener(ev, () => {
       isPointerHolding = false;
+      bottomEdgeStartY = -1;
     }, true);
   });
   document.addEventListener("ratechange", (e) => {
