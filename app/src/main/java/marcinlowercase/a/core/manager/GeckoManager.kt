@@ -105,6 +105,7 @@ class GeckoManager(private val context: Context) {
     private var isInit = true
 
     var lastTitle = mutableStateOf("")
+    var lastArtist = mutableStateOf("")
 
     var isActiveMediaSessionPaused by mutableStateOf(true)
 
@@ -966,17 +967,24 @@ class GeckoManager(private val context: Context) {
         when (command) {
             "play" -> controller.play()
             "pause" -> controller.pause()
+            "next_track" -> controller.nextTrack()
+            "prev_track" -> controller.previousTrack()
             "next_5" -> {
-                val target = (currentLivePos + 5.0).coerceAtMost(totalDuration)
+                val target = if (totalDuration > 0.0) {
+                    (currentLivePos + 5.0).coerceAtMost(totalDuration)
+                } else {
+                    (currentLivePos + 5.0).coerceAtLeast(0.0)
+                }
                 controller.seekTo(target, false)
                 updateLocalSnapshotOptimistically(target)
+                syncMediaNotification()
             }
 
             "prev_5" -> {
                 val target = (currentLivePos - 5.0).coerceAtLeast(0.0)
                 controller.seekTo(target, false)
                 updateLocalSnapshotOptimistically(target)
-
+                syncMediaNotification()
             }
 
             "seek_relative" -> {
@@ -984,7 +992,18 @@ class GeckoManager(private val context: Context) {
                 val target = (currentLivePos + value).coerceAtLeast(0.0)
                 controller.seekTo(target, true)
                 updateLocalSnapshotOptimistically(target)
+                syncMediaNotification()
+            }
 
+            "seek_to" -> {
+                val target = if (totalDuration > 0.0) {
+                    value.coerceIn(0.0, totalDuration)
+                } else {
+                    value.coerceAtLeast(0.0)
+                }
+                controller.seekTo(target, true)
+                updateLocalSnapshotOptimistically(target)
+                syncMediaNotification()
             }
         }
     }
@@ -992,6 +1011,26 @@ class GeckoManager(private val context: Context) {
     private fun updateLocalSnapshotOptimistically(newTime: Double) {
         lastPositionSnapshot.doubleValue = newTime
         lastSnapshotTime.longValue = System.currentTimeMillis()
+    }
+
+    fun syncMediaNotification() {
+        if (activeGeckoMediaSession == null) return
+        val title = lastTitle.value.ifBlank { "Browser Video" }
+        val artist = lastArtist.value
+        val posMs = (lastPositionSnapshot.doubleValue.coerceAtLeast(0.0) * 1000.0).toLong()
+        val durMs = if (lastDuration.doubleValue > 0.0) (lastDuration.doubleValue * 1000.0).toLong() else -1L
+        val intent = Intent(context, MediaPlaybackService::class.java).apply {
+            putExtra("TITLE", title)
+            putExtra("ARTIST", artist)
+            putExtra("IS_PAUSED", isActiveMediaSessionPaused)
+            putExtra("POSITION_MS", posMs)
+            putExtra("DURATION_MS", durMs)
+            putExtra("SPEED", lastPlaybackRate.doubleValue.toFloat())
+        }
+        try {
+            context.startForegroundService(intent)
+        } catch (_: Exception) {
+        }
     }
 
     private fun isExternalScheme(uri: String): Boolean {
@@ -2146,19 +2185,13 @@ class GeckoManager(private val context: Context) {
 
         session.mediaSessionDelegate = object : MediaSession.Delegate {
             override fun onActivated(session: GeckoSession, mediaSession: MediaSession) {
-                //Log.i("marcMedia", "onActivated")
                 activeGeckoMediaSession = mediaSession
                 activeMediaGeckoSession = session
                 isActiveMediaSessionPaused = false
-                val title = tab.value.currentTitle.ifBlank { tab.value.currentURL.toDomain() }
-
-                // discontinue media play back controle
-//                // website started playing media! Start the background service.
-//                val intent = Intent(context, MediaPlaybackService::class.java).apply {
-//                    putExtra("TITLE", title)
-//                    putExtra("IS_PAUSED", false)
-//                }
-//                context.startForegroundService(intent)
+                val domain = tab.value.currentURL.toDomain()
+                lastTitle.value = tab.value.currentTitle.ifBlank { domain }
+                lastArtist.value = domain
+                syncMediaNotification()
             }
 
             override fun onDeactivated(session: GeckoSession, mediaSession: MediaSession) {
@@ -2170,104 +2203,78 @@ class GeckoManager(private val context: Context) {
                 }
             }
 
-            // this is the primary way to know when user change video
             override fun onMetadata(
                 session: GeckoSession,
                 mediaSession: MediaSession,
                 metadata: MediaSession.Metadata
             ) {
-                //Log.i("marcMedia", "Playing: ${metadata.title} by ${metadata.artist}")
+                val newTitle = metadata.title?.toString()
+                val newArtist = metadata.artist?.toString()
+                var changed = false
 
-                if (metadata.title != null && metadata.title != lastTitle.value) {
-                    lastTitle.value = metadata.title.toString()
+                if (!newTitle.isNullOrBlank() && newTitle != lastTitle.value) {
+                    lastTitle.value = newTitle
                     startReset()
-//                    mediaSession.pause()
-//                    mediaSession.seekTo(0.0, true)
-//                    mediaSession.play()
-
+                    changed = true
+                }
+                if (!newArtist.isNullOrBlank() && newArtist != lastArtist.value) {
+                    lastArtist.value = newArtist
+                    changed = true
+                }
+                if (changed) {
+                    syncMediaNotification()
                 }
             }
 
-            // not work
-//            override fun onFeatures(
-//                session: GeckoSession,
-//                mediaSession: MediaSession,
-//                features: Long
-//            ) {
-//                val isPaused = (features and MediaSession.Feature.PAUSE) == 0L
-//                if (isPaused) mediaSession.pause() else mediaSession.play()
-//                //Log.d("marcMedia", "Is Paused: $isPaused")
-//                context.startService(Intent(context, MediaPlaybackService::class.java).apply {
-//                    putExtra("IS_PAUSED", isPaused)
-//                })
-//            }
-
             override fun onPause(session: GeckoSession, mediaSession: MediaSession) {
                 activeGeckoMediaSession = mediaSession
-
                 isActiveMediaSessionPaused = true
-
-//                context.startService(Intent(context, MediaPlaybackService::class.java).apply {
-//                    putExtra("IS_PAUSED", true)
-//                })
+                syncMediaNotification()
                 super.onPause(session, mediaSession)
             }
 
             override fun onPlay(session: GeckoSession, mediaSession: MediaSession) {
                 isActiveMediaSessionPaused = false
                 activeGeckoMediaSession = mediaSession
-
-
-                //Log.d("marcMedia", "onPlay")
                 if (lastPositionSnapshot.doubleValue == INIT) {
                     lastPositionSnapshot.doubleValue = 0.0
                 }
-
-//                context.startService(Intent(context, MediaPlaybackService::class.java).apply {
-//                    putExtra("IS_PAUSED", false)
-//                })
+                syncMediaNotification()
                 super.onPlay(session, mediaSession)
             }
 
             override fun onStop(session: GeckoSession, mediaSession: MediaSession) {
-                activeGeckoMediaSession = null
+                if (activeGeckoMediaSession == mediaSession) {
+                    activeGeckoMediaSession = null
+                    isActiveMediaSessionPaused = true
+                    context.stopService(Intent(context, MediaPlaybackService::class.java))
+                }
                 super.onStop(session, mediaSession)
             }
-
 
             override fun onPositionState(
                 session: GeckoSession,
                 mediaSession: MediaSession,
                 state: MediaSession.PositionState
             ) {
-                // checking if user change from video A -> B
+                // checking if user change from video a -> b
                 if (lastDuration.doubleValue == RESET) {
-                    // is the duration different?
                     val durationChanged = abs(state.duration - exitDuration) > 0.0001
-
-                    // is the position at the very beginning? (Video B just started)
                     val isAtStart = state.position < 1.0
-
-                    // did the position jump backwards significantly? (Video A was at 59s, now we are at 0s)
                     val positionJumpedBack = state.position < (exitPosition - 1.0)
-
-                    // VALIDATION
                     val isDataFresh = durationChanged || isAtStart || positionJumpedBack
-
-                    if (!isDataFresh) {
-                        // the state now is identical to Video A's last state or a continuation of it.
-                        // ignore it.
-                        return
-                    }
+                    if (!isDataFresh) return
                 }
 
-                // Update values normally
+                val prevPos = lastPositionSnapshot.doubleValue
+                val prevDur = lastDuration.doubleValue
+                val prevRate = lastPlaybackRate.doubleValue
+
                 if (state.position != lastPositionSnapshotByGecko.doubleValue || lastPositionSnapshot.doubleValue == INIT) {
                     lastPositionSnapshotByGecko.doubleValue = state.position
                     lastPositionSnapshot.doubleValue = state.position
                 }
                 lastSnapshotTime.longValue = System.currentTimeMillis()
-
                 lastPlaybackRate.doubleValue = state.playbackRate
 
                 if (!state.duration.isNaN()) {
@@ -2275,6 +2282,13 @@ class GeckoManager(private val context: Context) {
                     if (exitDuration != state.duration) exitDuration = state.duration
                 }
 
+                val durationUpdated = !state.duration.isNaN() && abs(state.duration - prevDur) > 0.5
+                val positionJumped = prevPos < 0.0 || abs(state.position - prevPos) > 2.0
+                val rateChanged = abs(state.playbackRate - prevRate) > 0.01
+
+                if (durationUpdated || positionJumped || rateChanged) {
+                    syncMediaNotification()
+                }
             }
         }
     }

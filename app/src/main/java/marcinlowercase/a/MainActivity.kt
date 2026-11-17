@@ -165,6 +165,11 @@ import marcinlowercase.a.ui.panel.ChoicePanel
 import marcinlowercase.a.ui.panel.ColorPickerPanel
 import marcinlowercase.a.ui.panel.DateTimePickerPanel
 import marcinlowercase.a.ui.panel.MediaControlPanel
+import android.app.PendingIntent
+import android.app.RemoteAction
+import android.content.BroadcastReceiver
+import android.content.IntentFilter
+import android.graphics.drawable.Icon
 import marcinlowercase.a.ui.panel.SettingPanelView
 import marcinlowercase.a.ui.panel.SettingsPanel
 import marcinlowercase.a.ui.panel.VideoStatusPanel
@@ -196,8 +201,11 @@ import android.view.KeyEvent
 class MainActivity : ComponentActivity() {
 
     companion object {
-        // Keeps track of the ONE allowed Full Browser window globally
+        // keeps track of the one allowed full browser window globally
         var currentFullBrowserInstance: java.lang.ref.WeakReference<MainActivity>? = null
+        const val ACTION_PIP_PREV_5 = "marcinlowercase.a.PIP_PREV_5"
+        const val ACTION_PIP_NEXT_VIDEO = "marcinlowercase.a.PIP_NEXT_VIDEO"
+        const val ACTION_PIP_NEXT_5 = "marcinlowercase.a.PIP_NEXT_5"
     }
     val newUrlFromIntent = MutableStateFlow<String?>(null)
 
@@ -414,6 +422,17 @@ class MainActivity : ComponentActivity() {
 
         createNotificationChannel(this)
 
+        ContextCompat.registerReceiver(
+            this,
+            pipActionReceiver,
+            IntentFilter().apply {
+                addAction(ACTION_PIP_PREV_5)
+                addAction(ACTION_PIP_NEXT_VIDEO)
+                addAction(ACTION_PIP_NEXT_5)
+            },
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+
         val startupViewModel: BrowserViewModel by viewModels()
         if (startupViewModel.browserSettings.value.isFullscreenMode) {
             val insetsController = WindowCompat.getInsetsController(window, window.decorView)
@@ -452,7 +471,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        // Clean up the Highlander reference if this instance is destroyed natively
+        try {
+            unregisterReceiver(pipActionReceiver)
+        } catch (_: Exception) {
+        }
+        // clean up the highlander reference if this instance is destroyed natively
         if (currentFullBrowserInstance?.get() == this) {
             currentFullBrowserInstance = null
         }
@@ -561,6 +584,42 @@ class MainActivity : ComponentActivity() {
     //endregion
 
     //region Pip
+
+    private val pipActionReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val viewModel: BrowserViewModel by viewModels()
+            when (intent?.action) {
+                ACTION_PIP_PREV_5 -> viewModel.geckoManager.sendVideoCommand("prev_5")
+                ACTION_PIP_NEXT_VIDEO -> viewModel.geckoManager.sendVideoCommand("next_track")
+                ACTION_PIP_NEXT_5 -> viewModel.geckoManager.sendVideoCommand("next_5")
+            }
+        }
+    }
+
+    private fun buildPipActions(): List<RemoteAction> {
+        fun makeAction(reqCode: Int, action: String, iconRes: Int, title: String): RemoteAction {
+            val intent = Intent(action).setPackage(packageName)
+            val pending = PendingIntent.getBroadcast(
+                this,
+                reqCode,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            return RemoteAction(
+                Icon.createWithResource(this, iconRes),
+                title,
+                title,
+                pending
+            )
+        }
+
+        return listOf(
+            makeAction(101, ACTION_PIP_PREV_5, R.drawable.ic_replay_5, "Back 5s"),
+            makeAction(102, ACTION_PIP_NEXT_VIDEO, R.drawable.ic_skip_next, "Next video"),
+            makeAction(103, ACTION_PIP_NEXT_5, R.drawable.ic_forward_5, "Forward 5s")
+        )
+    }
+
     private var pipAspectRatio = android.util.Rational(16, 9)
 
     fun updateVideoAspectRatio(width: Int, height: Int) {
@@ -583,6 +642,7 @@ class MainActivity : ComponentActivity() {
                 .setAutoEnterEnabled(isDataFullscreen)
                 .setSeamlessResizeEnabled(false)
                 .setAspectRatio(pipAspectRatio)
+                .setActions(buildPipActions())
                 .build()
             setPictureInPictureParams(params)
         }
@@ -633,6 +693,7 @@ class MainActivity : ComponentActivity() {
     private fun enterPip() {
         val params = android.app.PictureInPictureParams.Builder()
             .setAspectRatio(pipAspectRatio)
+            .setActions(buildPipActions())
             .build()
         enterPictureInPictureMode(params)
     }
