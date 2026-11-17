@@ -1,6 +1,9 @@
 package marcinlowercase.a
 
 import android.Manifest
+import androidx.compose.material3.Icon
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.res.painterResource
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import marcinlowercase.a.core.function.parseHexColorOrNull
@@ -578,7 +581,7 @@ class MainActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val params = android.app.PictureInPictureParams.Builder()
                 .setAutoEnterEnabled(isDataFullscreen)
-                .setSeamlessResizeEnabled(true)
+                .setSeamlessResizeEnabled(false)
                 .setAspectRatio(pipAspectRatio)
                 .build()
             setPictureInPictureParams(params)
@@ -1929,12 +1932,38 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
             }
         }
 
+        var pipResizeTrigger by remember { mutableIntStateOf(0) }
+        var isPipResizing by remember { mutableStateOf(false) }
+        var pipResizeArmed by remember { mutableStateOf(false) }
+        var lastPipSize by remember { mutableStateOf(IntSize.Zero) }
+
         LaunchedEffect(isPipMode) {
-            if (!isPipMode && mainActivity.isCurrentlyFullscreen) {
-                delay(150.milliseconds)
-                geckoViewRef.value?.requestLayout()
+            if (isPipMode) {
+                delay(250.milliseconds)
+                pipResizeArmed = true
+            } else {
+                pipResizeArmed = false
+                isPipResizing = false
+                lastPipSize = IntSize.Zero
+                if (mainActivity.isCurrentlyFullscreen) {
+                    delay(150.milliseconds)
+                    geckoViewRef.value?.requestLayout()
+                }
             }
         }
+
+        LaunchedEffect(pipResizeTrigger) {
+            if (pipResizeTrigger > 0 && isPipMode) {
+                delay(300.milliseconds)
+                isPipResizing = false
+            }
+        }
+
+        val pipBlurRadius by animateDpAsState(
+            targetValue = if (isPipMode && isPipResizing) 16.dp else 0.dp,
+            animationSpec = if (isPipMode && isPipResizing) snap() else tween(220),
+            label = "PiP Resize Blur Animation"
+        )
 
         LaunchedEffect(activity.isInMultiWindowMode, isBubbleMode(activity), isPipMode) {
             if (activity.isInPictureInPictureMode || isPipMode || mainActivity.isEnteringPip) {
@@ -3156,6 +3185,15 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                                                 bottomStart = if (isKeyboardVisible && !uiState.value.isFocusOnTextField) 0.dp else animatedBottomCornerRadius
                                             )
                                         )
+                                        .onSizeChanged { newSize ->
+                                            if (isPipMode) {
+                                                if (lastPipSize != IntSize.Zero && newSize != lastPipSize && pipResizeArmed) {
+                                                    isPipResizing = true
+                                                    pipResizeTrigger++
+                                                }
+                                                lastPipSize = newSize
+                                            }
+                                        }
                                         .testTag("WebViewContainer")
 
 
@@ -3180,6 +3218,7 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                                                 Box(
                                                     modifier = Modifier
                                                         .fillMaxSize()
+                                                        .blur(pipBlurRadius)
                                                         .graphicsLayer {
                                                             translationX = offsetFraction * size.width
                                                         }
@@ -3263,7 +3302,7 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                                                     modifier = Modifier
                                                         .fillMaxSize()
                                                         .graphicsLayer {
-                                                            // Exactly touching GeckoView at all times
+                                                            // exactly touching geckoview at all times
                                                             translationX = (1f + offsetFraction) * size.width
                                                         }
                                                 ) {
@@ -3271,6 +3310,26 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                                                 }
                                             }
                                             }
+
+                                        androidx.compose.animation.AnimatedVisibility(
+                                            visible = isPipMode && isPipResizing,
+                                            enter = androidx.compose.animation.EnterTransition.None,
+                                            exit = fadeOut(tween(220))
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxSize()
+                                                    .background(Color.Black.copy(alpha = 0.45f)),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    painter = painterResource(id = R.drawable.ic_change_size),
+                                                    contentDescription = "resizing",
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size(32.dp)
+                                                )
+                                            }
+                                        }
 
                                         // --- PWA NATIVE SPLASH SCREEN ---
                                         Column(modifier = Modifier.fillMaxSize()) {
