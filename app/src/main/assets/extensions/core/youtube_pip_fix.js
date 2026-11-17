@@ -14,7 +14,10 @@
 
   let isPointerHolding = false;
   let normalPlaybackRate = 1;
-  let bottomEdgeStartY = -1;
+  let blockPointer = false;
+  let blockTouch = false;
+  let lastBlockedStartMs = 0;
+  let explicitExitUntilMs = 0;
 
   let maxArea = (window.outerWidth || 0) * (window.outerHeight || 0);
   let lastNormalOuterW = window.outerWidth || (window.screen && window.screen.availWidth) || 0;
@@ -145,6 +148,8 @@
 
   function isInPip() {
     if (nativePipFlag) return true;
+    // ignore shrink heuristic briefly while expanding back from pip
+    if (Date.now() < explicitExitUntilMs) return false;
     const w = window.outerWidth || 0;
     const h = window.outerHeight || 0;
     const area = w * h;
@@ -228,42 +233,66 @@
     try { delete pageDoc.visibilityState; } catch (_) {}
   }
 
-  document.addEventListener("pointerdown", (e) => {
+  window.addEventListener("pointerdown", (e) => {
     if (!isInPip()) {
-      isPointerHolding = true;
-      if (document.fullscreenElement && e.clientY >= (window.innerHeight - 24)) {
-        bottomEdgeStartY = e.clientY;
-      } else {
-        bottomEdgeStartY = -1;
+      const now = Date.now();
+      if (document.fullscreenElement && (e.clientY >= (window.innerHeight - 20) || (now - lastBlockedStartMs) < 30)) {
+        lastBlockedStartMs = now;
+        blockPointer = true;
+        isPointerHolding = false;
+        e.stopImmediatePropagation();
+        return;
       }
+      blockPointer = false;
+      isPointerHolding = true;
     }
   }, true);
-  document.addEventListener("touchstart", (e) => {
+
+  window.addEventListener("touchstart", (e) => {
     if (!isInPip()) {
-      isPointerHolding = true;
+      const now = Date.now();
       const y = e.touches && e.touches[0] ? e.touches[0].clientY : 0;
-      if (document.fullscreenElement && y >= (window.innerHeight - 24)) {
-        bottomEdgeStartY = y;
-      } else {
-        bottomEdgeStartY = -1;
+      if (document.fullscreenElement && (y >= (window.innerHeight - 20) || (now - lastBlockedStartMs) < 30)) {
+        lastBlockedStartMs = now;
+        blockTouch = true;
+        isPointerHolding = false;
+        e.stopImmediatePropagation();
+        return;
       }
+      blockTouch = false;
+      isPointerHolding = true;
     }
   }, true);
-  document.addEventListener("pointermove", (e) => {
-    if (bottomEdgeStartY >= 0 && document.fullscreenElement && (bottomEdgeStartY - e.clientY) > 6) {
+
+  window.addEventListener("pointermove", (e) => {
+    if (blockPointer && document.fullscreenElement) {
       e.stopImmediatePropagation();
     }
   }, true);
-  document.addEventListener("touchmove", (e) => {
-    const y = e.touches && e.touches[0] ? e.touches[0].clientY : bottomEdgeStartY;
-    if (bottomEdgeStartY >= 0 && document.fullscreenElement && (bottomEdgeStartY - y) > 6) {
+
+  window.addEventListener("touchmove", (e) => {
+    if (blockTouch && document.fullscreenElement) {
       e.stopImmediatePropagation();
     }
   }, true);
-  ["pointerup", "pointercancel", "touchend", "touchcancel"].forEach((ev) => {
-    document.addEventListener(ev, () => {
+
+  ["pointerup", "pointercancel"].forEach((ev) => {
+    window.addEventListener(ev, (e) => {
+      if (blockPointer) {
+        e.stopImmediatePropagation();
+        blockPointer = false;
+      }
       isPointerHolding = false;
-      bottomEdgeStartY = -1;
+    }, true);
+  });
+
+  ["touchend", "touchcancel"].forEach((ev) => {
+    window.addEventListener(ev, (e) => {
+      if (blockTouch) {
+        e.stopImmediatePropagation();
+        blockTouch = false;
+      }
+      isPointerHolding = false;
     }, true);
   });
   document.addEventListener("ratechange", (e) => {
@@ -275,8 +304,13 @@
   window.addEventListener("browser_pip_state", (e) => {
     nativePipFlag = Boolean(e && e.detail);
     if (nativePipFlag) {
+      explicitExitUntilMs = 0;
       applyPipOverrides();
     } else {
+      explicitExitUntilMs = Date.now() + 800;
+      isPointerHolding = false;
+      blockPointer = false;
+      blockTouch = false;
       removePipOverrides();
       const w = window.outerWidth || 0;
       const h = window.outerHeight || 0;
@@ -297,6 +331,7 @@
     if (isInPip()) {
       applyPipOverrides();
     } else {
+      removePipOverrides();
       const w = window.outerWidth || 0;
       const h = window.outerHeight || 0;
       if (w > 0 && h > 0) {

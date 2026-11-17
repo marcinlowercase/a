@@ -100,8 +100,8 @@ class GeckoManager(private val context: Context) {
 
     private var exitDuration: Double = INIT
     private var exitPosition: Double = INIT
+    private var resetStartedAtMs: Long = 0L
 
-    //    private var isWaitingForFreshMedia = false
     private var isInit = true
 
     var lastTitle = mutableStateOf("")
@@ -690,25 +690,23 @@ class GeckoManager(private val context: Context) {
         }
     }
 
+    private fun getEstimatedLivePosition(): Double {
+        val base = lastPositionSnapshot.doubleValue
+        if (base < 0.0) return 0.0
+        if (isActiveMediaSessionPaused || lastPlaybackRate.doubleValue == 0.0) return base
+        val elapsedSeconds = ((System.currentTimeMillis() - lastSnapshotTime.longValue).coerceAtLeast(0L)) / 1000.0
+        val estimated = base + (elapsedSeconds * lastPlaybackRate.doubleValue)
+        return if (lastDuration.doubleValue > 0.0) {
+            estimated.coerceIn(0.0, lastDuration.doubleValue)
+        } else {
+            estimated.coerceAtLeast(0.0)
+        }
+    }
+
     fun tickLivePosition() {
         if (lastPositionSnapshot.doubleValue >= 0.0) {
-            val now = System.currentTimeMillis()
-
-            // 1. Calculate how much time passed since the last tick (in seconds)
-            val elapsedMillis = now - lastSnapshotTime.longValue
-            val elapsedSeconds = elapsedMillis / 1000.0
-
-            // 2. If playing, advance the position snapshot
-            if (lastPlaybackRate.doubleValue != 0.0) {
-                val newPos =
-                    lastPositionSnapshot.doubleValue + (elapsedSeconds * lastPlaybackRate.doubleValue)
-                // Update the snapshot and clamp it so it doesn't exceed duration
-                lastPositionSnapshot.doubleValue = newPos.coerceAtLeast(0.0)
-            }
-
-            // 3. CRITICAL: Update the snapshot time to "now"
-            // This ensures the NEXT tick only calculates the delta from this moment
-            lastSnapshotTime.longValue = now
+            lastPositionSnapshot.doubleValue = getEstimatedLivePosition()
+            lastSnapshotTime.longValue = System.currentTimeMillis()
         }
     }
 
@@ -947,11 +945,11 @@ class GeckoManager(private val context: Context) {
     }
 
     fun startReset() {
-        // Save exactly where Video A was when we left the page
+        // save where video a was when switching videos
         if (!isInit) {
             if (lastDuration.doubleValue != RESET) exitDuration = lastDuration.doubleValue
-            if (lastPositionSnapshot.doubleValue != INIT) exitPosition =
-                lastPositionSnapshot.doubleValue
+            if (lastPositionSnapshot.doubleValue != INIT) exitPosition = getEstimatedLivePosition()
+            resetStartedAtMs = System.currentTimeMillis()
             lastDuration.doubleValue = RESET
             lastPositionSnapshot.doubleValue = INIT
         } else {
@@ -962,7 +960,7 @@ class GeckoManager(private val context: Context) {
     fun sendVideoCommand(command: String, value: Double = 0.0) {
         val controller = activeGeckoMediaSession ?: return
 
-        val currentLivePos = lastPositionSnapshot.doubleValue
+        val currentLivePos = getEstimatedLivePosition()
         val totalDuration = lastDuration.doubleValue
 
         when (command) {
@@ -2188,6 +2186,10 @@ class GeckoManager(private val context: Context) {
                 activeGeckoMediaSession = mediaSession
                 activeMediaGeckoSession = session
                 isActiveMediaSessionPaused = false
+                lastSnapshotTime.longValue = System.currentTimeMillis()
+                if (lastPositionSnapshot.doubleValue == INIT) {
+                    lastPositionSnapshot.doubleValue = 0.0
+                }
                 val domain = tab.value.currentURL.toDomain()
                 lastTitle.value = tab.value.currentTitle.ifBlank { domain }
                 lastArtist.value = domain
@@ -2199,6 +2201,10 @@ class GeckoManager(private val context: Context) {
                     activeGeckoMediaSession = null
                     activeMediaGeckoSession = null
                     isActiveMediaSessionPaused = true
+                    lastPositionSnapshot.doubleValue = INIT
+                    lastDuration.doubleValue = INIT
+                    lastPlaybackRate.doubleValue = 1.0
+                    isInit = true
                     context.stopService(Intent(context, MediaPlaybackService::class.java))
                 }
             }
@@ -2228,17 +2234,19 @@ class GeckoManager(private val context: Context) {
 
             override fun onPause(session: GeckoSession, mediaSession: MediaSession) {
                 activeGeckoMediaSession = mediaSession
+                tickLivePosition()
                 isActiveMediaSessionPaused = true
                 syncMediaNotification()
                 super.onPause(session, mediaSession)
             }
 
             override fun onPlay(session: GeckoSession, mediaSession: MediaSession) {
-                isActiveMediaSessionPaused = false
                 activeGeckoMediaSession = mediaSession
+                lastSnapshotTime.longValue = System.currentTimeMillis()
                 if (lastPositionSnapshot.doubleValue == INIT) {
                     lastPositionSnapshot.doubleValue = 0.0
                 }
+                isActiveMediaSessionPaused = false
                 syncMediaNotification()
                 super.onPlay(session, mediaSession)
             }
@@ -2247,6 +2255,10 @@ class GeckoManager(private val context: Context) {
                 if (activeGeckoMediaSession == mediaSession) {
                     activeGeckoMediaSession = null
                     isActiveMediaSessionPaused = true
+                    lastPositionSnapshot.doubleValue = INIT
+                    lastDuration.doubleValue = INIT
+                    lastPlaybackRate.doubleValue = 1.0
+                    isInit = true
                     context.stopService(Intent(context, MediaPlaybackService::class.java))
                 }
                 super.onStop(session, mediaSession)
@@ -2262,7 +2274,8 @@ class GeckoManager(private val context: Context) {
                     val durationChanged = abs(state.duration - exitDuration) > 0.0001
                     val isAtStart = state.position < 1.0
                     val positionJumpedBack = state.position < (exitPosition - 1.0)
-                    val isDataFresh = durationChanged || isAtStart || positionJumpedBack
+                    val resetExpired = (System.currentTimeMillis() - resetStartedAtMs) > 1500L
+                    val isDataFresh = durationChanged || isAtStart || positionJumpedBack || resetExpired
                     if (!isDataFresh) return
                 }
 

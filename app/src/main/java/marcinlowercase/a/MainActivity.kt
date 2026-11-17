@@ -2022,18 +2022,25 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
         var isPipResizing by remember { mutableStateOf(false) }
         var pipResizeArmed by remember { mutableStateOf(false) }
         var lastPipSize by remember { mutableStateOf(IntSize.Zero) }
+        var hadEnteredPip by remember { mutableStateOf(false) }
 
         LaunchedEffect(isPipMode) {
             if (isPipMode) {
+                hadEnteredPip = true
                 delay(250.milliseconds)
                 pipResizeArmed = true
             } else {
                 pipResizeArmed = false
                 isPipResizing = false
                 lastPipSize = IntSize.Zero
-                if (mainActivity.isCurrentlyFullscreen) {
-                    delay(150.milliseconds)
-                    geckoViewRef.value?.requestLayout()
+                if (hadEnteredPip) {
+                    hadEnteredPip = false
+                    viewModel.geckoManager.setPipMode(false)
+                    if (mainActivity.isCurrentlyFullscreen) {
+                        delay(150.milliseconds)
+                        viewModel.geckoManager.setPipMode(false)
+                        geckoViewRef.value?.requestLayout()
+                    }
                 }
             }
         }
