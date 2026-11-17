@@ -1,0 +1,749 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>outsync Developer Portal — the browser of oo1 studio</title>
+    <meta name="description" content="Open technical documentation for outsync.css reactive layer design tokens, Kotlin-to-JS hardware bridge APIs, sandboxed permissions, and 4x8 local-first web app development.">
+    <style>
+        :root {
+          --device-corner-radius: 18px;
+          --base-radius: 18px;
+          --padding: 12px;
+          --single-line-height: 48px;
+          --max-list-height: 2;
+          --highlight-color: #0010ff;
+          --on-highlight: #ffffff;
+          --off-highlight: #111111;
+          --animation-speed: 200ms;
+          --layer: 0;
+
+          --bg: #0b0b0c;
+          --surface: #141416;
+          --surface-2: #1c1c20;
+          --border: #2a2a30;
+          --text: #f4f4f5;
+          --muted: #a1a1aa;
+          --code-bg: #0f0f12;
+        }
+
+        * {
+          box-sizing: border-box;
+          margin: 0;
+          padding: 0;
+        }
+
+        html {
+          scroll-behavior: smooth;
+        }
+
+        body {
+          background: var(--bg);
+          color: var(--text);
+          font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+          line-height: 1.6;
+          padding: calc(var(--padding) * 1.5);
+        }
+
+        .container {
+          max-width: 960px;
+          margin: 0 auto;
+          display: flex;
+          flex-direction: column;
+          gap: 28px;
+        }
+
+        header.hero {
+          background: var(--surface);
+          border: 1px solid var(--border);
+          border-radius: var(--device-corner-radius);
+          padding: 28px;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .badge {
+          display: inline-block;
+          width: fit-content;
+          background: var(--highlight-color);
+          color: var(--on-highlight);
+          font-size: 12px;
+          font-weight: 700;
+          padding: 4px 10px;
+          border-radius: 999px;
+          letter-spacing: 0.04em;
+        }
+
+        h1 {
+          font-size: clamp(24px, 4vw, 36px);
+          font-weight: 700;
+          letter-spacing: -0.02em;
+        }
+
+        h2 {
+          font-size: 20px;
+          font-weight: 700;
+          margin-bottom: 12px;
+        }
+
+        h3 {
+          font-size: 15px;
+          font-weight: 700;
+          margin: 18px 0 8px;
+          color: var(--text);
+        }
+
+        p {
+          color: var(--muted);
+          font-size: 15px;
+          margin-bottom: 8px;
+        }
+
+        nav.toc {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-top: 4px;
+        }
+
+        nav.toc a {
+          text-decoration: none;
+          color: var(--text);
+          background: var(--surface-2);
+          border: 1px solid var(--border);
+          padding: 8px 14px;
+          border-radius: calc(var(--device-corner-radius) * 0.6);
+          font-size: 13px;
+          font-weight: 600;
+          transition: border-color var(--animation-speed) ease;
+        }
+
+        nav.toc a:hover {
+          border-color: var(--highlight-color);
+        }
+
+        section.card {
+          background: var(--surface);
+          border: 1px solid var(--border);
+          border-radius: var(--device-corner-radius);
+          padding: 24px;
+        }
+
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 10px;
+          font-size: 14px;
+        }
+
+        th, td {
+          text-align: left;
+          padding: 10px 12px;
+          border-bottom: 1px solid var(--border);
+          vertical-align: top;
+        }
+
+        th {
+          color: var(--muted);
+          font-size: 12px;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+
+        code {
+          font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+          font-size: 13px;
+          background: var(--code-bg);
+          padding: 2px 6px;
+          border-radius: 6px;
+          color: #e4e4e7;
+        }
+
+        pre {
+          background: var(--code-bg);
+          border: 1px solid var(--border);
+          border-radius: calc(var(--device-corner-radius) * 0.6);
+          padding: 14px;
+          overflow-x: auto;
+          margin-top: 10px;
+          position: relative;
+        }
+
+        pre code {
+          background: transparent;
+          padding: 0;
+          font-size: 13px;
+          line-height: 1.5;
+          display: block;
+        }
+
+        .copy-btn {
+          position: absolute;
+          top: 10px;
+          right: 10px;
+          background: var(--surface-2);
+          color: var(--text);
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          padding: 4px 10px;
+          font-size: 12px;
+          cursor: pointer;
+        }
+
+        .copy-btn:hover {
+          border-color: var(--highlight-color);
+        }
+
+        .token-preview {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+          gap: 10px;
+          margin-top: 14px;
+        }
+
+        .token-box {
+          background: var(--surface-2);
+          border: 1px solid var(--border);
+          border-radius: calc(var(--device-corner-radius) * 0.5);
+          padding: 12px;
+          font-size: 13px;
+        }
+
+        .token-box strong {
+          display: block;
+          font-family: ui-monospace, monospace;
+          margin-bottom: 4px;
+        }
+
+        .callout {
+          background: var(--surface-2);
+          border-left: 3px solid var(--highlight-color);
+          padding: 12px 14px;
+          border-radius: 8px;
+          margin-top: 12px;
+          font-size: 14px;
+          color: var(--muted);
+        }
+
+        footer {
+          text-align: center;
+          color: var(--muted);
+          font-size: 13px;
+          padding: 12px 0 24px;
+        }
+    </style>
+</head>
+<body>
+<main class="container">
+    <header class="hero">
+        <span class="badge">browser v1.7 &middot; outsync API v1.3</span>
+        <h1>outsync Developer Portal</h1>
+        <p>
+            Open technical documentation for building local-first, single-file HTML/JS web applications running inside
+            <strong>the browser of oo1 studio</strong> (Android + Mozilla GeckoView).
+        </p>
+        <nav class="toc" aria-label="Documentation sections">
+            <a href="#css-tokens">1. outsync.css Engine</a>
+            <a href="#js-bridge">2. window.outsync API</a>
+            <a href="#lifecycle">3. Sync &amp; Lifecycle</a>
+            <a href="#sandbox">4. Security Sandbox</a>
+            <a href="#layout-matrix">5. 4x8 Shell &amp; Starter</a>
+            <a href="#shortcuts">6. Shortcuts</a>
+        </nav>
+    </header>
+
+    <section id="css-tokens" class="card">
+        <h2>1. outsync.css Design Tokens &amp; Reactive Layer Math</h2>
+        <p>
+            Include the hosted stylesheet inside your document <code>&lt;head&gt;</code>:
+            <code>&lt;link rel="stylesheet" href="https://assets.oo1.studio/outsync.css"&gt;</code>.
+            When outsync is enabled in browser settings, the WebExtension injects live host device metrics onto
+            <code>:root</code> at <code>document_start</code> and scales them proportionally when desktop mode is active.
+        </p>
+
+        <h3>Base Host Constants (Injected onto :root)</h3>
+        <table>
+            <thead>
+            <tr>
+                <th>CSS Variable</th>
+                <th>Default / Unit</th>
+                <th>Description</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+                <td><code>--device-corner-radius</code></td>
+                <td><code>28px</code></td>
+                <td>Physical device screen corner radius (Layer 0)</td>
+            </tr>
+            <tr>
+                <td><code>--base-radius</code></td>
+                <td><code>28px</code></td>
+                <td>Fallback minimum radius floor for nested layers (&ge; 1)</td>
+            </tr>
+            <tr>
+                <td><code>--padding</code></td>
+                <td><code>8px</code></td>
+                <td>Base spacing unit matching the host browser UI grid</td>
+            </tr>
+            <tr>
+                <td><code>--single-line-height</code></td>
+                <td><code>100px</code></td>
+                <td>Base single-row interactive control height</td>
+            </tr>
+            <tr>
+                <td><code>--max-list-height</code></td>
+                <td><code>2</code> (multiplier)</td>
+                <td>Maximum stacked item multiplier for container sizing</td>
+            </tr>
+            <tr>
+                <td><code>--highlight-color</code></td>
+                <td><code>blue</code> (CSS color)</td>
+                <td>Active profile accent or dynamic Material You primary color</td>
+            </tr>
+            <tr>
+                <td><code>--on-highlight</code> / <code>--off-highlight</code></td>
+                <td><code>white</code> / <code>black</code></td>
+                <td>Foreground contrast colors for active and inactive controls</td>
+            </tr>
+            <tr>
+                <td><code>--animation-speed</code></td>
+                <td><code>300ms</code></td>
+                <td>Base transition duration configured by the user</td>
+            </tr>
+            <tr>
+                <td><code>--layer</code></td>
+                <td><code>0</code> (integer)</td>
+                <td>Nesting depth index set per element to drive concentric scaling</td>
+            </tr>
+            </tbody>
+        </table>
+
+        <h3>Reactive Layer Computed Variables (Calculated Per Element)</h3>
+        <p>
+            By setting <code>--layer: 1</code>, <code>--layer: 2</code>, etc. on nested child containers,
+            <code>outsync.css</code> automatically computes concentric corner radii, inner heights, and snappier child animations:
+        </p>
+        <table>
+            <thead>
+            <tr>
+                <th>Computed Variable</th>
+                <th>Reactive Formula</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+                <td><code>--layer-corner-radius</code></td>
+                <td><code>max(0px, max(deviceCornerRadius, baseRadius * min(1, layer)) - (padding * layer))</code></td>
+            </tr>
+            <tr>
+                <td><code>--layer-min-height</code></td>
+                <td><code>singleLineHeight - (padding * layer * 2)</code></td>
+            </tr>
+            <tr>
+                <td><code>--layer-height</code></td>
+                <td><code>max(layerCornerRadius * 2, layerMinHeight)</code></td>
+            </tr>
+            <tr>
+                <td><code>--layer-max-container-size</code></td>
+                <td><code>(layerHeight * maxListHeight) + (padding * (maxListHeight + 1))</code></td>
+            </tr>
+            <tr>
+                <td><code>--layer-animation-speed</code></td>
+                <td><code>max(0ms, animationSpeed - (50ms * layer))</code></td>
+            </tr>
+            </tbody>
+        </table>
+
+        <h3>JavaScript Theme Hooks</h3>
+        <table>
+            <thead>
+            <tr>
+                <th>Hook</th>
+                <th>Behavior</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+                <td><code>window.deviceCornerRadius</code></td>
+                <td>Numeric scaled corner radius in pixels</td>
+            </tr>
+            <tr>
+                <td><code>window.render(scaledRadius)</code></td>
+                <td>Optional callback invoked whenever tokens initialize or update</td>
+            </tr>
+            <tr>
+                <td><code>window.addEventListener('update_theme_from_kotlin', fn)</code></td>
+                <td>Dispatched live when the user updates theme settings or Material You colors</td>
+            </tr>
+            </tbody>
+        </table>
+
+        <div class="token-preview" id="live-tokens">
+            <div class="token-box"><strong>--device-corner-radius</strong><span id="tok-radius">reading...</span></div>
+            <div class="token-box"><strong>--padding</strong><span id="tok-padding">reading...</span></div>
+            <div class="token-box"><strong>--highlight-color</strong><span id="tok-color">reading...</span></div>
+            <div class="token-box"><strong>window.outsync</strong><span id="tok-bridge">checking...</span></div>
+        </div>
+    </section>
+
+    <section id="js-bridge" class="card">
+        <h2>2. window.outsync Native Bridge API</h2>
+        <p>
+            All native hardware and storage capabilities are exposed asynchronously on <code>window.outsync</code>
+            through GeckoView's sandboxed WebExtension IPC bridge.
+        </p>
+
+        <h3>Haptics &amp; Audio</h3>
+        <table>
+            <thead>
+            <tr>
+                <th>Method</th>
+                <th>Parameters</th>
+                <th>Returns / Notes</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+                <td><code>outsync.haptic.vibrate(type)</code></td>
+                <td><code>'tick' | 'click' | 'heavy' | 'double_click' | 'success' | 'error' | 'rise' | 'celebration' | 'warning'</code></td>
+                <td><code>Promise&lt;'SUCCESS' | 'FAIL'&gt;</code> — Android 11+ composition primitives with Android 10 waveform fallbacks</td>
+            </tr>
+            <tr>
+                <td><code>outsync.audio.play(sound)</code></td>
+                <td><code>'beep' | 'success' | 'error' | 'notification'</code></td>
+                <td><code>Promise&lt;'SUCCESS' | 'FAIL'&gt;</code> — Low-latency ToneGenerator cues and default notification chime</td>
+            </tr>
+            </tbody>
+        </table>
+
+        <h3>Camera, ML Kit Barcode Scanner &amp; Flashlight</h3>
+        <table>
+            <thead>
+            <tr>
+                <th>Method / Event</th>
+                <th>Parameters</th>
+                <th>Returns / Notes</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+                <td><code>outsync.camera.start(options)</code></td>
+                <td><code>{ torch?: boolean }</code></td>
+                <td><code>Promise&lt;boolean&gt;</code> — Starts CameraX loopback MJPEG stream at <code>/camera/stream</code></td>
+            </tr>
+            <tr>
+                <td><code>outsync.camera.stop()</code></td>
+                <td>None</td>
+                <td><code>Promise&lt;boolean&gt;</code> — Stops camera session and releases hardware</td>
+            </tr>
+            <tr>
+                <td><code>window 'outsync_barcode'</code></td>
+                <td><code>CustomEvent</code> (<code>e.detail</code>)</td>
+                <td>Fires continuously with decoded barcode string from on-device ML Kit</td>
+            </tr>
+            <tr>
+                <td><code>outsync.flashlight.toggle(enabled?)</code></td>
+                <td>Optional <code>boolean</code></td>
+                <td><code>Promise&lt;'ON' | 'OFF' | 'NO_FLASH_HARDWARE' | 'ERROR'&gt;</code></td>
+            </tr>
+            <tr>
+                <td><code>outsync.flashlight.on()</code> / <code>.off()</code></td>
+                <td>None</td>
+                <td>Explicit torch control (works whether camera is running or stopped)</td>
+            </tr>
+            <tr>
+                <td><code>outsync.flashlight.getMaxStrength()</code></td>
+                <td>None</td>
+                <td><code>Promise&lt;number&gt;</code> — Max torch strength level on Android 13+</td>
+            </tr>
+            <tr>
+                <td><code>outsync.flashlight.setStrength(level)</code></td>
+                <td><code>number</code> (<code>0</code> turns off)</td>
+                <td><code>Promise&lt;'ON' | 'OFF' | 'ERROR'&gt;</code></td>
+            </tr>
+            </tbody>
+        </table>
+
+        <h3>Google Drive (BYOS) &amp; Local Device Storage</h3>
+        <table>
+            <thead>
+            <tr>
+                <th>Method</th>
+                <th>Parameters</th>
+                <th>Returns / Notes</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+                <td><code>outsync.drive.saveText(filename, content, mimeType)</code></td>
+                <td>Strings (default mime <code>'application/json'</code>)</td>
+                <td><code>Promise&lt;'SUCCESS' | ErrorString&gt;</code> — Saves inside app-isolated Google Drive folder</td>
+            </tr>
+            <tr>
+                <td><code>outsync.drive.readText(filename)</code></td>
+                <td><code>string</code></td>
+                <td><code>Promise&lt;string&gt;</code> — Returns file contents or error string</td>
+            </tr>
+            <tr>
+                <td><code>outsync.drive.listFiles()</code></td>
+                <td>None</td>
+                <td><code>Promise&lt;Array&gt;</code> — Lists file metadata objects inside app folder</td>
+            </tr>
+            <tr>
+                <td><code>outsync.drive.deleteFile(filename)</code></td>
+                <td><code>string</code></td>
+                <td><code>Promise&lt;'SUCCESS' | ErrorString&gt;</code></td>
+            </tr>
+            <tr>
+                <td><code>outsync.storage.save(filename, base64Data, mimeType, folder)</code></td>
+                <td><code>folder: 'DOWNLOADS' | 'PICTURES'</code></td>
+                <td><code>Promise&lt;'SUCCESS'&gt;</code> (rejects on permission denial or write error)</td>
+            </tr>
+            </tbody>
+        </table>
+
+        <h3>Device State</h3>
+        <table>
+            <thead>
+            <tr>
+                <th>Method</th>
+                <th>Returns</th>
+                <th>Notes</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+                <td><code>outsync.device.isScreenOn()</code></td>
+                <td><code>Promise&lt;boolean&gt;</code></td>
+                <td>Checks Android <code>PowerManager.isInteractive</code></td>
+            </tr>
+            <tr>
+                <td><code>outsync.device.isConnected()</code></td>
+                <td><code>Promise&lt;boolean&gt;</code></td>
+                <td>Checks validated internet capability</td>
+            </tr>
+            </tbody>
+        </table>
+
+        <div class="callout">
+            All <code>drive</code> and <code>device</code> methods also expose <code>snake_case</code> aliases
+            (e.g. <code>save_text</code>, <code>read_text</code>, <code>list_files</code>, <code>delete_file</code>,
+            <code>is_screen_on</code>, <code>is_connected</code>).<br><br>
+            <strong>Standard Drive Error Strings:</strong> <code>ERROR_PERMISSION_DENIED</code>, <code>ERROR_NOT_AUTHENTICATED</code>, <code>ERROR_NOT_FOUND</code>, <code>ERROR_SAVING</code>, <code>ERROR_DELETING</code>.
+        </div>
+    </section>
+
+    <section id="lifecycle" class="card">
+        <h2>3. Local-First &amp; Multi-Device Sync Pattern</h2>
+        <p>
+            To keep mobile interfaces instant without blocking on network requests, follow the optimistic-UI
+            plus 1000ms debounced Google Drive BYOS pattern:
+        </p>
+        <pre><button class="copy-btn" onclick="copyPre(this)">copy</button><code>const DRIVE_FILE = 'app_data.json';
+let saveTimer = null;
+let state = {};
+
+async function loadFromDrive() {
+  if (!window.outsync?.drive) return;
+  try {
+    const raw = await window.outsync.drive.readText(DRIVE_FILE);
+    if (raw &amp;&amp; !raw.startsWith('ERROR_')) {
+      state = JSON.parse(raw);
+      render();
+    }
+  } catch (_) {}
+}
+
+function scheduleSave() {
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () =&gt; {
+    if (window.outsync?.drive) {
+      await window.outsync.drive.saveText(DRIVE_FILE, JSON.stringify(state), 'application/json');
+    }
+  }, 1000);
+}
+
+window.addEventListener('pageshow', loadFromDrive);
+document.addEventListener('visibilitychange', () =&gt; {
+  if (!document.hidden) loadFromDrive();
+});</code></pre>
+    </section>
+
+    <section id="sandbox" class="card">
+        <h2>4. Security Sandbox &amp; Local Execution</h2>
+        <p>
+            Every external and local web application executes inside GeckoView's contextual permission sandbox:
+        </p>
+        <table>
+            <thead>
+            <tr>
+                <th>Resource</th>
+                <th>Sandbox Boundary</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+                <td>Local HTML Apps</td>
+                <td>Served via isolated loopback virtual scheme <code>local://apps/&lt;slug&gt;/index.html</code> (drafts under <code>local://draft</code>); root filesystem paths are never exposed</td>
+            </tr>
+            <tr>
+                <td>Camera &amp; Scanner</td>
+                <td>Gated by per-domain site permission prompt + Android OS <code>CAMERA</code> runtime permission</td>
+            </tr>
+            <tr>
+                <td>Google Drive (BYOS)</td>
+                <td>Gated by per-domain Drive access prompt; every app is strictly isolated to its own partitioned folder via <code>DRIVE_FILE</code></td>
+            </tr>
+            <tr>
+                <td>Device File Saving</td>
+                <td>Gated by per-domain storage permission prompt; writes only scoped MediaStore entries in public Downloads or Pictures</td>
+            </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section id="layout-matrix" class="card">
+        <h2>5. 4x8 Mobile Matrix Shell &amp; Minimal Starter</h2>
+        <p>
+            Single-file applications compiled by the <code>refine</code> AI Prompt SDK link <code>outsync.css</code> for
+            hardware-reactive CSS tokens and lock UI controls into an inline, non-scrolling 4-column by 8-row matrix
+            inside <code>100dvh</code> (preventing layout shifts on low-end devices).
+        </p>
+
+        <table>
+            <thead>
+            <tr>
+                <th>Shell Attribute / Class</th>
+                <th>Allowed Values</th>
+                <th>Purpose</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+                <td><code>.o-s-grid</code> / <code>.o-s-grid-slot</code></td>
+                <td>Container &amp; Slot</td>
+                <td>Fixed 4&times;8 non-scrolling layout grid inside <code>100dvh</code></td>
+            </tr>
+            <tr>
+                <td><code>o-s-col</code> / <code>o-s-row</code></td>
+                <td><code>1..4</code> (col), <code>1..8</code> (row)</td>
+                <td>1-indexed starting coordinates for a grid slot</td>
+            </tr>
+            <tr>
+                <td><code>o-s-w</code> / <code>o-s-h</code></td>
+                <td><code>1..4</code> (width), <code>1..8</code> (height)</td>
+                <td>Column and row span inside the 4&times;8 matrix</td>
+            </tr>
+            <tr>
+                <td><code>.o-s-button</code></td>
+                <td><code>dark</code>, named CSS colors</td>
+                <td>Interactive tile scaled using <code>--layer-corner-radius</code></td>
+            </tr>
+            </tbody>
+        </table>
+
+        <h3>Complete Minimal Starter Boilerplate (Single-File)</h3>
+        <pre><button class="copy-btn" onclick="copyPre(this)">copy</button><code>&lt;!doctype html&gt;
+&lt;html lang="en"&gt;
+&lt;head&gt;
+  &lt;meta charset="utf-8"&gt;
+  &lt;meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"&gt;
+  &lt;title&gt;Minimal outsync App&lt;/title&gt;
+  &lt;link rel="stylesheet" href="https://assets.oo1.studio/outsync.css"&gt;
+  &lt;style&gt;
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { height: 100dvh; background: black; color: white; padding: var(--padding); font-family: sans-serif; }
+    .o-s-grid { display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(8, 1fr); gap: var(--padding); height: 100%; }
+    .o-s-grid-slot { --layer: 1; display: flex; }
+    .o-s-button { width: 100%; border-radius: var(--layer-corner-radius); border: none; font-weight: bold; font-size: 16px; cursor: pointer; }
+  &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;main class="o-s-grid"&gt;
+    &lt;div class="o-s-grid-slot" style="grid-column: 1 / span 4; grid-row: 7 / span 2;"&gt;
+      &lt;button class="o-s-button" style="background: var(--highlight-color); color: var(--on-highlight);" onclick="triggerAction()"&gt;
+        TAP TO TEST HAPTIC &amp; BEEP
+      &lt;/button&gt;
+    &lt;/div&gt;
+  &lt;/main&gt;
+  &lt;script&gt;
+    async function triggerAction() {
+      if (window.outsync) {
+        await window.outsync.haptic.vibrate('success');
+        await window.outsync.audio.play('beep');
+      }
+    }
+  &lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;</code></pre>
+    </section>
+
+    <section id="shortcuts" class="card">
+        <h2>6. Browser Keyboard Shortcuts</h2>
+        <p>Supported for hardware keyboards and <code>studio.oo1.keyboard</code>:</p>
+        <table>
+            <thead>
+            <tr>
+                <th>Shortcut</th>
+                <th>Action</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr><td><code>ctrl + l</code></td><td>Focus and select URL, or edit current URL</td></tr>
+            <tr><td><code>ctrl + shift + c</code></td><td>Copy current URL</td></tr>
+            <tr><td><code>ctrl + r</code></td><td>Refresh current tab</td></tr>
+            <tr><td><code>ctrl + t</code></td><td>Open new tab and focus URL bar</td></tr>
+            <tr><td><code>ctrl + enter</code></td><td>Open URL bar input in new tab</td></tr>
+            <tr><td><code>esc</code></td><td>Dismiss URL bar</td></tr>
+            </tbody>
+        </table>
+    </section>
+
+    <footer>
+        the browser of oo1 studio &mdash; outsync Public Developer Documentation
+    </footer>
+</main>
+
+<script>
+    function refreshTokenPreview() {
+      const style = getComputedStyle(document.documentElement);
+      document.getElementById('tok-radius').innerText = style.getPropertyValue('--device-corner-radius').trim() || '28px';
+      document.getElementById('tok-padding').innerText = style.getPropertyValue('--padding').trim() || '8px';
+      document.getElementById('tok-color').innerText = style.getPropertyValue('--highlight-color').trim() || 'blue';
+      document.getElementById('tok-bridge').innerText = window.outsync ? 'active' : 'not detected (open in browser of oo1 studio)';
+    }
+
+    function copyPre(btn) {
+      const code = btn.nextElementSibling ? btn.nextElementSibling.innerText : '';
+      if (!code) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(code).then(() => {
+          btn.innerText = 'copied';
+          setTimeout(() => { btn.innerText = 'copy'; }, 1200);
+        }).catch(() => fallbackCopy(code, btn));
+      } else {
+        fallbackCopy(code, btn);
+      }
+    }
+
+    function fallbackCopy(text, btn) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+        btn.innerText = 'copied';
+        setTimeout(() => { btn.innerText = 'copy'; }, 1200);
+      } catch (_) {}
+      document.body.removeChild(ta);
+    }
+
+    window.addEventListener('DOMContentLoaded', refreshTokenPreview);
+    window.addEventListener('pageshow', refreshTokenPreview);
+    window.addEventListener('update_theme_from_kotlin', () => setTimeout(refreshTokenPreview, 60));
+</script>
+</body>
+</html>

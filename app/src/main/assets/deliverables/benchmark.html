@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>AI Capability Evaluation &amp; Benchmarking Report — TRLUP (the browser of oo1 studio)</title>
+    <style>
+        @page {
+          size: letter;
+          margin: 0.75in;
+        }
+
+        * {
+          box-sizing: border-box;
+          margin: 0;
+          padding: 0;
+        }
+
+        body {
+          font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+          color: #18181b;
+          background: #f4f4f5;
+          line-height: 1.55;
+          font-size: 10.5pt;
+        }
+
+        .toolbar {
+          max-width: 8.5in;
+          margin: 18px auto 0;
+          display: flex;
+          justify-content: flex-end;
+          gap: 10px;
+        }
+
+        .print-btn {
+          background: #0010ff;
+          color: #ffffff;
+          border: none;
+          padding: 10px 18px;
+          border-radius: 8px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+
+        .page {
+          max-width: 8.5in;
+          margin: 16px auto 40px;
+          background: #ffffff;
+          padding: 0.75in;
+          box-shadow: 0 2px 14px rgba(0, 0, 0, 0.08);
+        }
+
+        header {
+          border-bottom: 2px solid #18181b;
+          padding-bottom: 14px;
+          margin-bottom: 20px;
+        }
+
+        .kicker {
+          font-size: 9pt;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          color: #52525b;
+          margin-bottom: 4px;
+        }
+
+        h1 {
+          font-size: 18pt;
+          font-weight: 700;
+          color: #09090b;
+          margin-bottom: 8px;
+        }
+
+        .meta-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 4px 20px;
+          font-size: 9.5pt;
+          color: #3f3f46;
+        }
+
+        h2 {
+          font-size: 12.5pt;
+          font-weight: 700;
+          color: #09090b;
+          margin-top: 20px;
+          margin-bottom: 8px;
+          border-left: 3px solid #0010ff;
+          padding-left: 8px;
+        }
+
+        h3 {
+          font-size: 10.5pt;
+          font-weight: 700;
+          margin-top: 12px;
+          margin-bottom: 4px;
+        }
+
+        p {
+          margin-bottom: 8px;
+          color: #27272a;
+        }
+
+        ul {
+          margin: 6px 0 10px 20px;
+        }
+
+        li {
+          margin-bottom: 4px;
+        }
+
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin: 10px 0 14px;
+          font-size: 9.5pt;
+        }
+
+        th, td {
+          border: 1px solid #d4d4d8;
+          padding: 7px 9px;
+          text-align: left;
+          vertical-align: top;
+        }
+
+        th {
+          background: #f4f4f5;
+          font-weight: 700;
+          color: #18181b;
+        }
+
+        .pass {
+          color: #15803d;
+          font-weight: 700;
+        }
+
+        .warn {
+          color: #b45309;
+          font-weight: 700;
+        }
+
+        .fail {
+          color: #b91c1c;
+          font-weight: 700;
+        }
+
+        .muted {
+          color: #71717a;
+        }
+
+        .callout {
+          background: #f8fafc;
+          border: 1px solid #cbd5e1;
+          border-left: 4px solid #0010ff;
+          padding: 10px 12px;
+          margin: 12px 0;
+          font-size: 9.5pt;
+        }
+
+        code {
+          font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+          font-size: 8.8pt;
+          background: #f4f4f5;
+          padding: 1px 4px;
+          border-radius: 4px;
+        }
+
+        .avoid-break {
+          break-inside: avoid;
+          page-break-inside: avoid;
+        }
+
+        @media print {
+          body {
+            background: #ffffff;
+          }
+          .toolbar {
+            display: none;
+          }
+          .page {
+            margin: 0;
+            padding: 0;
+            box-shadow: none;
+            max-width: none;
+          }
+        }
+    </style>
+</head>
+<body>
+<div class="toolbar">
+    <button class="print-btn" onclick="window.print()">Save as PDF</button>
+</div>
+
+<article class="page">
+    <header>
+        <div class="kicker">Mitacs Business Strategy Internship — Deliverable 6 (Task 7)</div>
+        <h1>AI Capability Evaluation &amp; Benchmarking Report</h1>
+        <div class="meta-grid">
+            <div><strong>Project:</strong> TRLUP - the browser of oo1 studio (v1.7)</div>
+            <div><strong>Date:</strong> November 15, 2026</div>
+            <div><strong>Intern:</strong> Nguyen Hong Thai Tran</div>
+            <div><strong>Academic Institution:</strong> Saskatchewan Polytechnic</div>
+            <div><strong>Academic Supervisors:</strong> Terry Peckham, Cyril Coupal</div>
+            <div><strong>Partner Organization:</strong> North Forge</div>
+        </div>
+    </header>
+
+    <section class="avoid-break">
+        <h2>1. Executive Summary</h2>
+        <p>
+            This report evaluates zero-cost Large Language Model (LLM) code generation for
+            <strong>the browser of oo1 studio</strong> (v1.7, Android + Mozilla GeckoView runtime) using the
+            consultative <strong>refine</strong> System Prompt SDK (Deliverable 3) across all three controlled
+            small-business use cases defined in Task 6. Under the consultative SDK, a standard generation session
+            involves initial code output followed by 2–3 iterative refinement turns to adjust layout and behaviour to
+            the user's exact needs.
+        </p>
+        <p>
+            <strong>Key finding:</strong> Even at zero cost, platform context capacity directly dictates workflow
+            reliability. Using <strong>Google AI Studio</strong> (<code>aistudio.google.com</code>, a free
+            professional developer workbench running <code>gemini 4 hydrogen</code> with a 1M-token context window),
+            the model preserved the full SDK rules and both HTML reference templates across the initial build and
+            all 2–3 iterative refinement turns, achieving a <strong>3/3 (100%) pass rate</strong> across all use cases
+            with zero template re-injection required.
+        </p>
+        <p>
+            By contrast, <strong>ChatGPT (free-tier consumer mobile/web chatbot)</strong> suffered from a shorter active
+            context window, dropping the two few-shot HTML reference templates before compilation on
+            <strong>all 3 use cases (0/3 single-paste retention)</strong>. Once the templates were manually re-pasted
+            prior to compilation, ChatGPT followed the standard 2–3 refinement workflow and succeeded on
+            <strong>2/3 use cases</strong> (UC1 and UC3 passed cleanly). On <strong>UC2 (Client Intake Manager)</strong>,
+            ChatGPT's JavaScript logic functioned properly, but it failed strict template layout fidelity (~60–70%
+            fidelity on initial build due to uneven tile sizes, degrading to ~30–40% unstyled grid after requesting
+            uniform <code>1x1</code> sizing). All 6 generated applications passed runtime security sandbox enforcement
+            within <code>v1.7</code>.
+        </p>
+    </section>
+
+    <section class="avoid-break">
+        <h2>2. Benchmark Methodology &amp; Platform Comparison</h2>
+        <ul>
+            <li><strong>Target Runtime:</strong> the browser of oo1 studio (v1.7) on Android, using Mozilla GeckoView, <code>LocalAppServer</code> (<code>local://apps/&lt;slug&gt;</code>), and WebExtension IPC bridge <code>window.outsync</code>.</li>
+            <li><strong>Prompt SDK Evaluated:</strong> <code>refine</code> modular system prompt containing workflow gates (intake &rarr; compact numbered <code>4x8</code> TUI wireframe &rarr; confirmation &rarr; single-file HTML output + 2–3 iterative user layout adjustments), named-color-only rules, optimistic UI + 1000ms debounced Google Drive BYOS persistence, and two full HTML few-shot reference templates.</li>
+            <li><strong>Test Scope:</strong> 6 primary multi-turn benchmark sessions (3 controlled use cases &times; 2 free platforms), each incorporating 2–3 standard iterative refinement turns after initial HTML deployment on physical Android test hardware.</li>
+            <li><strong>Environments Tested (Both Zero-Cost / Free):</strong>
+                <ul>
+                    <li><strong>Google AI Studio (<code>aistudio.google.com</code> — <code>gemini 4 hydrogen</code>):</strong> Free-to-use professional AI developer workbench featuring a 1M-token unified context window suited for multi-turn template persistence.</li>
+                    <li><strong>ChatGPT (Free Consumer Tier — Mobile / Web):</strong> General-purpose consumer chatbot enforcing a shorter free-tier context window across multi-turn prompts.</li>
+                </ul>
+            </li>
+        </ul>
+
+        <h3>Controlled Small-Business Use Cases (Task 6)</h3>
+        <table>
+            <thead>
+            <tr>
+                <th>Use Case</th>
+                <th>Business Workflow</th>
+                <th>Core <code>outsync</code> &amp; UX Requirements Tested</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+                <td><strong>UC1: Barcode Inventory Scanner</strong><br><span class="muted">(Barista Inventory Matrix)</span></td>
+                <td>Real-time stock receiving and deduction via live camera barcode scanning</td>
+                <td><code>outsync.camera.start/stop</code> (<code>/camera/stream</code>), ML Kit <code>outsync_barcode</code> event, <code>outsync.flashlight</code>, haptics, audio, <code>outsync.drive</code> JSON sync</td>
+            </tr>
+            <tr>
+                <td><strong>UC2: Client Intake Manager</strong><br><span class="muted">(Repair &amp; Service Shop)</span></td>
+                <td>Queue tracking for customer name, phone, service category, status, and urgent flags</td>
+                <td>Inline inputs inside <code>4x8</code> tiles, zero <code>alert/confirm/prompt</code> (two-tap delete), <code>outsync.drive</code> sync, <code>outsync.storage.save</code> CSV export</td>
+            </tr>
+            <tr>
+                <td><strong>UC3: Custom Local Calculator</strong><br><span class="muted">(Saskatchewan Quote &amp; Tax)</span></td>
+                <td>Base price entry, markup/discount modifiers, GST (5%) / PST (6%) / 11% / exempt toggles</td>
+                <td><code>4x8</code> keypad + modifiers, optimistic live totals, <code>outsync.drive</code> quote recall, <code>outsync.storage.save</code> <code>.txt</code> receipt export, haptics/audio</td>
+            </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section class="avoid-break">
+        <h2>3. Model Benchmark Results</h2>
+        <table>
+            <thead>
+            <tr>
+                <th>Platform &amp; Model (Free)</th>
+                <th>Use Case</th>
+                <th>Single-Paste Retention</th>
+                <th>Refinement &amp; Final Output Verdict</th>
+                <th>Observed Behaviour &amp; Notes</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+                <td><strong>Google AI Studio</strong><br><span class="muted">gemini 4 hydrogen</span></td>
+                <td>UC1: Barcode Inventory Scanner</td>
+                <td class="pass">PASS (No re-paste)</td>
+                <td class="pass">PASS (after 2–3 refinements)</td>
+                <td>Retained SDK rules and both templates across initial output and 2–3 iterative layout refinements; compiled working 4x8 single-file app on device.</td>
+            </tr>
+            <tr>
+                <td><strong>Google AI Studio</strong><br><span class="muted">gemini 4 hydrogen</span></td>
+                <td>UC2: Client Intake Manager</td>
+                <td class="pass">PASS (No re-paste)</td>
+                <td class="pass">PASS (after 2–3 refinements)</td>
+                <td>Preserved 4x8 layout, Drive BYOS JSON sync, CSV export, and haptics/audio across refinement turns with clean execution.</td>
+            </tr>
+            <tr>
+                <td><strong>Google AI Studio</strong><br><span class="muted">gemini 4 hydrogen</span></td>
+                <td>UC3: Custom Local Calculator</td>
+                <td class="pass">PASS (No re-paste)</td>
+                <td class="pass">PASS (after 2–3 refinements)</td>
+                <td>Compiled Saskatchewan tax/quote calculator; refined smoothly across 2–3 turns and ran cleanly on physical Android phone.</td>
+            </tr>
+            <tr>
+                <td><strong>ChatGPT</strong><br><span class="muted">Free Consumer Mobile/Web</span></td>
+                <td>UC1: Barcode Inventory Scanner</td>
+                <td class="warn">FAIL (Context Loss)</td>
+                <td class="pass">PASS (after re-paste + refinements)</td>
+                <td>Dropped the 2 reference HTML templates by the compilation turn despite full prompt in turn 1. Once templates were re-pasted, succeeded cleanly after 2–3 iterative adjustments.</td>
+            </tr>
+            <tr>
+                <td><strong>ChatGPT</strong><br><span class="muted">Free Consumer Mobile/Web</span></td>
+                <td>UC2: Client Intake Manager</td>
+                <td class="warn">FAIL (Context Loss)</td>
+                <td class="fail">FAIL (Strict Layout Broken)</td>
+                <td>Required re-pasting both templates before compilation. JavaScript logic functioned properly, but strict template layout fidelity failed: initial build (~60–70% fidelity) showed uneven tile sizing; subsequent refinement requesting uniform 1x1 sizing dropped CSS styling (~30–40% unstyled grid).</td>
+            </tr>
+            <tr>
+                <td><strong>ChatGPT</strong><br><span class="muted">Free Consumer Mobile/Web</span></td>
+                <td>UC3: Custom Local Calculator</td>
+                <td class="warn">FAIL (Context Loss)</td>
+                <td class="pass">PASS (after re-paste + refinements)</td>
+                <td>Required re-pasting both templates before HTML generation due to short context window. Once re-pasted, matched the 4x8 template layout and passed all functional checks after 2–3 layout refinements.</td>
+            </tr>
+            </tbody>
+        </table>
+
+        <h3>Summary Comparison</h3>
+        <table>
+            <thead>
+            <tr>
+                <th>Metric</th>
+                <th>Google AI Studio (gemini 4 hydrogen)</th>
+                <th>ChatGPT (Free Consumer Tier)</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+                <td><strong>Interface Class</strong></td>
+                <td>Free professional developer workbench (1M context)</td>
+                <td>Free general-purpose consumer chatbot (short context)</td>
+            </tr>
+            <tr>
+                <td><strong>Use Cases Tested</strong></td>
+                <td>3 / 3 (UC1, UC2, UC3)</td>
+                <td>3 / 3 (UC1, UC2, UC3)</td>
+            </tr>
+            <tr>
+                <td><strong>Single-Paste Template Retention</strong></td>
+                <td class="pass">3 / 3 (100%)</td>
+                <td class="warn">0 / 3 (0% — required template re-paste on all 3)</td>
+            </tr>
+            <tr>
+                <td><strong>Functional JS Execution (After Refinements)</strong></td>
+                <td class="pass">3 / 3 (100%)</td>
+                <td class="pass">3 / 3 (100% — UC1, UC2, UC3 JS logic worked)</td>
+            </tr>
+            <tr>
+                <td><strong>Strict Layout &amp; Grid Compliance</strong></td>
+                <td class="pass">3 / 3 (100% across all refinement turns)</td>
+                <td class="warn">2 / 3 (66.7% — UC1 &amp; UC3 passed; UC2 failed grid fidelity)</td>
+            </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section class="avoid-break">
+        <h2>4. UX &amp; Security Sandbox Evaluation (v1.7)</h2>
+        <ul>
+            <li><strong>Mobile TUI Wireframe Optimization:</strong> Early TUI examples placed descriptive text inside grid cells, wrapping poorly on narrow phone screens. Updating the SDK to a compact numbered grid (<code>&le; 26</code> characters wide with numbered specifications underneath) kept TUI confirmation readable on mobile viewports prior to compilation.</li>
+            <li><strong>Strict Folder &amp; Origin Isolation:</strong> In <code>v1.7</code>, every installed application runs inside an isolated <code>local://apps/&lt;slug&gt;</code> origin. Applications can only create and operate within their own dedicated folder scope on device storage and inside Google Drive (<code>appId</code> partitioned folders), preventing cross-app data snooping or root directory traversal.</li>
+            <li><strong>Mandatory Runtime Permission Gating:</strong> Regardless of whether code was compiled by Gemini or ChatGPT, the first time an app requests to save a file to Google Drive, write to local storage, or start the CameraX stream, the browser intercepts the bridge call via <code>CustomPermissionDelegate</code> and surfaces a native user-consent permission panel before execution.</li>
+        </ul>
+
+        <h3>Security Sandbox Verification Matrix (v1.7)</h3>
+        <table>
+            <thead>
+            <tr>
+                <th>Security Control</th>
+                <th>Verification Scenario (Tested Across UC1–UC3)</th>
+                <th>Observed Runtime Behaviour</th>
+                <th>Status</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+                <td><strong>Per-App Directory Isolation</strong></td>
+                <td>App attempts to write/read files outside its assigned workspace (local &amp; Drive)</td>
+                <td>Browser restricts every app strictly to its own partitioned folder; cross-app and root access are blocked by design</td>
+                <td class="pass">PASS</td>
+            </tr>
+            <tr>
+                <td><strong>Google Drive Consent Gate</strong></td>
+                <td>First call to <code>outsync.drive</code> from generated Gemini &amp; ChatGPT HTML apps</td>
+                <td>Execution pauses and pops up explicit per-app Drive authorization panel prior to file creation or sync</td>
+                <td class="pass">PASS</td>
+            </tr>
+            <tr>
+                <td><strong>Local Storage Consent Gate</strong></td>
+                <td>First call to <code>outsync.storage.save</code> (CSV/TXT export in UC2 &amp; UC3)</td>
+                <td>Intercepted by browser permission prompt; files write to scoped storage only after explicit user approval</td>
+                <td class="pass">PASS</td>
+            </tr>
+            <tr>
+                <td><strong>Hardware Sensor Gating</strong></td>
+                <td>CameraX barcode stream initiation via <code>outsync.camera.start()</code> in UC1</td>
+                <td>Gated by <code>CustomPermissionDelegate</code> and Android runtime permissions; zero silent background capture</td>
+                <td class="pass">PASS</td>
+            </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section class="avoid-break">
+        <h2>5. Conclusions &amp; SDK Recommendations</h2>
+        <div class="callout">
+            <strong>Conclusion:</strong> <strong>Google AI Studio (<code>gemini 4 hydrogen</code>, free tier)</strong>
+            is the recommended runtime partner for users building apps with the <code>refine</code> SDK, delivering
+            <strong>100% (3/3)</strong> functional and layout accuracy across standard 2–3 turn refinement loops
+            with zero template re-pasting required. While <strong>ChatGPT (free consumer tier)</strong> generated valid
+            JavaScript logic across all three use cases once templates were re-injected (passing UC1 and UC3 cleanly),
+            its shorter context window caused multi-turn template amnesia and layout degradation during iterative CSS
+            edits on UC2. Security isolation in <code>v1.7</code> passed 100% across all outputs from both models.
+        </div>
+        <ul>
+            <li><strong>Developer Workbench vs. Consumer Chatbot:</strong> Even though both tools are free to end users, Google AI Studio's 1M-token context retention vastly outperforms general consumer free-tier chat sessions when holding multi-hundred-line HTML/CSS few-shot templates across iterative refinement turns.</li>
+            <li><strong>SDK Mitigation for Short-Context Chatbots:</strong> When running on ChatGPT free tier or similar short-context mobile chatbots, instruct users to re-attach the HTML reference shell directly on the final compilation/edit turn (or host the immutable grid CSS inside the local runtime shell) so layout styling is never truncated during iterative edits.</li>
+        </ul>
+    </section>
+</article>
+</body>
+</html>
