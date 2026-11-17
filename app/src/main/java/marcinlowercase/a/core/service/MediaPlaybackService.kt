@@ -17,6 +17,8 @@ import androidx.media.app.NotificationCompat.MediaStyle
 import marcinlowercase.a.CustomApplication
 import marcinlowercase.a.MainActivity
 import marcinlowercase.a.R
+import android.graphics.Bitmap
+import android.graphics.Color
 
 private const val ACTION_PLAY = "marcinlowercase.a.PLAY"
 private const val ACTION_PAUSE = "marcinlowercase.a.PAUSE"
@@ -33,12 +35,16 @@ class MediaPlaybackService : Service() {
     private var currentPositionMs = PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN
     private var currentDurationMs = -1L
     private var currentSpeed = 1.0f
+    private var blackArtBitmap: Bitmap? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        blackArtBitmap = Bitmap.createBitmap(64, 64, Bitmap.Config.ARGB_8888).apply {
+            eraseColor(Color.BLACK)
+        }
 
         val activityIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -158,6 +164,9 @@ class MediaPlaybackService : Service() {
         val metadataBuilder = MediaMetadataCompat.Builder()
             .putString(MediaMetadataCompat.METADATA_KEY_TITLE, title)
             .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, artist)
+        blackArtBitmap?.takeIf { !it.isRecycled }?.let {
+            metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, it)
+        }
         if (currentDurationMs > 0L) {
             metadataBuilder.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, currentDurationMs)
         }
@@ -188,7 +197,9 @@ class MediaPlaybackService : Service() {
         )
 
         val notificationBuilder = NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(R.drawable.ic_video_camera_back)
+            .setSmallIcon(R.drawable.ic_empty_logo)
+            .setColor(Color.BLACK)
+            .setColorized(true)
             .setContentTitle(title)
             .setContentText(artist)
             .setOngoing(!isPaused)
@@ -216,6 +227,8 @@ class MediaPlaybackService : Service() {
     override fun onDestroy() {
         mediaSession?.isActive = false
         mediaSession?.release()
+        blackArtBitmap?.recycle()
+        blackArtBitmap = null
         super.onDestroy()
     }
 }

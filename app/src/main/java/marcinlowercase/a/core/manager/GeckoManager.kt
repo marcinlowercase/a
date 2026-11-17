@@ -183,7 +183,11 @@ class GeckoManager(private val context: Context) {
         }
     }
 
+    private var isPipModeActive = false
+
     fun setPipMode(inPip: Boolean) {
+        if (inPip == isPipModeActive) return
+        isPipModeActive = inPip
         val jsPayload = "javascript:void(window.dispatchEvent(new CustomEvent('browser_pip_state', { detail: $inPip })));"
         val mediaSession = activeMediaGeckoSession
         if (mediaSession != null && mediaSession.isOpen) {
@@ -191,6 +195,15 @@ class GeckoManager(private val context: Context) {
         }
         sessionPool.values.forEach { session ->
             if (session.isOpen && session != mediaSession) {
+                session.load(GeckoSession.Loader().uri(jsPayload))
+            }
+        }
+    }
+
+    fun setBackgroundPlaybackEnabled(enabled: Boolean) {
+        val jsPayload = "javascript:void(window.dispatchEvent(new CustomEvent('browser_bg_playback_state', { detail: $enabled })));"
+        sessionPool.values.forEach { session ->
+            if (session.isOpen) {
                 session.load(GeckoSession.Loader().uri(jsPayload))
             }
         }
@@ -1269,6 +1282,7 @@ class GeckoManager(private val context: Context) {
 
                                 val responseObj = JSONObject().apply {
                                     put("enabled", browserSettings.value.isEnabledOutSync)
+                                    put("backgroundPlayback", browserSettings.value.isEnabledBackgroundPlayback)
                                     put("radius", browserSettings.value.cornerRadiusForLayer(0).toDouble())
                                     put("padding", browserSettings.value.padding.toDouble())
                                     put("lineHeight", browserSettings.value.singleLineHeight.toDouble())

@@ -656,9 +656,11 @@ class MainActivity : ComponentActivity() {
     }
 
     fun updatePipParams(isDataFullscreen: Boolean) {
+        val viewModel: BrowserViewModel by viewModels()
+        val effectiveAutoEnter = isDataFullscreen && viewModel.browserSettings.value.isEnabledBackgroundPlayback
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val params = android.app.PictureInPictureParams.Builder()
-                .setAutoEnterEnabled(isDataFullscreen)
+                .setAutoEnterEnabled(effectiveAutoEnter)
                 .setSeamlessResizeEnabled(false)
                 .setAspectRatio(pipAspectRatio)
                 .setActions(buildPipActions())
@@ -676,7 +678,8 @@ class MainActivity : ComponentActivity() {
     var isCurrentlyFullscreen by mutableStateOf(false)
     var isEnteringPip by mutableStateOf(false)
     var activeGeckoView: GeckoView? = null
-    private var wasInPipMode = false
+    var pipTransitionGraceUntilMs = 0L
+    var wasInPipMode = false
 
     private fun hideKeyboardAndClearFocus() {
         try {
@@ -693,7 +696,10 @@ class MainActivity : ComponentActivity() {
     override fun onUserLeaveHint() {
         hideKeyboardAndClearFocus()
 
-        if (isCurrentlyFullscreen) {
+        val viewModel: BrowserViewModel by viewModels()
+        val allowBackground = viewModel.browserSettings.value.isEnabledBackgroundPlayback
+
+        if (isCurrentlyFullscreen && allowBackground) {
             // cancel any in-progress touch on geckoview so hold-to-2x does not stick during swipe home
             activeGeckoView?.let { gv ->
                 val now = android.os.SystemClock.uptimeMillis()
@@ -703,7 +709,6 @@ class MainActivity : ComponentActivity() {
                 cancelEvent.recycle()
             }
 
-            val viewModel: BrowserViewModel by viewModels()
             viewModel.geckoManager.setPipMode(true)
             isEnteringPip = true
 
@@ -742,6 +747,7 @@ class MainActivity : ComponentActivity() {
             }
         } else {
             isEnteringPip = false
+            pipTransitionGraceUntilMs = System.currentTimeMillis() + 450L
             if (isCurrentlyFullscreen) {
                 requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
                 WindowCompat.getInsetsController(window, window.decorView).apply {
@@ -757,6 +763,7 @@ class MainActivity : ComponentActivity() {
         if (!isInPictureInPictureMode) {
             isEnteringPip = false
             wasInPipMode = false
+            (application as CustomApplication).geckoManager.setPipMode(false)
         }
     }
 
@@ -765,10 +772,20 @@ class MainActivity : ComponentActivity() {
 
         hideKeyboardAndClearFocus()
 
+        val powerManager = getSystemService(POWER_SERVICE) as? android.os.PowerManager
+        val isScreenOn = powerManager?.isInteractive ?: true
+        val gm = (application as CustomApplication).geckoManager
         val viewModel: BrowserViewModel by viewModels()
+        val allowBackground = viewModel.browserSettings.value.isEnabledBackgroundPlayback
+
+        if (isCurrentlyFullscreen && allowBackground && isScreenOn && !isFinishing) {
+            isEnteringPip = true
+            gm.setPipMode(true)
+        }
+
         if (isInPictureInPictureMode || isEnteringPip) {
             viewModel.activeTab?.let {
-                viewModel.geckoManager.getSession(it).setActive(true)
+                gm.getSession(it).setActive(true)
             }
         }
     }
@@ -2369,13 +2386,16 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                 activeSession.flushSessionState()
             }
         }
-        LaunchedEffect(settings.isEnabledBackgroundPlayback, activeSession) {
+        LaunchedEffect(settings.isEnabledBackgroundPlayback, activeSession, uiState.value.isOnFullscreenVideo) {
             val targetSuspend = !settings.isEnabledBackgroundPlayback
 
-            // Instantly apply the setting to the live engine
+            // instantly apply the setting to the live engine
             if (activeSession.settings.suspendMediaWhenInactive != targetSuspend) {
                 activeSession.settings.suspendMediaWhenInactive = targetSuspend
             }
+
+            mainActivity.updatePipParams(mainActivity.isCurrentlyFullscreen && settings.isEnabledBackgroundPlayback)
+            viewModel.geckoManager.setBackgroundPlaybackEnabled(settings.isEnabledBackgroundPlayback)
         }
 
         val errorTitle = stringResource(R.string.error_failed_to_load)
@@ -2675,7 +2695,10 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                         )
                     }
 
-                    val inPip = mainActivity.isInPictureInPictureMode || mainActivity.isPipMode || mainActivity.isEnteringPip
+                    val inPip = mainActivity.isInPictureInPictureMode ||
+                        mainActivity.isPipMode ||
+                        mainActivity.isEnteringPip ||
+                        System.currentTimeMillis() < mainActivity.pipTransitionGraceUntilMs
 
                     if (inPip && !isFullscreen) {
                         // just nothing right now
@@ -2685,7 +2708,7 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                             mainActivity.updateVideoAspectRatio(16, 9)
                         }
                         mainActivity.isCurrentlyFullscreen = isFullscreen
-                        mainActivity.updatePipParams(isFullscreen)
+                        mainActivity.updatePipParams(isFullscreen && settingsState.value.isEnabledBackgroundPlayback)
 
                         if (isFullscreen) {
                             activity.requestedOrientation =
@@ -2852,21 +2875,38 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
 
 //                    androidx.lifecycle.Lifecycle.Event.ON_PAUSE -> {
                     androidx.lifecycle.Lifecycle.Event.ON_STOP -> {
+                        val powerManager = context.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+                        val isScreenInteractive = powerManager?.isInteractive ?: true
+                        val allowBackground = settingsState.value.isEnabledBackgroundPlayback
+
+                        if (!isScreenInteractive) {
+                            // screen turned off via power button, never treat as pip
+                            mainActivity.isEnteringPip = false
+                            viewModel.geckoManager.setPipMode(false)
+                        }
+
                         val isPip = mainActivity.isPipMode || mainActivity.isEnteringPip
                         if (!isPip) {
-                            if (mainActivity.isInPictureInPictureMode.not() && mainActivity.isCurrentlyFullscreen) {
-                                // pause playback if user closed the pip window
+                            val closedPipManually = mainActivity.wasInPipMode && !mainActivity.isInPictureInPictureMode
+                            if (closedPipManually || !allowBackground) {
                                 viewModel.geckoManager.sendVideoCommand("pause")
                             }
+
                             val currentGeckoView = geckoViewRef.value
                             val safeGeckoView = currentGeckoView as? SafeGeckoView
 
                             safeGeckoView?.detachKeyboard()
                             keyboardController?.hide()
-                            currentActiveSession.setActive(false)
 
-                            if (isNewAndroid) {
-                                isBrowserVisible = false
+                            val isPlayingBackgroundMedia = allowBackground &&
+                                viewModel.geckoManager.activeMediaGeckoSession == currentActiveSession &&
+                                !viewModel.geckoManager.isActiveMediaSessionPaused
+
+                            if (!isPlayingBackgroundMedia) {
+                                currentActiveSession.setActive(false)
+                                if (isNewAndroid) {
+                                    isBrowserVisible = false
+                                }
                             }
                         }
                     }

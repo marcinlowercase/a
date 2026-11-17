@@ -8,7 +8,9 @@
   let pipStyleEl = null;
 
   let nativePipFlag = false;
+  let backgroundPlaybackEnabled = false;
   let pipOverridesApplied = false;
+  let visibilityOverridesApplied = false;
   let origOuterWDesc = null;
   let origOuterHDesc = null;
 
@@ -165,6 +167,31 @@
     return false;
   }
 
+  function syncVisibilityOverrides() {
+    const shouldSpoof = isInPip() || backgroundPlaybackEnabled;
+    if (shouldSpoof && !visibilityOverridesApplied) {
+      visibilityOverridesApplied = true;
+      try {
+        Object.defineProperty(pageDoc, "hidden", {
+          configurable: true,
+          get: exportFunction(function () {
+            return (isInPip() || backgroundPlaybackEnabled) ? false : document.hidden;
+          }, pageWin)
+        });
+        Object.defineProperty(pageDoc, "visibilityState", {
+          configurable: true,
+          get: exportFunction(function () {
+            return (isInPip() || backgroundPlaybackEnabled) ? "visible" : document.visibilityState;
+          }, pageWin)
+        });
+      } catch (_) {}
+    } else if (!shouldSpoof && visibilityOverridesApplied) {
+      visibilityOverridesApplied = false;
+      try { delete pageDoc.hidden; } catch (_) {}
+      try { delete pageDoc.visibilityState; } catch (_) {}
+    }
+  }
+
   function applyPipOverrides() {
     ensurePipStyle();
     if (document.documentElement) {
@@ -173,6 +200,7 @@
 
     cancelHoldSpeedGesture();
     sendVideoAspectRatio();
+    syncVisibilityOverrides();
 
     if (pipOverridesApplied) return;
     pipOverridesApplied = true;
@@ -194,21 +222,6 @@
         }, pageWin)
       });
     } catch (_) {}
-
-    try {
-      Object.defineProperty(pageDoc, "hidden", {
-        configurable: true,
-        get: exportFunction(function () {
-          return isInPip() ? false : document.hidden;
-        }, pageWin)
-      });
-      Object.defineProperty(pageDoc, "visibilityState", {
-        configurable: true,
-        get: exportFunction(function () {
-          return isInPip() ? "visible" : document.visibilityState;
-        }, pageWin)
-      });
-    } catch (_) {}
   }
 
   function removePipOverrides() {
@@ -216,22 +229,38 @@
       document.documentElement.classList.remove(PIP_CLASS);
     }
 
-    if (!pipOverridesApplied) return;
-    pipOverridesApplied = false;
+    if (pipOverridesApplied) {
+      pipOverridesApplied = false;
 
-    try {
-      if (origOuterWDesc) Object.defineProperty(pageWin, "outerWidth", origOuterWDesc);
-      else delete pageWin.outerWidth;
-    } catch (_) {}
+      try {
+        if (origOuterWDesc) Object.defineProperty(pageWin, "outerWidth", origOuterWDesc);
+        else delete pageWin.outerWidth;
+      } catch (_) {}
 
-    try {
-      if (origOuterHDesc) Object.defineProperty(pageWin, "outerHeight", origOuterHDesc);
-      else delete pageWin.outerHeight;
-    } catch (_) {}
+      try {
+        if (origOuterHDesc) Object.defineProperty(pageWin, "outerHeight", origOuterHDesc);
+        else delete pageWin.outerHeight;
+      } catch (_) {}
+    }
 
-    try { delete pageDoc.hidden; } catch (_) {}
-    try { delete pageDoc.visibilityState; } catch (_) {}
+    syncVisibilityOverrides();
   }
+
+  // fetch initial background playback setting from kotlin
+  browser.runtime.sendNativeMessage("browser", { type: "getSettings" })
+    .then((raw) => {
+      const res = typeof raw === "string" ? JSON.parse(raw) : raw;
+      if (res && typeof res.backgroundPlayback === "boolean") {
+        backgroundPlaybackEnabled = res.backgroundPlayback;
+        syncVisibilityOverrides();
+      }
+    })
+    .catch(() => {});
+
+  window.addEventListener("browser_bg_playback_state", (e) => {
+    backgroundPlaybackEnabled = Boolean(e && e.detail);
+    syncVisibilityOverrides();
+  });
 
   window.addEventListener("pointerdown", (e) => {
     if (!isInPip()) {
@@ -368,7 +397,7 @@
   document.addEventListener("loadedmetadata", sendVideoAspectRatio, true);
 
   document.addEventListener("visibilitychange", (e) => {
-    if (isInPip()) {
+    if (isInPip() || backgroundPlaybackEnabled) {
       e.stopImmediatePropagation();
     }
   }, true);
