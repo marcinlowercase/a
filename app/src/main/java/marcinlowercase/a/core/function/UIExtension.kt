@@ -209,7 +209,7 @@ fun formatArgbToCss(argb: String): String {
 }
 
 fun isBubbleMode(activity: Activity?): Boolean {
-    if (activity == null || !activity.isInMultiWindowMode) return false
+    if (activity == null || !activity.isInMultiWindowMode || activity.isInPictureInPictureMode) return false
 
     // 1. Check for Freeform/Floating Window Mode (Works on HyperOS, MIUI, One UI)
     try {

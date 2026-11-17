@@ -558,66 +558,81 @@ class MainActivity : ComponentActivity() {
     //endregion
 
     //region Pip
-    // currently not working for YouTube yet, other platform work fine
-//    fun updatePipParams(isDataFullscreen: Boolean) {
-//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-//            isEnteringPip = true
-//            val params = android.app.PictureInPictureParams.Builder()
-//                // If video is fullscreen, allow Auto-Enter (Swipe up to PiP)
-//                .setAutoEnterEnabled(isDataFullscreen)
-//                .setAspectRatio(android.util.Rational(16, 9)) // Default to 16:9
-//                .build()
-//            setPictureInPictureParams(params)
-//        }
-//    }
+    private var pipAspectRatio = android.util.Rational(16, 9)
+
+    fun updateVideoAspectRatio(width: Int, height: Int) {
+        if (width <= 0 || height <= 0) return
+        val ratio = width.toFloat() / height.toFloat()
+        // clamp inside android's allowed pip aspect ratio bounds
+        pipAspectRatio = when {
+            ratio > 2.38f -> android.util.Rational(238, 100)
+            ratio < 0.42f -> android.util.Rational(42, 100)
+            else -> android.util.Rational(width, height)
+        }
+        if (isCurrentlyFullscreen) {
+            updatePipParams(true)
+        }
+    }
+
+    fun updatePipParams(isDataFullscreen: Boolean) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val params = android.app.PictureInPictureParams.Builder()
+                .setAutoEnterEnabled(isDataFullscreen)
+                .setSeamlessResizeEnabled(true)
+                .setAspectRatio(pipAspectRatio)
+                .build()
+            setPictureInPictureParams(params)
+        }
+    }
 
     var isCurrentlyFullscreen by mutableStateOf(false)
     var isEnteringPip by mutableStateOf(false)
+    var activeGeckoView: GeckoView? = null
+    private var wasInPipMode = false
 
     private fun hideKeyboardAndClearFocus() {
         try {
-            // 1. Hide the keyboard at the window level
             val view = window.decorView
             val imm =
                 getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
             imm.hideSoftInputFromWindow(view.windowToken, 0)
-
-            // 2. Clear focus from the current view (GeckoView)
             currentFocus?.clearFocus()
-
-            // 3. Give focus to the root layout so GeckoView stops trying to talk to the IME
             view.clearFocus()
         } catch (_: Exception) {
         }
     }
 
     override fun onUserLeaveHint() {
-
         hideKeyboardAndClearFocus()
 
-//        if (isCurrentlyFullscreen) {
-//
-//            isEnteringPip = true
-//
-//
-//            // Only call enterPip() manually on older Androids.
-//            // Android 12+ handles it automatically via updatePipParams/setAutoEnterEnabled.
-//            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-//                enterPip()
-//            }
-//        }
+        if (isCurrentlyFullscreen) {
+            // cancel any in-progress touch on geckoview so hold-to-2x does not stick during swipe home
+            activeGeckoView?.let { gv ->
+                val now = android.os.SystemClock.uptimeMillis()
+                val cancelEvent = MotionEvent.obtain(now, now, MotionEvent.ACTION_CANCEL, 0f, 0f, 0)
+                    .apply { source = InputDevice.SOURCE_UNKNOWN }
+                gv.dispatchTouchEvent(cancelEvent)
+                cancelEvent.recycle()
+            }
+
+            val viewModel: BrowserViewModel by viewModels()
+            viewModel.geckoManager.setPipMode(true)
+            isEnteringPip = true
+
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+                enterPip()
+            }
+        }
 
         super.onUserLeaveHint()
     }
 
-//    private fun enterPip() {
-//
-//        // Use 16:9 as a standard fallback since the delegate is missing
-//        val params = android.app.PictureInPictureParams.Builder()
-//            .setAspectRatio(android.util.Rational(16, 9))
-//            .build()
-//        enterPictureInPictureMode(params)
-//    }
+    private fun enterPip() {
+        val params = android.app.PictureInPictureParams.Builder()
+            .setAspectRatio(pipAspectRatio)
+            .build()
+        enterPictureInPictureMode(params)
+    }
 
     var isPipMode by mutableStateOf(false)
 
@@ -625,47 +640,45 @@ class MainActivity : ComponentActivity() {
         isInPictureInPictureMode: Boolean,
         newConfig: android.content.res.Configuration
     ) {
-
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        val viewModel: BrowserViewModel by viewModels()
         isPipMode = isInPictureInPictureMode
+        viewModel.geckoManager.setPipMode(isInPictureInPictureMode)
+
         if (isInPictureInPictureMode) {
-            // Ensure orientation is correct for the small window
+            wasInPipMode = true
             isEnteringPip = false
+            viewModel.activeTab?.let {
+                viewModel.geckoManager.getSession(it).setActive(true)
+            }
         } else {
             isEnteringPip = false
-
-            // If we are still conceptually in fullscreen video, restore landscape
             if (isCurrentlyFullscreen) {
                 requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                WindowCompat.getInsetsController(window, window.decorView).apply {
+                    hide(WindowInsetsCompat.Type.systemBars())
+                    systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                }
             }
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (!isInPictureInPictureMode) {
+            isEnteringPip = false
+            wasInPipMode = false
+        }
+    }
 
     override fun onPause() {
         super.onPause()
 
         hideKeyboardAndClearFocus()
 
-        if (isCurrentlyFullscreen) isEnteringPip = true
         val viewModel: BrowserViewModel by viewModels()
-
-        // If entering PiP, we MUST keep the session active and prevent Gecko from
-        // interpreting this as a background event that stops media.
-//        if (isInPictureInPictureMode || isEnteringPip) {
-//            viewModel.tabManager.loadTabs(viewModel.activeProfileId.value, null)
-//            val index = viewModel.tabManager.getActiveTabIndex(viewModel.activeProfileId.value)
-//            if (viewModel.tabs.isNotEmpty() && index in viewModel.tabs.indices) {
-//                val activeTab = viewModel.tabs[index]
-//                // Force the session to remain active
-//                viewModel.geckoManager.getSession(activeTab).setActive(true)
-//
-//            }
-//        }
-
         if (isInPictureInPictureMode || isEnteringPip) {
             viewModel.activeTab?.let {
-                // Safely keep the current tab (Browser or PWA) fully awake!
                 viewModel.geckoManager.getSession(it).setActive(true)
             }
         }
@@ -775,11 +788,11 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
     val hasSharpBottomCorners = sharpMode == SharpMode.SHARP
 
     val animatedTopCornerRadius by animateDpAsState(
-        targetValue = if (hasSharpTopCorners) 0.dp else settings.cornerRadiusForLayer(0).dp,
+        targetValue = if (isPipMode || hasSharpTopCorners) 0.dp else settings.cornerRadiusForLayer(0).dp,
         label = "Top Corner Radius Animation",
     )
     val animatedBottomCornerRadius by animateDpAsState(
-        targetValue = if (hasSharpBottomCorners) 0.dp else settings.cornerRadiusForLayer(0).dp,
+        targetValue = if (isPipMode || hasSharpBottomCorners) 0.dp else settings.cornerRadiusForLayer(0).dp,
         label = "Bottom Corner Radius Animation",
     )
 
@@ -1903,37 +1916,46 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
             }
         }
 
-        LaunchedEffect(activity.isInMultiWindowMode) {
-            activity.requestedOrientation = if (activity.isInMultiWindowMode) {
-                ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-            } else {
-                ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        LaunchedEffect(activity.isInMultiWindowMode, isPipMode) {
+            if (activity.isInPictureInPictureMode || isPipMode || mainActivity.isEnteringPip) {
+                return@LaunchedEffect
+            }
+            if (!mainActivity.isCurrentlyFullscreen && !uiState.value.isOnFullscreenVideo && !uiState.value.isLandscapeByButton) {
+                activity.requestedOrientation = if (activity.isInMultiWindowMode) {
+                    ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                } else {
+                    ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                }
             }
         }
-        LaunchedEffect(activity.isInMultiWindowMode,isBubbleMode(activity)) {
-            if (!uiState.value.isUrlBarVisible) {
+
+        LaunchedEffect(isPipMode) {
+            if (!isPipMode && mainActivity.isCurrentlyFullscreen) {
+                delay(150.milliseconds)
+                geckoViewRef.value?.requestLayout()
+            }
+        }
+
+        LaunchedEffect(activity.isInMultiWindowMode, isBubbleMode(activity), isPipMode) {
+            if (activity.isInPictureInPictureMode || isPipMode || mainActivity.isEnteringPip) {
+                return@LaunchedEffect
+            }
+            if (!uiState.value.isUrlBarVisible && !mainActivity.isCurrentlyFullscreen && !uiState.value.isOnFullscreenVideo) {
                 viewModel.updateUI { it.copy(isUrlBarVisible = true) }
             }
             if (activity.isInMultiWindowMode) {
                 if (isBubbleMode(activity)) {
-                    // Bubble Mode
+                    // bubble mode
                     viewModel.updateUI { it.copy(windowMode = WindowMode.FLOAT) }
                     viewModel.updateSettings { it.copy(currentCornerRadius = settings.floatCornerRadius) }
-
-//                    if (!settings.isFullscreenMode) viewModel.updateSettings { it.copy(isFullscreenMode = true) }
                 } else {
-                    // Split Mode
+                    // split mode
                     viewModel.updateUI { it.copy(windowMode = WindowMode.SPLIT) }
-
                     viewModel.updateSettings { it.copy(currentCornerRadius = settings.splitCornerRadius) }
-//                    if (settings.isFullscreenMode) viewModel.updateSettings { it.copy(isFullscreenMode = false) }
-
                 }
-
             } else {
-                // Regular Mode
+                // regular mode
                 viewModel.updateUI { it.copy(windowMode = WindowMode.FULLSCREEN) }
-
                 viewModel.updateSettings { it.copy(currentCornerRadius = settings.hardwareCornerRadius) }
             }
         }
@@ -2531,14 +2553,17 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                         )
                     }
 
-                    val inPip = mainActivity.isPipMode || mainActivity.isEnteringPip
+                    val inPip = mainActivity.isInPictureInPictureMode || mainActivity.isPipMode || mainActivity.isEnteringPip
 
                     if (inPip && !isFullscreen) {
                         // just nothing right now
                     } else {
                         // Normal behavior for all other cases
+                        if (!isFullscreen) {
+                            mainActivity.updateVideoAspectRatio(16, 9)
+                        }
                         mainActivity.isCurrentlyFullscreen = isFullscreen
-//                        mainActivity.updatePipParams(isFullscreen)
+                        mainActivity.updatePipParams(isFullscreen)
 
                         if (isFullscreen) {
                             activity.requestedOrientation =
@@ -2621,6 +2646,11 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                         viewModel.jsBottomBackgroundColor.value = parseHexColorOrNull(bottomBgHex)
                         sampleTrigger++
                     }
+                },
+                onVideoAspectRatioFun = { w, h ->
+                    mainActivity.runOnUiThread {
+                        mainActivity.updateVideoAspectRatio(w, h)
+                    }
                 }
             )
 
@@ -2702,6 +2732,10 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                     androidx.lifecycle.Lifecycle.Event.ON_STOP -> {
                         val isPip = mainActivity.isPipMode || mainActivity.isEnteringPip
                         if (!isPip) {
+                            if (mainActivity.isInPictureInPictureMode.not() && mainActivity.isCurrentlyFullscreen) {
+                                // pause playback if user closed the pip window
+                                viewModel.geckoManager.sendVideoCommand("pause")
+                            }
                             val currentGeckoView = geckoViewRef.value
                             val safeGeckoView = currentGeckoView as? SafeGeckoView
 
@@ -3209,20 +3243,16 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                                                                 false
                                                             }
                                                             geckoViewRef.value = this
+                                                            mainActivity.activeGeckoView = this
                                                         }
                                                     },
                                                     update = { geckoView ->
-                                                        // 4. THE SWITCH: Just swap the session!
-                                                        // When 'activeSession' changes, this block runs automatically.
-                                                        // GeckoView handles detaching the old one and attaching the new one.
-                                                        //                                                geckoView.setSession(activeSession)
-
                                                         if (geckoView.session != activeSession) {
                                                             geckoView.releaseSession()
                                                             geckoView.setSession(activeSession)
                                                         }
                                                         geckoViewRef.value = geckoView
-
+                                                        mainActivity.activeGeckoView = geckoView
                                                     }
                                                 )
                                             }

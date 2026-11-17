@@ -170,13 +170,25 @@ class GeckoManager(private val context: Context) {
         }
     }
     fun notifyThemeChanged() {
-        // This payload fires the custom event in the DOM.
-        // Using void() ensures the browser doesn't try to navigate away.
+        // this payload fires the custom event in the dom
         val jsPayload = "javascript:void(window.dispatchEvent(new Event('update_theme_from_kotlin')));"
 
-        // Broadcast to every open tab
+        // broadcast to every open tab
         sessionPool.values.forEach { session ->
             if (session.isOpen) {
+                session.load(GeckoSession.Loader().uri(jsPayload))
+            }
+        }
+    }
+
+    fun setPipMode(inPip: Boolean) {
+        val jsPayload = "javascript:void(window.dispatchEvent(new CustomEvent('browser_pip_state', { detail: $inPip })));"
+        val mediaSession = activeMediaGeckoSession
+        if (mediaSession != null && mediaSession.isOpen) {
+            mediaSession.load(GeckoSession.Loader().uri(jsPayload))
+        }
+        sessionPool.values.forEach { session ->
+            if (session.isOpen && session != mediaSession) {
                 session.load(GeckoSession.Loader().uri(jsPayload))
             }
         }
@@ -1138,7 +1150,8 @@ class GeckoManager(private val context: Context) {
         onExternalAppRequest: (String) -> Unit,
         onContentPaintedFun: (Long) -> Unit = {},
         onScrollChangedFun: (Long) -> Unit = {},
-        onVisualChangeFun: (tabId: Long, topBgHex: String?, bottomBgHex: String?) -> Unit = { _, _, _ -> }
+        onVisualChangeFun: (tabId: Long, topBgHex: String?, bottomBgHex: String?) -> Unit = { _, _, _ -> },
+        onVideoAspectRatioFun: (width: Int, height: Int) -> Unit = { _, _ -> }
 
 
     ) {
@@ -1191,6 +1204,22 @@ class GeckoManager(private val context: Context) {
                                     else -> null
                                 }
                                 onVisualChangeFun(eventTabId, topBg, bottomBg)
+                                return GeckoResult.fromValue("OK")
+                            }
+                            "videoAspectRatio" -> {
+                                val w = when (message) {
+                                    is JSONObject -> message.optInt("width", 0)
+                                    is Map<*, *> -> (message["width"] as? Number)?.toInt() ?: 0
+                                    else -> 0
+                                }
+                                val h = when (message) {
+                                    is JSONObject -> message.optInt("height", 0)
+                                    is Map<*, *> -> (message["height"] as? Number)?.toInt() ?: 0
+                                    else -> 0
+                                }
+                                if (w > 0 && h > 0) {
+                                    onVideoAspectRatioFun(w, h)
+                                }
                                 return GeckoResult.fromValue("OK")
                             }
                             "getSettings" -> {
