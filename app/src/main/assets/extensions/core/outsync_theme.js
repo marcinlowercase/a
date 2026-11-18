@@ -1,7 +1,8 @@
 // assets/extensions/core/outsync_theme.js
 (async function () {
-  // Prevent injection on blank or internal extension pages
+  // skip subframes, blank pages, and internal extension pages
   if (
+    window !== window.top ||
     !window.location.href ||
     window.location.href === "about:blank" ||
     window.location.protocol === "moz-extension:"

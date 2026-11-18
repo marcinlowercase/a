@@ -137,11 +137,22 @@ class GeckoManager(private val context: Context) {
             )
         }
 
+        val contentBlocking = org.mozilla.geckoview.ContentBlocking.Settings.Builder()
+            .antiTracking(
+                org.mozilla.geckoview.ContentBlocking.AntiTracking.AD or
+                    org.mozilla.geckoview.ContentBlocking.AntiTracking.ANALYTIC or
+                    org.mozilla.geckoview.ContentBlocking.AntiTracking.SOCIAL or
+                    org.mozilla.geckoview.ContentBlocking.AntiTracking.CRYPTOMINING or
+                    org.mozilla.geckoview.ContentBlocking.AntiTracking.FINGERPRINTING
+            )
+            .build()
+
         val settings = GeckoRuntimeSettings.Builder()
             .configFilePath(configFile.absolutePath)
             .aboutConfigEnabled(true)
             .inputAutoZoomEnabled(false)
-            .consoleOutput(true) // Forces console logs ON immediately
+            .contentBlocking(contentBlocking)
+            .consoleOutput(marcinlowercase.a.BuildConfig.DEBUG)
             .build()
         GeckoRuntime.create(context, settings)
     }

@@ -2514,12 +2514,8 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                     val stateToSave =
                         viewModel.geckoManager.getSessionStateString(eventTabId)
                     if (stateToSave != null) {
+                        // updateTabById already triggers debounced io saveTabs()
                         viewModel.updateTabById(eventTabId) { it.copy(savedState = stateToSave) }
-                        viewModel.tabManager.saveTabs(
-                            viewModel.activeProfileId.value,
-                            viewModel.tabs,
-                            activeTabIndex
-                        )
                     }
                 },
                 onCanGoBackFun = { _, canGoBack ->
@@ -3389,7 +3385,7 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                                                         // Create the View ONCE.
                                                         // We never need to recreate this View during tab switching.
                                                         SafeGeckoView(context).apply {
-                                                            setViewBackend(GeckoView.BACKEND_TEXTURE_VIEW)
+//                                                            setViewBackend(GeckoView.BACKEND_TEXTURE_VIEW)
                                                             setBackgroundColor(android.graphics.Color.TRANSPARENT)
                                                             coverUntilFirstPaint(android.graphics.Color.TRANSPARENT)
                                                             layoutParams = ViewGroup.LayoutParams(
