@@ -778,7 +778,7 @@ class MainActivity : ComponentActivity() {
         val viewModel: BrowserViewModel by viewModels()
         val allowBackground = viewModel.browserSettings.value.isEnabledBackgroundPlayback
 
-        if (isCurrentlyFullscreen && allowBackground && isScreenOn && !isFinishing) {
+        if (isCurrentlyFullscreen && allowBackground && isScreenOn && !isFinishing && !isInPictureInPictureMode && !isPipMode) {
             isEnteringPip = true
             gm.setPipMode(true)
         }
@@ -2879,8 +2879,8 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                         val isScreenInteractive = powerManager?.isInteractive ?: true
                         val allowBackground = settingsState.value.isEnabledBackgroundPlayback
 
-                        if (!isScreenInteractive) {
-                            // screen turned off via power button, never treat as pip
+                        if (!isScreenInteractive && !mainActivity.isPipMode && !mainActivity.isInPictureInPictureMode) {
+                            // screen turned off before entering pip, cancel pending pip state
                             mainActivity.isEnteringPip = false
                             viewModel.geckoManager.setPipMode(false)
                         }
