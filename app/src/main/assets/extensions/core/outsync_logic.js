@@ -367,6 +367,37 @@
       var payload = typeof e.detail === "string" ? JSON.parse(e.detail) : e.detail;
       if (!payload || !payload.cmd) return;
 
+      if (payload.cmd === "query_track_caps" && window === window.top) {
+        var nextBtnCap = document.querySelector(
+          "button.ytp-next-button, .ytp-next-button, button[aria-label='Next video'], button[aria-label='Next'], [data-tooltip-target-id='ytp-next-button']"
+        );
+        var hasNextCap = Boolean(nextBtnCap && nextBtnCap.getAttribute("aria-disabled") !== "true");
+        if (!hasNextCap && location.hostname.indexOf("youtube.com") !== -1 && location.pathname.indexOf("/watch") === 0) {
+          var curVid = new URL(location.href).searchParams.get("v");
+          var links = document.querySelectorAll(
+            "ytm-video-with-context-renderer a[href*='/watch?v='], ytm-compact-video-renderer a[href*='/watch?v='], ytd-compact-video-renderer a[href*='/watch?v='], a[href*='/watch?v=']"
+          );
+          for (var j = 0; j < links.length; j++) {
+            try {
+              var tid = new URL(links[j].href, location.origin).searchParams.get("v");
+              if (tid && tid !== curVid) {
+                hasNextCap = true;
+                break;
+              }
+            } catch (_) {}
+          }
+        }
+        var prevBtnCap = document.querySelector(
+          "button.ytp-prev-button, .ytp-prev-button, button[aria-label='Previous video'], button[aria-label='Previous']"
+        );
+        var hasPrevCap = Boolean(prevBtnCap && prevBtnCap.getAttribute("aria-disabled") !== "true");
+        send("trackCaps", {
+          canPrev: hasPrevCap,
+          canNext: hasNextCap
+        }).catch(function () {});
+        return;
+      }
+
       if (payload.cmd === "next_track_fallback" && window === window.top) {
         var nextBtn = document.querySelector(
           "button.ytp-next-button, .ytp-next-button, button[aria-label='Next video'], button[aria-label='Next'], [data-tooltip-target-id='ytp-next-button']"

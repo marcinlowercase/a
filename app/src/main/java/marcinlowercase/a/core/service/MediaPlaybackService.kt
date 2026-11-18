@@ -38,6 +38,8 @@ class MediaPlaybackService : Service() {
     private var currentDurationMs = -1L
     private var currentSpeed = 1.0f
     private var currentSeekStepSec = 5
+    private var currentCanPrev = false
+    private var currentCanNext = false
     private var blackArtBitmap: Bitmap? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -127,6 +129,12 @@ class MediaPlaybackService : Service() {
         if (intent?.hasExtra("SEEK_STEP_SEC") == true) {
             currentSeekStepSec = intent.getIntExtra("SEEK_STEP_SEC", 5).coerceIn(1, 60)
         }
+        if (intent?.hasExtra("CAN_PREV") == true) {
+            currentCanPrev = intent.getBooleanExtra("CAN_PREV", false)
+        }
+        if (intent?.hasExtra("CAN_NEXT") == true) {
+            currentCanNext = intent.getBooleanExtra("CAN_NEXT", false)
+        }
         val isPaused = intent?.getBooleanExtra("IS_PAUSED", false) ?: false
 
         updateNotification(currentTitle, currentArtist, isPaused)
@@ -144,18 +152,22 @@ class MediaPlaybackService : Service() {
 
     private fun updateNotification(title: String, artist: String, isPaused: Boolean) {
         val state = if (isPaused) PlaybackStateCompat.STATE_PAUSED else PlaybackStateCompat.STATE_PLAYING
+        var supportedActions = PlaybackStateCompat.ACTION_PLAY or
+                PlaybackStateCompat.ACTION_PAUSE or
+                PlaybackStateCompat.ACTION_PLAY_PAUSE or
+                PlaybackStateCompat.ACTION_REWIND or
+                PlaybackStateCompat.ACTION_FAST_FORWARD or
+                PlaybackStateCompat.ACTION_SEEK_TO
+        if (currentCanPrev) {
+            supportedActions = supportedActions or PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
+        }
+        if (currentCanNext) {
+            supportedActions = supportedActions or PlaybackStateCompat.ACTION_SKIP_TO_NEXT
+        }
+
         val playbackState = PlaybackStateCompat.Builder()
             .setState(state, currentPositionMs, if (isPaused) 0f else currentSpeed)
-            .setActions(
-                PlaybackStateCompat.ACTION_PLAY or
-                        PlaybackStateCompat.ACTION_PAUSE or
-                        PlaybackStateCompat.ACTION_PLAY_PAUSE or
-                        PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
-                        PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
-                        PlaybackStateCompat.ACTION_REWIND or
-                        PlaybackStateCompat.ACTION_FAST_FORWARD or
-                        PlaybackStateCompat.ACTION_SEEK_TO
-            )
+            .setActions(supportedActions)
             .addCustomAction(
                 PlaybackStateCompat.CustomAction.Builder(
                     ACTION_PREV_5,
@@ -228,16 +240,29 @@ class MediaPlaybackService : Service() {
             .setSilent(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setContentIntent(mediaSession?.controller?.sessionActivity)
-            .addAction(prevTrackAction)
-            .addAction(prev5Action)
-            .addAction(toggleAction)
-            .addAction(next5Action)
-            .addAction(nextTrackAction)
-            .setStyle(
-                MediaStyle()
-                    .setMediaSession(mediaSession?.sessionToken)
-                    .setShowActionsInCompactView(0, 2, 4)
-            )
+
+        val actions = mutableListOf<NotificationCompat.Action>()
+        if (currentCanPrev) actions.add(prevTrackAction)
+        actions.add(prev5Action)
+        val toggleIndex = actions.size
+        actions.add(toggleAction)
+        actions.add(next5Action)
+        if (currentCanNext) actions.add(nextTrackAction)
+
+        actions.forEach { notificationBuilder.addAction(it) }
+
+        val compactIndices = when {
+            currentCanPrev && currentCanNext -> intArrayOf(0, toggleIndex, actions.lastIndex)
+            currentCanPrev -> intArrayOf(0, toggleIndex, toggleIndex + 1)
+            currentCanNext -> intArrayOf(0, toggleIndex, actions.lastIndex)
+            else -> intArrayOf(0, toggleIndex, 2)
+        }
+
+        notificationBuilder.setStyle(
+            MediaStyle()
+                .setMediaSession(mediaSession?.sessionToken)
+                .setShowActionsInCompactView(*compactIndices)
+        )
 
         val notification = notificationBuilder.build()
 

@@ -113,6 +113,8 @@ class GeckoManager(private val context: Context) {
     var mediaSeekStepSeconds: Double = 5.0
     var onMediaPlaybackStateChanged: (() -> Unit)? = null
     private var activeMediaFeatures: Long = 0L
+    private var domHasPrevTrack: Boolean = false
+    private var domHasNextTrack: Boolean = false
 
 //    val runtime: GeckoRuntime by lazy {
 //        GeckoRuntime.getDefault(context)
@@ -1097,6 +1099,11 @@ class GeckoManager(private val context: Context) {
         if (activeGeckoMediaSession == null && currentFullscreenSession == null && activeSilentVideoSession == null) return
         val title = lastTitle.value.ifBlank { "Browser Video" }
         val artist = lastArtist.value
+        val canPrev = activeGeckoMediaSession != null &&
+            ((activeMediaFeatures and MediaSession.Feature.PREVIOUS_TRACK) != 0L || domHasPrevTrack)
+        val canNext = activeGeckoMediaSession != null &&
+            ((activeMediaFeatures and MediaSession.Feature.NEXT_TRACK) != 0L || domHasNextTrack)
+
         val posMs = (lastPositionSnapshot.doubleValue.coerceAtLeast(0.0) * 1000.0).toLong()
         val durMs = if (lastDuration.doubleValue > 0.0) (lastDuration.doubleValue * 1000.0).toLong() else -1L
         val intent = Intent(context, MediaPlaybackService::class.java).apply {
@@ -1107,6 +1114,8 @@ class GeckoManager(private val context: Context) {
             putExtra("DURATION_MS", durMs)
             putExtra("SPEED", lastPlaybackRate.doubleValue.toFloat())
             putExtra("SEEK_STEP_SEC", mediaSeekStepSeconds.toInt())
+            putExtra("CAN_PREV", canPrev)
+            putExtra("CAN_NEXT", canNext)
         }
         try {
             context.startForegroundService(intent)
@@ -1427,6 +1436,24 @@ class GeckoManager(private val context: Context) {
                                         updateLocalSnapshotOptimistically(target)
                                         syncMediaNotification()
                                     }
+                                }
+                                return GeckoResult.fromValue("OK")
+                            }
+                            "trackCaps" -> {
+                                val prev = when (message) {
+                                    is JSONObject -> message.optBoolean("canPrev", false)
+                                    is Map<*, *> -> (message["canPrev"] as? Boolean) ?: false
+                                    else -> false
+                                }
+                                val next = when (message) {
+                                    is JSONObject -> message.optBoolean("canNext", false)
+                                    is Map<*, *> -> (message["canNext"] as? Boolean) ?: false
+                                    else -> false
+                                }
+                                if (domHasPrevTrack != prev || domHasNextTrack != next) {
+                                    domHasPrevTrack = prev
+                                    domHasNextTrack = next
+                                    syncMediaNotification()
                                 }
                                 return GeckoResult.fromValue("OK")
                             }
@@ -1981,6 +2008,10 @@ class GeckoManager(private val context: Context) {
                 // ignore javascript injection
                 if (url.startsWith("javascript:")) return
 
+                if (session == activeMediaGeckoSession || session == activeSilentVideoSession) {
+                    domHasPrevTrack = false
+                    domHasNextTrack = false
+                }
                 if (session == activeSilentVideoSession && activeGeckoMediaSession == null) {
                     activeSilentVideoSession = null
                     currentFullscreenSession = null
@@ -2377,6 +2408,8 @@ class GeckoManager(private val context: Context) {
                 activeGeckoMediaSession = mediaSession
                 activeMediaGeckoSession = session
                 activeMediaFeatures = 0L
+                domHasPrevTrack = false
+                domHasNextTrack = false
                 isActiveMediaSessionPaused = false
                 lastSnapshotTime.longValue = System.currentTimeMillis()
                 if (lastPositionSnapshot.doubleValue == INIT) {
@@ -2386,6 +2419,7 @@ class GeckoManager(private val context: Context) {
                 lastTitle.value = tab.value.currentTitle.ifBlank { domain }
                 lastArtist.value = domain
                 syncMediaNotification()
+                dispatchSilentVideoCommand(session, "query_track_caps", 0.0)
             }
 
             override fun onDeactivated(session: GeckoSession, mediaSession: MediaSession) {
@@ -2393,6 +2427,8 @@ class GeckoManager(private val context: Context) {
                     activeGeckoMediaSession = null
                     activeMediaGeckoSession = null
                     activeMediaFeatures = 0L
+                    domHasPrevTrack = false
+                    domHasNextTrack = false
                     isActiveMediaSessionPaused = true
                     lastPositionSnapshot.doubleValue = INIT
                     lastDuration.doubleValue = INIT
@@ -2423,6 +2459,9 @@ class GeckoManager(private val context: Context) {
                 if (changed) {
                     syncMediaNotification()
                 }
+                if ((activeMediaFeatures and MediaSession.Feature.NEXT_TRACK) == 0L) {
+                    dispatchSilentVideoCommand(session, "query_track_caps", 0.0)
+                }
             }
 
             override fun onFeatures(
@@ -2431,7 +2470,12 @@ class GeckoManager(private val context: Context) {
                 features: Long
             ) {
                 if (activeGeckoMediaSession == mediaSession) {
+                    val prevTrackChanged = ((activeMediaFeatures xor features) and
+                        (MediaSession.Feature.PREVIOUS_TRACK or MediaSession.Feature.NEXT_TRACK)) != 0L
                     activeMediaFeatures = features
+                    if (prevTrackChanged) {
+                        syncMediaNotification()
+                    }
                 }
             }
 
@@ -2461,6 +2505,8 @@ class GeckoManager(private val context: Context) {
                 if (activeGeckoMediaSession == mediaSession) {
                     activeGeckoMediaSession = null
                     activeMediaFeatures = 0L
+                    domHasPrevTrack = false
+                    domHasNextTrack = false
                     isActiveMediaSessionPaused = true
                     lastPositionSnapshot.doubleValue = INIT
                     lastDuration.doubleValue = INIT
