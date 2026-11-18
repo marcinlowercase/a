@@ -92,6 +92,7 @@ fun SliderSetting(
             BrowserSettingField.MAX_LIST_HEIGHT -> settings.value.maxListHeight
             BrowserSettingField.SEARCH_ENGINE -> settings.value.searchEngine.toFloat()
             BrowserSettingField.MEMORY_USAGE -> settings.value.memoryUsage.toFloat()
+            BrowserSettingField.MEDIA_SEEK_STEP -> settings.value.mediaSeekStep
             else -> 0f
         }
     }

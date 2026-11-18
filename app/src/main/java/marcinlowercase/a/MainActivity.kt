@@ -632,10 +632,11 @@ class MainActivity : ComponentActivity() {
             makeAction(102, ACTION_PIP_PLAY_PAUSE, R.drawable.ic_pause, "Pause")
         }
 
+        val stepSec = (application as CustomApplication).geckoManager.mediaSeekStepSeconds.toInt().coerceIn(1, 60)
         return listOf(
-            makeAction(101, ACTION_PIP_PREV_5, R.drawable.ic_replay_5, "Back 5s"),
+            makeAction(101, ACTION_PIP_PREV_5, R.drawable.ic_replay_5, "Back ${stepSec}s"),
             playPauseAction,
-            makeAction(103, ACTION_PIP_NEXT_5, R.drawable.ic_forward_5, "Forward 5s")
+            makeAction(103, ACTION_PIP_NEXT_5, R.drawable.ic_forward_5, "Forward ${stepSec}s")
         )
     }
 
@@ -2396,6 +2397,14 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
 
             mainActivity.updatePipParams(mainActivity.isCurrentlyFullscreen && settings.isEnabledBackgroundPlayback)
             viewModel.geckoManager.setBackgroundPlaybackEnabled(settings.isEnabledBackgroundPlayback)
+        }
+
+        LaunchedEffect(settings.mediaSeekStep) {
+            viewModel.geckoManager.mediaSeekStepSeconds = settings.mediaSeekStep.toDouble()
+            viewModel.geckoManager.syncMediaNotification()
+            if (mainActivity.isCurrentlyFullscreen || mainActivity.isInPictureInPictureMode) {
+                mainActivity.updatePipParams(mainActivity.isCurrentlyFullscreen)
+            }
         }
 
         val errorTitle = stringResource(R.string.error_failed_to_load)

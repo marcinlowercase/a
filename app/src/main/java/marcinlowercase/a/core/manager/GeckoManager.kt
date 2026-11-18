@@ -108,6 +108,7 @@ class GeckoManager(private val context: Context) {
     var lastArtist = mutableStateOf("")
 
     var isActiveMediaSessionPaused by mutableStateOf(true)
+    var mediaSeekStepSeconds: Double = 5.0
     var onMediaPlaybackStateChanged: (() -> Unit)? = null
 
 //    val runtime: GeckoRuntime by lazy {
@@ -981,9 +982,9 @@ class GeckoManager(private val context: Context) {
             "pause" -> controller.pause()
             "next_5" -> {
                 val target = if (totalDuration > 0.0) {
-                    (currentLivePos + 5.0).coerceAtMost(totalDuration)
+                    (currentLivePos + mediaSeekStepSeconds).coerceAtMost(totalDuration)
                 } else {
-                    (currentLivePos + 5.0).coerceAtLeast(0.0)
+                    (currentLivePos + mediaSeekStepSeconds).coerceAtLeast(0.0)
                 }
                 controller.seekTo(target, false)
                 updateLocalSnapshotOptimistically(target)
@@ -991,7 +992,7 @@ class GeckoManager(private val context: Context) {
             }
 
             "prev_5" -> {
-                val target = (currentLivePos - 5.0).coerceAtLeast(0.0)
+                val target = (currentLivePos - mediaSeekStepSeconds).coerceAtLeast(0.0)
                 controller.seekTo(target, false)
                 updateLocalSnapshotOptimistically(target)
                 syncMediaNotification()
@@ -1037,6 +1038,7 @@ class GeckoManager(private val context: Context) {
             putExtra("POSITION_MS", posMs)
             putExtra("DURATION_MS", durMs)
             putExtra("SPEED", lastPlaybackRate.doubleValue.toFloat())
+            putExtra("SEEK_STEP_SEC", mediaSeekStepSeconds.toInt())
         }
         try {
             context.startForegroundService(intent)

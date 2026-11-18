@@ -97,7 +97,8 @@ enum class SettingPanelView {
     MAIN, CORNER_RADIUS, PADDING, ANIMATION_SPEED, CURSOR_CONTAINER_SIZE,
     CURSOR_TRACKING_SPEED, BACK_SQUARE_OPACITY, DEFAULT_URL, INFO,
     CLOSED_TAB_HISTORY_SIZE, MAX_LIST_HEIGHT, SEARCH_ENGINE,
-    SINGLE_LINE_HEIGHT, HIGHLIGHT_COLOR, MEMORY_USAGE
+    SINGLE_LINE_HEIGHT, HIGHLIGHT_COLOR, MEMORY_USAGE,
+    MEDIA_SEEK_STEP
 }
 
 // --- MASTER REGISTRY OF ALL BUTTONS ---
@@ -554,9 +555,14 @@ fun rememberBrowserOptionsRegistry(
             },
             BrowserOption.MEMORY_USAGE to OptionItem(
                 id = BrowserOption.MEMORY_USAGE,
-                iconRes = R.drawable.ic_memory, // Or ic_memory if you have one!
+                iconRes = R.drawable.ic_memory,
                 contentDescription = R.string.desc_memory_usage
             ) { onNavigateToSetting(SettingPanelView.MEMORY_USAGE) },
+            BrowserOption.MEDIA_SEEK_STEP to OptionItem(
+                id = BrowserOption.MEDIA_SEEK_STEP,
+                iconRes = R.drawable.ic_media_seek_step,
+                contentDescription = R.string.desc_media_seek_step
+            ) { onNavigateToSetting(SettingPanelView.MEDIA_SEEK_STEP) },
 
             )
     }
@@ -1099,6 +1105,17 @@ fun SettingsPanel(
                             field = BrowserSettingField.MEMORY_USAGE
                         )
                     }
+
+                    SettingPanelView.MEDIA_SEEK_STEP -> SliderSetting(
+                        onBackClick = onBackClick,
+                        valueRange = 1f..60f,
+                        steps = 58,
+                        textFieldValueFun = { it },
+                        afterDecimal = false,
+                        iconID = R.drawable.ic_media_seek_step,
+                        digitCount = 2,
+                        field = BrowserSettingField.MEDIA_SEEK_STEP
+                    )
 
                     SettingPanelView.SEARCH_ENGINE -> SliderSetting(
                         textEnabled = false,

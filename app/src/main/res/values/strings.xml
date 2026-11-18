@@ -72,6 +72,7 @@
     <string name="desc_adblock">adblock (uBlock Origin)</string>
     <string name="desc_suggestions">suggestions</string>
     <string name="desc_media_control">media control</string>
+    <string name="desc_media_seek_step">seek step seconds</string>
     <string name="desc_out_sync">out sync</string>
     <string name="desc_immersive_webview">immersive webview</string>
     <string name="desc_optimize_memory">optimize memory</string>

@@ -56,6 +56,7 @@ data class BrowserSettings(
     val isTabsPanelLock: Boolean = true,
 
     val isEnabledMediaControl: Boolean,
+    val mediaSeekStep: Float = DefaultSettingValues.MEDIA_SEEK_STEP,
     val isEnabledOutSync: Boolean,
     val isEnabledImmersiveWebview: Boolean = DefaultSettingValues.IS_ENABLED_IMMERSIVE_WEBVIEW,
     val memoryUsage: Int,

@@ -19,5 +19,6 @@ enum class BrowserSettingField {
     OPTIONS_ORDER,
     SETTINGS_ORDER,
     HIDDEN_OPTIONS,
-    MEMORY_USAGE
+    MEMORY_USAGE,
+    MEDIA_SEEK_STEP,
 }

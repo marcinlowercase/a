@@ -35,6 +35,7 @@ class MediaPlaybackService : Service() {
     private var currentPositionMs = PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN
     private var currentDurationMs = -1L
     private var currentSpeed = 1.0f
+    private var currentSeekStepSec = 5
     private var blackArtBitmap: Bitmap? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -117,6 +118,9 @@ class MediaPlaybackService : Service() {
         if (intent?.hasExtra("SPEED") == true) {
             currentSpeed = intent.getFloatExtra("SPEED", 1.0f)
         }
+        if (intent?.hasExtra("SEEK_STEP_SEC") == true) {
+            currentSeekStepSec = intent.getIntExtra("SEEK_STEP_SEC", 5).coerceIn(1, 60)
+        }
         val isPaused = intent?.getBooleanExtra("IS_PAUSED", false) ?: false
 
         updateNotification(currentTitle, currentArtist, isPaused)
@@ -147,14 +151,14 @@ class MediaPlaybackService : Service() {
             .addCustomAction(
                 PlaybackStateCompat.CustomAction.Builder(
                     ACTION_PREV_5,
-                    "Back 5s",
+                    "Back ${currentSeekStepSec}s",
                     R.drawable.ic_replay_5
                 ).build()
             )
             .addCustomAction(
                 PlaybackStateCompat.CustomAction.Builder(
                     ACTION_NEXT_5,
-                    "Forward 5s",
+                    "Forward ${currentSeekStepSec}s",
                     R.drawable.ic_forward_5
                 ).build()
             )
@@ -174,7 +178,7 @@ class MediaPlaybackService : Service() {
 
         val prev5Action = NotificationCompat.Action(
             R.drawable.ic_replay_5,
-            "Back 5s",
+            "Back ${currentSeekStepSec}s",
             serviceActionPendingIntent(4, ACTION_PREV_5)
         )
         val toggleAction = if (isPaused) {
@@ -192,7 +196,7 @@ class MediaPlaybackService : Service() {
         }
         val next5Action = NotificationCompat.Action(
             R.drawable.ic_forward_5,
-            "Forward 5s",
+            "Forward ${currentSeekStepSec}s",
             serviceActionPendingIntent(5, ACTION_NEXT_5)
         )
 

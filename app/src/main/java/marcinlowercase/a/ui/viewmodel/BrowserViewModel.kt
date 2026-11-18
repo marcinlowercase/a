@@ -647,6 +647,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 "is_enabled_media_control",
                 d.IS_ENABLED_MEDIA_CONTROL
             ),
+            mediaSeekStep = prefsToUse.getFloat("media_seek_step", d.MEDIA_SEEK_STEP).coerceIn(1f, 60f),
             isEnabledOutSync = prefsToUse.getBoolean("is_enabled_out_sync", d.IS_ENABLED_OUT_SYNC),
             isEnabledImmersiveWebview = prefsToUse.getBoolean("is_enabled_immersive_webview", d.IS_ENABLED_IMMERSIVE_WEBVIEW),
             isEnabledConfirmation = prefsToUse.getBoolean("is_enabled_confirmation", d.IS_ENABLED_CONFIRMATION),
@@ -732,7 +733,11 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 BrowserSettingField.OPTIONS_ORDER -> current.copy(optionsOrder = value as String)
                 BrowserSettingField.SETTINGS_ORDER -> current.copy(settingsOrder = value as String)
                 BrowserSettingField.HIDDEN_OPTIONS -> current.copy(hiddenOptions = value as String)
-
+                BrowserSettingField.MEDIA_SEEK_STEP -> {
+                    val step = (value as Float).coerceIn(1f, 60f)
+                    geckoManager.mediaSeekStepSeconds = step.toDouble()
+                    current.copy(mediaSeekStep = step)
+                }
             }
         }
     }
@@ -763,6 +768,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 settingsOrder = d.SETTINGS_ORDER,
                 hiddenOptions = d.HIDDEN_OPTIONS,
                 isEnabledMediaControl = d.IS_ENABLED_MEDIA_CONTROL,
+                mediaSeekStep = d.MEDIA_SEEK_STEP,
                 isEnabledOutSync = d.IS_ENABLED_OUT_SYNC,
                 isEnabledImmersiveWebview = d.IS_ENABLED_IMMERSIVE_WEBVIEW,
                 memoryUsage = d.MEMORY_USAGE,
@@ -817,6 +823,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             putBoolean("is_guide_mode_enabled", settings.isGuideModeEnabled)
             putBoolean("is_desktop_mode", settings.isDesktopMode)
             putBoolean("is_enabled_media_control", settings.isEnabledMediaControl)
+            putFloat("media_seek_step", settings.mediaSeekStep)
             putBoolean("is_enabled_out_sync", settings.isEnabledOutSync)
             putBoolean("is_enabled_immersive_webview", settings.isEnabledImmersiveWebview)
             putBoolean("is_enabled_confirmation", settings.isEnabledConfirmation)
@@ -2841,6 +2848,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     init {
         geckoManager.setAdBlockEnabled(_browserSettings.value.isAdBlockEnabled)
+        geckoManager.mediaSeekStepSeconds = _browserSettings.value.mediaSeekStep.toDouble()
         startDownloadPolling()
         setupPrefsListener(currentProfileId)
     }
