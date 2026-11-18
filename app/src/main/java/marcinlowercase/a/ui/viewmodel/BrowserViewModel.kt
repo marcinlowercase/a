@@ -469,7 +469,12 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         val targetIndex = if (currentIndex > 0) currentIndex - 1 else 1
         val profileIdToSwitchTo = profiles[targetIndex].id
 
-        // 1. Wipe the container data from GeckoView
+        // close all live sessions of the deleted profile so nothing keeps playing
+        tabs.toList().forEach { tab ->
+            geckoManager.closeSession(tab)
+        }
+
+        // wipe the container data from geckoview
         geckoManager.wipeProfileData(idToDelete)
 
         // 2. Remove from list and save
