@@ -91,6 +91,8 @@ class GeckoManager(private val context: Context) {
 
     var activeGeckoMediaSession: MediaSession? = null
     var activeMediaGeckoSession: GeckoSession? = null
+    var currentFullscreenSession: GeckoSession? = null
+    var activeSilentVideoSession: GeckoSession? = null
 
     var lastPositionSnapshot = mutableDoubleStateOf(INIT)
     var lastPositionSnapshotByGecko = mutableDoubleStateOf(INIT)
@@ -828,10 +830,14 @@ class GeckoManager(private val context: Context) {
         for (id in idsToClose) {
             val sessionToClose = sessionPool.remove(id)
             sessionToClose?.apply {
-                if (this == activeMediaGeckoSession) {
+                if (this == activeMediaGeckoSession || this == activeSilentVideoSession || this == currentFullscreenSession) {
                     context.stopService(Intent(context, MediaPlaybackService::class.java))
-                    activeGeckoMediaSession = null
-                    activeMediaGeckoSession = null
+                    if (this == activeMediaGeckoSession) {
+                        activeGeckoMediaSession = null
+                        activeMediaGeckoSession = null
+                    }
+                    if (this == activeSilentVideoSession) activeSilentVideoSession = null
+                    if (this == currentFullscreenSession) currentFullscreenSession = null
                 }
                 close()
             }
@@ -931,10 +937,14 @@ class GeckoManager(private val context: Context) {
     }
 
     private fun handleSessionDeath(session: GeckoSession, tabId: Long) {
-        if (session == activeMediaGeckoSession) {
+        if (session == activeMediaGeckoSession || session == activeSilentVideoSession || session == currentFullscreenSession) {
             context.stopService(Intent(context, MediaPlaybackService::class.java))
-            activeGeckoMediaSession = null
-            activeMediaGeckoSession = null
+            if (session == activeMediaGeckoSession) {
+                activeGeckoMediaSession = null
+                activeMediaGeckoSession = null
+            }
+            if (session == activeSilentVideoSession) activeSilentVideoSession = null
+            if (session == currentFullscreenSession) currentFullscreenSession = null
         }
         // if the active session is killed, reload immediately.
         sessionPool.remove(tabId)
@@ -947,10 +957,14 @@ class GeckoManager(private val context: Context) {
     fun forceKillSession(tabId: Long) {
         val session = sessionPool.remove(tabId)
 
-        if (session == activeMediaGeckoSession) {
+        if (session == activeMediaGeckoSession || session == activeSilentVideoSession || session == currentFullscreenSession) {
             context.stopService(Intent(context, MediaPlaybackService::class.java))
-            activeGeckoMediaSession = null
-            activeMediaGeckoSession = null
+            if (session == activeMediaGeckoSession) {
+                activeGeckoMediaSession = null
+                activeMediaGeckoSession = null
+            }
+            if (session == activeSilentVideoSession) activeSilentVideoSession = null
+            if (session == currentFullscreenSession) currentFullscreenSession = null
         }
         if (session?.isOpen == true) {
             session.close()
@@ -971,39 +985,74 @@ class GeckoManager(private val context: Context) {
         }
     }
 
+    private fun dispatchSilentVideoCommand(session: GeckoSession, cmd: String, value: Double) {
+        if (!session.isOpen) return
+        val detailJson = JSONObject().apply {
+            put("cmd", cmd)
+            put("value", value)
+        }.toString()
+        val escaped = JSONObject.quote(detailJson)
+        val js = "javascript:void(window.dispatchEvent(new CustomEvent('browser_video_cmd', { detail: $escaped })));"
+        session.load(GeckoSession.Loader().uri(js))
+    }
+
     fun sendVideoCommand(command: String, value: Double = 0.0) {
-        val controller = activeGeckoMediaSession ?: return
+        val controller = activeGeckoMediaSession
+        if (controller == null) {
+            val targetSession = currentFullscreenSession ?: activeSilentVideoSession ?: return
+            when (command) {
+                "play" -> dispatchSilentVideoCommand(targetSession, "play", 0.0)
+                "pause" -> dispatchSilentVideoCommand(targetSession, "pause", 0.0)
+                "next_5" -> dispatchSilentVideoCommand(targetSession, "seek_delta", mediaSeekStepSeconds)
+                "prev_5" -> dispatchSilentVideoCommand(targetSession, "seek_delta", -mediaSeekStepSeconds)
+                "seek_relative" -> dispatchSilentVideoCommand(targetSession, "seek_delta", value)
+                "seek_to" -> dispatchSilentVideoCommand(targetSession, "seek_to", value)
+            }
+            return
+        }
 
         val currentLivePos = getEstimatedLivePosition()
         val totalDuration = lastDuration.doubleValue
+        val domSession = activeMediaGeckoSession ?: currentFullscreenSession
 
         when (command) {
             "play" -> controller.play()
             "pause" -> controller.pause()
             "next_5" -> {
-                val target = if (totalDuration > 0.0) {
-                    (currentLivePos + mediaSeekStepSeconds).coerceAtMost(totalDuration)
+                if (domSession != null && domSession.isOpen) {
+                    dispatchSilentVideoCommand(domSession, "seek_delta_native_fallback", mediaSeekStepSeconds)
                 } else {
-                    (currentLivePos + mediaSeekStepSeconds).coerceAtLeast(0.0)
+                    val target = if (totalDuration > 0.0) {
+                        (currentLivePos + mediaSeekStepSeconds).coerceAtMost(totalDuration)
+                    } else {
+                        (currentLivePos + mediaSeekStepSeconds).coerceAtLeast(0.0)
+                    }
+                    controller.seekTo(target, false)
+                    updateLocalSnapshotOptimistically(target)
+                    syncMediaNotification()
                 }
-                controller.seekTo(target, false)
-                updateLocalSnapshotOptimistically(target)
-                syncMediaNotification()
             }
 
             "prev_5" -> {
-                val target = (currentLivePos - mediaSeekStepSeconds).coerceAtLeast(0.0)
-                controller.seekTo(target, false)
-                updateLocalSnapshotOptimistically(target)
-                syncMediaNotification()
+                if (domSession != null && domSession.isOpen) {
+                    dispatchSilentVideoCommand(domSession, "seek_delta_native_fallback", -mediaSeekStepSeconds)
+                } else {
+                    val target = (currentLivePos - mediaSeekStepSeconds).coerceAtLeast(0.0)
+                    controller.seekTo(target, false)
+                    updateLocalSnapshotOptimistically(target)
+                    syncMediaNotification()
+                }
             }
 
             "seek_relative" -> {
-                // value is the delta passed from the drag gesture
-                val target = (currentLivePos + value).coerceAtLeast(0.0)
-                controller.seekTo(target, true)
-                updateLocalSnapshotOptimistically(target)
-                syncMediaNotification()
+                if (domSession != null && domSession.isOpen) {
+                    dispatchSilentVideoCommand(domSession, "seek_delta_native_fallback", value)
+                } else {
+                    val target = (currentLivePos + value).coerceAtLeast(0.0)
+                    controller.seekTo(target, true)
+                    updateLocalSnapshotOptimistically(target)
+                    syncMediaNotification()
+                }
             }
 
             "seek_to" -> {
@@ -1012,7 +1061,7 @@ class GeckoManager(private val context: Context) {
                 } else {
                     value.coerceAtLeast(0.0)
                 }
-                controller.seekTo(target, true)
+                controller.seekTo(target, false)
                 updateLocalSnapshotOptimistically(target)
                 syncMediaNotification()
             }
@@ -1026,7 +1075,7 @@ class GeckoManager(private val context: Context) {
 
     fun syncMediaNotification() {
         onMediaPlaybackStateChanged?.invoke()
-        if (activeGeckoMediaSession == null) return
+        if (activeGeckoMediaSession == null && currentFullscreenSession == null && activeSilentVideoSession == null) return
         val title = lastTitle.value.ifBlank { "Browser Video" }
         val artist = lastArtist.value
         val posMs = (lastPositionSnapshot.doubleValue.coerceAtLeast(0.0) * 1000.0).toLong()
@@ -1271,6 +1320,94 @@ class GeckoManager(private val context: Context) {
                                 }
                                 if (w > 0 && h > 0) {
                                     onVideoAspectRatioFun(w, h)
+                                }
+                                return GeckoResult.fromValue("OK")
+                            }
+                            "silentVideoState" -> {
+                                if (activeGeckoMediaSession == null) {
+                                    val ev = when (message) {
+                                        is JSONObject -> message.optString("event", "")
+                                        is Map<*, *> -> message["event"] as? String ?: ""
+                                        else -> ""
+                                    }
+                                    if (currentFullscreenSession == session || ev == "play" || activeSilentVideoSession == session) {
+                                        activeSilentVideoSession = session
+                                        val paused = when (message) {
+                                            is JSONObject -> message.optBoolean("paused", false)
+                                            is Map<*, *> -> (message["paused"] as? Boolean) ?: false
+                                            else -> false
+                                        }
+                                        val pos = when (message) {
+                                            is JSONObject -> message.optDouble("position", 0.0)
+                                            is Map<*, *> -> (message["position"] as? Number)?.toDouble() ?: 0.0
+                                            else -> 0.0
+                                        }
+                                        val dur = when (message) {
+                                            is JSONObject -> message.optDouble("duration", -1.0)
+                                            is Map<*, *> -> (message["duration"] as? Number)?.toDouble() ?: -1.0
+                                            else -> -1.0
+                                        }
+                                        val title = when (message) {
+                                            is JSONObject -> message.optString("title", "")
+                                            is Map<*, *> -> message["title"] as? String ?: ""
+                                            else -> ""
+                                        }
+                                        isActiveMediaSessionPaused = paused
+                                        lastPositionSnapshot.doubleValue = pos.coerceAtLeast(0.0)
+                                        lastSnapshotTime.longValue = System.currentTimeMillis()
+                                        lastPlaybackRate.doubleValue = if (paused) 0.0 else 1.0
+                                        if (!dur.isNaN() && dur > 0.0) {
+                                            lastDuration.doubleValue = dur
+                                        }
+                                        val domain = tab.value.currentURL.toDomain()
+                                        lastTitle.value = title.ifBlank { tab.value.currentTitle.ifBlank { domain } }
+                                        lastArtist.value = domain
+                                        syncMediaNotification()
+                                    }
+                                }
+                                return GeckoResult.fromValue("OK")
+                            }
+                            "mediaSeekResult" -> {
+                                val found = when (message) {
+                                    is JSONObject -> message.optBoolean("found", false)
+                                    is Map<*, *> -> (message["found"] as? Boolean) ?: false
+                                    else -> false
+                                }
+                                if (found) {
+                                    val pos = when (message) {
+                                        is JSONObject -> message.optDouble("position", 0.0)
+                                        is Map<*, *> -> (message["position"] as? Number)?.toDouble() ?: 0.0
+                                        else -> 0.0
+                                    }
+                                    val dur = when (message) {
+                                        is JSONObject -> message.optDouble("duration", -1.0)
+                                        is Map<*, *> -> (message["duration"] as? Number)?.toDouble() ?: -1.0
+                                        else -> -1.0
+                                    }
+                                    if (!dur.isNaN() && dur > 0.0) {
+                                        lastDuration.doubleValue = dur
+                                    }
+                                    updateLocalSnapshotOptimistically(pos.coerceAtLeast(0.0))
+                                    syncMediaNotification()
+                                } else {
+                                    val delta = when (message) {
+                                        is JSONObject -> message.optDouble("delta", 0.0)
+                                        is Map<*, *> -> (message["delta"] as? Number)?.toDouble() ?: 0.0
+                                        else -> 0.0
+                                    }
+                                    val controller = activeGeckoMediaSession
+                                    if (controller != null && delta != 0.0) {
+                                        val currentLivePos = getEstimatedLivePosition()
+                                        val totalDuration = lastDuration.doubleValue
+                                        val target = if (delta > 0.0 && totalDuration > 0.0) {
+                                            (currentLivePos + delta).coerceAtMost(totalDuration)
+                                        } else {
+                                            (currentLivePos + delta).coerceAtLeast(0.0)
+                                        }
+                                        controller.seekTo(target, false)
+                                        updateLocalSnapshotOptimistically(target)
+                                        syncMediaNotification()
+                                    }
                                 }
                                 return GeckoResult.fromValue("OK")
                             }
@@ -1825,6 +1962,14 @@ class GeckoManager(private val context: Context) {
                 // ignore javascript injection
                 if (url.startsWith("javascript:")) return
 
+                if (session == activeSilentVideoSession && activeGeckoMediaSession == null) {
+                    activeSilentVideoSession = null
+                    currentFullscreenSession = null
+                    isActiveMediaSessionPaused = true
+                    onMediaPlaybackStateChanged?.invoke()
+                    context.stopService(Intent(context, MediaPlaybackService::class.java))
+                }
+
                 onPageStartFun(eventTabId, session, url)
             }
 
@@ -1866,6 +2011,16 @@ class GeckoManager(private val context: Context) {
             }
 
             override fun onFullScreen(session: GeckoSession, fullScreen: Boolean) {
+                currentFullscreenSession = if (fullScreen) session else null
+                if (fullScreen && activeGeckoMediaSession == null) {
+                    dispatchSilentVideoCommand(session, "query", 0.0)
+                } else if (!fullScreen && activeGeckoMediaSession == null && activeSilentVideoSession == null) {
+                    lastPositionSnapshot.doubleValue = INIT
+                    lastDuration.doubleValue = INIT
+                    isActiveMediaSessionPaused = true
+                    onMediaPlaybackStateChanged?.invoke()
+                    context.stopService(Intent(context, MediaPlaybackService::class.java))
+                }
                 onFullScreenFun(fullScreen)
             }
 
@@ -2199,6 +2354,7 @@ class GeckoManager(private val context: Context) {
 
         session.mediaSessionDelegate = object : MediaSession.Delegate {
             override fun onActivated(session: GeckoSession, mediaSession: MediaSession) {
+                activeSilentVideoSession = null
                 activeGeckoMediaSession = mediaSession
                 activeMediaGeckoSession = session
                 isActiveMediaSessionPaused = false
@@ -2262,6 +2418,9 @@ class GeckoManager(private val context: Context) {
                 if (lastPositionSnapshot.doubleValue == INIT) {
                     lastPositionSnapshot.doubleValue = 0.0
                 }
+                if (lastPlaybackRate.doubleValue == 0.0) {
+                    lastPlaybackRate.doubleValue = 1.0
+                }
                 isActiveMediaSessionPaused = false
                 syncMediaNotification()
                 super.onPlay(session, mediaSession)
@@ -2302,9 +2461,15 @@ class GeckoManager(private val context: Context) {
                 if (state.position != lastPositionSnapshotByGecko.doubleValue || lastPositionSnapshot.doubleValue == INIT) {
                     lastPositionSnapshotByGecko.doubleValue = state.position
                     lastPositionSnapshot.doubleValue = state.position
+                    lastSnapshotTime.longValue = System.currentTimeMillis()
+                } else if (prevRate != state.playbackRate) {
+                    tickLivePosition()
                 }
-                lastSnapshotTime.longValue = System.currentTimeMillis()
-                lastPlaybackRate.doubleValue = state.playbackRate
+                lastPlaybackRate.doubleValue = if (!isActiveMediaSessionPaused && state.playbackRate == 0.0) {
+                    1.0
+                } else {
+                    state.playbackRate
+                }
 
                 if (!state.duration.isNaN()) {
                     lastDuration.doubleValue = state.duration

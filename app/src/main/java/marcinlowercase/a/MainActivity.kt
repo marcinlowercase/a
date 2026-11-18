@@ -2908,9 +2908,10 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                             keyboardController?.hide()
 
                             val isPlayingBackgroundMedia = allowBackground &&
-                                viewModel.geckoManager.activeMediaGeckoSession == currentActiveSession &&
-                                !viewModel.geckoManager.isActiveMediaSessionPaused
-
+                                    (viewModel.geckoManager.activeMediaGeckoSession == currentActiveSession ||
+                                            viewModel.geckoManager.currentFullscreenSession == currentActiveSession ||
+                                            viewModel.geckoManager.activeSilentVideoSession == currentActiveSession) &&
+                                    !viewModel.geckoManager.isActiveMediaSessionPaused
                             if (!isPlayingBackgroundMedia) {
                                 currentActiveSession.setActive(false)
                                 if (isNewAndroid) {

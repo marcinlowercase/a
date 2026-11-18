@@ -298,4 +298,124 @@
 
     window.outsync = api;
   }
+
+  var lastSilentVideo = null;
+
+  function isControllableVideo(v) {
+    if (!v || v.tagName !== "VIDEO") return false;
+    if (document.fullscreenElement) return true;
+    if (v.loop && !v.hasAttribute("controls")) return false;
+    if (isFinite(v.duration) && v.duration > 0 && v.duration <= 3) return false;
+    var rect = v.getBoundingClientRect ? v.getBoundingClientRect() : null;
+    if ((v.videoWidth || 0) < 200 && (!rect || rect.width < 200)) return false;
+    return true;
+  }
+
+  function emitSilentVideoState(v, eventName, forcedPaused) {
+    if (!v) return;
+    var isPaused = typeof forcedPaused === "boolean" ? forcedPaused : Boolean(v.paused);
+    send("silentVideoState", {
+      event: eventName || "",
+      paused: isPaused,
+      position: isFinite(v.currentTime) ? v.currentTime : 0,
+      duration: isFinite(v.duration) && v.duration > 0 ? v.duration : -1,
+      title: document.title || ""
+    }).catch(function () {});
+  }
+
+  ["play", "pause", "seeked", "ended"].forEach(function (evName) {
+    document.addEventListener(evName, function (e) {
+      try {
+        var v = e.target;
+        if (!isControllableVideo(v)) return;
+        lastSilentVideo = v;
+        emitSilentVideoState(v, evName, evName === "ended" ? true : undefined);
+      } catch (_) {}
+    }, true);
+  });
+
+  function findActiveMediaElement() {
+    var fsEl = document.fullscreenElement;
+    var v = fsEl
+      ? ((fsEl.tagName === "VIDEO" || fsEl.tagName === "AUDIO") ? fsEl : fsEl.querySelector("video, audio"))
+      : null;
+    if (v) return v;
+
+    if (lastSilentVideo && document.contains(lastSilentVideo) && !lastSilentVideo.paused) {
+      return lastSilentVideo;
+    }
+
+    var allMedia = Array.prototype.slice.call(document.querySelectorAll("video, audio"));
+    var playing = allMedia.find(function (el) {
+      return !el.paused && el.readyState > 0;
+    });
+    if (playing) return playing;
+
+    if (lastSilentVideo && document.contains(lastSilentVideo)) {
+      return lastSilentVideo;
+    }
+
+    return allMedia.find(function (el) {
+      return el.readyState > 0 && isFinite(el.duration) && el.duration > 0;
+    }) || allMedia[0] || null;
+  }
+
+  // controller for live dom media seek and silent video fallback
+  window.addEventListener("browser_video_cmd", function (e) {
+    try {
+      if (window !== window.top && !document.fullscreenElement && !lastSilentVideo) return;
+      var payload = typeof e.detail === "string" ? JSON.parse(e.detail) : e.detail;
+      if (!payload || !payload.cmd) return;
+
+      var v = findActiveMediaElement();
+      if (!v) {
+        if (payload.cmd === "seek_delta_native_fallback" && window === window.top) {
+          send("mediaSeekResult", {
+            found: false,
+            delta: payload.value || 0
+          }).catch(function () {});
+        }
+        return;
+      }
+
+      lastSilentVideo = v;
+
+      switch (payload.cmd) {
+        case "play":
+          v.play();
+          break;
+        case "pause":
+          v.pause();
+          break;
+        case "seek_delta":
+        case "seek_delta_native_fallback": {
+          var dur = isFinite(v.duration) && v.duration > 0 ? v.duration : 1e9;
+          v.currentTime = Math.max(0, Math.min(dur, (v.currentTime || 0) + (payload.value || 0)));
+          break;
+        }
+        case "seek_to": {
+          var dur2 = isFinite(v.duration) && v.duration > 0 ? v.duration : 1e9;
+          v.currentTime = Math.max(0, Math.min(dur2, payload.value || 0));
+          break;
+        }
+        case "query":
+          break;
+      }
+
+      if (payload.cmd === "seek_delta_native_fallback") {
+        send("mediaSeekResult", {
+          found: true,
+          paused: Boolean(v.paused),
+          position: isFinite(v.currentTime) ? v.currentTime : 0,
+          duration: isFinite(v.duration) && v.duration > 0 ? v.duration : -1
+        }).catch(function () {});
+        return;
+      }
+
+      var forcedPaused = payload.cmd === "play"
+        ? false
+        : (payload.cmd === "pause" ? true : undefined);
+      emitSilentVideoState(v, payload.cmd, forcedPaused);
+    } catch (_) {}
+  });
 })();
