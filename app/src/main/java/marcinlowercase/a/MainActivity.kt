@@ -2618,6 +2618,7 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                             isFirstLoadPWA = false,
                         )
                     }
+                    (geckoViewRef.value as? SafeGeckoView)?.wakeCompositor()
                     sampleTrigger++
                 },
                 onFaviconChanged = { tabId, faviconUrl ->
@@ -2798,6 +2799,7 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                 },
                 onContentPaintedFun = { eventTabId ->
                     if (eventTabId == viewModel.activeTab?.id) {
+                        (geckoViewRef.value as? SafeGeckoView)?.wakeCompositor()
                         sampleTrigger++
                     }
                 },
@@ -3444,6 +3446,8 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                                                         if (geckoView.session != activeSession) {
                                                             geckoView.releaseSession()
                                                             geckoView.setSession(activeSession)
+                                                            activeSession.setActive(true)
+                                                            (geckoView as? SafeGeckoView)?.wakeCompositor()
                                                         }
                                                         geckoViewRef.value = geckoView
                                                         mainActivity.activeGeckoView = geckoView
