@@ -367,6 +367,54 @@
       var payload = typeof e.detail === "string" ? JSON.parse(e.detail) : e.detail;
       if (!payload || !payload.cmd) return;
 
+      if (payload.cmd === "next_track_fallback" && window === window.top) {
+        var nextBtn = document.querySelector(
+          "button.ytp-next-button, .ytp-next-button, button[aria-label='Next video'], button[aria-label='Next'], [data-tooltip-target-id='ytp-next-button']"
+        );
+        if (nextBtn && nextBtn.getAttribute("aria-disabled") !== "true") {
+          nextBtn.click();
+          return;
+        }
+        var currentVid = new URL(location.href).searchParams.get("v");
+        var watchLinks = document.querySelectorAll(
+          "ytm-video-with-context-renderer a[href*='/watch?v='], ytm-compact-video-renderer a[href*='/watch?v='], ytd-compact-video-renderer a[href*='/watch?v='], a[href*='/watch?v=']"
+        );
+        for (var i = 0; i < watchLinks.length; i++) {
+          try {
+            var targetUrl = new URL(watchLinks[i].href, location.origin);
+            var targetVid = targetUrl.searchParams.get("v");
+            if (targetVid && targetVid !== currentVid) {
+              watchLinks[i].click();
+              return;
+            }
+          } catch (_) {}
+        }
+        return;
+      }
+
+      if (payload.cmd === "prev_track_fallback" && window === window.top) {
+        var prevBtn = document.querySelector(
+          "button.ytp-prev-button, .ytp-prev-button, button[aria-label='Previous video'], button[aria-label='Previous']"
+        );
+        if (prevBtn && prevBtn.getAttribute("aria-disabled") !== "true") {
+          prevBtn.click();
+          return;
+        }
+        var activeV = findActiveMediaElement();
+        if (activeV && (activeV.currentTime || 0) > 3) {
+          activeV.currentTime = 0;
+          return;
+        }
+        if (document.referrer && document.referrer.indexOf(location.host) !== -1 && document.referrer.indexOf("/watch") !== -1) {
+          window.history.back();
+          return;
+        }
+        if (activeV) {
+          activeV.currentTime = 0;
+        }
+        return;
+      }
+
       var v = findActiveMediaElement();
       if (!v) {
         if (payload.cmd === "seek_delta_native_fallback" && window === window.top) {

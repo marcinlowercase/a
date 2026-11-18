@@ -112,6 +112,7 @@ class GeckoManager(private val context: Context) {
     var isActiveMediaSessionPaused by mutableStateOf(true)
     var mediaSeekStepSeconds: Double = 5.0
     var onMediaPlaybackStateChanged: (() -> Unit)? = null
+    private var activeMediaFeatures: Long = 0L
 
 //    val runtime: GeckoRuntime by lazy {
 //        GeckoRuntime.getDefault(context)
@@ -1018,6 +1019,24 @@ class GeckoManager(private val context: Context) {
         when (command) {
             "play" -> controller.play()
             "pause" -> controller.pause()
+            "next_track" -> {
+                if ((activeMediaFeatures and MediaSession.Feature.NEXT_TRACK) != 0L) {
+                    controller.nextTrack()
+                } else if (domSession != null && domSession.isOpen) {
+                    dispatchSilentVideoCommand(domSession, "next_track_fallback", 0.0)
+                } else {
+                    controller.nextTrack()
+                }
+            }
+            "prev_track" -> {
+                if ((activeMediaFeatures and MediaSession.Feature.PREVIOUS_TRACK) != 0L) {
+                    controller.previousTrack()
+                } else if (domSession != null && domSession.isOpen) {
+                    dispatchSilentVideoCommand(domSession, "prev_track_fallback", 0.0)
+                } else {
+                    controller.previousTrack()
+                }
+            }
             "next_5" -> {
                 if (domSession != null && domSession.isOpen) {
                     dispatchSilentVideoCommand(domSession, "seek_delta_native_fallback", mediaSeekStepSeconds)
@@ -2357,6 +2376,7 @@ class GeckoManager(private val context: Context) {
                 activeSilentVideoSession = null
                 activeGeckoMediaSession = mediaSession
                 activeMediaGeckoSession = session
+                activeMediaFeatures = 0L
                 isActiveMediaSessionPaused = false
                 lastSnapshotTime.longValue = System.currentTimeMillis()
                 if (lastPositionSnapshot.doubleValue == INIT) {
@@ -2372,6 +2392,7 @@ class GeckoManager(private val context: Context) {
                 if (activeGeckoMediaSession == mediaSession) {
                     activeGeckoMediaSession = null
                     activeMediaGeckoSession = null
+                    activeMediaFeatures = 0L
                     isActiveMediaSessionPaused = true
                     lastPositionSnapshot.doubleValue = INIT
                     lastDuration.doubleValue = INIT
@@ -2404,6 +2425,16 @@ class GeckoManager(private val context: Context) {
                 }
             }
 
+            override fun onFeatures(
+                session: GeckoSession,
+                mediaSession: MediaSession,
+                features: Long
+            ) {
+                if (activeGeckoMediaSession == mediaSession) {
+                    activeMediaFeatures = features
+                }
+            }
+
             override fun onPause(session: GeckoSession, mediaSession: MediaSession) {
                 activeGeckoMediaSession = mediaSession
                 tickLivePosition()
@@ -2429,6 +2460,7 @@ class GeckoManager(private val context: Context) {
             override fun onStop(session: GeckoSession, mediaSession: MediaSession) {
                 if (activeGeckoMediaSession == mediaSession) {
                     activeGeckoMediaSession = null
+                    activeMediaFeatures = 0L
                     isActiveMediaSessionPaused = true
                     lastPositionSnapshot.doubleValue = INIT
                     lastDuration.doubleValue = INIT

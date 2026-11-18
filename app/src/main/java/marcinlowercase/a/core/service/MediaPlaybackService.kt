@@ -22,6 +22,8 @@ import android.graphics.Color
 
 private const val ACTION_PLAY = "marcinlowercase.a.PLAY"
 private const val ACTION_PAUSE = "marcinlowercase.a.PAUSE"
+private const val ACTION_PREV_TRACK = "marcinlowercase.a.PREV_TRACK"
+private const val ACTION_NEXT_TRACK = "marcinlowercase.a.NEXT_TRACK"
 private const val ACTION_PREV_5 = "marcinlowercase.a.PREV_5"
 private const val ACTION_NEXT_5 = "marcinlowercase.a.NEXT_5"
 
@@ -64,6 +66,8 @@ class MediaPlaybackService : Service() {
             setCallback(object : MediaSessionCompat.Callback() {
                 override fun onPlay() { handleCommand("play") }
                 override fun onPause() { handleCommand("pause") }
+                override fun onSkipToPrevious() { handleCommand("prev_track") }
+                override fun onSkipToNext() { handleCommand("next_track") }
                 override fun onRewind() { handleCommand("prev_5") }
                 override fun onFastForward() { handleCommand("next_5") }
                 override fun onSeekTo(pos: Long) {
@@ -103,6 +107,8 @@ class MediaPlaybackService : Service() {
         when (intent?.action) {
             ACTION_PLAY -> handleCommand("play")
             ACTION_PAUSE -> handleCommand("pause")
+            ACTION_PREV_TRACK -> handleCommand("prev_track")
+            ACTION_NEXT_TRACK -> handleCommand("next_track")
             ACTION_PREV_5 -> handleCommand("prev_5")
             ACTION_NEXT_5 -> handleCommand("next_5")
         }
@@ -144,6 +150,8 @@ class MediaPlaybackService : Service() {
                 PlaybackStateCompat.ACTION_PLAY or
                         PlaybackStateCompat.ACTION_PAUSE or
                         PlaybackStateCompat.ACTION_PLAY_PAUSE or
+                        PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
+                        PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
                         PlaybackStateCompat.ACTION_REWIND or
                         PlaybackStateCompat.ACTION_FAST_FORWARD or
                         PlaybackStateCompat.ACTION_SEEK_TO
@@ -176,6 +184,11 @@ class MediaPlaybackService : Service() {
         }
         mediaSession?.setMetadata(metadataBuilder.build())
 
+        val prevTrackAction = NotificationCompat.Action(
+            R.drawable.ic_skip_previous,
+            "Previous",
+            serviceActionPendingIntent(3, ACTION_PREV_TRACK)
+        )
         val prev5Action = NotificationCompat.Action(
             R.drawable.ic_replay_5,
             "Back ${currentSeekStepSec}s",
@@ -199,6 +212,11 @@ class MediaPlaybackService : Service() {
             "Forward ${currentSeekStepSec}s",
             serviceActionPendingIntent(5, ACTION_NEXT_5)
         )
+        val nextTrackAction = NotificationCompat.Action(
+            R.drawable.ic_skip_next,
+            "Next",
+            serviceActionPendingIntent(6, ACTION_NEXT_TRACK)
+        )
 
         val notificationBuilder = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(R.drawable.ic_empty_logo)
@@ -210,13 +228,15 @@ class MediaPlaybackService : Service() {
             .setSilent(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setContentIntent(mediaSession?.controller?.sessionActivity)
+            .addAction(prevTrackAction)
             .addAction(prev5Action)
             .addAction(toggleAction)
             .addAction(next5Action)
+            .addAction(nextTrackAction)
             .setStyle(
                 MediaStyle()
                     .setMediaSession(mediaSession?.sessionToken)
-                    .setShowActionsInCompactView(0, 1, 2)
+                    .setShowActionsInCompactView(0, 2, 4)
             )
 
         val notification = notificationBuilder.build()
