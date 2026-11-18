@@ -12,6 +12,7 @@ import kotlin.math.ceil
 import kotlin.math.round
 import kotlin.math.roundToInt
 import marcinlowercase.a.core.enum_class.SharpMode
+import marcinlowercase.a.core.enum_class.PipAction
 
 const val BASE_RADIUS = 28f
 @Serializable
@@ -57,6 +58,7 @@ data class BrowserSettings(
 
     val isEnabledMediaControl: Boolean,
     val mediaSeekStep: Float = DefaultSettingValues.MEDIA_SEEK_STEP,
+    val pipActions: String = DefaultSettingValues.PIP_ACTIONS,
     val isEnabledOutSync: Boolean,
     val isEnabledImmersiveWebview: Boolean = DefaultSettingValues.IS_ENABLED_IMMERSIVE_WEBVIEW,
     val memoryUsage: Int,
@@ -135,6 +137,17 @@ data class BrowserSettings(
 
     fun currentSharpMode(): SharpMode = SharpMode.entries.getOrElse(sharpMode) { SharpMode.ROUND }
 
+    fun getPipActionList(): List<PipAction> {
+        return pipActions.split(",")
+            .mapNotNull { token ->
+                try {
+                    PipAction.valueOf(token.trim())
+                } catch (_: Exception) {
+                    null
+                }
+            }
+            .take(3)
+    }
 }
 @Composable
 fun BrowserSettings.activeOnHighlight(): Int {

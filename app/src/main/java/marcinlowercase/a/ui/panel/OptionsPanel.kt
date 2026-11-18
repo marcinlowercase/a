@@ -91,14 +91,14 @@ import androidx.compose.ui.platform.LocalContext
 import marcinlowercase.a.core.enum_class.SharpMode
 import marcinlowercase.a.core.enum_class.WindowMode
 import kotlin.time.Duration.Companion.milliseconds
+import marcinlowercase.a.core.enum_class.PipAction
 
 
 enum class SettingPanelView {
     MAIN, CORNER_RADIUS, PADDING, ANIMATION_SPEED, CURSOR_CONTAINER_SIZE,
     CURSOR_TRACKING_SPEED, BACK_SQUARE_OPACITY, DEFAULT_URL, INFO,
     CLOSED_TAB_HISTORY_SIZE, MAX_LIST_HEIGHT, SEARCH_ENGINE,
-    SINGLE_LINE_HEIGHT, HIGHLIGHT_COLOR, MEMORY_USAGE,
-    MEDIA_SEEK_STEP
+    SINGLE_LINE_HEIGHT, HIGHLIGHT_COLOR, MEMORY_USAGE, MEDIA_SEEK_STEP, PIP_ACTIONS
 }
 
 // --- MASTER REGISTRY OF ALL BUTTONS ---
@@ -563,6 +563,11 @@ fun rememberBrowserOptionsRegistry(
                 iconRes = R.drawable.ic_media_seek_step,
                 contentDescription = R.string.desc_media_seek_step
             ) { onNavigateToSetting(SettingPanelView.MEDIA_SEEK_STEP) },
+            BrowserOption.PIP_ACTIONS to OptionItem(
+                id = BrowserOption.PIP_ACTIONS,
+                iconRes = R.drawable.ic_pip_setting,
+                contentDescription = R.string.desc_pip_actions
+            ) { onNavigateToSetting(SettingPanelView.PIP_ACTIONS) },
 
             )
     }
@@ -1115,6 +1120,23 @@ fun SettingsPanel(
                         iconID = R.drawable.ic_media_seek_step,
                         digitCount = 2,
                         field = BrowserSettingField.MEDIA_SEEK_STEP
+                    )
+
+                    SettingPanelView.PIP_ACTIONS -> MultipleOptionSetting(
+                        onBackClick = onBackClick,
+                        iconID = R.drawable.ic_pip_setting,
+                        options = listOf(
+                            MultipleOptionItem(PipAction.PREV_TRACK.name, R.drawable.ic_skip_previous, R.string.desc_pip_prev_track),
+                            MultipleOptionItem(PipAction.PREV_5.name, R.drawable.ic_replay_5, R.string.desc_pip_prev_5),
+                            MultipleOptionItem(PipAction.PLAY_PAUSE.name, R.drawable.ic_play_arrow, R.string.desc_pip_play_pause),
+                            MultipleOptionItem(PipAction.NEXT_5.name, R.drawable.ic_forward_5, R.string.desc_pip_next_5),
+                            MultipleOptionItem(PipAction.NEXT_TRACK.name, R.drawable.ic_skip_next, R.string.desc_pip_next_track)
+                        ),
+                        selectedIds = settings.value.pipActions.split(",").filter { it.isNotBlank() },
+                        maxSelection = 3,
+                        onSelectionChanged = { updated ->
+                            viewModel.updateField(BrowserSettingField.PIP_ACTIONS, updated.joinToString(","))
+                        }
                     )
 
                     SettingPanelView.SEARCH_ENGINE -> SliderSetting(

@@ -73,6 +73,12 @@
     <string name="desc_suggestions">suggestions</string>
     <string name="desc_media_control">media control</string>
     <string name="desc_media_seek_step">seek step seconds</string>
+    <string name="desc_pip_actions">pip buttons</string>
+    <string name="desc_pip_prev_track">previous video</string>
+    <string name="desc_pip_prev_5">back seconds</string>
+    <string name="desc_pip_play_pause">play / pause</string>
+    <string name="desc_pip_next_5">forward seconds</string>
+    <string name="desc_pip_next_track">next video</string>
     <string name="desc_out_sync">out sync</string>
     <string name="desc_immersive_webview">immersive webview</string>
     <string name="desc_optimize_memory">optimize memory</string>
@@ -185,6 +191,7 @@
     <string name="toast_highlight_color_setting_disabled">cannot set highlight color</string>
     <string name="toast_material_you_not_support">your device need to be Android 12</string>
     <string name="toast_sharp_mode_setting_disabled">current corner radius is 0</string>
+    <string name="toast_max_options_selected">max 3 options</string>
 
     <!-- Error -->
     <string name="error_failed_to_load">failed to load</string>

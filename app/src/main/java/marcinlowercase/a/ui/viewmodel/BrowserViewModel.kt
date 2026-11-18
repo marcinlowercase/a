@@ -648,6 +648,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 d.IS_ENABLED_MEDIA_CONTROL
             ),
             mediaSeekStep = prefsToUse.getFloat("media_seek_step", d.MEDIA_SEEK_STEP).coerceIn(1f, 60f),
+            pipActions = prefsToUse.getString("pip_actions", d.PIP_ACTIONS) ?: d.PIP_ACTIONS,
             isEnabledOutSync = prefsToUse.getBoolean("is_enabled_out_sync", d.IS_ENABLED_OUT_SYNC),
             isEnabledImmersiveWebview = prefsToUse.getBoolean("is_enabled_immersive_webview", d.IS_ENABLED_IMMERSIVE_WEBVIEW),
             isEnabledConfirmation = prefsToUse.getBoolean("is_enabled_confirmation", d.IS_ENABLED_CONFIRMATION),
@@ -738,6 +739,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                     geckoManager.mediaSeekStepSeconds = step.toDouble()
                     current.copy(mediaSeekStep = step)
                 }
+                BrowserSettingField.PIP_ACTIONS -> current.copy(pipActions = value as String)
             }
         }
     }
@@ -769,6 +771,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 hiddenOptions = d.HIDDEN_OPTIONS,
                 isEnabledMediaControl = d.IS_ENABLED_MEDIA_CONTROL,
                 mediaSeekStep = d.MEDIA_SEEK_STEP,
+                pipActions = d.PIP_ACTIONS,
                 isEnabledOutSync = d.IS_ENABLED_OUT_SYNC,
                 isEnabledImmersiveWebview = d.IS_ENABLED_IMMERSIVE_WEBVIEW,
                 memoryUsage = d.MEMORY_USAGE,
@@ -824,6 +827,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             putBoolean("is_desktop_mode", settings.isDesktopMode)
             putBoolean("is_enabled_media_control", settings.isEnabledMediaControl)
             putFloat("media_seek_step", settings.mediaSeekStep)
+            putString("pip_actions", settings.pipActions)
             putBoolean("is_enabled_out_sync", settings.isEnabledOutSync)
             putBoolean("is_enabled_immersive_webview", settings.isEnabledImmersiveWebview)
             putBoolean("is_enabled_confirmation", settings.isEnabledConfirmation)

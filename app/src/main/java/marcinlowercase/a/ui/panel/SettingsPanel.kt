@@ -51,6 +51,13 @@ import marcinlowercase.a.core.enum_class.BrowserSettingField
 import marcinlowercase.a.core.enum_class.SearchEngine
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import kotlin.math.roundToInt
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.ui.res.stringResource
+import marcinlowercase.a.ui.component.CustomIconButton
+import androidx.compose.runtime.rememberUpdatedState
 
 //
 //enum class SettingPanelView {
@@ -476,5 +483,142 @@ fun TextSetting(
             ),
             singleLine = true
         )
+    }
+
+}
+
+data class MultipleOptionItem(
+    val id: String,
+    val iconRes: Int,
+    val contentDescription: Int
+)
+
+@Composable
+fun MultipleOptionSetting(
+    onBackClick: () -> Unit,
+    iconID: Int,
+    options: List<MultipleOptionItem>,
+    selectedIds: List<String>,
+    maxSelection: Int = 3,
+    onSelectionChanged: (List<String>) -> Unit,
+) {
+    val viewModel = LocalBrowserViewModel.current
+    val settings = viewModel.browserSettings.collectAsState()
+    val uiState = viewModel.uiState.collectAsState()
+    val maxOptionsText = stringResource(R.string.toast_max_options_selected)
+
+    // keep live references across pointerInput(buttonDescription) captures
+    val currentSelectedIds by rememberUpdatedState(selectedIds)
+    val currentOptions by rememberUpdatedState(options)
+    val currentOnSelectionChanged by rememberUpdatedState(onSelectionChanged)
+
+    val rowCount = ((options.size + 3) / 4).coerceAtLeast(1)
+    val contentHeight = (settings.value.heightForLayer(3) * rowCount) +
+            (settings.value.padding * (rowCount - 1))
+    val maxAllowedHeight = settings.value.maxContainerSizeForLayer(3, uiState.value.windowMode)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.3f),
+                shape = RoundedCornerShape(
+                    settings.value.cornerRadiusForLayer(2).dp
+                )
+            )
+            .padding(settings.value.padding.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // top row with back button and setting icon
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(
+                    settings.value.heightForLayer(3).dp
+                ),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(
+                onClick = onBackClick,
+                modifier = Modifier
+                    .clip(
+                        RoundedCornerShape(
+                            settings.value.cornerRadiusForLayer(3).dp
+                        )
+                    )
+                    .fillMaxHeight()
+                    .background(MaterialTheme.colorScheme.onSurface)
+                    .defaultMinSize(
+                        minWidth = settings.value.heightForLayer(3).dp
+                    )
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_arrow_back),
+                    contentDescription = "Back to Settings",
+                    tint = MaterialTheme.colorScheme.surfaceContainer
+                )
+            }
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            IconButton(
+                onClick = { },
+                modifier = Modifier
+                    .clip(
+                        RoundedCornerShape(
+                            settings.value.cornerRadiusForLayer(3).dp
+                        )
+                    )
+                    .fillMaxHeight()
+                    .defaultMinSize(
+                        minWidth = settings.value.heightForLayer(3).dp
+                    )
+            ) {
+                Icon(
+                    painter = painterResource(id = iconID),
+                    contentDescription = "Setting Icon",
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        }
+
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(4),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = settings.value.padding.dp)
+                .height(contentHeight.coerceAtMost(maxAllowedHeight).dp)
+                .clip(
+                    RoundedCornerShape(
+                        settings.value.cornerRadiusForLayer(3).dp
+                    )
+                ),
+            horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp),
+            verticalArrangement = Arrangement.spacedBy(settings.value.padding.dp),
+            userScrollEnabled = contentHeight > maxAllowedHeight
+        ) {
+            items(options, key = { it.id }) { option ->
+                val isSelected = option.id in currentSelectedIds
+                CustomIconButton(
+                    layer = 3,
+                    modifier = Modifier.fillMaxWidth(),
+                    onTap = {
+                        val activeIds = currentSelectedIds
+                        if (option.id in activeIds) {
+                            currentOnSelectionChanged(activeIds.filter { it != option.id })
+                        } else if (activeIds.size >= maxSelection) {
+                            viewModel.showCustomNotification(maxOptionsText)
+                        } else {
+                            // keep selected options in the display list order
+                            val updated = currentOptions.map { it.id }.filter { it == option.id || it in activeIds }
+                            currentOnSelectionChanged(updated)
+                        }
+                    },
+                    buttonDescription = stringResource(option.contentDescription),
+                    painterId = option.iconRes,
+                    isWhite = isSelected
+                )
+            }
+        }
     }
 }

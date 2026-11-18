@@ -7,6 +7,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import marcinlowercase.a.core.function.parseHexColorOrNull
+import marcinlowercase.a.core.enum_class.PipAction
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.DownloadManager
@@ -203,9 +204,11 @@ class MainActivity : ComponentActivity() {
     companion object {
         // keeps track of the one allowed full browser window globally
         var currentFullBrowserInstance: java.lang.ref.WeakReference<MainActivity>? = null
+        const val ACTION_PIP_PREV_TRACK = "marcinlowercase.a.PIP_PREV_TRACK"
         const val ACTION_PIP_PREV_5 = "marcinlowercase.a.PIP_PREV_5"
         const val ACTION_PIP_PLAY_PAUSE = "marcinlowercase.a.PIP_PLAY_PAUSE"
         const val ACTION_PIP_NEXT_5 = "marcinlowercase.a.PIP_NEXT_5"
+        const val ACTION_PIP_NEXT_TRACK = "marcinlowercase.a.PIP_NEXT_TRACK"
     }
     val newUrlFromIntent = MutableStateFlow<String?>(null)
 
@@ -426,9 +429,11 @@ class MainActivity : ComponentActivity() {
             this,
             pipActionReceiver,
             IntentFilter().apply {
+                addAction(ACTION_PIP_PREV_TRACK)
                 addAction(ACTION_PIP_PREV_5)
                 addAction(ACTION_PIP_PLAY_PAUSE)
                 addAction(ACTION_PIP_NEXT_5)
+                addAction(ACTION_PIP_NEXT_TRACK)
             },
             ContextCompat.RECEIVER_NOT_EXPORTED
         )
@@ -598,12 +603,14 @@ class MainActivity : ComponentActivity() {
         override fun onReceive(context: Context?, intent: Intent?) {
             val gm = (application as CustomApplication).geckoManager
             when (intent?.action) {
+                ACTION_PIP_PREV_TRACK -> gm.sendVideoCommand("prev_track")
                 ACTION_PIP_PREV_5 -> gm.sendVideoCommand("prev_5")
                 ACTION_PIP_PLAY_PAUSE -> {
                     if (gm.isActiveMediaSessionPaused) gm.sendVideoCommand("play")
                     else gm.sendVideoCommand("pause")
                 }
                 ACTION_PIP_NEXT_5 -> gm.sendVideoCommand("next_5")
+                ACTION_PIP_NEXT_TRACK -> gm.sendVideoCommand("next_track")
             }
         }
     }
@@ -625,19 +632,24 @@ class MainActivity : ComponentActivity() {
             )
         }
 
-        val isPaused = (application as CustomApplication).geckoManager.isActiveMediaSessionPaused
-        val playPauseAction = if (isPaused) {
-            makeAction(102, ACTION_PIP_PLAY_PAUSE, R.drawable.ic_play_arrow, "Play")
-        } else {
-            makeAction(102, ACTION_PIP_PLAY_PAUSE, R.drawable.ic_pause, "Pause")
-        }
+        val viewModel: BrowserViewModel by viewModels()
+        val gm = (application as CustomApplication).geckoManager
+        val isPaused = gm.isActiveMediaSessionPaused
+        val stepSec = gm.mediaSeekStepSeconds.toInt().coerceIn(1, 60)
 
-        val stepSec = (application as CustomApplication).geckoManager.mediaSeekStepSeconds.toInt().coerceIn(1, 60)
-        return listOf(
-            makeAction(101, ACTION_PIP_PREV_5, R.drawable.ic_replay_5, "Back ${stepSec}s"),
-            playPauseAction,
-            makeAction(103, ACTION_PIP_NEXT_5, R.drawable.ic_forward_5, "Forward ${stepSec}s")
-        )
+        return viewModel.browserSettings.value.getPipActionList().map { action ->
+            when (action) {
+                PipAction.PREV_TRACK -> makeAction(104, ACTION_PIP_PREV_TRACK, R.drawable.ic_skip_previous, "Previous video")
+                PipAction.PREV_5 -> makeAction(101, ACTION_PIP_PREV_5, R.drawable.ic_replay_5, "Back ${stepSec}s")
+                PipAction.PLAY_PAUSE -> if (isPaused) {
+                    makeAction(102, ACTION_PIP_PLAY_PAUSE, R.drawable.ic_play_arrow, "Play")
+                } else {
+                    makeAction(102, ACTION_PIP_PLAY_PAUSE, R.drawable.ic_pause, "Pause")
+                }
+                PipAction.NEXT_5 -> makeAction(103, ACTION_PIP_NEXT_5, R.drawable.ic_forward_5, "Forward ${stepSec}s")
+                PipAction.NEXT_TRACK -> makeAction(105, ACTION_PIP_NEXT_TRACK, R.drawable.ic_skip_next, "Next video")
+            }
+        }
     }
 
     private var pipAspectRatio = android.util.Rational(16, 9)
@@ -2399,7 +2411,7 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
             viewModel.geckoManager.setBackgroundPlaybackEnabled(settings.isEnabledBackgroundPlayback)
         }
 
-        LaunchedEffect(settings.mediaSeekStep) {
+        LaunchedEffect(settings.mediaSeekStep, settings.pipActions) {
             viewModel.geckoManager.mediaSeekStepSeconds = settings.mediaSeekStep.toDouble()
             viewModel.geckoManager.syncMediaNotification()
             if (mainActivity.isCurrentlyFullscreen || mainActivity.isInPictureInPictureMode) {

@@ -21,4 +21,5 @@ enum class BrowserSettingField {
     HIDDEN_OPTIONS,
     MEMORY_USAGE,
     MEDIA_SEEK_STEP,
+    PIP_ACTIONS
 }
