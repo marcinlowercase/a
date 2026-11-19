@@ -1093,6 +1093,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         if (token != null) {
             pendingActionAfterAuth?.invoke()
         } else {
+            setSyncLoading(false)
             showCustomNotification(getApplication<Application>().getString(R.string.ui_sync_failed))
         }
         pendingActionAfterAuth = null
@@ -1104,7 +1105,15 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 pendingActionAfterAuth = {
                     val savedToken = driveSyncManager.getSavedAccessToken()
                     if (savedToken != null) {
-                        viewModelScope.launch(Dispatchers.IO) { action(savedToken) }
+                        viewModelScope.launch(Dispatchers.IO) {
+                            try {
+                                action(savedToken)
+                            } finally {
+                                withContext(Dispatchers.Main + kotlinx.coroutines.NonCancellable) {
+                                    setSyncLoading(false)
+                                }
+                            }
+                        }
                     } else {
                         setSyncLoading(false)
                     }
@@ -1112,7 +1121,15 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 pendingDriveAuthResolution.value = intentSenderRequest
             },
             onSuccess = { token ->
-                viewModelScope.launch(Dispatchers.IO) { action(token) }
+                viewModelScope.launch(Dispatchers.IO) {
+                    try {
+                        action(token)
+                    } finally {
+                        withContext(Dispatchers.Main + kotlinx.coroutines.NonCancellable) {
+                            setSyncLoading(false)
+                        }
+                    }
+                }
             },
             onFailure = {
                 setSyncLoading(false)
@@ -1196,7 +1213,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             val success = driveSyncManager.uploadToDrive(token, jsonString)
 
             withContext(Dispatchers.Main) {
-                updateUI { it.copy(isLoading = false) }
+                setSyncLoading(false)
                 if (success) {
                     showCustomNotification(context.getString(R.string.ui_sync_successful))
                 } else {
@@ -1231,22 +1248,22 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                     // Download missing .html code and icons from Drive on IO thread
                     pullCloudAppsToDiskOnIO(token, cloudData)
 
-                    // Directly restore on Main without withMutableSnapshot
+                    // directly restore on main without withMutableSnapshot
                     withContext(Dispatchers.Main) {
                         restoreFromCloud(cloudData, isMerge = false)
-                        updateUI { it.copy(isLoading = false) }
+                        setSyncLoading(false)
                         showCustomNotification(context.getString(R.string.ui_sync_successful))
                     }
                 } catch (e: Exception) {
                     Log.e("BrowserSync", "Pull failed", e)
                     withContext(Dispatchers.Main) {
-                        updateUI { it.copy(isLoading = false) }
+                        setSyncLoading(false)
                         showCustomNotification(context.getString(R.string.ui_sync_failed))
                     }
                 }
             } else {
                 withContext(Dispatchers.Main) {
-                    updateUI { it.copy(isLoading = false) }
+                    setSyncLoading(false)
                     showCustomNotification(context.getString(R.string.ui_cloud_empty))
                 }
             }
@@ -1340,18 +1357,18 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                     }
                 } catch (e: Exception) {
                     withContext(Dispatchers.Main) {
-                        updateUI { it.copy(isLoading = false) }
+                        setSyncLoading(false)
                         showCustomNotification(context.getString(R.string.ui_sync_failed))
                     }
                 }
             } else {
-                // Cloud empty: upload local data
+                // cloud empty: upload local data
                 val localPayload = buildSyncPayloadOnIO()
                 val localJsonString = jsonParser.encodeToString(localPayload)
                 val pushSuccess = driveSyncManager.uploadToDrive(token, localJsonString)
 
                 withContext(Dispatchers.Main) {
-                    updateUI { it.copy(isLoading = false) }
+                    setSyncLoading(false)
                     if (pushSuccess) {
                         showCustomNotification(context.getString(R.string.ui_sync_successful))
                     } else {
