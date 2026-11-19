@@ -386,7 +386,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         if (indexToRemove != -1) {
             val wasActive = (indexToRemove == _activeTabIndex.value)
 
-            // Close the Gecko Session to free RAM immediately
+            loadingTabIds.remove(tabToMove.id)
             geckoManager.closeSession(tabToMove)
 
             // Remove from list
@@ -1765,10 +1765,11 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         // 4. Switch the active index
         _activeTabIndex.value = insertIndex
 
-        // 5. Sync inspection state
+        // sync inspection and loading state
         updateUI { it.copy(inspectingTabId = newTab.id) }
+        syncActiveTabLoadingState()
 
-        // 6. Persist to disk
+        // persist to disk
         saveTabs()
     }
 
@@ -1793,7 +1794,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             _activeTabIndex.value = newIndex
             tabs[newIndex] = tabs[newIndex].copy(state = TabState.ACTIVE)
 
-            // Trigger a save.
+            syncActiveTabLoadingState()
             saveTabs()
         }
     }
@@ -1827,6 +1828,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             tabs[insertIndex] = tabs[insertIndex].copy(state = TabState.ACTIVE)
 
             updateUI { it.copy(isTabDataPanelVisible = false) }
+            syncActiveTabLoadingState()
             saveTabs()
         }
     }
