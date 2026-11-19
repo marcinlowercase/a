@@ -51,8 +51,27 @@ import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 sealed class VideoStatusAction(val seq: Long = System.nanoTime()) {
     class Play(seq: Long = System.nanoTime()) : VideoStatusAction(seq)
     class Pause(seq: Long = System.nanoTime()) : VideoStatusAction(seq)
-    class SeekStep(val deltaSeconds: Int, seq: Long = System.nanoTime()) : VideoStatusAction(seq)
+    class SeekStep(
+        val deltaSeconds: Int,
+        val originSeconds: Double,
+        seq: Long = System.nanoTime()
+    ) : VideoStatusAction(seq)
     class Speed2x(seq: Long = System.nanoTime()) : VideoStatusAction(seq)
+
+    companion object {
+        fun accumulateSeek(
+            current: VideoStatusAction?,
+            delta: Int,
+            currentPositionSeconds: Double
+        ): SeekStep {
+            val prev = current as? SeekStep
+            val sameDirection = prev != null &&
+                ((prev.deltaSeconds > 0 && delta > 0) || (prev.deltaSeconds < 0 && delta < 0))
+            val total = if (sameDirection) prev.deltaSeconds + delta else delta
+            val origin = if (sameDirection) prev.originSeconds else currentPositionSeconds.coerceAtLeast(0.0)
+            return SeekStep(total, origin)
+        }
+    }
 }
 @Composable
 fun VideoStatusPanel(
@@ -238,12 +257,15 @@ fun VideoStatusPanel(
                                     dragAccumulatorX += dragAmount.x
                                     dragAccumulatorY += dragAmount.y
 
-                                    if (dragAccumulatorY < -50f) {
-                                        isStatusAtTop.value = true
-                                        dragAccumulatorY = 0f
-                                    } else if (dragAccumulatorY > 50f) {
-                                        isStatusAtTop.value = false
-                                        dragAccumulatorY = 0f
+                                    // in gesture mode keep status panel locked to top left/right
+                                    if (mediaControlMode != MediaControlMode.GESTURE) {
+                                        if (dragAccumulatorY < -50f) {
+                                            isStatusAtTop.value = true
+                                            dragAccumulatorY = 0f
+                                        } else if (dragAccumulatorY > 50f) {
+                                            isStatusAtTop.value = false
+                                            dragAccumulatorY = 0f
+                                        }
                                     }
 
                                     if (dragAccumulatorX < -50f) {
@@ -281,9 +303,12 @@ fun VideoStatusPanel(
                 )
             }
             is VideoStatusAction.SeekStep -> {
+                val duration = viewModel.geckoManager.lastDuration.doubleValue
+                val rawTarget = (activeAction.originSeconds + activeAction.deltaSeconds).coerceAtLeast(0.0)
+                val targetTime = if (duration > 0.0) rawTarget.coerceAtMost(duration) else rawTarget
                 val sign = if (activeAction.deltaSeconds > 0) "+" else ""
                 Text(
-                    text = "$sign${activeAction.deltaSeconds}s",
+                    text = "${formatTime(targetTime)} ($sign${activeAction.deltaSeconds}s)",
                     color = MaterialTheme.colorScheme.onSurface,
                     fontFamily = FontFamily.Monospace,
                     textAlign = TextAlign.Center,

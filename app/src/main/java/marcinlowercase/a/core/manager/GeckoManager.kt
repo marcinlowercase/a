@@ -116,6 +116,7 @@ class GeckoManager(private val context: Context) {
     private var activeMediaFeatures: Long = 0L
     private var domHasPrevTrack: Boolean = false
     private var domHasNextTrack: Boolean = false
+    private val handledSeekCmdIds = mutableSetOf<Long>()
 
 //    val runtime: GeckoRuntime by lazy {
 //        GeckoRuntime.getDefault(context)
@@ -722,7 +723,7 @@ class GeckoManager(private val context: Context) {
         }
     }
 
-    private fun getEstimatedLivePosition(): Double {
+    fun getEstimatedLivePosition(): Double {
         val base = lastPositionSnapshot.doubleValue
         if (base < 0.0) return 0.0
         if (isActiveMediaSessionPaused || lastPlaybackRate.doubleValue == 0.0) return base
@@ -1016,7 +1017,9 @@ class GeckoManager(private val context: Context) {
 
     private fun dispatchSilentVideoCommand(session: GeckoSession, cmd: String, value: Double) {
         if (!session.isOpen) return
+        val cmdId = System.nanoTime()
         val detailJson = JSONObject().apply {
+            put("id", cmdId)
             put("cmd", cmd)
             put("value", value)
         }.toString()
@@ -1029,6 +1032,14 @@ class GeckoManager(private val context: Context) {
         if (command == "enter_fullscreen" || command == "start_2x" || command == "stop_2x") {
             val target = activeMediaGeckoSession ?: currentFullscreenSession ?: activeSilentVideoSession ?: return
             dispatchSilentVideoCommand(target, command, 0.0)
+            return
+        }
+
+        if (command == "set_speed") {
+            val target = activeMediaGeckoSession ?: currentFullscreenSession ?: activeSilentVideoSession ?: return
+            lastPlaybackRate.doubleValue = value
+            dispatchSilentVideoCommand(target, "set_speed", value)
+            syncMediaNotification()
             return
         }
 
@@ -1434,12 +1445,21 @@ class GeckoManager(private val context: Context) {
                                 return GeckoResult.fromValue("OK")
                             }
                             "mediaSeekResult" -> {
+                                val cmdId = when (message) {
+                                    is JSONObject -> message.optLong("id", 0L)
+                                    is Map<*, *> -> (message["id"] as? Number)?.toLong() ?: 0L
+                                    else -> 0L
+                                }
                                 val found = when (message) {
                                     is JSONObject -> message.optBoolean("found", false)
                                     is Map<*, *> -> (message["found"] as? Boolean) ?: false
                                     else -> false
                                 }
                                 if (found) {
+                                    if (cmdId != 0L) {
+                                        if (handledSeekCmdIds.size > 32) handledSeekCmdIds.clear()
+                                        handledSeekCmdIds.add(cmdId)
+                                    }
                                     val pos = when (message) {
                                         is JSONObject -> message.optDouble("position", 0.0)
                                         is Map<*, *> -> (message["position"] as? Number)?.toDouble() ?: 0.0
@@ -1455,7 +1475,7 @@ class GeckoManager(private val context: Context) {
                                     }
                                     updateLocalSnapshotOptimistically(pos.coerceAtLeast(0.0))
                                     syncMediaNotification()
-                                } else {
+                                } else if (cmdId == 0L || !handledSeekCmdIds.contains(cmdId)) {
                                     val delta = when (message) {
                                         is JSONObject -> message.optDouble("delta", 0.0)
                                         is Map<*, *> -> (message["delta"] as? Number)?.toDouble() ?: 0.0

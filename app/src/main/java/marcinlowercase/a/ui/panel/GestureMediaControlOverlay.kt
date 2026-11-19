@@ -69,6 +69,8 @@ fun GestureMediaControlOverlay(
                 var pendingSingleTapJob: Job? = null
                 var lastTapTimeMs = 0L
                 var lastTapPosition = Offset.Zero
+                var lastSeekTapTimeMs = 0L
+                var lastSeekDirection = 0
 
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
@@ -79,6 +81,19 @@ fun GestureMediaControlOverlay(
                     }
 
                     val now = System.currentTimeMillis()
+                    val width = size.width.toFloat()
+                    val tapDirection = when {
+                        down.position.x < width * 0.35f -> -1
+                        down.position.x > width * 0.65f -> 1
+                        else -> 0
+                    }
+
+                    val isContinuationSeek =
+                        tapDirection != 0 &&
+                                tapDirection == lastSeekDirection &&
+                                statusAction.value is VideoStatusAction.SeekStep &&
+                                (now - lastSeekTapTimeMs) <= 650L
+
                     val doubleTapSlopPx = 100.dp.toPx()
                     val isPotentialDoubleTap =
                         pendingSingleTapJob?.isActive == true &&
@@ -88,7 +103,7 @@ fun GestureMediaControlOverlay(
                                     (down.position.y - lastTapPosition.y).toDouble()
                                 ) <= doubleTapSlopPx
 
-                    if (isPotentialDoubleTap) {
+                    if (isContinuationSeek || isPotentialDoubleTap) {
                         pendingSingleTapJob?.cancel()
                     }
 
@@ -100,6 +115,8 @@ fun GestureMediaControlOverlay(
                     val holdJob = coroutineScope.launch {
                         delay(350)
                         isHolding2x = true
+                        lastSeekTapTimeMs = 0L
+                        lastSeekDirection = 0
                         viewModel.geckoManager.sendVideoCommand("start_2x")
                         statusAction.value = VideoStatusAction.Speed2x()
                         hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -198,37 +215,46 @@ fun GestureMediaControlOverlay(
                     }
 
                     if (dragMode == 1) {
+                        lastSeekTapTimeMs = 0L
+                        lastSeekDirection = 0
                         if (pendingSeekSeconds.value != 0.0) {
                             viewModel.geckoManager.sendVideoCommand("seek_relative", pendingSeekSeconds.value)
                             pendingSeekSeconds.value = 0.0
                         }
+                    } else if (dragMode == 2) {
+                        lastSeekTapTimeMs = 0L
+                        lastSeekDirection = 0
                     } else if (dragMode == 0 && !isHolding2x) {
-                        if (isPotentialDoubleTap) {
+                        if (isContinuationSeek || isPotentialDoubleTap) {
                             lastTapTimeMs = 0L
-                            val width = size.width.toFloat()
-                            val leftZoneEnd = width * 0.35f
-                            val rightZoneStart = width * 0.65f
-
-                            when {
-                                down.position.x < leftZoneEnd -> {
+                            when (tapDirection) {
+                                -1 -> {
                                     val stepSec = settings.value.mediaSeekStep.roundToInt().coerceIn(1, 60)
+                                    val livePos = viewModel.geckoManager.getEstimatedLivePosition()
                                     controlOption.value = MediaControlOption.TIME
                                     viewModel.geckoManager.mediaSeekStepSeconds = stepSec.toDouble()
                                     viewModel.geckoManager.sendVideoCommand("prev_5")
-                                    statusAction.value = VideoStatusAction.SeekStep(-stepSec)
+                                    statusAction.value = VideoStatusAction.accumulateSeek(statusAction.value, -stepSec, livePos)
+                                    lastSeekTapTimeMs = System.currentTimeMillis()
+                                    lastSeekDirection = -1
                                     interactionTrigger.value++
                                     hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 }
-                                down.position.x > rightZoneStart -> {
+                                1 -> {
                                     val stepSec = settings.value.mediaSeekStep.roundToInt().coerceIn(1, 60)
+                                    val livePos = viewModel.geckoManager.getEstimatedLivePosition()
                                     controlOption.value = MediaControlOption.TIME
                                     viewModel.geckoManager.mediaSeekStepSeconds = stepSec.toDouble()
                                     viewModel.geckoManager.sendVideoCommand("next_5")
-                                    statusAction.value = VideoStatusAction.SeekStep(stepSec)
+                                    statusAction.value = VideoStatusAction.accumulateSeek(statusAction.value, stepSec, livePos)
+                                    lastSeekTapTimeMs = System.currentTimeMillis()
+                                    lastSeekDirection = 1
                                     interactionTrigger.value++
                                     hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 }
                                 else -> {
+                                    lastSeekTapTimeMs = 0L
+                                    lastSeekDirection = 0
                                     if (viewModel.geckoManager.isActiveMediaSessionPaused) {
                                         viewModel.geckoManager.sendVideoCommand("play")
                                         statusAction.value = VideoStatusAction.Play()

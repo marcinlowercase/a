@@ -269,13 +269,14 @@ fun MediaControlPanel(
                                     when (controlOption.value) {
                                         MediaControlOption.TIME -> {
                                             val stepSec = settings.value.mediaSeekStep.roundToInt().coerceIn(1, 60)
+                                            val livePos = viewModel.geckoManager.getEstimatedLivePosition()
                                             viewModel.geckoManager.mediaSeekStepSeconds = stepSec.toDouble()
                                             if (isTopHalf) {
                                                 viewModel.geckoManager.sendVideoCommand("prev_5")
-                                                statusAction.value = VideoStatusAction.SeekStep(-stepSec)
+                                                statusAction.value = VideoStatusAction.accumulateSeek(statusAction.value, -stepSec, livePos)
                                             } else {
                                                 viewModel.geckoManager.sendVideoCommand("next_5")
-                                                statusAction.value = VideoStatusAction.SeekStep(stepSec)
+                                                statusAction.value = VideoStatusAction.accumulateSeek(statusAction.value, stepSec, livePos)
                                             }
                                         }
                                         MediaControlOption.VOLUME -> {

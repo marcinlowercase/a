@@ -198,6 +198,8 @@ import marcinlowercase.a.core.function.extractEdgeColorsFromBitmap
 import marcinlowercase.a.ui.panel.isColorDark
 import android.view.KeyEvent
 import marcinlowercase.a.ui.panel.VideoStatusAction
+import marcinlowercase.a.core.enum_class.MediaControlMode
+import marcinlowercase.a.ui.panel.VideoSeekBar
 
 //region Composable
 
@@ -1008,7 +1010,7 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
 
     // start padding
     val webViewStartPaddingFullscreen =
-        if (hasSharpTopCorners && uiState.value.isLandscape) {
+        if (hasSharpBottomCorners && uiState.value.isLandscape) {
             maxOf(cutoutLeft, settings.cornerRadiusForLayer(0).dp)
         } else {
             cutoutLeft
@@ -1024,7 +1026,7 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
     )
 
     // end padding
-    val webViewEndPaddingFullscreen = if (hasSharpTopCorners && uiState.value.isLandscape) {
+    val webViewEndPaddingFullscreen = if (hasSharpBottomCorners && uiState.value.isLandscape) {
         maxOf(cutoutRight, settings.cornerRadiusForLayer(0).dp)
     } else {
         cutoutRight
@@ -3565,6 +3567,7 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
 
                     val isControlsOnRight = remember { mutableStateOf(false) }
                     val isStatusAtTop = remember { mutableStateOf(false) }
+                    val isGestureStatusOnRight = remember { mutableStateOf(false) }
 
                     if (!isPipMode) {
 
@@ -3642,15 +3645,18 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                             statusAction = statusAction,
                         )
 
+                        val isGestureMode = settings.currentMediaControlMode() == MediaControlMode.GESTURE
+                        val effectiveStatusAtTop = if (isGestureMode) true else isStatusAtTop.value
+                        val effectiveStatusOnRight = if (isGestureMode) isGestureStatusOnRight.value else !isControlsOnRight.value
+
                         VideoStatusPanel(
                             modifier = Modifier
                                 .align(
                                     when {
-                                        isStatusAtTop.value && isControlsOnRight.value -> Alignment.TopStart
-                                        isStatusAtTop.value && !isControlsOnRight.value -> Alignment.TopEnd
-                                        !isStatusAtTop.value && isControlsOnRight.value -> Alignment.BottomStart
-                                        !isStatusAtTop.value && !isControlsOnRight.value -> Alignment.BottomEnd
-                                        else -> Alignment.TopStart
+                                        effectiveStatusAtTop && !effectiveStatusOnRight -> Alignment.TopStart
+                                        effectiveStatusAtTop && effectiveStatusOnRight -> Alignment.TopEnd
+                                        !effectiveStatusAtTop && !effectiveStatusOnRight -> Alignment.BottomStart
+                                        else -> Alignment.BottomEnd
                                     }
                                 )
                                 .padding(webViewPaddingValue),
@@ -3660,9 +3666,24 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                             interactionTrigger = interactionTrigger,
                             statusAction = statusAction,
                             onSwapLayout = { isControlsOnRight.value = !isControlsOnRight.value },
-                            onMoveHorizontal = { moveToLeft -> isControlsOnRight.value = moveToLeft },
+                            onMoveHorizontal = { moveToLeft ->
+                                if (isGestureMode) {
+                                    isGestureStatusOnRight.value = !moveToLeft
+                                } else {
+                                    isControlsOnRight.value = moveToLeft
+                                }
+                            },
                             onExitFullscreen = { activeSession.exitFullScreen() },
                             isStatusAtTop = isStatusAtTop,
+                        )
+
+                        VideoSeekBar(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(webViewPaddingValue),
+                            controlOption = controlOption,
+                            pendingSeekSeconds = pendingSeekSeconds,
+                            interactionTrigger = interactionTrigger,
                         )
                         CursorPointer(
                             isCursorPadVisible = uiState.value.isCursorPadVisible,

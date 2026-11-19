@@ -388,12 +388,16 @@
   function forwardCommandToFrames(payload) {
     try {
       var fsEl = document.fullscreenElement;
-      if (fsEl && fsEl.tagName === "IFRAME" && fsEl.contentWindow) {
-        fsEl.contentWindow.postMessage({ __browserVideoCmd: payload }, "*");
+      var fsWin = (fsEl && fsEl.tagName === "IFRAME") ? fsEl.contentWindow : null;
+      if (fsWin) {
+        fsWin.postMessage({ __browserVideoCmd: payload }, "*");
       }
       for (var i = 0; i < window.frames.length; i++) {
         try {
-          window.frames[i].postMessage({ __browserVideoCmd: payload }, "*");
+          var childWin = window.frames[i];
+          if (childWin !== fsWin) {
+            childWin.postMessage({ __browserVideoCmd: payload }, "*");
+          }
         } catch (_) {}
       }
     } catch (_) {}
@@ -491,6 +495,7 @@
         if (payload.cmd === "seek_delta_native_fallback" && window === window.top) {
           if (window.frames.length === 0) {
             send("mediaSeekResult", {
+              id: payload.id || 0,
               found: false,
               delta: payload.value || 0
             }).catch(function () {});
@@ -499,13 +504,21 @@
             pendingSeekFallbackTimer = setTimeout(function () {
               pendingSeekFallbackTimer = null;
               send("mediaSeekResult", {
+                id: payload.id || 0,
                 found: false,
                 delta: payload.value || 0
               }).catch(function () {});
-            }, 60);
+            }, 180);
           }
         }
         return;
+      }
+
+      // prevent the same command id from seeking the same video element multiple times
+      if (payload.id) {
+        var cmdKey = String(payload.id);
+        if (v.dataset.__lastBrowserCmdId === cmdKey) return;
+        v.dataset.__lastBrowserCmdId = cmdKey;
       }
 
       lastSilentVideo = v;
@@ -556,6 +569,15 @@
           }
           break;
         }
+        case "set_speed": {
+          var newRate = typeof payload.value === "number" && isFinite(payload.value) ? payload.value : 1.0;
+          if (v.dataset.__browserHold2x === "1") {
+            v.dataset.__browserPrevRate = String(newRate);
+          } else {
+            v.playbackRate = newRate;
+          }
+          break;
+        }
         case "query":
           break;
       }
@@ -567,6 +589,7 @@
           } catch (_) {}
         }
         send("mediaSeekResult", {
+          id: payload.id || 0,
           found: true,
           paused: Boolean(v.paused),
           position: isFinite(v.currentTime) ? v.currentTime : 0,
