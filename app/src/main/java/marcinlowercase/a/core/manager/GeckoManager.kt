@@ -1033,9 +1033,25 @@ class GeckoManager(private val context: Context) {
     }
 
     fun sendVideoCommand(command: String, value: Double = 0.0) {
-        if (command == "enter_fullscreen" || command == "start_2x" || command == "stop_2x") {
-            if (command == "start_2x") isHolding2xSpeed = true
-            if (command == "stop_2x") isHolding2xSpeed = false
+        if (command == "enter_fullscreen") {
+            val target = activeMediaGeckoSession ?: currentFullscreenSession ?: activeSilentVideoSession ?: return
+            dispatchSilentVideoCommand(target, command, 0.0)
+            return
+        }
+
+        if (command == "start_2x") {
+            tickLivePosition()
+            isHolding2xSpeed = true
+            lastPlaybackRate.doubleValue = 2.0
+            val target = activeMediaGeckoSession ?: currentFullscreenSession ?: activeSilentVideoSession ?: return
+            dispatchSilentVideoCommand(target, command, 0.0)
+            return
+        }
+
+        if (command == "stop_2x") {
+            tickLivePosition()
+            isHolding2xSpeed = false
+            lastPlaybackRate.doubleValue = activePlaybackSpeed.toDouble()
             val target = activeMediaGeckoSession ?: currentFullscreenSession ?: activeSilentVideoSession ?: return
             dispatchSilentVideoCommand(target, command, 0.0)
             return

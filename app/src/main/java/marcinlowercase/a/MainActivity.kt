@@ -3622,6 +3622,20 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                         val pendingSeekSeconds = remember { mutableDoubleStateOf(0.0) }
                         val interactionTrigger = remember { mutableIntStateOf(0) }
                         val statusAction = remember { mutableStateOf<VideoStatusAction?>(null) }
+                        val temporaryEscapeSeconds = remember { mutableIntStateOf(0) }
+
+                        LaunchedEffect(temporaryEscapeSeconds.intValue, uiState.value.isOnFullscreenVideo) {
+                            if (!uiState.value.isOnFullscreenVideo) {
+                                temporaryEscapeSeconds.intValue = 0
+                                return@LaunchedEffect
+                            }
+                            if (temporaryEscapeSeconds.intValue > 0) {
+                                delay(1000)
+                                if (temporaryEscapeSeconds.intValue > 0) {
+                                    temporaryEscapeSeconds.intValue -= 1
+                                }
+                            }
+                        }
 
                         MediaControlPanel(
                             modifier = Modifier
@@ -3647,6 +3661,7 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                             pendingSeekSeconds = pendingSeekSeconds,
                             interactionTrigger = interactionTrigger,
                             statusAction = statusAction,
+                            isTemporarilyHidden = temporaryEscapeSeconds.intValue > 0,
                         )
 
                         val isGestureMode = settings.currentMediaControlMode() == MediaControlMode.GESTURE
@@ -3669,6 +3684,7 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                             pendingSeekSeconds = pendingSeekSeconds,
                             interactionTrigger = interactionTrigger,
                             statusAction = statusAction,
+                            temporaryEscapeSeconds = temporaryEscapeSeconds,
                             onSwapLayout = { isControlsOnRight.value = !isControlsOnRight.value },
                             onMoveHorizontal = { moveToLeft ->
                                 if (isGestureMode) {
@@ -3688,6 +3704,8 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                             controlOption = controlOption,
                             pendingSeekSeconds = pendingSeekSeconds,
                             interactionTrigger = interactionTrigger,
+                            isTemporarilyHidden = temporaryEscapeSeconds.intValue > 0,
+                            onTemporaryEscape = { temporaryEscapeSeconds.intValue = 10 },
                         )
                         CursorPointer(
                             isCursorPadVisible = uiState.value.isCursorPadVisible,

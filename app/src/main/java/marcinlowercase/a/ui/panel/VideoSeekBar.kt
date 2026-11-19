@@ -41,6 +41,9 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
+import marcinlowercase.a.R
+import marcinlowercase.a.ui.component.CustomIconButton
 
 @Composable
 fun VideoSeekBar(
@@ -48,6 +51,8 @@ fun VideoSeekBar(
     controlOption: MutableState<MediaControlOption>,
     pendingSeekSeconds: MutableState<Double>,
     interactionTrigger: MutableState<Int>,
+    isTemporarilyHidden: Boolean = false,
+    onTemporaryEscape: () -> Unit = {},
 ) {
     val viewModel = LocalBrowserViewModel.current
     val uiState = viewModel.uiState.collectAsState()
@@ -71,7 +76,7 @@ fun VideoSeekBar(
     var dragFraction by remember { mutableFloatStateOf(0f) }
     var liveTick by remember { mutableIntStateOf(0) }
 
-    val isVisible = uiState.value.isMediaControlPanelVisible || isDragging
+    val isVisible = !isTemporarilyHidden && (uiState.value.isMediaControlPanelVisible || isDragging)
 
     LaunchedEffect(isVisible, isDragging, viewModel.geckoManager.isActiveMediaSessionPaused) {
         if (isVisible && !isDragging && !viewModel.geckoManager.isActiveMediaSessionPaused) {
@@ -162,7 +167,16 @@ fun VideoSeekBar(
                 ),
                 modifier = Modifier
                     .weight(1f)
-                    .padding(end = settings.value.cornerRadiusForLayer(2).dp)
+                    .padding(horizontal = settings.value.padding.dp)
+            )
+
+            CustomIconButton(
+                layer = 2,
+                isSquare = true,
+                onTap = onTemporaryEscape,
+                buttonDescription = stringResource(R.string.desc_temporary_escape),
+                painterId = R.drawable.ic_temporary_escape,
+                isWhite = true
             )
         }
     }

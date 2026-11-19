@@ -40,12 +40,16 @@ fun GestureMediaControlOverlay(
     pendingSeekSeconds: MutableState<Double>,
     interactionTrigger: MutableState<Int>,
     statusAction: MutableState<VideoStatusAction?> = remember { mutableStateOf(null) },
+    isTemporarilyHidden: Boolean = false,
 ) {
     val viewModel = LocalBrowserViewModel.current
     val uiState = viewModel.uiState.collectAsState()
     val settings = viewModel.browserSettings.collectAsState()
 
-    if (!uiState.value.isOnFullscreenVideo || settings.value.currentMediaControlMode() != MediaControlMode.GESTURE) return
+    if (!uiState.value.isOnFullscreenVideo ||
+        settings.value.currentMediaControlMode() != MediaControlMode.GESTURE ||
+        isTemporarilyHidden
+    ) return
 
     val coroutineScope = rememberCoroutineScope()
     var isHolding2x by remember { mutableStateOf(false) }

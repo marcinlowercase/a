@@ -81,6 +81,7 @@ fun VideoStatusPanel(
     pendingSeekSeconds: MutableState<Double>,
     interactionTrigger: MutableState<Int>,
     statusAction: MutableState<VideoStatusAction?> = remember { mutableStateOf(null) },
+    temporaryEscapeSeconds: MutableState<Int> = remember { mutableIntStateOf(0) },
     onSwapLayout: () -> Unit,
     onMoveHorizontal: (moveToLeft: Boolean) -> Unit = {},
     onExitFullscreen: () -> Unit = {},
@@ -150,7 +151,8 @@ fun VideoStatusPanel(
             uiState.value.isMediaControlPanelVisible ||
                 pendingSeekSeconds.value != 0.0 ||
                 isTemporarilyVisible ||
-                statusAction.value != null
+                statusAction.value != null ||
+                temporaryEscapeSeconds.value > 0
         }
     }
 
@@ -230,7 +232,10 @@ fun VideoStatusPanel(
                 if (isInteractive) {
                     Modifier
                         .clickable {
-                            if (mediaControlMode == MediaControlMode.GESTURE) {
+                            if (temporaryEscapeSeconds.value > 0) {
+                                // restore gesture overlay immediately on tap during countdown
+                                temporaryEscapeSeconds.value = 0
+                            } else if (mediaControlMode == MediaControlMode.GESTURE) {
                                 onExitFullscreen()
                             } else if (uiState.value.isMediaControlPanelVisible) {
                                 onSwapLayout()
@@ -285,59 +290,74 @@ fun VideoStatusPanel(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ){
-        when (val activeAction = statusAction.value) {
-            is VideoStatusAction.Play -> {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_play_arrow),
-                    contentDescription = "Play",
-                    tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-            is VideoStatusAction.Pause -> {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_pause),
-                    contentDescription = "Pause",
-                    tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-            is VideoStatusAction.SeekStep -> {
-                val duration = viewModel.geckoManager.lastDuration.doubleValue
-                val rawTarget = (activeAction.originSeconds + activeAction.deltaSeconds).coerceAtLeast(0.0)
-                val targetTime = if (duration > 0.0) rawTarget.coerceAtMost(duration) else rawTarget
-                val sign = if (activeAction.deltaSeconds > 0) "+" else ""
-                Text(
-                    text = "${formatTime(targetTime)} ($sign${activeAction.deltaSeconds}s)",
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontFamily = FontFamily.Monospace,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .padding(horizontal = settings.value.padding.dp)
-                        .padding(horizontal = settings.value.cornerRadiusForLayer(1).dp)
-                )
-            }
-            is VideoStatusAction.Speed2x -> {
-                Text(
-                    text = "2x",
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontFamily = FontFamily.Monospace,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .padding(horizontal = settings.value.padding.dp)
-                        .padding(horizontal = settings.value.cornerRadiusForLayer(1).dp)
-                )
-            }
-            null -> {
-                Text(
-                    text = displayStatus,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontFamily = FontFamily.Monospace,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .padding(horizontal = settings.value.padding.dp)
-                        .padding(horizontal = settings.value.cornerRadiusForLayer(1).dp)
-                )
+        if (temporaryEscapeSeconds.value > 0) {
+            Text(
+                text = temporaryEscapeSeconds.value.toString(),
+                color = MaterialTheme.colorScheme.onSurface,
+                fontFamily = FontFamily.Monospace,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .padding(horizontal = settings.value.padding.dp)
+                    .padding(horizontal = settings.value.cornerRadiusForLayer(1).dp)
+            )
+        } else {
+            when (val activeAction = statusAction.value) {
+                is VideoStatusAction.Play -> {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_play_arrow),
+                        contentDescription = "Play",
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                is VideoStatusAction.Pause -> {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_pause),
+                        contentDescription = "Pause",
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                is VideoStatusAction.SeekStep -> {
+                    val duration = viewModel.geckoManager.lastDuration.doubleValue
+                    val rawTarget = (activeAction.originSeconds + activeAction.deltaSeconds).coerceAtLeast(0.0)
+                    val targetTime = if (duration > 0.0) rawTarget.coerceAtMost(duration) else rawTarget
+                    val sign = if (activeAction.deltaSeconds > 0) "+" else ""
+                    Text(
+                        text = "${formatTime(targetTime)} ($sign${activeAction.deltaSeconds}s)",
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontFamily = FontFamily.Monospace,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .padding(horizontal = settings.value.padding.dp)
+                            .padding(horizontal = settings.value.cornerRadiusForLayer(1).dp)
+                    )
+                }
+                is VideoStatusAction.Speed2x -> {
+                    @Suppress("UNUSED_VARIABLE")
+                    val tick = liveTick
+                    val current = formatTime(viewModel.geckoManager.lastPositionSnapshot.doubleValue)
+                    Text(
+                        text = "$current / 2x",
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontFamily = FontFamily.Monospace,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .padding(horizontal = settings.value.padding.dp)
+                            .padding(horizontal = settings.value.cornerRadiusForLayer(1).dp)
+                    )
+                }
+                null -> {
+                    Text(
+                        text = displayStatus,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontFamily = FontFamily.Monospace,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .padding(horizontal = settings.value.padding.dp)
+                            .padding(horizontal = settings.value.cornerRadiusForLayer(1).dp)
+                    )
+                }
             }
         }
     }

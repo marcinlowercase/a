@@ -28,6 +28,8 @@ import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 fun CustomTextButton(
     modifier: Modifier = Modifier,
     otherColor: Color = Color.Transparent,
+    containerColor: Color? = null,
+    contentColor: Color? = null,
     isLandscape: Boolean = false,
     layer: Int,
     onTap: (() -> Unit),
@@ -50,10 +52,10 @@ fun CustomTextButton(
         MaterialTheme.colorScheme.secondaryContainer
     }
 
-    val targetBackgroundColor = if (isWhite || otherColor != Color.Transparent) {
-        baseBgColor
-    } else {
-        baseBgColor.copy(alpha = 0f)
+    val targetBackgroundColor = when {
+        containerColor != null -> containerColor
+        isWhite || otherColor != Color.Transparent -> baseBgColor
+        else -> baseBgColor.copy(alpha = 0f)
     }
 
     val animatedBackgroundColor by animateColorAsState(
@@ -62,12 +64,11 @@ fun CustomTextButton(
         label = "TextButtonBackground"
     )
 
-    val targetContentColor = if (otherColor != Color.Transparent && settings.value.isMaterialYou()) {
-        MaterialTheme.colorScheme.onPrimary
-    } else if (isWhite) {
-        MaterialTheme.colorScheme.onSecondaryContainer
-    } else {
-        MaterialTheme.colorScheme.onSurface
+    val targetContentColor = when {
+        contentColor != null -> contentColor
+        otherColor != Color.Transparent && settings.value.isMaterialYou() -> MaterialTheme.colorScheme.onPrimary
+        isWhite -> MaterialTheme.colorScheme.onSecondaryContainer
+        else -> MaterialTheme.colorScheme.onSurface
     }
 
     val animatedContentColor by animateColorAsState(
