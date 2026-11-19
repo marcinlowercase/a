@@ -929,22 +929,32 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     //region Sync Logic
 
-    // Uploads only active on-device apps and icons from filesDir/apps to Google Drive on IO thread
+    private fun extractAppAssetSlug(url: String, iconUrl: String): String? {
+        if (url.startsWith("local://apps/", ignoreCase = true)) {
+            return url.removePrefix("local://apps/")
+                .removeSuffix("/index.html")
+                .removeSuffix("/index.htm")
+                .trim('/')
+                .takeIf { it.isNotBlank() }
+        }
+        if (iconUrl.contains("/apps/") && iconUrl.endsWith("_icon.png")) {
+            return iconUrl.substringAfterLast("/apps/")
+                .removeSuffix("_icon.png")
+                .takeIf { it.isNotBlank() }
+        }
+        return null
+    }
+
+    // uploads active on-device apps and custom local png icons to google drive on io thread
     private suspend fun syncLocalAppsToDriveOnIO(token: String) {
         val context = getApplication<Application>()
         val appsDir = File(context.filesDir, "apps")
         if (!appsDir.exists()) return
 
-        // Only upload files that belong to currently pinned apps across remaining profiles
         val activeSlugs = profileManager.loadProfiles()
             .flatMap { appManager.loadApps(it.id) }
-            .filter { it.url.startsWith("local://apps/", ignoreCase = true) }
-            .map {
-                it.url.removePrefix("local://apps/")
-                    .removeSuffix("/index.html")
-                    .removeSuffix("/index.htm")
-                    .trim('/')
-            }.toSet()
+            .mapNotNull { extractAppAssetSlug(it.url, it.iconUrl) }
+            .toSet()
 
         val driveFileManager = marcinlowercase.a.core.manager.DriveFileManager(driveSyncManager)
 
@@ -984,16 +994,13 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
         cloudData.profiles.forEach { profile ->
             profile.pinnedApps.forEach { app ->
-                if (app.url.startsWith("local://apps/", ignoreCase = true)) {
-                    val slug = app.url.removePrefix("local://apps/")
-                        .removeSuffix("/index.html")
-                        .removeSuffix("/index.htm")
-                        .trim('/')
+                val isLocalWebApp = app.url.startsWith("local://apps/", ignoreCase = true)
+                val slug = extractAppAssetSlug(app.url, app.iconUrl) ?: return@forEach
 
-                    // Skip downloading if deleted locally
-                    if (deletedSlugs.contains(slug)) return@forEach
+                // skip downloading if deleted locally
+                if (deletedSlugs.contains(slug)) return@forEach
 
-                    // 1. Pull missing HTML code
+                if (isLocalWebApp) {
                     val localHtmlFile = File(appsDir, "$slug.html")
                     if (!localHtmlFile.exists()) {
                         val cloudCode = driveFileManager.readText(token, slug, "index.html")
@@ -1001,17 +1008,17 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                             localHtmlFile.writeText(cloudCode)
                         }
                     }
+                }
 
-                    // 2. Pull missing icon
-                    val localIconFile = File(appsDir, "${slug}_icon.png")
-                    if (!localIconFile.exists()) {
-                        val cloudIconBase64 = driveFileManager.readText(token, slug, "icon.png")
-                        if (!cloudIconBase64.isNullOrBlank() && !cloudIconBase64.startsWith("ERROR")) {
-                            try {
-                                val bytes = android.util.Base64.decode(cloudIconBase64, android.util.Base64.DEFAULT)
-                                localIconFile.writeBytes(bytes)
-                            } catch (_: Exception) {}
-                        }
+                // pull missing custom png icon for both local apps and regular pinned sites
+                val localIconFile = File(appsDir, "${slug}_icon.png")
+                if (!localIconFile.exists()) {
+                    val cloudIconBase64 = driveFileManager.readText(token, slug, "icon.png")
+                    if (!cloudIconBase64.isNullOrBlank() && !cloudIconBase64.startsWith("ERROR")) {
+                        try {
+                            val bytes = android.util.Base64.decode(cloudIconBase64, android.util.Base64.DEFAULT)
+                            localIconFile.writeBytes(bytes)
+                        } catch (_: Exception) {}
                     }
                 }
             }
@@ -1022,13 +1029,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     private suspend fun deleteOrphanedDriveAppFoldersOnIO(token: String) {
         try {
             val allLocalSlugs = profileManager.loadProfiles().flatMap { appManager.loadApps(it.id) }
-                .filter { it.url.startsWith("local://apps/", ignoreCase = true) }
-                .map {
-                    it.url.removePrefix("local://apps/")
-                        .removeSuffix("/index.html")
-                        .removeSuffix("/index.htm")
-                        .trim('/')
-                }.toSet()
+                .mapNotNull { extractAppAssetSlug(it.url, it.iconUrl) }
+                .toSet()
 
             val service = com.google.api.services.drive.Drive.Builder(
                 com.google.api.client.http.javanet.NetHttpTransport(),
@@ -1312,12 +1314,13 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             if (!jsonString.isNullOrBlank()) {
                 try {
                     val cloudData = jsonParser.decodeFromString<SyncPayload>(jsonString)
+
+                    // download missing app files and png icons before updating ui
+                    pullCloudAppsToDiskOnIO(token, cloudData)
+
                     withContext(Dispatchers.Main) {
                         restoreFromCloud(cloudData, isMerge = true)
                     }
-
-                    // 1. Pull missing cloud apps to this device (skipping tombstones)
-                    pullCloudAppsToDiskOnIO(token, cloudData)
 
                     // 2. Upload any new local apps to Google Drive (non-destructive)
                     syncLocalAppsToDriveOnIO(token)
@@ -1469,22 +1472,27 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
             val deletedSlugs = if (isMerge) getDeletedAppSlugs() else emptySet()
 
+            val appsDir = File(getApplication<Application>().filesDir, "apps")
             cloudProfile.pinnedApps.forEach { cloudApp ->
-                val isDeletedLocally = if (cloudApp.url.startsWith("local://apps/", ignoreCase = true)) {
-                    val slug = cloudApp.url.removePrefix("local://apps/")
-                        .removeSuffix("/index.html")
-                        .removeSuffix("/index.htm")
-                        .trim('/')
-                    deletedSlugs.contains(slug)
-                } else false
+                val slug = extractAppAssetSlug(cloudApp.url, cloudApp.iconUrl)
+                val isDeletedLocally = slug != null && deletedSlugs.contains(slug)
 
                 if (!isDeletedLocally && !localAppUrls.contains(cloudApp.url)) {
+                    // remap local icon file path to this device's filesDir
+                    val resolvedIconUrl = if (cloudApp.iconUrl.contains("/apps/") &&
+                        cloudApp.iconUrl.endsWith("_icon.png") &&
+                        slug != null
+                    ) {
+                        android.net.Uri.fromFile(File(appsDir, "${slug}_icon.png")).toString()
+                    } else {
+                        cloudApp.iconUrl
+                    }
                     localApps.add(
                         App(
                             id = cloudApp.id,
                             label = cloudApp.label,
                             url = cloudApp.url,
-                            iconUrl = cloudApp.iconUrl
+                            iconUrl = resolvedIconUrl
                         )
                     )
                 }
@@ -2150,13 +2158,9 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             apps.removeAt(index)
             saveApps()
 
-            // Delete local on-device files and record tombstone
-            if (app.url.startsWith("local://apps/", ignoreCase = true)) {
-                val slug = app.url.removePrefix("local://apps/")
-                    .removeSuffix("/index.html")
-                    .removeSuffix("/index.htm")
-                    .trim('/')
-
+            // delete local on-device files and record tombstone
+            val slug = extractAppAssetSlug(app.url, app.iconUrl)
+            if (slug != null) {
                 recordDeletedAppSlug(slug)
 
                 val context = getApplication<Application>()

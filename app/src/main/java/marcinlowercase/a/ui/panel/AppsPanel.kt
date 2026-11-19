@@ -686,19 +686,33 @@ fun AppIcon(
         Box(
             modifier = Modifier.size(20.dp)
         ) {
+            val ctx = LocalContext.current
+            val trimmedIcon = app.iconUrl.trim()
+            val iconPayload: Any = when {
+                trimmedIcon.startsWith("<svg", ignoreCase = true) -> {
+                    java.nio.ByteBuffer.wrap(trimmedIcon.toByteArray(Charsets.UTF_8))
+                }
+                trimmedIcon.contains("/apps/") && trimmedIcon.endsWith("_icon.png") -> {
+                    val fileName = trimmedIcon.substringAfterLast("/apps/")
+                    java.io.File(java.io.File(ctx.filesDir, "apps"), fileName)
+                }
+                else -> app.iconUrl
+            }
+
             Image(
                 painter = rememberAsyncImagePainter(
-                    model = ImageRequest.Builder(LocalContext.current)
+                    model = ImageRequest.Builder(ctx)
                         .addHeader(
                             "User-Agent",
                             "Mozilla/5.0 (Android 14; Mobile; rv:130.0) Gecko/130.0 Firefox/130.0"
                         )
-                        .data(app.iconUrl)
+                        .data(iconPayload)
                         .size(100)
                         .crossfade(true)
                         .placeholder(R.drawable.ic_language)
                         .error(R.drawable.ic_language)
-                        .build()
+                        .build(),
+                    imageLoader = coil.Coil.imageLoader(ctx)
                 ),
                 contentDescription = app.label,
                 contentScale = ContentScale.Crop,
