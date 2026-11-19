@@ -74,7 +74,7 @@
     <string name="desc_media_control">media control</string>
     <string name="desc_media_seek_step">seek step seconds</string>
     <string name="desc_one_hand_media_control">one hand media control</string>
-    <string name="desc_gesture_media_control">gesture media control</string>
+    <string name="desc_gesture_media_control">fullscreen media control</string>
     <string name="desc_exit_fullscreen">exit fullscreen</string>
     <string name="desc_pip_actions">pip buttons</string>
     <string name="desc_pip_prev_track">previous video</string>

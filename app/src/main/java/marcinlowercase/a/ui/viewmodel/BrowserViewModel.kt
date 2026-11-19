@@ -254,6 +254,10 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         lastObservedDomain = null
         lastObservedSharpMode = SharpMode.ROUND
 
+        // preserve current profile mode in cache before switching away
+        otherProfileMediaModes[activeProfileId.value] = _browserSettings.value.mediaControlMode
+        otherProfileMediaModes.remove(newProfileId)
+
         // update profile id
         activeProfileId.value = newProfileId
         profileManager.saveActiveProfileId(newProfileId)
@@ -1622,8 +1626,83 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             // 5. Sync the inspection ID to the newly selected tab
             updateUI { it.copy(inspectingTabId = tabs[newIndex].id) }
 
-            // 6. Persist changes
+            // persist changes
             saveTabs()
+        }
+    }
+
+    private val otherProfileMediaModes = mutableStateMapOf<String, Int>()
+
+    fun getMediaControlModeForProfile(profileId: String): MediaControlMode {
+        if (profileId == currentProfileId) {
+            return _browserSettings.value.currentMediaControlMode()
+        }
+        val ordinal = otherProfileMediaModes.getOrPut(profileId) {
+            val context = getApplication<Application>()
+            val profilePrefs = context.getSharedPreferences("BrowserPrefs_$profileId", Context.MODE_PRIVATE)
+            val globalPrefs = context.getSharedPreferences("BrowserPrefs", Context.MODE_PRIVATE)
+            when {
+                profilePrefs.contains("media_control_mode") ->
+                    profilePrefs.getInt("media_control_mode", DefaultSettingValues.MEDIA_CONTROL_MODE)
+                profilePrefs.contains("is_enabled_media_control") ->
+                    if (profilePrefs.getBoolean("is_enabled_media_control", false)) MediaControlMode.ONE_HAND.ordinal else MediaControlMode.NONE.ordinal
+                globalPrefs.contains("media_control_mode") ->
+                    globalPrefs.getInt("media_control_mode", DefaultSettingValues.MEDIA_CONTROL_MODE)
+                else -> DefaultSettingValues.MEDIA_CONTROL_MODE
+            }
+        }
+        return MediaControlMode.entries.getOrElse(ordinal) { MediaControlMode.NONE }
+    }
+
+    fun toggleMediaControlModeForProfile(profileId: String, targetMode: MediaControlMode) {
+        val currentMode = getMediaControlModeForProfile(profileId)
+        val nextMode = if (currentMode == targetMode) MediaControlMode.NONE else targetMode
+
+        if (profileId == currentProfileId) {
+            updateSettings {
+                it.copy(
+                    mediaControlMode = nextMode.ordinal,
+                    isEnabledMediaControl = nextMode != MediaControlMode.NONE
+                )
+            }
+        } else {
+            otherProfileMediaModes[profileId] = nextMode.ordinal
+            val context = getApplication<Application>()
+            val profilePrefs = context.getSharedPreferences("BrowserPrefs_$profileId", Context.MODE_PRIVATE)
+            profilePrefs.edit {
+                putInt("media_control_mode", nextMode.ordinal)
+                putBoolean("is_enabled_media_control", nextMode != MediaControlMode.NONE)
+            }
+        }
+    }
+
+    fun jumpToActiveMediaTab() {
+        val mediaTabId = geckoManager.getActiveMediaTabId() ?: return
+        val indexInCurrent = tabs.indexOfFirst { it.id == mediaTabId }
+        if (indexInCurrent != -1) {
+            selectTab(indexInCurrent)
+            return
+        }
+
+        val knownProfileId = geckoManager.activeMediaProfileId
+        if (knownProfileId != null && profiles.any { it.id == knownProfileId }) {
+            switchProfile(knownProfileId)
+            val newIndex = tabs.indexOfFirst { it.id == mediaTabId }
+            if (newIndex != -1) {
+                selectTab(newIndex)
+                return
+            }
+        }
+
+        val targetProfile = profiles.firstOrNull { profile ->
+            tabManager.loadTabs(profile.id, null).any { it.id == mediaTabId }
+        }
+        if (targetProfile != null) {
+            switchProfile(targetProfile.id)
+            val newIndex = tabs.indexOfFirst { it.id == mediaTabId }
+            if (newIndex != -1) {
+                selectTab(newIndex)
+            }
         }
     }
 

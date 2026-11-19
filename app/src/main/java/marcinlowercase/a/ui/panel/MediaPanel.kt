@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -30,6 +31,10 @@ import marcinlowercase.a.R
 import marcinlowercase.a.ui.component.CustomIconButton
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import marcinlowercase.a.core.enum_class.MediaControlMode
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 
 @Composable
 fun MediaPanel() {
@@ -37,7 +42,9 @@ fun MediaPanel() {
     val uiState = viewModel.uiState.collectAsState()
     val settings = viewModel.browserSettings.collectAsState()
 
-    val mediaMode = settings.value.currentMediaControlMode()
+    val mediaProfileId = viewModel.geckoManager.activeMediaProfileId ?: viewModel.currentProfileId
+    val currentMediaProfileId by rememberUpdatedState(mediaProfileId)
+    val mediaMode = viewModel.getMediaControlModeForProfile(mediaProfileId)
 
     val hasActiveVideo = viewModel.geckoManager.activeGeckoMediaSession != null ||
             viewModel.geckoManager.activeSilentVideoSession != null ||
@@ -66,59 +73,60 @@ fun MediaPanel() {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
         ) {
-            Text(
-                text = viewModel.geckoManager.lastTitle.value.ifBlank { "video" },
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+            val isPlaying = !viewModel.geckoManager.isActiveMediaSessionPaused
+
+            Box(
                 modifier = Modifier
                     .weight(1f)
+                    .heightIn(min = settings.value.heightForLayer(3).dp)
+                    .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(3).dp))
+                    .clickable { viewModel.jumpToActiveMediaTab() }
                     .padding(horizontal = settings.value.padding.dp)
-                    .padding(start = settings.value.cornerRadiusForLayer(3).dp)
-                    .horizontalScroll(rememberScrollState())
-            )
+                    .padding(start = settings.value.cornerRadiusForLayer(3).dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                Text(
+                    text = viewModel.geckoManager.lastTitle.value.ifBlank { "video" },
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = if (isPlaying) TextOverflow.Clip else TextOverflow.Ellipsis,
+                    modifier = Modifier.then(
+                        if (isPlaying) {
+                            Modifier.basicMarquee(iterations = Int.MAX_VALUE)
+                        } else {
+                            Modifier
+                        }
+                    )
+                )
+            }
 
-            // toggle one hand media control mode
+            // toggle one hand media control mode for the playing video's profile
             CustomIconButton(
                 layer = 3,
                 isSquare = true,
                 onTap = {
-                    val nextMode = if (mediaMode == MediaControlMode.ONE_HAND) {
-                        MediaControlMode.NONE
-                    } else {
+                    viewModel.toggleMediaControlModeForProfile(
+                        currentMediaProfileId,
                         MediaControlMode.ONE_HAND
-                    }
-                    viewModel.updateSettings {
-                        it.copy(
-                            mediaControlMode = nextMode.ordinal,
-                            isEnabledMediaControl = nextMode != MediaControlMode.NONE
-                        )
-                    }
+                    )
                 },
                 buttonDescription = stringResource(R.string.desc_one_hand_media_control),
-                painterId = R.drawable.ic_fullscreen,
+                painterId = R.drawable.ic_one_hand_media_control,
                 isWhite = mediaMode == MediaControlMode.ONE_HAND
             )
 
-            // toggle gesture media control mode
+            // toggle fullscreen media control mode for the playing video's profile
             CustomIconButton(
                 layer = 3,
                 isSquare = true,
                 onTap = {
-                    val nextMode = if (mediaMode == MediaControlMode.GESTURE) {
-                        MediaControlMode.NONE
-                    } else {
+                    viewModel.toggleMediaControlModeForProfile(
+                        currentMediaProfileId,
                         MediaControlMode.GESTURE
-                    }
-                    viewModel.updateSettings {
-                        it.copy(
-                            mediaControlMode = nextMode.ordinal,
-                            isEnabledMediaControl = nextMode != MediaControlMode.NONE
-                        )
-                    }
+                    )
                 },
                 buttonDescription = stringResource(R.string.desc_gesture_media_control),
-                painterId = R.drawable.ic_media_gesture,
+                painterId = R.drawable.ic_fullscreen_media_control,
                 isWhite = mediaMode == MediaControlMode.GESTURE
             )
         }

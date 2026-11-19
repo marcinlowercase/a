@@ -93,6 +93,7 @@ class GeckoManager(private val context: Context) {
     var activeMediaGeckoSession: GeckoSession? = null
     var currentFullscreenSession: GeckoSession? = null
     var activeSilentVideoSession: GeckoSession? = null
+    var activeMediaProfileId by mutableStateOf<String?>(null)
 
     var lastPositionSnapshot = mutableDoubleStateOf(INIT)
     var lastPositionSnapshotByGecko = mutableDoubleStateOf(INIT)
@@ -162,6 +163,7 @@ class GeckoManager(private val context: Context) {
 
 
     private val sessionPool = mutableStateMapOf<Long, GeckoSession>()
+    private val sessionProfileMap = mutableMapOf<GeckoSession, String>()
     val sessionPoolSize: Int
         get() = sessionPool.size
     private val killedSessionIds = mutableSetOf<Long>()
@@ -844,6 +846,7 @@ class GeckoManager(private val context: Context) {
         for (id in idsToClose) {
             val sessionToClose = sessionPool.remove(id)
             sessionToClose?.apply {
+                sessionProfileMap.remove(this)
                 if (this == activeMediaGeckoSession || this == activeSilentVideoSession || this == currentFullscreenSession) {
                     context.stopService(Intent(context, MediaPlaybackService::class.java))
                     if (this == activeMediaGeckoSession) {
@@ -852,6 +855,9 @@ class GeckoManager(private val context: Context) {
                     }
                     if (this == activeSilentVideoSession) activeSilentVideoSession = null
                     if (this == currentFullscreenSession) currentFullscreenSession = null
+                    if (activeMediaGeckoSession == null && activeSilentVideoSession == null && currentFullscreenSession == null) {
+                        activeMediaProfileId = null
+                    }
                 }
                 close()
             }
@@ -918,6 +924,7 @@ class GeckoManager(private val context: Context) {
     private fun createAndConfigureSession(tab: Tab, isDesktopMode: Boolean,isEnabledBackgroundPlayback: Boolean): GeckoSession {
 
         val session = GeckoSession(getSessionSettings(tab, isDesktopMode, isEnabledBackgroundPlayback))
+        sessionProfileMap[session] = tab.profileId
 
 
         // RESTORE STATE - Only do this ONCE upon session creation
@@ -959,9 +966,13 @@ class GeckoManager(private val context: Context) {
             }
             if (session == activeSilentVideoSession) activeSilentVideoSession = null
             if (session == currentFullscreenSession) currentFullscreenSession = null
+            if (activeMediaGeckoSession == null && activeSilentVideoSession == null && currentFullscreenSession == null) {
+                activeMediaProfileId = null
+            }
         }
         // if the active session is killed, reload immediately.
         sessionPool.remove(tabId)
+        sessionProfileMap.remove(session)
         session.close()
         // But for background tabs:
         killedSessionIds.add(tabId)
@@ -970,6 +981,7 @@ class GeckoManager(private val context: Context) {
 
     fun forceKillSession(tabId: Long) {
         val session = sessionPool.remove(tabId)
+        if (session != null) sessionProfileMap.remove(session)
 
         if (session == activeMediaGeckoSession || session == activeSilentVideoSession || session == currentFullscreenSession) {
             context.stopService(Intent(context, MediaPlaybackService::class.java))
@@ -979,6 +991,9 @@ class GeckoManager(private val context: Context) {
             }
             if (session == activeSilentVideoSession) activeSilentVideoSession = null
             if (session == currentFullscreenSession) currentFullscreenSession = null
+            if (activeMediaGeckoSession == null && activeSilentVideoSession == null && currentFullscreenSession == null) {
+                activeMediaProfileId = null
+            }
         }
         if (session?.isOpen == true) {
             session.close()
@@ -1109,6 +1124,11 @@ class GeckoManager(private val context: Context) {
     private fun updateLocalSnapshotOptimistically(newTime: Double) {
         lastPositionSnapshot.doubleValue = newTime
         lastSnapshotTime.longValue = System.currentTimeMillis()
+    }
+
+    fun getActiveMediaTabId(): Long? {
+        val targetSession = activeMediaGeckoSession ?: currentFullscreenSession ?: activeSilentVideoSession ?: return null
+        return sessionPool.entries.firstOrNull { it.value == targetSession }?.key
     }
 
     fun syncMediaNotification() {
@@ -1377,6 +1397,7 @@ class GeckoManager(private val context: Context) {
                                     }
                                     if (currentFullscreenSession == session || ev == "play" || activeSilentVideoSession == session) {
                                         activeSilentVideoSession = session
+                                        activeMediaProfileId = sessionProfileMap[session] ?: session.settings.contextId ?: tab.value.profileId
                                         val paused = when (message) {
                                             is JSONObject -> message.optBoolean("paused", false)
                                             is Map<*, *> -> (message["paused"] as? Boolean) ?: false
@@ -1944,6 +1965,7 @@ class GeckoManager(private val context: Context) {
 
                 val newSession =
                     GeckoSession(getSessionSettings(tab.value, browserSettings.value.isDesktopMode,  browserSettings.value.isEnabledBackgroundPlayback))
+                sessionProfileMap[newSession] = tab.value.profileId
 
                 // This ensures that even if the UI is slow to load the new tab,
                 // the session can still close itself.
@@ -2032,6 +2054,7 @@ class GeckoManager(private val context: Context) {
                 if (session == activeSilentVideoSession && activeGeckoMediaSession == null) {
                     activeSilentVideoSession = null
                     currentFullscreenSession = null
+                    activeMediaProfileId = null
                     isActiveMediaSessionPaused = true
                     onMediaPlaybackStateChanged?.invoke()
                     context.stopService(Intent(context, MediaPlaybackService::class.java))
@@ -2082,6 +2105,7 @@ class GeckoManager(private val context: Context) {
                 if (fullScreen && activeGeckoMediaSession == null) {
                     dispatchSilentVideoCommand(session, "query", 0.0)
                 } else if (!fullScreen && activeGeckoMediaSession == null && activeSilentVideoSession == null) {
+                    activeMediaProfileId = null
                     lastPositionSnapshot.doubleValue = INIT
                     lastDuration.doubleValue = INIT
                     isActiveMediaSessionPaused = true
@@ -2424,6 +2448,7 @@ class GeckoManager(private val context: Context) {
                 activeSilentVideoSession = null
                 activeGeckoMediaSession = mediaSession
                 activeMediaGeckoSession = session
+                activeMediaProfileId = sessionProfileMap[session] ?: session.settings.contextId ?: tab.value.profileId
                 activeMediaFeatures = 0L
                 domHasPrevTrack = false
                 domHasNextTrack = false
@@ -2443,6 +2468,7 @@ class GeckoManager(private val context: Context) {
                 if (activeGeckoMediaSession == mediaSession) {
                     activeGeckoMediaSession = null
                     activeMediaGeckoSession = null
+                    activeMediaProfileId = null
                     activeMediaFeatures = 0L
                     domHasPrevTrack = false
                     domHasNextTrack = false
@@ -2498,6 +2524,8 @@ class GeckoManager(private val context: Context) {
 
             override fun onPause(session: GeckoSession, mediaSession: MediaSession) {
                 activeGeckoMediaSession = mediaSession
+                activeMediaGeckoSession = session
+                activeMediaProfileId = sessionProfileMap[session] ?: session.settings.contextId ?: tab.value.profileId
                 tickLivePosition()
                 isActiveMediaSessionPaused = true
                 syncMediaNotification()
@@ -2506,6 +2534,8 @@ class GeckoManager(private val context: Context) {
 
             override fun onPlay(session: GeckoSession, mediaSession: MediaSession) {
                 activeGeckoMediaSession = mediaSession
+                activeMediaGeckoSession = session
+                activeMediaProfileId = sessionProfileMap[session] ?: session.settings.contextId ?: tab.value.profileId
                 lastSnapshotTime.longValue = System.currentTimeMillis()
                 if (lastPositionSnapshot.doubleValue == INIT) {
                     lastPositionSnapshot.doubleValue = 0.0
@@ -2521,6 +2551,7 @@ class GeckoManager(private val context: Context) {
             override fun onStop(session: GeckoSession, mediaSession: MediaSession) {
                 if (activeGeckoMediaSession == mediaSession) {
                     activeGeckoMediaSession = null
+                    activeMediaProfileId = null
                     activeMediaFeatures = 0L
                     domHasPrevTrack = false
                     domHasNextTrack = false
