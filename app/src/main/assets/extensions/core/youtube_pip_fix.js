@@ -325,7 +325,7 @@
     }, true);
   });
   document.addEventListener("ratechange", (e) => {
-    if (!isPointerHolding && !isInPip() && e && e.target && e.target.tagName === "VIDEO") {
+    if (!isPointerHolding && !isInPip() && e && e.target && e.target.tagName === "VIDEO" && !e.target.dataset.__browserHold2x) {
       normalPlaybackRate = e.target.playbackRate || 1;
     }
   }, true);

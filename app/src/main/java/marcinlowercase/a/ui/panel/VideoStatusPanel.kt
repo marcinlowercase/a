@@ -52,6 +52,7 @@ sealed class VideoStatusAction(val seq: Long = System.nanoTime()) {
     class Play(seq: Long = System.nanoTime()) : VideoStatusAction(seq)
     class Pause(seq: Long = System.nanoTime()) : VideoStatusAction(seq)
     class SeekStep(val deltaSeconds: Int, seq: Long = System.nanoTime()) : VideoStatusAction(seq)
+    class Speed2x(seq: Long = System.nanoTime()) : VideoStatusAction(seq)
 }
 @Composable
 fun VideoStatusPanel(
@@ -101,10 +102,10 @@ fun VideoStatusPanel(
         }
     }
 
-    // show play/pause or seek step action for 1 second then revert to timeline
+    // show play/pause or seek step action for 1 second then revert to timeline; keep 2x until release
     LaunchedEffect(statusAction.value) {
         val current = statusAction.value
-        if (current != null) {
+        if (current != null && current !is VideoStatusAction.Speed2x) {
             delay(1000)
             if (statusAction.value === current) {
                 statusAction.value = null
@@ -283,6 +284,17 @@ fun VideoStatusPanel(
                 val sign = if (activeAction.deltaSeconds > 0) "+" else ""
                 Text(
                     text = "$sign${activeAction.deltaSeconds}s",
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontFamily = FontFamily.Monospace,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .padding(horizontal = settings.value.padding.dp)
+                        .padding(horizontal = settings.value.cornerRadiusForLayer(1).dp)
+                )
+            }
+            is VideoStatusAction.Speed2x -> {
+                Text(
+                    text = "2x",
                     color = MaterialTheme.colorScheme.onSurface,
                     fontFamily = FontFamily.Monospace,
                     textAlign = TextAlign.Center,

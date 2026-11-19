@@ -334,18 +334,41 @@
     }, true);
   });
 
+  function collectAllMedia(root, out) {
+    if (!root || !root.querySelectorAll) return;
+    var list = root.querySelectorAll("video, audio");
+    for (var i = 0; i < list.length; i++) {
+      out.push(list[i]);
+    }
+    var all = root.querySelectorAll("*");
+    for (var j = 0; j < all.length; j++) {
+      if (all[j].shadowRoot) {
+        collectAllMedia(all[j].shadowRoot, out);
+      }
+    }
+  }
+
   function findActiveMediaElement() {
     var fsEl = document.fullscreenElement;
-    var v = fsEl
-      ? ((fsEl.tagName === "VIDEO" || fsEl.tagName === "AUDIO") ? fsEl : fsEl.querySelector("video, audio"))
-      : null;
-    if (v) return v;
+    if (fsEl) {
+      if (fsEl.tagName === "IFRAME") {
+        return null;
+      }
+      if (fsEl.tagName === "VIDEO" || fsEl.tagName === "AUDIO") return fsEl;
+      var fsMedia = [];
+      collectAllMedia(fsEl, fsMedia);
+      var fsPlaying = fsMedia.find(function (el) { return !el.paused && el.readyState > 0; });
+      if (fsPlaying) return fsPlaying;
+      if (fsMedia.length > 0) return fsMedia[0];
+    }
 
     if (lastSilentVideo && document.contains(lastSilentVideo) && !lastSilentVideo.paused) {
       return lastSilentVideo;
     }
 
-    var allMedia = Array.prototype.slice.call(document.querySelectorAll("video, audio"));
+    var allMedia = [];
+    collectAllMedia(document, allMedia);
+
     var playing = allMedia.find(function (el) {
       return !el.paused && el.readyState > 0;
     });
@@ -357,14 +380,27 @@
 
     return allMedia.find(function (el) {
       return el.readyState > 0 && isFinite(el.duration) && el.duration > 0;
-    }) || allMedia[0] || null;
+    }) || null;
   }
 
-  // controller for live dom media seek and silent video fallback
-  window.addEventListener("browser_video_cmd", function (e) {
+  var pendingSeekFallbackTimer = null;
+
+  function forwardCommandToFrames(payload) {
     try {
-      if (window !== window.top && !document.fullscreenElement && !lastSilentVideo) return;
-      var payload = typeof e.detail === "string" ? JSON.parse(e.detail) : e.detail;
+      var fsEl = document.fullscreenElement;
+      if (fsEl && fsEl.tagName === "IFRAME" && fsEl.contentWindow) {
+        fsEl.contentWindow.postMessage({ __browserVideoCmd: payload }, "*");
+      }
+      for (var i = 0; i < window.frames.length; i++) {
+        try {
+          window.frames[i].postMessage({ __browserVideoCmd: payload }, "*");
+        } catch (_) {}
+      }
+    } catch (_) {}
+  }
+
+  function handleBrowserVideoCommand(payload, fromParent) {
+    try {
       if (!payload || !payload.cmd) return;
 
       if (payload.cmd === "query_track_caps" && window === window.top) {
@@ -448,11 +484,26 @@
 
       var v = findActiveMediaElement();
       if (!v) {
+        // forward into child iframes when active video lives inside an embed
+        if (window.frames.length > 0) {
+          forwardCommandToFrames(payload);
+        }
         if (payload.cmd === "seek_delta_native_fallback" && window === window.top) {
-          send("mediaSeekResult", {
-            found: false,
-            delta: payload.value || 0
-          }).catch(function () {});
+          if (window.frames.length === 0) {
+            send("mediaSeekResult", {
+              found: false,
+              delta: payload.value || 0
+            }).catch(function () {});
+          } else {
+            if (pendingSeekFallbackTimer) clearTimeout(pendingSeekFallbackTimer);
+            pendingSeekFallbackTimer = setTimeout(function () {
+              pendingSeekFallbackTimer = null;
+              send("mediaSeekResult", {
+                found: false,
+                delta: payload.value || 0
+              }).catch(function () {});
+            }, 60);
+          }
         }
         return;
       }
@@ -488,11 +539,33 @@
           }
           break;
         }
+        case "start_2x": {
+          if (v.dataset.__browserHold2x !== "1") {
+            v.dataset.__browserPrevRate = String(v.playbackRate || 1);
+            v.dataset.__browserHold2x = "1";
+          }
+          v.playbackRate = 2.0;
+          break;
+        }
+        case "stop_2x": {
+          if (v.dataset.__browserHold2x === "1") {
+            var prevRate = parseFloat(v.dataset.__browserPrevRate || "1");
+            delete v.dataset.__browserHold2x;
+            delete v.dataset.__browserPrevRate;
+            v.playbackRate = (isFinite(prevRate) && prevRate > 0) ? prevRate : 1.0;
+          }
+          break;
+        }
         case "query":
           break;
       }
 
       if (payload.cmd === "seek_delta_native_fallback") {
+        if (fromParent && window.top) {
+          try {
+            window.top.postMessage({ __browserSeekAck: true }, "*");
+          } catch (_) {}
+        }
         send("mediaSeekResult", {
           found: true,
           paused: Boolean(v.paused),
@@ -506,6 +579,31 @@
         ? false
         : (payload.cmd === "pause" ? true : undefined);
       emitSilentVideoState(v, payload.cmd, forcedPaused);
+    } catch (_) {}
+  }
+
+  // controller for live dom media seek and silent video fallback
+  window.addEventListener("browser_video_cmd", function (e) {
+    try {
+      if (window !== window.top && !document.fullscreenElement && !lastSilentVideo) return;
+      var payload = typeof e.detail === "string" ? JSON.parse(e.detail) : e.detail;
+      handleBrowserVideoCommand(payload, false);
+    } catch (_) {}
+  });
+
+  window.addEventListener("message", function (e) {
+    try {
+      if (!e.data) return;
+      if (e.data.__browserSeekAck && window === window.top) {
+        if (pendingSeekFallbackTimer) {
+          clearTimeout(pendingSeekFallbackTimer);
+          pendingSeekFallbackTimer = null;
+        }
+        return;
+      }
+      if (e.data.__browserVideoCmd) {
+        handleBrowserVideoCommand(e.data.__browserVideoCmd, true);
+      }
     } catch (_) {}
   });
 })();
