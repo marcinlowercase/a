@@ -47,6 +47,7 @@ import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import kotlin.math.abs
 import androidx.compose.runtime.mutableStateOf
 import kotlin.math.roundToInt
+import androidx.compose.runtime.DisposableEffect
 
 @Composable
 fun MediaControlPanel(
@@ -73,6 +74,19 @@ fun MediaControlPanel(
     )
 
     var dragAccumulator by remember { mutableFloatStateOf(0f) }
+    var isHolding2x by remember { mutableStateOf(false) }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            if (isHolding2x) {
+                isHolding2x = false
+                viewModel.geckoManager.sendVideoCommand("stop_2x")
+                if (statusAction.value is VideoStatusAction.Speed2x) {
+                    statusAction.value = null
+                }
+            }
+        }
+    }
 
     LaunchedEffect(uiState.value.isMediaControlPanelVisible, viewModel.geckoManager.isActiveMediaSessionPaused) {
         if (!viewModel.geckoManager.isActiveMediaSessionPaused) {
@@ -207,6 +221,7 @@ fun MediaControlPanel(
                                     dragAccumulator = 0f
                                 },
                                 onVerticalDrag = { change, dragAmount ->
+                                    if (isHolding2x) return@detectVerticalDragGestures
                                     change.consume()
                                     val effectiveDrag = if (controlOption.value == MediaControlOption.TIME) {
                                         dragAmount
@@ -248,6 +263,19 @@ fun MediaControlPanel(
                         }
                         .pointerInput(Unit) {
                             detectTapGestures(
+                                onPress = {
+                                    try {
+                                        tryAwaitRelease()
+                                    } finally {
+                                        if (isHolding2x) {
+                                            isHolding2x = false
+                                            viewModel.geckoManager.sendVideoCommand("stop_2x")
+                                            if (statusAction.value is VideoStatusAction.Speed2x) {
+                                                statusAction.value = null
+                                            }
+                                        }
+                                    }
+                                },
                                 onTap = {
                                     if (uiState.value.isMediaControlPanelVisible) {
                                         if (viewModel.geckoManager.isActiveMediaSessionPaused) {
@@ -299,43 +327,47 @@ fun MediaControlPanel(
                                     }
                                     interactionTrigger.value++
                                 },
-                                onLongPress = { offset ->
-                                    val segmentHeight = size.height / 2
-                                    val isTopHalf = offset.y < segmentHeight
+                                onLongPress = {
                                     hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    statusAction.value = null
+                                    isHolding2x = true
+                                    viewModel.geckoManager.sendVideoCommand("start_2x")
+                                    statusAction.value = VideoStatusAction.Speed2x()
 
-                                    when (controlOption.value) {
-                                        MediaControlOption.TIME -> {
-                                            val target = if (viewModel.geckoManager.lastDuration.doubleValue > 0.0) {
-                                                viewModel.geckoManager.lastDuration.doubleValue / 10.0
-                                            } else {
-                                                60.0
-                                            }
-                                            if (isTopHalf) {
-                                                viewModel.geckoManager.sendVideoCommand("seek_relative", -target)
-                                            } else {
-                                                viewModel.geckoManager.sendVideoCommand("seek_relative", target)
-                                            }
-                                        }
-                                        MediaControlOption.VOLUME -> {
-                                            val maxSteps = 100
-                                            if (isTopHalf) {
-                                                gestureManager.setVolume(maxSteps)
-                                            } else {
-                                                gestureManager.setVolume(-maxSteps)
-                                            }
-                                        }
-                                        MediaControlOption.BRIGHTNESS -> {
-                                            val maxSteps = 100
-                                            if (isTopHalf) {
-                                                gestureManager.setBrightness(maxSteps)
-                                            } else {
-                                                gestureManager.setBrightness(-maxSteps)
-                                            }
-                                        }
-                                    }
-                                    interactionTrigger.value++
+//                                    val segmentHeight = size.height / 2
+//                                    val isTopHalf = offset.y < segmentHeight
+//                                    statusAction.value = null
+//
+//                                    when (controlOption.value) {
+//                                        MediaControlOption.TIME -> {
+//                                            val target = if (viewModel.geckoManager.lastDuration.doubleValue > 0.0) {
+//                                                viewModel.geckoManager.lastDuration.doubleValue / 10.0
+//                                            } else {
+//                                                60.0
+//                                            }
+//                                            if (isTopHalf) {
+//                                                viewModel.geckoManager.sendVideoCommand("seek_relative", -target)
+//                                            } else {
+//                                                viewModel.geckoManager.sendVideoCommand("seek_relative", target)
+//                                            }
+//                                        }
+//                                        MediaControlOption.VOLUME -> {
+//                                            val maxSteps = 100
+//                                            if (isTopHalf) {
+//                                                gestureManager.setVolume(maxSteps)
+//                                            } else {
+//                                                gestureManager.setVolume(-maxSteps)
+//                                            }
+//                                        }
+//                                        MediaControlOption.BRIGHTNESS -> {
+//                                            val maxSteps = 100
+//                                            if (isTopHalf) {
+//                                                gestureManager.setBrightness(maxSteps)
+//                                            } else {
+//                                                gestureManager.setBrightness(-maxSteps)
+//                                            }
+//                                        }
+//                                    }
+//                                    interactionTrigger.value++
                                 }
                             )
                         }
