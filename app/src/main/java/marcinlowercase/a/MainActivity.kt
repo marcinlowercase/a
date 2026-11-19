@@ -200,6 +200,7 @@ import android.view.KeyEvent
 import marcinlowercase.a.ui.panel.VideoStatusAction
 import marcinlowercase.a.core.enum_class.MediaControlMode
 import marcinlowercase.a.ui.panel.VideoSeekBar
+import marcinlowercase.a.core.constant.leave_site_permission
 
 //region Composable
 
@@ -1955,6 +1956,7 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
         val googleDriveAppFolderString = stringResource(R.string.desc_permission_google_drive_app_folder)
         val saveFileToDevice = stringResource(R.string.desc_permission_save_file_to_device)
         val cameraPermissionString = stringResource(R.string.desc_permission_camera)
+        val leavePermissionString = stringResource(R.string.desc_permission_leave)
         DisposableEffect(viewModel.activeProfileId.value) {
             viewModel.geckoManager.onDomainCameraPermissionRequested = { domain, onDecision ->
                 val activeDomain = viewModel.activeTab?.currentURL?.toDomain()
@@ -2032,10 +2034,38 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                 }
             }
 
+            viewModel.geckoManager.onDomainLeavePermissionRequested = { domain, targetUrl, onDecision ->
+                val activeDomain = viewModel.activeTab?.currentURL?.toDomain()
+
+                if (domain == activeDomain) {
+                    val targetOrigin = if (domain.startsWith("http") || domain.startsWith("local://")) domain else "https://$domain"
+                    val leaveRequest = CustomPermissionRequest(
+                        origin = targetOrigin,
+                        title = leavePermissionString,
+                        rationale = "Allow $domain to open $targetUrl in a new tab.",
+                        iconResAllow = R.drawable.ic_open_in_new,
+                        iconResDeny = R.drawable.ic_open_in_new_off,
+                        permissionsToRequest = listOf(leave_site_permission),
+                        onResult = { permissionsMap, pendingRequest ->
+                            val isGranted = permissionsMap[leave_site_permission] == true
+                            viewModel.savePermissionDecision(domain, mapOf(leave_site_permission to isGranted))
+                            onDecision(isGranted)
+                            pendingRequest.value = null
+                        },
+                        isSystemRequest = false
+                    )
+                    viewModel.pendingPermissionRequest.value = leaveRequest
+                } else {
+                    onDecision(false)
+                }
+            }
+
             onDispose {
+                viewModel.geckoManager.cancelPendingLeaveRequest()
                 viewModel.geckoManager.onDomainCameraPermissionRequested = null
                 viewModel.geckoManager.onDomainDrivePermissionRequested = null
                 viewModel.geckoManager.onDomainFileStoragePermissionRequested = null
+                viewModel.geckoManager.onDomainLeavePermissionRequested = null
             }
         }
 
@@ -3041,7 +3071,11 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
             }
         }
         LaunchedEffect(viewModel.pendingPermissionRequest.value) {
-            viewModel.updateUI { it.copy(isPermissionPanelVisible = viewModel.pendingPermissionRequest.value != null) }
+            val pending = viewModel.pendingPermissionRequest.value
+            viewModel.updateUI { it.copy(isPermissionPanelVisible = pending != null) }
+            if (pending == null) {
+                viewModel.geckoManager.cancelPendingLeaveRequest()
+            }
         }
         // This effect will re-launch whenever isBottomPanelVisible changes.
         LaunchedEffect(uiState.value.isBottomPanelVisible) {

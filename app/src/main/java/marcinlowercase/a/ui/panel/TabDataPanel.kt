@@ -43,6 +43,7 @@ import marcinlowercase.a.core.function.toDomain
 import marcinlowercase.a.ui.component.CustomIconButton
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import kotlin.math.roundToInt
+import marcinlowercase.a.core.constant.leave_site_permission
 
 private enum class TabDataPanelView {
     MAIN,
@@ -157,6 +158,7 @@ fun TabDataPanel(
                                                     Manifest.permission.POST_NOTIFICATIONS, generic_notification_permission -> Triple(R.drawable.ic_notifications, R.drawable.ic_notifications_off, R.string.desc_permission_notifications)
                                                     persistent_storage_permission -> Triple(R.drawable.ic_persistent_storage, R.drawable.ic_persistent_storage_deny, R.string.desc_permission_storage)
                                                     drm_access_permission -> Triple(R.drawable.ic_media_output, R.drawable.ic_media_output_off, R.string.desc_permission_drm)
+                                                    leave_site_permission -> Triple(R.drawable.ic_open_in_new, R.drawable.ic_open_in_new_off, R.string.desc_permission_leave)
                                                     else -> Triple(R.drawable.ic_bug, R.drawable.ic_bug, R.string.desc_permission_unknown)
                                                 }
 

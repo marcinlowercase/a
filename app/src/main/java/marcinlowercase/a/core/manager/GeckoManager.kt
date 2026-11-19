@@ -77,6 +77,7 @@ import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.common.InputImage
 import kotlinx.serialization.json.Json
 import androidx.compose.runtime.mutableFloatStateOf
+import marcinlowercase.a.core.constant.leave_site_permission
 
 private const val UBLOCK_ID = "uBlock0@raymondhill.net"
 private const val FAVICON_ID = "browser_core_extension@marcinlowercase"
@@ -659,6 +660,14 @@ class GeckoManager(private val context: Context) {
     }
 
     var onDomainFileStoragePermissionRequested: ((domain: String, onDecision: (Boolean) -> Unit) -> Unit)? = null
+
+    var onDomainLeavePermissionRequested: ((domain: String, targetUrl: String, onDecision: (Boolean) -> Unit) -> Unit)? = null
+    private var pendingLeaveCallback: ((Boolean) -> Unit)? = null
+
+    fun cancelPendingLeaveRequest() {
+        pendingLeaveCallback?.invoke(false)
+        pendingLeaveCallback = null
+    }
 
     private suspend fun checkOrRequestFileStoragePermission(domain: String, siteSettings: Map<String, SiteSettings>): Boolean {
         val existingDecision = siteSettings[domain]?.permissionDecisions?.get(
@@ -2094,17 +2103,49 @@ class GeckoManager(private val context: Context) {
                     return GeckoResult.fromValue(AllowOrDeny.DENY)
                 }
 
-                if (request.target == GeckoSession.NavigationDelegate.TARGET_WINDOW_NEW && isStandaloneMode) {
+                if (request.target == GeckoSession.NavigationDelegate.TARGET_WINDOW_NEW) {
+                    if (isStandaloneMode) {
+                        session.loadUri(uri)
+                        return GeckoResult.fromValue(AllowOrDeny.DENY)
+                    }
 
-                    // Manually load the URL in the CURRENT session instead
-                    session.loadUri(uri)
+                    val currentDomain = tab.value.currentURL.toDomain()
+                    val targetDomain = uri.toDomain()
+                    if (currentDomain.isNotBlank() &&
+                        currentDomain != "about:blank" &&
+                        targetDomain != currentDomain
+                    ) {
+                        val existingDecision = siteSettings[currentDomain]
+                            ?.permissionDecisions
+                            ?.get(leave_site_permission)
 
-                    // DENY the request so GeckoView completely aborts the creation of a new session!
-                    return GeckoResult.fromValue(AllowOrDeny.DENY)
+                        when (existingDecision) {
+                            true -> return GeckoResult.fromValue(AllowOrDeny.ALLOW)
+                            false -> return GeckoResult.fromValue(AllowOrDeny.DENY)
+                            null -> {
+                                // drop duplicate rapid popup requests while prompt is open
+                                if (pendingLeaveCallback != null) {
+                                    return GeckoResult.fromValue(AllowOrDeny.DENY)
+                                }
+                                val result = GeckoResult<AllowOrDeny>()
+                                val callback: (Boolean) -> Unit = { isAllowed ->
+                                    pendingLeaveCallback = null
+                                    result.complete(if (isAllowed) AllowOrDeny.ALLOW else AllowOrDeny.DENY)
+                                }
+                                pendingLeaveCallback = callback
+                                val promptHandler = onDomainLeavePermissionRequested
+                                if (promptHandler != null) {
+                                    promptHandler(currentDomain, uri, callback)
+                                } else {
+                                    callback(false)
+                                }
+                                return result
+                            }
+                        }
+                    }
                 }
 
-
-                // 2. Allow normal web pages to load
+                // allow normal web pages to load
                 return GeckoResult.fromValue(AllowOrDeny.ALLOW)
             }
         }

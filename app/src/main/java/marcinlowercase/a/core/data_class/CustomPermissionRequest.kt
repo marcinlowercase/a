@@ -11,5 +11,4 @@ data class CustomPermissionRequest(
     val permissionsToRequest: List<String>,
     val onResult: (Map<String, Boolean>, pendingRequest: MutableState<CustomPermissionRequest?>) -> Unit,
     val isSystemRequest: Boolean = true,
-
 )
