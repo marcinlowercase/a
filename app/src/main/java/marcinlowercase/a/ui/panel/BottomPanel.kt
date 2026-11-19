@@ -25,8 +25,8 @@ import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.anchoredDraggable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
-import androidx.compose.foundation.gestures.drag
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -239,7 +239,8 @@ fun BottomPanel(
                 !uiState.value.isFocusOnTextField &&
                 viewModel.contextMenuData.value == null &&
                 !uiState.value.isPromptPanelVisible &&
-                !uiState.value.isPermissionPanelVisible
+                !uiState.value.isPermissionPanelVisible &&
+                !uiState.value.isNavPanelVisible
 
         // Automatically clear the custom URL text box when the user finishes pinning or cancels
         LaunchedEffect(uiState.value.isPinningApp) {
@@ -1192,6 +1193,10 @@ fun BottomPanel(
                             )
                         }
 
+                        val currentNavigateWebView by rememberUpdatedState(navigateWebView)
+                        val currentCanGoBack by rememberUpdatedState(viewModel.activeTab!!.canGoBack)
+                        val currentCanGoForward by rememberUpdatedState(viewModel.activeTab!!.canGoForward)
+
                         if (uiState.value.isUrlOverlayBoxVisible && !uiState.value.isFocusOnUrlTextField) Box(
                             modifier = Modifier
                                 .background(
@@ -1204,147 +1209,105 @@ fun BottomPanel(
                                         settings.value.cornerRadiusForLayer(1).dp
                                     )
                                 )
-
                                 .matchParentSize()
-                                .pointerInput(
-                                    Unit,
-                                    viewModel.activeTab!!.canGoBack,
-                                    viewModel.activeTab!!.canGoForward,
-
-                                    ) {
-                                    // 1. CAPTURE the CoroutineScope provided by pointerInput
-                                    val coroutineScope =
-                                        CoroutineScope(currentCoroutineContext())
+                                .pointerInput(Unit) {
+                                    val gestureScope = CoroutineScope(currentCoroutineContext())
                                     awaitEachGesture {
-                                        val down =
-                                            awaitFirstDown(requireUnconsumed = false)
+                                        val down = awaitFirstDown(requireUnconsumed = false)
 
-                                        // 2. USE the captured scope to launch the long press job
-                                        val longPressJob = coroutineScope.launch {
+                                        var isLongPressActive = false
+                                        val longPressJob = gestureScope.launch {
                                             delay(viewConfiguration.longPressTimeoutMillis.milliseconds)
-
-                                            // LONG PRESS CONFIRMED
+                                            isLongPressActive = true
                                             hapticFeedback.performHapticFeedback(
                                                 HapticFeedbackType.LongPress
                                             )
                                             focusManager.clearFocus(true)
                                             viewModel.updateUI {
-                                                it.copy(
-                                                    isNavPanelVisible = true
-                                                )
+                                                it.copy(isNavPanelVisible = true)
                                             }
                                             setActiveNavAction(GestureNavAction.NONE)
-
                                         }
 
-                                        val drag =
-                                            awaitTouchSlopOrCancellation(down.id) { change, _ ->
-                                                if (longPressJob.isActive) {
-                                                    longPressJob.cancel()
-                                                }
+                                        var horizontalDragAccumulator = 0f
+                                        var verticalDragAccumulator = 0f
+                                        var previousAction = GestureNavAction.NONE
+                                        val horizontalDragThreshold = 40.dp.toPx()
+                                        val verticalCancelThreshold = -28.dp.toPx()
+                                        var movedBeforeLongPress = false
+
+                                        while (true) {
+                                            // read on Initial pass once long press activates so parent anchoredDraggable cannot steal vertical refresh swipes
+                                            val pass = if (isLongPressActive) PointerEventPass.Initial else PointerEventPass.Main
+                                            val event = awaitPointerEvent(pass)
+                                            val change = event.changes.firstOrNull { it.id == down.id }
+                                                ?: event.changes.firstOrNull()
+                                            if (change == null || !change.pressed) {
+                                                break
+                                            }
+
+                                            if (isLongPressActive) {
                                                 change.consume()
-                                            }
+                                                horizontalDragAccumulator += change.position.x - change.previousPosition.x
+                                                verticalDragAccumulator += change.position.y - change.previousPosition.y
 
-                                        if (longPressJob.isCompleted && !longPressJob.isCancelled) {
-                                            if (drag != null) {
-                                                var horizontalDragAccumulator = 0f
-                                                var verticalDragAccumulator = 0f
-                                                var previousAction =
-                                                    GestureNavAction.REFRESH
-                                                val horizontalDragThreshold =
-                                                    40.dp.toPx()
-
-                                                val verticalCancelThreshold =
-                                                    -40.dp.toPx()
-
-
-                                                drag(drag.id) { change ->
-                                                    change.consume()
-                                                    horizontalDragAccumulator += change.position.x - change.previousPosition.x
-                                                    verticalDragAccumulator += change.position.y - change.previousPosition.y
-
-
-                                                    val newAction = when {
-                                                        verticalDragAccumulator < verticalCancelThreshold -> {
-                                                            when {
-                                                                horizontalDragAccumulator < -horizontalDragThreshold -> GestureNavAction.CLOSE_TAB
-                                                                horizontalDragAccumulator > horizontalDragThreshold -> GestureNavAction.NEW_TAB
-                                                                else -> GestureNavAction.REFRESH
-                                                            }
+                                                val newAction = when {
+                                                    verticalDragAccumulator < verticalCancelThreshold -> {
+                                                        when {
+                                                            horizontalDragAccumulator < -horizontalDragThreshold -> GestureNavAction.CLOSE_TAB
+                                                            horizontalDragAccumulator > horizontalDragThreshold -> GestureNavAction.NEW_TAB
+                                                            else -> GestureNavAction.REFRESH
                                                         }
-
-                                                        horizontalDragAccumulator < -horizontalDragThreshold -> if (viewModel.activeTab!!.canGoBack
-                                                        ) GestureNavAction.BACK else GestureNavAction.NONE
-
-                                                        horizontalDragAccumulator > horizontalDragThreshold -> if (viewModel.activeTab!!.canGoForward
-                                                        ) GestureNavAction.FORWARD else GestureNavAction.NONE
-
-                                                        else -> GestureNavAction.NONE
                                                     }
 
-                                                    if (newAction != previousAction) {
-                                                        hapticFeedback.performHapticFeedback(
-                                                            HapticFeedbackType.TextHandleMove
-                                                        )
-                                                        previousAction = newAction
-                                                    }
-                                                    //                                                    activeNavAction = newAction
-                                                    setActiveNavAction(newAction)
+                                                    horizontalDragAccumulator < -horizontalDragThreshold ->
+                                                        if (currentCanGoBack) GestureNavAction.BACK else GestureNavAction.NONE
+
+                                                    horizontalDragAccumulator > horizontalDragThreshold ->
+                                                        if (currentCanGoForward) GestureNavAction.FORWARD else GestureNavAction.NONE
+
+                                                    else -> GestureNavAction.NONE
                                                 }
 
-                                                navigateWebView()
-                                            }
-                                        } else {
-                                            if (drag != null) {
-
-                                                var horizontalDragAccumulator = 0f
-                                                var verticalDragAccumulator = 0f
-
-                                                drag(drag.id) { change ->
-                                                    horizontalDragAccumulator += change.position.x - change.previousPosition.x
-                                                    verticalDragAccumulator += change.position.y - change.previousPosition.y
-
-//                                                                if (isFocusOnUrlTextField ) change.consume()
-//                                                    if (abs(horizontalDragAccumulator) > abs(
-//                                                            verticalDragAccumulator
-//                                                        )
-//                                                    ) {
-//                                                        viewModel.updateUI {
-//                                                            it.copy(
-//                                                                isUrlOverlayBoxVisible = false
-//                                                            )
-//                                                        }
-//
-//                                                    }
-
-
+                                                if (newAction != previousAction) {
+                                                    hapticFeedback.performHapticFeedback(
+                                                        HapticFeedbackType.TextHandleMove
+                                                    )
+                                                    previousAction = newAction
                                                 }
-
-
+                                                setActiveNavAction(newAction)
                                             } else {
-                                                // Gesture is fully over
-                                                if (longPressJob.isActive) {
+                                                val totalDist = kotlin.math.hypot(
+                                                    (change.position.x - down.position.x).toDouble(),
+                                                    (change.position.y - down.position.y).toDouble()
+                                                )
+                                                if (totalDist > viewConfiguration.touchSlop) {
+                                                    movedBeforeLongPress = true
                                                     longPressJob.cancel()
-                                                    // This was a tap
-
-                                                    if (urlBarFocusRequester.requestFocus()) {
-                                                        keyboardController?.show()
-                                                    } else {
-                                                        urlBarFocusRequester.requestFocus()
-                                                    }
-                                                    viewModel.updateUI {
-                                                        it.copy(
-                                                            isUrlOverlayBoxVisible = false
-                                                        )
-                                                    }
+                                                    break
                                                 }
                                             }
                                         }
 
-                                        // Reset the UI state
-                                        //                                        isNavPanelVisible = false
+                                        if (isLongPressActive) {
+                                            currentNavigateWebView()
+                                        } else {
+                                            if (longPressJob.isActive) {
+                                                longPressJob.cancel()
+                                            }
+                                            if (!movedBeforeLongPress) {
+                                                if (urlBarFocusRequester.requestFocus()) {
+                                                    keyboardController?.show()
+                                                } else {
+                                                    urlBarFocusRequester.requestFocus()
+                                                }
+                                                viewModel.updateUI {
+                                                    it.copy(isUrlOverlayBoxVisible = false)
+                                                }
+                                            }
+                                        }
+
                                         viewModel.updateUI { it.copy(isNavPanelVisible = false) }
-                                        //                                        activeNavAction = GestureNavAction.NONE
                                         setActiveNavAction(GestureNavAction.NONE)
                                     }
                                 }

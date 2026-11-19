@@ -1723,7 +1723,14 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
             }
 
             GestureNavAction.REFRESH -> {
-                activeSession.reload()
+                val tab = viewModel.activeTab
+                if (tab?.errorState != null) {
+                    val targetUrl = tab.errorState!!.failingUrl.ifBlank { tab.currentURL }
+                    viewModel.updateTabById(tab.id) { it.copy(errorState = null) }
+                    webViewLoad(activeSession, targetUrl, context)
+                } else {
+                    activeSession.reload()
+                }
             }
 
             GestureNavAction.FORWARD -> if (viewModel.activeTab!!.canGoForward) {
