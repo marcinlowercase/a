@@ -469,12 +469,12 @@ fun BackSquare(
                         }
                     }
                     .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
-                    .border(
-                        width = 0.5.dp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
-                        shape = RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp)
-                    )
-                    .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.6f)),
+//                    .border(
+//                        width = 0.5.dp,
+//                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+//                        shape = RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp)
+//                    )
+                    .background(MaterialTheme.colorScheme.surfaceContainer),
                 contentAlignment = Alignment.Center
             ) {
                 // 1. Put all 8 of your static frame images inside res/drawable

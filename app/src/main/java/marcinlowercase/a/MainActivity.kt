@@ -1418,27 +1418,31 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
         }
 
     }
+    var isShakeHighlightActive by remember { mutableStateOf(false) }
+    var shakeTrigger by remember { mutableIntStateOf(0) }
+
     suspend fun hideBackSquare(blinkEffect: Boolean = true) {
         val idle = settings.backSquareIdleOpacity
         if (blinkEffect) {
             val peak = 1f
 
+            if (isShakeHighlightActive) return
             squareAlpha.animateTo(peak)
 
-            // b. Wait a moment so the user can see it before it blinks.
             delay(400.milliseconds)
+            if (isShakeHighlightActive) return
 
-            // c. Blink twice.
             repeat(2) {
+                if (isShakeHighlightActive) return
                 squareAlpha.animateTo(idle, animationSpec = tween(300))
+                if (isShakeHighlightActive) return
                 squareAlpha.animateTo(peak, animationSpec = tween(300))
             }
-
         } else {
             delay(200.milliseconds)
         }
+        if (isShakeHighlightActive) return
         squareAlpha.animateTo(idle, animationSpec = tween(400))
-
     }
 // This effect acts as the "Engine" that moves the panel whenever the ViewModel state changes programmatically
     // (e.g., clicking a button to open Apps Panel, or URL bar forcing the panel to close).
@@ -3073,20 +3077,34 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
 
         DisposableEffect(Unit) {
             val shakeDetector = ShakeDetector(context) {
-                // This code runs when a shake is detected
-                coroutineScope.launch {
-                    // Only trigger if the URL bar isn't already visible to avoid conflicts
-                    if (!uiState.value.isBottomPanelVisible) {
-                        hideBackSquare()
-                    }
+                if (!uiState.value.isBottomPanelVisible &&
+                    !uiState.value.isLandscape &&
+                    !uiState.value.isOtherPanelVisible &&
+                    !viewModel.isStandaloneMode.value &&
+                    !mainActivity.isPipMode
+                ) {
+                    isShakeHighlightActive = true
+                    shakeTrigger++
                 }
             }
 
             shakeDetector.start()
 
-            // Clean up when the Composable is destroyed (e.g. app closed)
             onDispose {
                 shakeDetector.stop()
+            }
+        }
+
+        LaunchedEffect(shakeTrigger, uiState.value.isBottomPanelVisible) {
+            if (uiState.value.isBottomPanelVisible) {
+                isShakeHighlightActive = false
+                return@LaunchedEffect
+            }
+            if (shakeTrigger > 0 && isShakeHighlightActive) {
+                squareAlpha.animateTo(1f, animationSpec = tween(200))
+                delay(5000)
+                isShakeHighlightActive = false
+                squareAlpha.animateTo(settings.backSquareIdleOpacity, animationSpec = tween(400))
             }
         }
         LaunchedEffect(viewModel.pendingPermissionRequest.value) {
@@ -3122,7 +3140,7 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
 
         }
         LaunchedEffect(settings.backSquareIdleOpacity) {
-            if (!uiState.value.isBottomPanelVisible && !uiState.value.isCursorPadVisible) {
+            if (!uiState.value.isBottomPanelVisible && !uiState.value.isCursorPadVisible && !isShakeHighlightActive) {
                 squareAlpha.animateTo(settings.backSquareIdleOpacity)
             }
         }
@@ -3903,6 +3921,23 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                             cursorPadHeight = cursorPadHeight,
                             geckoViewRef = geckoViewRef
                         )
+                        AnimatedVisibility(
+                            visible = isShakeHighlightActive &&
+                                !uiState.value.isBottomPanelVisible &&
+                                !uiState.value.isLandscape &&
+                                !uiState.value.isOtherPanelVisible &&
+                                !viewModel.isStandaloneMode.value,
+                            enter = fadeIn(tween(200)),
+                            exit = fadeOut(tween(300)),
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color.Black.copy(alpha = 0.65f))
+                            )
+                        }
+
                         BackSquare(
                             modifier = modifier,
                             activeSession = activeSession,
