@@ -319,6 +319,7 @@
       paused: isPaused,
       position: isFinite(v.currentTime) ? v.currentTime : 0,
       duration: isFinite(v.duration) && v.duration > 0 ? v.duration : -1,
+      playbackRate: isFinite(v.playbackRate) && v.playbackRate > 0 ? v.playbackRate : 1.0,
       title: document.title || ""
     }).catch(function () {});
   }
@@ -575,6 +576,28 @@
             v.dataset.__browserPrevRate = String(newRate);
           } else {
             v.playbackRate = newRate;
+          }
+          break;
+        }
+        case "enter_fullscreen_speed": {
+          if (v.dataset.__browserPreFsRate === undefined) {
+            var baseRate = v.dataset.__browserHold2x === "1"
+              ? parseFloat(v.dataset.__browserPrevRate || "1")
+              : (v.playbackRate || 1);
+            v.dataset.__browserPreFsRate = String((isFinite(baseRate) && baseRate > 0) ? baseRate : 1.0);
+          }
+          delete v.dataset.__browserHold2x;
+          delete v.dataset.__browserPrevRate;
+          v.playbackRate = 1.0;
+          break;
+        }
+        case "exit_fullscreen_speed": {
+          delete v.dataset.__browserHold2x;
+          delete v.dataset.__browserPrevRate;
+          if (v.dataset.__browserPreFsRate !== undefined) {
+            var restoreRate = parseFloat(v.dataset.__browserPreFsRate || "1");
+            delete v.dataset.__browserPreFsRate;
+            v.playbackRate = (isFinite(restoreRate) && restoreRate > 0) ? restoreRate : 1.0;
           }
           break;
         }

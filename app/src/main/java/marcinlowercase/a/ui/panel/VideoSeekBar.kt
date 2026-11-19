@@ -37,6 +37,10 @@ import marcinlowercase.a.core.enum_class.MediaControlOption
 import marcinlowercase.a.ui.component.OptionsRoller
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import java.util.Locale
+import kotlin.math.abs
+import kotlin.math.roundToInt
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 
 @Composable
 fun VideoSeekBar(
@@ -56,15 +60,13 @@ fun VideoSeekBar(
         return
     }
 
-    val speedOptions = remember { (10..20).map { it / 10f } }
-    var selectedSpeed by remember { mutableFloatStateOf(1.0f) }
+    val speedOptions = remember { (25..200 step 5).map { it / 100f } }
+    val selectedSpeed = speedOptions.minByOrNull {
+        abs(it - viewModel.geckoManager.activePlaybackSpeed)
+    } ?: 1.0f
 
-    LaunchedEffect(uiState.value.isOnFullscreenVideo) {
-        if (!uiState.value.isOnFullscreenVideo) {
-            selectedSpeed = 1.0f
-        }
-    }
-
+    val density = LocalDensity.current
+    var barWidthDp by remember { mutableStateOf(0.dp) }
     var isDragging by remember { mutableStateOf(false) }
     var dragFraction by remember { mutableFloatStateOf(0f) }
     var liveTick by remember { mutableIntStateOf(0) }
@@ -97,6 +99,9 @@ fun VideoSeekBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(settings.value.padding.dp)
+                .onSizeChanged { size ->
+                    barWidthDp = with(density) { size.width.toDp() }
+                }
                 .heightIn(min = settings.value.heightForLayer(1).dp)
                 .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
                 .alpha(0.7f)
@@ -109,13 +114,18 @@ fun VideoSeekBar(
                 items = speedOptions,
                 selectedItem = selectedSpeed,
                 onItemSelected = { newSpeed ->
-                    selectedSpeed = newSpeed
                     viewModel.geckoManager.sendVideoCommand("set_speed", newSpeed.toDouble())
                 },
                 itemLabel = { speed ->
-                    String.format(Locale.US, "%.1fx", speed)
+                    val hundredths = (speed * 100f).roundToInt()
+                    if (hundredths % 10 == 0) {
+                        String.format(Locale.US, "%.1fx", speed)
+                    } else {
+                        String.format(Locale.US, "%.2fx", speed)
+                    }
                 },
-                layer = 2
+                layer = 2,
+                expandedWidth = (barWidthDp / 2).takeIf { barWidthDp > 0.dp }
             )
 
             Slider(

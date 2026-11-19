@@ -2725,8 +2725,12 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                     if (inPip && !isFullscreen) {
                         // just nothing right now
                     } else {
-                        // Normal behavior for all other cases
-                        if (!isFullscreen) {
+                        if (isFullscreen && !mainActivity.isCurrentlyFullscreen) {
+                            if (settingsState.value.currentMediaControlMode() == MediaControlMode.GESTURE) {
+                                viewModel.geckoManager.sendVideoCommand("enter_fullscreen_speed")
+                            }
+                        } else if (!isFullscreen) {
+                            viewModel.geckoManager.sendVideoCommand("exit_fullscreen_speed")
                             mainActivity.updateVideoAspectRatio(16, 9)
                         }
                         mainActivity.isCurrentlyFullscreen = isFullscreen

@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -45,6 +46,7 @@ fun <T> OptionsRoller(
     itemLabel: (T) -> String,
     itemDescription: (T) -> String = itemLabel,
     layer: Int = 2,
+    expandedWidth: Dp? = null,
 ) {
     if (items.isEmpty()) return
 
@@ -56,8 +58,9 @@ fun <T> OptionsRoller(
     var isExpanded by remember { mutableStateOf(false) }
 
     val buttonSize = settings.value.heightForLayer(layer).dp
+    val targetExpandedWidth = (expandedWidth ?: (buttonSize * 2)).coerceAtLeast(buttonSize)
     val animatedWidth by animateDpAsState(
-        targetValue = if (isExpanded) buttonSize * 2 else buttonSize,
+        targetValue = if (isExpanded) targetExpandedWidth else buttonSize,
         animationSpec = tween(settings.value.animationSpeedForLayer(layer)),
         label = "OptionsRollerWidth"
     )

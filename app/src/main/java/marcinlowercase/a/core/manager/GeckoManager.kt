@@ -76,6 +76,7 @@ import android.util.Base64
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.common.InputImage
 import kotlinx.serialization.json.Json
+import androidx.compose.runtime.mutableFloatStateOf
 
 private const val UBLOCK_ID = "uBlock0@raymondhill.net"
 private const val FAVICON_ID = "browser_core_extension@marcinlowercase"
@@ -92,6 +93,7 @@ class GeckoManager(private val context: Context) {
     var activeGeckoMediaSession: MediaSession? = null
     var activeMediaGeckoSession: GeckoSession? = null
     var currentFullscreenSession: GeckoSession? = null
+    private var lastFullscreenSession: GeckoSession? = null
     var activeSilentVideoSession: GeckoSession? = null
     var activeMediaProfileId by mutableStateOf<String?>(null)
 
@@ -111,7 +113,9 @@ class GeckoManager(private val context: Context) {
     var lastArtist = mutableStateOf("")
 
     var isActiveMediaSessionPaused by mutableStateOf(true)
+    var activePlaybackSpeed by mutableFloatStateOf(1.0f)
     var mediaSeekStepSeconds: Double = 5.0
+    private var isHolding2xSpeed = false
     var onMediaPlaybackStateChanged: (() -> Unit)? = null
     private var activeMediaFeatures: Long = 0L
     private var domHasPrevTrack: Boolean = false
@@ -1030,6 +1034,8 @@ class GeckoManager(private val context: Context) {
 
     fun sendVideoCommand(command: String, value: Double = 0.0) {
         if (command == "enter_fullscreen" || command == "start_2x" || command == "stop_2x") {
+            if (command == "start_2x") isHolding2xSpeed = true
+            if (command == "stop_2x") isHolding2xSpeed = false
             val target = activeMediaGeckoSession ?: currentFullscreenSession ?: activeSilentVideoSession ?: return
             dispatchSilentVideoCommand(target, command, 0.0)
             return
@@ -1037,9 +1043,27 @@ class GeckoManager(private val context: Context) {
 
         if (command == "set_speed") {
             val target = activeMediaGeckoSession ?: currentFullscreenSession ?: activeSilentVideoSession ?: return
+            activePlaybackSpeed = value.toFloat()
             lastPlaybackRate.doubleValue = value
             dispatchSilentVideoCommand(target, "set_speed", value)
             syncMediaNotification()
+            return
+        }
+
+        if (command == "enter_fullscreen_speed") {
+            isHolding2xSpeed = false
+            activePlaybackSpeed = 1.0f
+            lastPlaybackRate.doubleValue = 1.0
+            val target = currentFullscreenSession ?: activeMediaGeckoSession ?: activeSilentVideoSession ?: return
+            dispatchSilentVideoCommand(target, "enter_fullscreen_speed", 0.0)
+            syncMediaNotification()
+            return
+        }
+
+        if (command == "exit_fullscreen_speed") {
+            isHolding2xSpeed = false
+            val target = lastFullscreenSession ?: activeMediaGeckoSession ?: activeSilentVideoSession ?: return
+            dispatchSilentVideoCommand(target, "exit_fullscreen_speed", 0.0)
             return
         }
 
@@ -1424,6 +1448,11 @@ class GeckoManager(private val context: Context) {
                                             is Map<*, *> -> (message["duration"] as? Number)?.toDouble() ?: -1.0
                                             else -> -1.0
                                         }
+                                        val rate = when (message) {
+                                            is JSONObject -> message.optDouble("playbackRate", 1.0)
+                                            is Map<*, *> -> (message["playbackRate"] as? Number)?.toDouble() ?: 1.0
+                                            else -> 1.0
+                                        }
                                         val title = when (message) {
                                             is JSONObject -> message.optString("title", "")
                                             is Map<*, *> -> message["title"] as? String ?: ""
@@ -1432,7 +1461,10 @@ class GeckoManager(private val context: Context) {
                                         isActiveMediaSessionPaused = paused
                                         lastPositionSnapshot.doubleValue = pos.coerceAtLeast(0.0)
                                         lastSnapshotTime.longValue = System.currentTimeMillis()
-                                        lastPlaybackRate.doubleValue = if (paused) 0.0 else 1.0
+                                        lastPlaybackRate.doubleValue = if (paused) 0.0 else rate
+                                        if (!isHolding2xSpeed && !paused && rate > 0.0) {
+                                            activePlaybackSpeed = rate.toFloat()
+                                        }
                                         if (!dur.isNaN() && dur > 0.0) {
                                             lastDuration.doubleValue = dur
                                         }
@@ -2075,6 +2107,8 @@ class GeckoManager(private val context: Context) {
                     activeSilentVideoSession = null
                     currentFullscreenSession = null
                     activeMediaProfileId = null
+                    isHolding2xSpeed = false
+                    activePlaybackSpeed = 1.0f
                     isActiveMediaSessionPaused = true
                     onMediaPlaybackStateChanged?.invoke()
                     context.stopService(Intent(context, MediaPlaybackService::class.java))
@@ -2121,6 +2155,7 @@ class GeckoManager(private val context: Context) {
             }
 
             override fun onFullScreen(session: GeckoSession, fullScreen: Boolean) {
+                if (fullScreen) lastFullscreenSession = session
                 currentFullscreenSession = if (fullScreen) session else null
                 if (fullScreen && activeGeckoMediaSession == null) {
                     dispatchSilentVideoCommand(session, "query", 0.0)
@@ -2472,6 +2507,8 @@ class GeckoManager(private val context: Context) {
                 activeMediaFeatures = 0L
                 domHasPrevTrack = false
                 domHasNextTrack = false
+                isHolding2xSpeed = false
+                activePlaybackSpeed = 1.0f
                 isActiveMediaSessionPaused = false
                 lastSnapshotTime.longValue = System.currentTimeMillis()
                 if (lastPositionSnapshot.doubleValue == INIT) {
@@ -2496,6 +2533,8 @@ class GeckoManager(private val context: Context) {
                     lastPositionSnapshot.doubleValue = INIT
                     lastDuration.doubleValue = INIT
                     lastPlaybackRate.doubleValue = 1.0
+                    activePlaybackSpeed = 1.0f
+                    isHolding2xSpeed = false
                     isInit = true
                     context.stopService(Intent(context, MediaPlaybackService::class.java))
                 }
@@ -2579,6 +2618,8 @@ class GeckoManager(private val context: Context) {
                     lastPositionSnapshot.doubleValue = INIT
                     lastDuration.doubleValue = INIT
                     lastPlaybackRate.doubleValue = 1.0
+                    activePlaybackSpeed = 1.0f
+                    isHolding2xSpeed = false
                     isInit = true
                     context.stopService(Intent(context, MediaPlaybackService::class.java))
                 }
@@ -2611,10 +2652,14 @@ class GeckoManager(private val context: Context) {
                 } else if (prevRate != state.playbackRate) {
                     tickLivePosition()
                 }
-                lastPlaybackRate.doubleValue = if (!isActiveMediaSessionPaused && state.playbackRate == 0.0) {
+                val resolvedRate = if (!isActiveMediaSessionPaused && state.playbackRate == 0.0) {
                     1.0
                 } else {
                     state.playbackRate
+                }
+                lastPlaybackRate.doubleValue = resolvedRate
+                if (!isHolding2xSpeed && !isActiveMediaSessionPaused && resolvedRate > 0.0) {
+                    activePlaybackSpeed = resolvedRate.toFloat()
                 }
 
                 if (!state.duration.isNaN()) {
