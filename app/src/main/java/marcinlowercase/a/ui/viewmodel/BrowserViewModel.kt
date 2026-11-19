@@ -233,8 +233,12 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
             when (memoryUsage) {
                 0 -> {
-                    loadingTabIds.remove(tab.id)
-                    geckoManager.closeSession(tab)
+                    if (tab.id == playingMediaTabId) {
+                        geckoManager.pauseSessionIfExists(tab.id)
+                    } else {
+                        loadingTabIds.remove(tab.id)
+                        geckoManager.closeSession(tab)
+                    }
                 }
 
                 1 -> {
