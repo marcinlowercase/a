@@ -47,11 +47,10 @@ suspend fun copyImageToClipboard(context: Context, imageUrl: String) {
             val authority = "${context.packageName}.fileprovider"
             val contentUri = FileProvider.getUriForFile(context, authority, tempFile)
 
-            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            val clip = ClipData.newUri(context.contentResolver, "Image", contentUri)
-            clipboard.setPrimaryClip(clip)
-
             withContext(Dispatchers.Main) {
+                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                val clip = ClipData.newUri(context.contentResolver, "Image", contentUri)
+                clipboard.setPrimaryClip(clip)
             }
 
         } catch (_: Exception) {

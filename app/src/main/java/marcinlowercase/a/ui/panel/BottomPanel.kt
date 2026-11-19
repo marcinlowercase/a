@@ -940,6 +940,9 @@ fun BottomPanel(
                                                 }
                                             },
                                         state = customIconUrlState,
+                                        contentPadding = PaddingValues(
+                                            horizontal = settings.value.cornerRadiusForLayer(2).dp + settings.value.padding.dp
+                                        ),
                                         placeholder = {
                                             Text(
                                                 stringResource(R.string.placeholder_icon_link),

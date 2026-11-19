@@ -259,8 +259,135 @@
     exportFunction(isConnected, deviceObj, { defineAs: "is_connected" });
     root.device = deviceObj;
 
-    // Mount to window
+    // mount to window
     pageWin.outsync = root;
+
+    // bridge async clipboard api after user gestures so svg text and png blobs copy reliably
+    var lastClipboardGestureMs = 0;
+    ["pointerdown", "touchstart", "mousedown", "click", "keydown"].forEach(function (ev) {
+      window.addEventListener(ev, function () {
+        lastClipboardGestureMs = Date.now();
+      }, true);
+    });
+
+    try {
+      const clipProto = pageWin.Clipboard && pageWin.Clipboard.prototype;
+      if (clipProto) {
+        const origWriteText = clipProto.writeText;
+        const origWrite = clipProto.write;
+
+        Object.defineProperty(clipProto, "writeText", {
+          configurable: true,
+          writable: true,
+          value: exportFunction(function (text) {
+            const str = text == null ? "" : String(text);
+            const withinGesture = (Date.now() - lastClipboardGestureMs) < 10000;
+            if (!withinGesture && typeof origWriteText === "function") {
+              return origWriteText.call(this, text);
+            }
+            return new pageWin.Promise(exportFunction(function (resolve, reject) {
+              send("clipboardWriteText", { text: str }).then(function (res) {
+                if (res === "SUCCESS") {
+                  resolve();
+                } else if (typeof origWriteText === "function") {
+                  origWriteText.call(pageWin.navigator.clipboard, text).then(
+                    exportFunction(resolve, pageWin),
+                    exportFunction(reject, pageWin)
+                  );
+                } else {
+                  reject(new pageWin.Error("Clipboard write failed"));
+                }
+              }).catch(function () {
+                reject(new pageWin.Error("Clipboard write failed"));
+              });
+            }, pageWin));
+          }, pageWin)
+        });
+
+        Object.defineProperty(clipProto, "write", {
+          configurable: true,
+          writable: true,
+          value: exportFunction(function (items) {
+            const itemList = items ? Array.from(items) : [];
+            const firstItem = itemList[0];
+            const withinGesture = (Date.now() - lastClipboardGestureMs) < 10000;
+            if (!withinGesture || !firstItem) {
+              if (typeof origWrite === "function") {
+                return origWrite.call(this, items);
+              }
+              return pageWin.Promise.reject(new pageWin.Error("Clipboard write unavailable"));
+            }
+
+            const types = firstItem.types ? Array.from(firstItem.types) : [];
+            const imageType = types.find(function (t) {
+              return t === "image/png" || t === "image/jpeg" || t === "image/webp";
+            });
+            const textType = types.find(function (t) {
+              return t === "image/svg+xml" || t === "text/plain";
+            });
+
+            if (imageType) {
+              return new pageWin.Promise(exportFunction(function (resolve, reject) {
+                firstItem.getType(imageType).then(
+                  exportFunction(function (blob) {
+                    const reader = new FileReader();
+                    reader.onloadend = function () {
+                      send("clipboardWriteImage", { base64Data: String(reader.result || "") })
+                        .then(function (res) {
+                          if (res === "SUCCESS") resolve();
+                          else reject(new pageWin.Error("Clipboard image write failed"));
+                        })
+                        .catch(function () {
+                          reject(new pageWin.Error("Clipboard image write failed"));
+                        });
+                    };
+                    reader.onerror = function () {
+                      reject(new pageWin.Error("Failed to read image blob"));
+                    };
+                    reader.readAsDataURL(blob);
+                  }, pageWin),
+                  exportFunction(function () {
+                    reject(new pageWin.Error("Failed to get image blob"));
+                  }, pageWin)
+                );
+              }, pageWin));
+            }
+
+            if (textType) {
+              return new pageWin.Promise(exportFunction(function (resolve, reject) {
+                firstItem.getType(textType).then(
+                  exportFunction(function (blob) {
+                    const reader = new FileReader();
+                    reader.onloadend = function () {
+                      send("clipboardWriteText", { text: String(reader.result || "") })
+                        .then(function (res) {
+                          if (res === "SUCCESS") resolve();
+                          else reject(new pageWin.Error("Clipboard text write failed"));
+                        })
+                        .catch(function () {
+                          reject(new pageWin.Error("Clipboard text write failed"));
+                        });
+                    };
+                    reader.onerror = function () {
+                      reject(new pageWin.Error("Failed to read text blob"));
+                    };
+                    reader.readAsText(blob);
+                  }, pageWin),
+                  exportFunction(function () {
+                    reject(new pageWin.Error("Failed to get text blob"));
+                  }, pageWin)
+                );
+              }, pageWin));
+            }
+
+            if (typeof origWrite === "function") {
+              return origWrite.call(this, items);
+            }
+            return pageWin.Promise.reject(new pageWin.Error("Unsupported clipboard item"));
+          }, pageWin)
+        });
+      }
+    } catch (_) {}
   } else {
     // Non-Xray fallback scope (Testing / Chromium DevTools)
     const api = {

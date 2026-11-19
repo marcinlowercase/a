@@ -78,6 +78,7 @@ import com.google.mlkit.vision.common.InputImage
 import kotlinx.serialization.json.Json
 import androidx.compose.runtime.mutableFloatStateOf
 import marcinlowercase.a.core.constant.leave_site_permission
+import marcinlowercase.a.core.function.copyImageToClipboard
 
 private const val UBLOCK_ID = "uBlock0@raymondhill.net"
 private const val FAVICON_ID = "browser_core_extension@marcinlowercase"
@@ -1608,6 +1609,37 @@ class GeckoManager(private val context: Context) {
 
                                 val responseString = responseObj.toString()
                                 return GeckoResult.fromValue(responseString)
+                            }
+                            "clipboardWriteText" -> {
+                                if (eventTabId == tab.value.id) {
+                                    val text = when (message) {
+                                        is JSONObject -> message.optString("text", "")
+                                        is Map<*, *> -> message["text"] as? String ?: ""
+                                        else -> ""
+                                    }
+                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+                                    clipboard?.setPrimaryClip(android.content.ClipData.newPlainText("text", text))
+                                    return GeckoResult.fromValue("SUCCESS")
+                                }
+                                return GeckoResult.fromValue("DENIED")
+                            }
+                            "clipboardWriteImage" -> {
+                                if (eventTabId == tab.value.id) {
+                                    val base64Data = when (message) {
+                                        is JSONObject -> message.optString("base64Data", "")
+                                        is Map<*, *> -> message["base64Data"] as? String ?: ""
+                                        else -> ""
+                                    }
+                                    if (base64Data.isNotBlank()) {
+                                        val result = GeckoResult<Any>()
+                                        MainScope().launch {
+                                            copyImageToClipboard(context, base64Data)
+                                            result.complete("SUCCESS")
+                                        }
+                                        return result
+                                    }
+                                }
+                                return GeckoResult.fromValue("DENIED")
                             }
                             "saveFile" -> {
                                 val filename = (when (message) {
