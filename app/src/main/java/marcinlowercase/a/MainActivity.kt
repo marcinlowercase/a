@@ -2828,8 +2828,27 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                     viewModel.closeTabById(id)
                 },
 
-                onExternalAppRequest = { url ->
-                    viewModel.handleExternalIntent(activity, url)
+                onExternalAppRequest = { eventTabId, url ->
+                    if (eventTabId == viewModel.activeTab?.id) {
+                        viewModel.geckoManager.cancelPendingLeaveRequest()
+                        val originUrl = viewModel.activeTab?.currentURL?.takeIf { it.isNotBlank() } ?: url
+                        viewModel.pendingPermissionRequest.value = CustomPermissionRequest(
+                            origin = originUrl,
+                            title = leavePermissionString,
+                            rationale = "Allow opening external app for $url?",
+                            iconResAllow = R.drawable.ic_open_in_new,
+                            iconResDeny = R.drawable.ic_open_in_new_off,
+                            permissionsToRequest = listOf(leave_site_permission),
+                            onResult = { permissionsMap, pendingRequest ->
+                                if (permissionsMap[leave_site_permission] == true) {
+                                    viewModel.handleExternalIntent(activity, url)
+                                }
+                                pendingRequest.value = null
+                            },
+                            isSystemRequest = false,
+                            isPersistent = false
+                        )
+                    }
                 },
                 onContentPaintedFun = { eventTabId ->
                     if (eventTabId == viewModel.activeTab?.id) {

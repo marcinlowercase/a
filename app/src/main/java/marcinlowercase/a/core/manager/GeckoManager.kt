@@ -1373,7 +1373,7 @@ class GeckoManager(private val context: Context) {
         onColorPromptFun: (JsColorState) -> Unit,
         onDateTimePromptFun: (JsDateTimeState) -> Unit,
         onCloseTabFun: (Long) -> Unit,
-        onExternalAppRequest: (String) -> Unit,
+        onExternalAppRequest: (Long, String) -> Unit,
         onContentPaintedFun: (Long) -> Unit = {},
         onScrollChangedFun: (Long) -> Unit = {},
         onVisualChangeFun: (tabId: Long, topBgHex: String?, bottomBgHex: String?) -> Unit = { _, _, _ -> },
@@ -2092,14 +2092,9 @@ class GeckoManager(private val context: Context) {
             ): GeckoResult<AllowOrDeny> {
                 val uri = request.uri
 
-                // 1. Check if this is a "Special" scheme (mailto, tel, intent, market)
+                // check if this is an external app scheme (mailto, tel, intent, market)
                 if (isExternalScheme(uri)) {
-                    //Log.i("GeckoNav", "External scheme detected: $uri")
-
-                    // Trigger the UI to launch the intent
-                    onExternalAppRequest(uri)
-
-                    // Tell Gecko NOT to load this in the webview
+                    onExternalAppRequest(eventTabId, uri)
                     return GeckoResult.fromValue(AllowOrDeny.DENY)
                 }
 

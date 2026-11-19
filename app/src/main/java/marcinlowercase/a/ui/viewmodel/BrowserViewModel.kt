@@ -2632,11 +2632,12 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     val denyCurrentPermissionRequest = {
         val request = pendingPermissionRequest.value
         if (request != null) {
-            val domain = siteSettingsManager.getDomain(request.origin) ?: request.origin.toDomain()
-
-            if (domain.isNotBlank()) {
-                val deniedPermissions = request.permissionsToRequest.associateWith { false }
-                savePermissionDecision(domain, deniedPermissions)
+            if (request.isPersistent) {
+                val domain = siteSettingsManager.getDomain(request.origin) ?: request.origin.toDomain()
+                if (domain.isNotBlank()) {
+                    val deniedPermissions = request.permissionsToRequest.associateWith { false }
+                    savePermissionDecision(domain, deniedPermissions)
+                }
             }
             request.onResult.invoke(emptyMap(), pendingPermissionRequest)
         }

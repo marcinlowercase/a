@@ -467,11 +467,10 @@ fun BottomPanel(
                             // --- NEW: Handle software/web-only permissions (like Google Drive) ---
                             if (!request.isSystemRequest) {
                                 val grantedMap = request.permissionsToRequest.associateWith { true }
-
-                                // FIX: fallback to request.origin if getDomain() returns null
-                                val domain = request.origin.toDomain()
-
-                                viewModel.savePermissionDecision(domain, grantedMap)
+                                if (request.isPersistent) {
+                                    val domain = request.origin.toDomain()
+                                    viewModel.savePermissionDecision(domain, grantedMap)
+                                }
                                 request.onResult(grantedMap, viewModel.pendingPermissionRequest)
                                 viewModel.pendingPermissionRequest.value = null
                             } else if (request.permissionsToRequest.contains(Manifest.permission.CAMERA) ||
