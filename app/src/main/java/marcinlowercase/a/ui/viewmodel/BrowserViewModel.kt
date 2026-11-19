@@ -216,11 +216,16 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
         if (inspectingAppId.longValue != 0L) inspectingAppId.longValue = 0L
 
-        // 1. Identify the Active Tab of the profile we are LEAVING
+        // identify the active tab and any background media-playing tab of the profile we are leaving
         val currentActiveTabId = activeTab?.id
+        val playingMediaTabId = if (!geckoManager.isActiveMediaSessionPaused && _browserSettings.value.isEnabledBackgroundPlayback) {
+            geckoManager.getActiveMediaTabId()
+        } else {
+            null
+        }
 
-        // 2. Prepare tabs for saving: Update states and Manage RAM
-        val memoryUsage = _browserSettings.value.memoryUsage // 0: Low, 1: Standard, 2: High
+        // prepare tabs for saving and manage ram
+        val memoryUsage = _browserSettings.value.memoryUsage
 
         val updatedTabsForSave = tabs.map { tab ->
             val liveState = geckoManager.getSessionStateString(tab.id)
@@ -233,7 +238,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 }
 
                 1 -> {
-                    if (tab.id == currentActiveTabId) {
+                    if (tab.id == currentActiveTabId || tab.id == playingMediaTabId) {
                         geckoManager.pauseSessionIfExists(tab.id)
                     } else {
                         loadingTabIds.remove(tab.id)
