@@ -67,11 +67,7 @@ fun MediaControlPanel(
     val settings = viewModel.browserSettings.collectAsState()
     val layoutDirection = LocalLayoutDirection.current
 
-    val opacity by animateFloatAsState(
-        targetValue = if (uiState.value.isMediaControlPanelVisible) 0.7f else 0.0f,
-        animationSpec = spring(stiffness = Spring.StiffnessLow),
-        label = "media control panel opacity"
-    )
+    val opacity = if (uiState.value.isMediaControlPanelVisible) 0.7f else 0.0f
 
     var dragAccumulator by remember { mutableFloatStateOf(0f) }
     var isHolding2x by remember { mutableStateOf(false) }

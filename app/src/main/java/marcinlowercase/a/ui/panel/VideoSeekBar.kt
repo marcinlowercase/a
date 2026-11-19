@@ -94,14 +94,10 @@ fun VideoSeekBar(
     val currentPos = viewModel.geckoManager.lastPositionSnapshot.doubleValue.coerceAtLeast(0.0)
     val liveFraction = if (duration > 0.0) (currentPos / duration).toFloat().coerceIn(0f, 1f) else 0f
 
-    AnimatedVisibility(
-        visible = isVisible,
-        enter = fadeIn(tween(settings.value.animationSpeedForLayer(1))),
-        exit = fadeOut(tween(settings.value.animationSpeedForLayer(1))),
-        modifier = modifier.zIndex(2f)
-    ) {
+    if (isVisible) {
         Row(
-            modifier = Modifier
+            modifier = modifier
+                .zIndex(2f)
                 .fillMaxWidth()
                 .padding(settings.value.padding.dp)
                 .onSizeChanged { size ->
@@ -176,7 +172,7 @@ fun VideoSeekBar(
                 onTap = onTemporaryEscape,
                 buttonDescription = stringResource(R.string.desc_temporary_escape),
                 painterId = R.drawable.ic_temporary_escape,
-                isWhite = true
+                isWhite = false
             )
         }
     }

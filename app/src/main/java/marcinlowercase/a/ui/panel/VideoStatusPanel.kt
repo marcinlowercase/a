@@ -156,11 +156,7 @@ fun VideoStatusPanel(
         }
     }
 
-    val opacity by animateFloatAsState(
-        targetValue = if (shouldShow) 0.7f else 0.0f,
-        animationSpec = spring(stiffness = Spring.StiffnessLow),
-        label = "video status opacity"
-    )
+    val opacity = if (shouldShow) 0.7f else 0.0f
 
     // Local tick for live position updates
     var liveTick by remember { mutableIntStateOf(0) }
