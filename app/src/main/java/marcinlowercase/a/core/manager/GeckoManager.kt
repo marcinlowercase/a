@@ -1011,6 +1011,12 @@ class GeckoManager(private val context: Context) {
     }
 
     fun sendVideoCommand(command: String, value: Double = 0.0) {
+        if (command == "enter_fullscreen") {
+            val target = activeMediaGeckoSession ?: currentFullscreenSession ?: activeSilentVideoSession ?: return
+            dispatchSilentVideoCommand(target, "enter_fullscreen", 0.0)
+            return
+        }
+
         val controller = activeGeckoMediaSession
         if (controller == null) {
             val targetSession = currentFullscreenSession ?: activeSilentVideoSession ?: return

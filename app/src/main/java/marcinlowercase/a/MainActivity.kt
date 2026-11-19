@@ -6,6 +6,7 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.res.painterResource
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import marcinlowercase.a.ui.panel.GestureMediaControlOverlay
 import marcinlowercase.a.core.function.parseHexColorOrNull
 import marcinlowercase.a.core.enum_class.PipAction
 import android.annotation.SuppressLint
@@ -196,6 +197,7 @@ import androidx.compose.animation.animateColorAsState
 import marcinlowercase.a.core.function.extractEdgeColorsFromBitmap
 import marcinlowercase.a.ui.panel.isColorDark
 import android.view.KeyEvent
+import marcinlowercase.a.ui.panel.VideoStatusAction
 
 //region Composable
 
@@ -3612,6 +3614,33 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                         val controlOption = remember { mutableStateOf(MediaControlOption.TIME) }
                         val pendingSeekSeconds = remember { mutableDoubleStateOf(0.0) }
                         val interactionTrigger = remember { mutableIntStateOf(0) }
+                        val statusAction = remember { mutableStateOf<VideoStatusAction?>(null) }
+
+                        MediaControlPanel(
+                            modifier = Modifier
+                                .align(if (isControlsOnRight.value) Alignment.CenterEnd else Alignment.CenterStart),
+                            hapticFeedback = hapticFeedback,
+                            onExitFullscreen = {
+                                activeSession.exitFullScreen()
+                            },
+                            gestureManager = gestureManager,
+                            controlOption = controlOption,
+                            pendingSeekSeconds = pendingSeekSeconds,
+                            interactionTrigger = interactionTrigger,
+                            statusAction = statusAction,
+                            isControlsOnRight = isControlsOnRight.value,
+                            webViewPadding = webViewPaddingValue,
+                        )
+
+                        GestureMediaControlOverlay(
+                            modifier = Modifier.padding(webViewPaddingValue),
+                            hapticFeedback = hapticFeedback,
+                            gestureManager = gestureManager,
+                            controlOption = controlOption,
+                            pendingSeekSeconds = pendingSeekSeconds,
+                            interactionTrigger = interactionTrigger,
+                            statusAction = statusAction,
+                        )
 
                         VideoStatusPanel(
                             modifier = Modifier
@@ -3624,27 +3653,16 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                                         else -> Alignment.TopStart
                                     }
                                 )
-                                .padding(webViewPaddingValue), // Apply same inset padding as WebView
-                            gestureManager = gestureManager,
-                            controlOption = controlOption,
-                            pendingSeekSeconds = pendingSeekSeconds,
-                            interactionTrigger = interactionTrigger,
-                            onSwapLayout = { isControlsOnRight.value = !isControlsOnRight.value },
-                            isStatusAtTop = isStatusAtTop,
-                        )
-
-                        MediaControlPanel(
-                            modifier = Modifier
-                                .align(if (isControlsOnRight.value) Alignment.CenterEnd else Alignment.CenterStart)
                                 .padding(webViewPaddingValue),
-                            hapticFeedback = hapticFeedback,
-                            onExitFullscreen = {
-                                activeSession.exitFullScreen()
-                            },
                             gestureManager = gestureManager,
                             controlOption = controlOption,
                             pendingSeekSeconds = pendingSeekSeconds,
                             interactionTrigger = interactionTrigger,
+                            statusAction = statusAction,
+                            onSwapLayout = { isControlsOnRight.value = !isControlsOnRight.value },
+                            onMoveHorizontal = { moveToLeft -> isControlsOnRight.value = moveToLeft },
+                            onExitFullscreen = { activeSession.exitFullScreen() },
+                            isStatusAtTop = isStatusAtTop,
                         )
                         CursorPointer(
                             isCursorPadVisible = uiState.value.isCursorPadVisible,

@@ -477,6 +477,17 @@
           v.currentTime = Math.max(0, Math.min(dur2, payload.value || 0));
           break;
         }
+        case "enter_fullscreen": {
+          var fsTarget = v.closest(".html5-video-player, #movie_player, ytm-player") || v;
+          if (fsTarget.requestFullscreen) {
+            fsTarget.requestFullscreen().catch(function () {
+              if (v.requestFullscreen) v.requestFullscreen().catch(function () {});
+            });
+          } else if (v.requestFullscreen) {
+            v.requestFullscreen().catch(function () {});
+          }
+          break;
+        }
         case "query":
           break;
       }

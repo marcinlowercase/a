@@ -498,19 +498,7 @@ fun rememberBrowserOptionsRegistry(
                 )
             }
             },
-            BrowserOption.MEDIA_CONTROL to OptionItem(
-                id = BrowserOption.MEDIA_CONTROL,
-                iconRes = R.drawable.ic_video_settings,
-                contentDescription = R.string.desc_media_control,
-                enabled = settings.value.isEnabledMediaControl
-            ) {
-                viewModel.updateSettings { it.copy(isEnabledMediaControl = !it.isEnabledMediaControl) }; viewModel.updateUI {
-                it.copy(
-                    isOptionsPanelVisible = false,
-                    isAppsPanelVisible = false
-                )
-            }
-            },
+
             BrowserOption.OUT_SYNC to OptionItem(
                 id = BrowserOption.OUT_SYNC,
                 iconRes = R.drawable.ic_room_preferences,

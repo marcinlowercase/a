@@ -92,6 +92,7 @@ import java.util.regex.Pattern
 import kotlin.time.Duration.Companion.milliseconds
 import marcinlowercase.a.core.manager.KeyboardShortcutManager
 import marcinlowercase.a.core.data_class.SiteSettingSyncDTO
+import marcinlowercase.a.core.enum_class.MediaControlMode
 
 val LocalBrowserViewModel = staticCompositionLocalOf<BrowserViewModel> {
     error("No BrowserViewModel provided! Check your root Composable.")
@@ -648,10 +649,20 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             settingsOrder = finalSettingsOrder,
             hiddenOptions = prefsToUse.getString("hidden_options", d.HIDDEN_OPTIONS)
                 ?: d.HIDDEN_OPTIONS,
-            isEnabledMediaControl = prefsToUse.getBoolean(
-                "is_enabled_media_control",
-                d.IS_ENABLED_MEDIA_CONTROL
-            ),
+            mediaControlMode = if (prefsToUse.contains("media_control_mode")) {
+                prefsToUse.getInt("media_control_mode", d.MEDIA_CONTROL_MODE)
+            } else {
+                if (prefsToUse.getBoolean("is_enabled_media_control", false)) {
+                    MediaControlMode.ONE_HAND.ordinal
+                } else {
+                    MediaControlMode.NONE.ordinal
+                }
+            },
+            isEnabledMediaControl = (if (prefsToUse.contains("media_control_mode")) {
+                prefsToUse.getInt("media_control_mode", d.MEDIA_CONTROL_MODE)
+            } else {
+                if (prefsToUse.getBoolean("is_enabled_media_control", false)) 1 else 0
+            }) != MediaControlMode.NONE.ordinal,
             mediaSeekStep = prefsToUse.getFloat("media_seek_step", d.MEDIA_SEEK_STEP).coerceIn(1f, 60f),
             pipActions = prefsToUse.getString("pip_actions", d.PIP_ACTIONS) ?: d.PIP_ACTIONS,
             isEnabledOutSync = prefsToUse.getBoolean("is_enabled_out_sync", d.IS_ENABLED_OUT_SYNC),
@@ -774,7 +785,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 optionsOrder = d.OPTIONS_ORDER,
                 settingsOrder = d.SETTINGS_ORDER,
                 hiddenOptions = d.HIDDEN_OPTIONS,
-                isEnabledMediaControl = d.IS_ENABLED_MEDIA_CONTROL,
+                mediaControlMode = d.MEDIA_CONTROL_MODE,
+                isEnabledMediaControl = false,
                 mediaSeekStep = d.MEDIA_SEEK_STEP,
                 pipActions = d.PIP_ACTIONS,
                 isEnabledOutSync = d.IS_ENABLED_OUT_SYNC,
@@ -830,7 +842,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             putBoolean("is_ad_block_enabled", settings.isAdBlockEnabled)
             putBoolean("is_guide_mode_enabled", settings.isGuideModeEnabled)
             putBoolean("is_desktop_mode", settings.isDesktopMode)
-            putBoolean("is_enabled_media_control", settings.isEnabledMediaControl)
+            putInt("media_control_mode", settings.mediaControlMode)
+            putBoolean("is_enabled_media_control", settings.mediaControlMode != MediaControlMode.NONE.ordinal)
             putFloat("media_seek_step", settings.mediaSeekStep)
             putString("pip_actions", settings.pipActions)
             putBoolean("is_enabled_out_sync", settings.isEnabledOutSync)

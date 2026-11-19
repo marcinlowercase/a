@@ -13,6 +13,7 @@ import kotlin.math.round
 import kotlin.math.roundToInt
 import marcinlowercase.a.core.enum_class.SharpMode
 import marcinlowercase.a.core.enum_class.PipAction
+import marcinlowercase.a.core.enum_class.MediaControlMode
 
 const val BASE_RADIUS = 28f
 @Serializable
@@ -57,6 +58,7 @@ data class BrowserSettings(
     val isTabsPanelLock: Boolean = true,
 
     val isEnabledMediaControl: Boolean,
+    val mediaControlMode: Int = DefaultSettingValues.MEDIA_CONTROL_MODE,
     val mediaSeekStep: Float = DefaultSettingValues.MEDIA_SEEK_STEP,
     val pipActions: String = DefaultSettingValues.PIP_ACTIONS,
     val isEnabledOutSync: Boolean,
@@ -136,6 +138,9 @@ data class BrowserSettings(
     }
 
     fun currentSharpMode(): SharpMode = SharpMode.entries.getOrElse(sharpMode) { SharpMode.ROUND }
+
+    fun currentMediaControlMode(): MediaControlMode =
+        MediaControlMode.entries.getOrElse(mediaControlMode) { MediaControlMode.NONE }
 
     fun getPipActionList(): List<PipAction> {
         return pipActions.split(",")

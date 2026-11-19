@@ -33,10 +33,11 @@ data class BrowserUIState(
     val isTabDataPanelVisible: Boolean = false,
     val inspectingTabId: Long? = null,
 
-    // Media
+    // media
     val isMediaControlPanelVisible: Boolean = false,
-    val isMediaControlPanelDisplayed: Boolean = false, // Track if actually shown (fullscreen logic)
-    val isOnFullscreenVideo: Boolean = false, // Track if actually shown (fullscreen logic)
+    val isMediaControlPanelDisplayed: Boolean = false,
+    val isOnFullscreenVideo: Boolean = false,
+
 
     // Cursor / Input
     val isCursorMode: Boolean = false, // Controls isCursorPadVisible

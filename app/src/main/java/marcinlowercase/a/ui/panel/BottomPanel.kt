@@ -287,6 +287,8 @@ fun BottomPanel(
                     activeSession = activeSession
                 )
 
+                MediaPanel()
+
                 DownloadPanel(
                     confirmationPopup = confirmationPopup,
                     isDownloadPanelVisible = uiState.value.isDownloadPanelVisible,
