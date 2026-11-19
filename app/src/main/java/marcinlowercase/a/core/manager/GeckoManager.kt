@@ -1341,7 +1341,7 @@ class GeckoManager(private val context: Context) {
         onFaviconChanged: (Long, String) -> Unit,
         onTitleChangeFun: (Long, GeckoSession, String) -> Unit,
         onNewSessionFunWithId: (id: Long, uri: String) -> Unit,
-        onProgressChange: (Int) -> Unit,
+        onProgressChange: (Long, Int) -> Unit,
         onLocationChangeFun: (eventTabId: Long, session: GeckoSession, url: String?, perms: MutableList<GeckoSession.PermissionDelegate.ContentPermission>, userGesture: Boolean) -> Unit,
         onFullScreenFun: (Boolean) -> Unit,
         onChoicePromptFun: (JsChoiceState) -> Unit,
@@ -1360,7 +1360,7 @@ class GeckoManager(private val context: Context) {
         setPermissionDelegate: (request: CustomPermissionRequest) -> Unit,
 
         onPageStartFun: (eventTabId: Long, session: GeckoSession, url: String) -> Unit,
-        onPageStopFun: (session: GeckoSession, success: Boolean) -> Unit,
+        onPageStopFun: (eventTabId: Long, session: GeckoSession, success: Boolean) -> Unit,
         onContextMenuFun: (data: ContextMenuData) -> Unit,
         onDownloadRequested: (url: String, userAgent: String, contentDisposition: String?, mimeType: String?, stream: java.io.InputStream?) -> Unit,
         onJsAlert: (Long, String) -> Unit,
@@ -2170,15 +2170,12 @@ class GeckoManager(private val context: Context) {
             }
 
 
-            // EQUIVALENT TO onPageFinished
             override fun onPageStop(session: GeckoSession, success: Boolean) {
-
-                onPageStopFun(session, success)
-
+                onPageStopFun(eventTabId, session, success)
             }
 
             override fun onProgressChange(session: GeckoSession, progress: Int) {
-                onProgressChange(progress)
+                onProgressChange(eventTabId, progress)
             }
 
             override fun onSessionStateChange(

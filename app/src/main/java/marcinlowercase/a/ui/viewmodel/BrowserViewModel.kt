@@ -227,19 +227,21 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             val updatedTab = if (liveState != null) tab.copy(savedState = liveState) else tab
 
             when (memoryUsage) {
-                0 -> { // LOW MEMORY: Close everything
+                0 -> {
+                    loadingTabIds.remove(tab.id)
                     geckoManager.closeSession(tab)
                 }
 
-                1 -> { // STANDARD: Keep only the active tab paused, close the rest
+                1 -> {
                     if (tab.id == currentActiveTabId) {
                         geckoManager.pauseSessionIfExists(tab.id)
                     } else {
+                        loadingTabIds.remove(tab.id)
                         geckoManager.closeSession(tab)
                     }
                 }
 
-                2 -> { // HIGH MEMORY: Keep all tabs paused in RAM
+                2 -> {
                     geckoManager.pauseSessionIfExists(tab.id)
                 }
             }
@@ -285,8 +287,9 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         // 8. Set new Active Index
         _activeTabIndex.value = tabManager.getActiveTabIndex(newProfileId).coerceAtLeast(0)
 
-        // force ui to update session
+        // force ui to update session and reflect the newly active tab's loading state
         sessionRefreshTrigger.intValue++
+        syncActiveTabLoadingState()
         notifySettingsProviderChanged()
     }
 
@@ -476,6 +479,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
         // close all live sessions of the deleted profile so nothing keeps playing
         tabs.toList().forEach { tab ->
+            loadingTabIds.remove(tab.id)
             geckoManager.closeSession(tab)
         }
 
@@ -1100,7 +1104,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                     if (savedToken != null) {
                         viewModelScope.launch(Dispatchers.IO) { action(savedToken) }
                     } else {
-                        updateUI { it.copy(isLoading = false) }
+                        setSyncLoading(false)
                     }
                 }
                 pendingDriveAuthResolution.value = intentSenderRequest
@@ -1109,8 +1113,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 viewModelScope.launch(Dispatchers.IO) { action(token) }
             },
             onFailure = {
-                // Ensure loading indicator dismisses on failure
-                updateUI { it.copy(isLoading = false) }
+                setSyncLoading(false)
                 showCustomNotification(getApplication<Application>().getString(R.string.ui_sync_failed))
             }
         )
@@ -1167,7 +1170,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     fun triggerManualPush() {
         val context = getApplication<Application>()
-        updateUI { it.copy(isLoading = true) }
+        setSyncLoading(true)
 
         executeWithDriveToken { token ->
             // 1. Reconcile deletions: permanently remove apps from Google Drive that were deleted locally
@@ -1181,7 +1184,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             // Guard: Don't push an empty payload if user unchecked all profiles
             if (payload.profiles.isEmpty()) {
                 withContext(Dispatchers.Main) {
-                    updateUI { it.copy(isLoading = false) }
+                    setSyncLoading(false)
                     showCustomNotification("No profiles selected for sync")
                 }
                 return@executeWithDriveToken
@@ -1203,7 +1206,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     fun triggerManualPull() {
         val context = getApplication<Application>()
-        updateUI { it.copy(isLoading = true) }
+        setSyncLoading(true)
 
         executeWithDriveToken { token ->
             val jsonString = driveSyncManager.downloadFromDrive(token)
@@ -1214,7 +1217,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
                     if (cloudData.profiles.isEmpty()) {
                         withContext(Dispatchers.Main) {
-                            updateUI { it.copy(isLoading = false) }
+                            setSyncLoading(false)
                             showCustomNotification(context.getString(R.string.ui_cloud_empty))
                         }
                         return@executeWithDriveToken
@@ -1301,7 +1304,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     fun triggerSmartMerge() {
         val context = getApplication<Application>()
-        updateUI { it.copy(isLoading = true) }
+        setSyncLoading(true)
 
         executeWithDriveToken { token ->
             val jsonString = driveSyncManager.downloadFromDrive(token)
@@ -1325,7 +1328,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                     val pushSuccess = driveSyncManager.uploadToDrive(token, mergedJsonString)
 
                     withContext(Dispatchers.Main) {
-                        updateUI { it.copy(isLoading = false) }
+                        setSyncLoading(false)
                         if (pushSuccess) {
                             showCustomNotification(context.getString(R.string.ui_sync_successful))
                         } else {
@@ -1358,12 +1361,12 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     fun triggerDeleteAccount() {
         val context = getApplication<Application>()
-        updateUI { it.copy(isLoading = true) }
+        setSyncLoading(true)
 
         executeWithDriveToken { token ->
             val success = driveSyncManager.deleteFromDrive(token)
             withContext(Dispatchers.Main) {
-                updateUI { it.copy(isLoading = false) }
+                setSyncLoading(false)
                 if (success) {
                     logout()
                     showCustomNotification(context.getString(R.string.ui_account_deleted))
@@ -1604,10 +1607,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         val currentIndex = _activeTabIndex.value
 
         if (newIndex != currentIndex && newIndex in tabs.indices) {
-            // 1. Reset loading state if switching away
-            if (_uiState.value.isLoading) {
-                updateUI { it.copy(isLoading = false) }
-            }
 
 
             // 2. Deactivate current tab
@@ -1626,6 +1625,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             // 5. Sync the inspection ID to the newly selected tab
             updateUI { it.copy(inspectingTabId = tabs[newIndex].id) }
 
+            syncActiveTabLoadingState()
             // persist changes
             saveTabs()
         }
@@ -1811,7 +1811,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             val indexToClose = tabs.indexOf(tabToClose)
             val wasActive = (indexToClose == _activeTabIndex.value)
 
-            // 1. Close the Gecko Session
+            loadingTabIds.remove(tabToClose.id)
             geckoManager.closeSession(tabToClose)
 
             // 2. Manage Recently Closed History
@@ -1834,11 +1834,11 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                     tabs[nextIndex] = tabs[nextIndex].copy(state = TabState.ACTIVE)
                 }
             } else if (indexToClose < _activeTabIndex.value) {
-                // If closing a tab before the active one, shift index down
+                // if closing a tab before the active one, shift index down
                 _activeTabIndex.value -= 1
             }
 
-            // 5. Persist
+            syncActiveTabLoadingState()
             saveTabs()
         }
     }
@@ -1856,7 +1856,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                         recentlyClosedTabs.removeAt(0)
                     }
 
-                    // 2. Close Gecko Session
+                    loadingTabIds.remove(tabToClose.id)
                     geckoManager.closeSession(tabToClose)
 
                     // 3. Remove from list
@@ -1884,9 +1884,10 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                         updateUI { it.copy(inspectingTabId = activeTab?.id) }
                     }
 
+                    syncActiveTabLoadingState()
                     saveTabs()
                 } else {
-                    // LAST TAB CASE
+                    loadingTabIds.clear()
                     tabs.clear()
                     tabManager.clearAllTabs(activeProfileId.value)
 
@@ -1909,7 +1910,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 recentlyClosedTabs.removeAt(0)
             }
 
-            // 3. Close Gecko Session
+            loadingTabIds.remove(tabToRemove.id)
             geckoManager.closeSession(tabToRemove)
 
             // 4. Remove from the list
@@ -1923,12 +1924,13 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             _activeTabIndex.value = nextTabIndex
             tabs[nextTabIndex] = tabs[nextTabIndex].copy(state = TabState.ACTIVE)
 
-            // 7. Sync the inspection ID to the new active tab
+            // sync the inspection id to the new active tab
             updateUI { it.copy(inspectingTabId = tabs[nextTabIndex].id) }
 
+            syncActiveTabLoadingState()
             saveTabs()
         } else {
-            // CASE: Last tab being closed
+            loadingTabIds.clear()
             tabs.clear()
             tabManager.clearAllTabs(activeProfileId.value)
 
@@ -1958,10 +1960,15 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             tabs.add(currentActiveTab)
             _activeTabIndex.value = 0
 
-            // 4. Aggressively clear the Gecko Engine RAM (kills background profile sessions too!)
+            // clear loading states for all closed sessions
+            loadingTabIds.keys.toList().forEach { id ->
+                if (id != currentActiveTab.id) loadingTabIds.remove(id)
+            }
+
+            // aggressively clear the gecko engine ram
             geckoManager.optimizeMemoryExcept(currentActiveTab.id)
 
-            // 5. Persist the cleaned state to disk
+            syncActiveTabLoadingState()
             saveTabs()
 
             // Force a UI refresh
@@ -2944,6 +2951,32 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             }.onFailure { error ->
                 buildChatHistory.add("model" to "Error: ${error.message ?: "Failed to get response"}")
             }
+        }
+    }
+
+    private val loadingTabIds = mutableStateMapOf<Long, Boolean>()
+    private var isSyncLoading = false
+
+    fun setTabLoading(tabId: Long, loading: Boolean) {
+        if (loading) {
+            loadingTabIds[tabId] = true
+        } else {
+            loadingTabIds.remove(tabId)
+        }
+        syncActiveTabLoadingState()
+    }
+
+    fun setSyncLoading(loading: Boolean) {
+        isSyncLoading = loading
+        syncActiveTabLoadingState()
+    }
+
+    fun syncActiveTabLoadingState() {
+        val activeId = activeTab?.id
+        val activeTabLoading = activeId != null && (loadingTabIds[activeId] == true)
+        val effectiveLoading = isSyncLoading || activeTabLoading
+        if (_uiState.value.isLoading != effectiveLoading) {
+            updateUI { it.copy(isLoading = effectiveLoading) }
         }
     }
     //endregion

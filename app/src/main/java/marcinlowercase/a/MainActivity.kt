@@ -1731,7 +1731,7 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
             }
 
             GestureNavAction.CLOSE_TAB -> {
-                if (uiState.value.isLoading) viewModel.updateUI { it.copy(isLoading = false) }
+                viewModel.activeTab?.let { viewModel.setTabLoading(it.id, false) }
                 viewModel.closeActiveTab {
                     activity.finishAndRemoveTask()
                     exitProcess(0)
@@ -2501,8 +2501,8 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
 
 
                 },
-                onProgressChange = { int ->
-                    viewModel.updateUI { it.copy(isLoading = (int < 100)) }
+                onProgressChange = { eventTabId, int ->
+                    viewModel.setTabLoading(eventTabId, int < 100)
                 },
                 onLocationChangeFun = { eventTabId, _, url, _, _ ->
                     if (eventTabId == viewModel.activeTab!!.id
@@ -2616,11 +2616,14 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                         }
                     }
 
+                    if (!isGhostBlank) {
+                        viewModel.setTabLoading(eventTabId, true)
+                    }
+
                     if (eventTabId == viewModel.activeTab!!.id) {
                         if (!isGhostBlank) {
                             viewModel.jsTopBackgroundColor.value = null
                             viewModel.jsBottomBackgroundColor.value = null
-                            viewModel.updateUI { it.copy(isLoading = true) }
 
                             val activeTab = viewModel.activeTab
                             val isCurrentLocal = activeTab?.currentURL?.startsWith("local://", ignoreCase = true) == true
@@ -2645,15 +2648,15 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                     }
 
                 },
-                onPageStopFun = { _, _ ->
-                    viewModel.updateUI {
-                        it.copy(
-                            isLoading = false,
-                            isFirstLoadPWA = false,
-                        )
-                    }
+                onPageStopFun = { eventTabId, _, _ ->
+                    viewModel.setTabLoading(eventTabId, false)
+                    if (eventTabId == viewModel.activeTab?.id) {
+                        viewModel.updateUI {
+                            it.copy(isFirstLoadPWA = false)
+                        }
                     (geckoViewRef.value as? SafeGeckoView)?.wakeCompositor()
                     sampleTrigger++
+                    }
                 },
                 onFaviconChanged = { tabId, faviconUrl ->
                     if (faviconUrl.isNotBlank()) {
@@ -2717,8 +2720,8 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                 onLoadErrorFun = { eventTabId, session, uri, error ->
                     val failingUrl = uri ?: viewModel.tabs.find { it.id == eventTabId }?.currentURL ?: ""
 
+                    viewModel.setTabLoading(eventTabId, false)
                     if (session == activeSession) {
-                        viewModel.updateUI { it.copy(isLoading = false) }
                         if (!uiState.value.isFocusOnUrlTextField) {
                             textFieldState.setTextAndPlaceCursorAtEnd(failingUrl.toDomain())
                         }
@@ -2807,10 +2810,10 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                     }
                 },
                 onSessionCrash = {
-                    viewModel.geckoManager.forceKillSession(viewModel.activeTab!!.id)
+                    val crashedId = viewModel.activeTab!!.id
+                    viewModel.geckoManager.forceKillSession(crashedId)
+                    viewModel.setTabLoading(crashedId, false)
                     viewModel.sessionRefreshTrigger.intValue++
-                    viewModel.updateUI { it.copy(isLoading = false) }
-
                 },
                 onChoicePromptFun = { viewModel.choiceState.value = it },
                 onFilePromptFun = { prompt, result ->
