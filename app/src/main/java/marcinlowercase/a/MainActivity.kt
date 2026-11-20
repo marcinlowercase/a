@@ -509,6 +509,12 @@ class MainActivity : ComponentActivity() {
         return viewModel.keyboardShortcutManager.handleKeyEvent(event, viewModel) || super.dispatchKeyEvent(event)
     }
 
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        val viewModel: BrowserViewModel by viewModels()
+        viewModel.keyboardShortcutManager.handleTouchEvent(ev, viewModel)
+        return super.dispatchTouchEvent(ev)
+    }
+
     override fun dispatchGenericMotionEvent(ev: MotionEvent): Boolean {
         if (ev.actionMasked == MotionEvent.ACTION_SCROLL &&
             (ev.metaState and KeyEvent.META_SHIFT_ON) != 0 &&
@@ -516,6 +522,8 @@ class MainActivity : ComponentActivity() {
         ) {
             val vScroll = ev.getAxisValue(MotionEvent.AXIS_VSCROLL)
             if (vScroll != 0f) {
+                val viewModel: BrowserViewModel by viewModels()
+                viewModel.keyboardShortcutManager.cancelShiftTap()
                 val converted = convertVerticalScrollToHorizontal(ev, -vScroll)
                 return try {
                     super.dispatchGenericMotionEvent(converted)

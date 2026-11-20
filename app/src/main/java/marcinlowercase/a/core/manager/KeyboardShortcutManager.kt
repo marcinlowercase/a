@@ -3,7 +3,10 @@ package marcinlowercase.a.core.manager
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.view.InputDevice
 import android.view.KeyEvent
+import android.view.MotionEvent
+import android.view.ViewConfiguration
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -35,6 +38,87 @@ class KeyboardShortcutManager(private val context: Context) {
         return action
     }
 
+    private var shiftDownPendingTap = false
+    private var shiftDownTimeMs = 0L
+    private var lastCleanShiftTapMs = 0L
+
+    private var rightMouseDownActive = false
+    private var rightMouseDownTimeMs = 0L
+    private var rightMouseDownX = 0f
+    private var rightMouseDownY = 0f
+    private var lastRightMouseClickUpMs = 0L
+    private val touchSlop by lazy { ViewConfiguration.get(context).scaledTouchSlop }
+
+    fun cancelShiftTap() {
+        shiftDownPendingTap = false
+        lastCleanShiftTapMs = 0L
+    }
+
+    fun handleTouchEvent(ev: MotionEvent, viewModel: BrowserViewModel) {
+        val isMouse = ev.isFromSource(InputDevice.SOURCE_MOUSE) ||
+                (ev.pointerCount > 0 && ev.getToolType(0) == MotionEvent.TOOL_TYPE_MOUSE)
+        if (!isMouse) {
+            rightMouseDownActive = false
+            lastRightMouseClickUpMs = 0L
+            return
+        }
+
+        when (ev.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                val isRightButton = (ev.buttonState and MotionEvent.BUTTON_SECONDARY) != 0
+                if (isRightButton) {
+                    rightMouseDownActive = true
+                    rightMouseDownTimeMs = ev.eventTime
+                    rightMouseDownX = ev.x
+                    rightMouseDownY = ev.y
+                } else {
+                    rightMouseDownActive = false
+                    lastRightMouseClickUpMs = 0L
+                }
+            }
+
+            MotionEvent.ACTION_MOVE -> {
+                if (rightMouseDownActive) {
+                    val dx = ev.x - rightMouseDownX
+                    val dy = ev.y - rightMouseDownY
+                    if (dx * dx + dy * dy > touchSlop * touchSlop) {
+                        rightMouseDownActive = false
+                        lastRightMouseClickUpMs = 0L
+                    }
+                }
+            }
+
+            MotionEvent.ACTION_CANCEL -> {
+                rightMouseDownActive = false
+                lastRightMouseClickUpMs = 0L
+            }
+
+            MotionEvent.ACTION_UP -> {
+                val isQuickClick = rightMouseDownActive &&
+                        (ev.eventTime - rightMouseDownTimeMs) <= 300L
+                rightMouseDownActive = false
+                if (isQuickClick) {
+                    val now = ev.eventTime
+                    if (lastRightMouseClickUpMs != 0L && (now - lastRightMouseClickUpMs) <= 400L) {
+                        lastRightMouseClickUpMs = 0L
+                        val uiState = viewModel.uiState.value
+                        if (!viewModel.isStandaloneMode.value &&
+                            uiState.appState == AppState.REGULAR &&
+                            !uiState.isBottomPanelVisible
+                        ) {
+                            viewModel.contextMenuData.value = null
+                            executeShortcut(BrowserShortcut.SHOW_BOTTOM_PANEL, viewModel)
+                        }
+                    } else {
+                        lastRightMouseClickUpMs = now
+                    }
+                } else {
+                    lastRightMouseClickUpMs = 0L
+                }
+            }
+        }
+    }
+
     fun clearPendingUrlFocusAction() {
         _pendingUrlFocusAction.value = null
     }
@@ -55,6 +139,51 @@ class KeyboardShortcutManager(private val context: Context) {
         val isShift = event.isShiftPressed
         val isAlt = event.isAltPressed
         val isMeta = event.isMetaPressed
+
+        val isShiftKey = event.keyCode == KeyEvent.KEYCODE_SHIFT_LEFT ||
+                event.keyCode == KeyEvent.KEYCODE_SHIFT_RIGHT
+        if (isShiftKey) {
+            if (!isCtrl && !isAlt && !isMeta) {
+                when (event.action) {
+                    KeyEvent.ACTION_DOWN -> {
+                        if (event.repeatCount == 0) {
+                            shiftDownPendingTap = true
+                            shiftDownTimeMs = event.eventTime
+                        } else {
+                            cancelShiftTap()
+                        }
+                    }
+
+                    KeyEvent.ACTION_UP -> {
+                        val isQuickTap = shiftDownPendingTap &&
+                                (event.eventTime - shiftDownTimeMs) <= 300L
+                        shiftDownPendingTap = false
+                        if (isQuickTap) {
+                            val now = event.eventTime
+                            if (lastCleanShiftTapMs != 0L && (now - lastCleanShiftTapMs) <= 400L) {
+                                lastCleanShiftTapMs = 0L
+                                if (!viewModel.isStandaloneMode.value &&
+                                    uiState.appState == AppState.REGULAR &&
+                                    !uiState.isBottomPanelVisible
+                                ) {
+                                    executeShortcut(BrowserShortcut.SHOW_BOTTOM_PANEL, viewModel)
+                                }
+                            } else {
+                                lastCleanShiftTapMs = now
+                            }
+                        } else {
+                            lastCleanShiftTapMs = 0L
+                        }
+                    }
+                }
+            } else {
+                cancelShiftTap()
+            }
+            return false
+        }
+
+        // any non-shift key cancels an in-progress shift tap or double-shift sequence
+        cancelShiftTap()
 
         val shortcut = when {
             // esc only applies while url bar or icon field is focused
@@ -400,6 +529,15 @@ class KeyboardShortcutManager(private val context: Context) {
                 }
                 if (uiState.isFocusOnUrlTextField) {
                     _shortcutEvents.tryEmit(BrowserShortcut.OPEN_FIND_IN_PAGE)
+                }
+            }
+
+            BrowserShortcut.SHOW_BOTTOM_PANEL -> {
+                viewModel.updateUI {
+                    it.copy(
+                        isUrlBarVisible = true,
+                        isBottomPanelVisible = true
+                    )
                 }
             }
         }

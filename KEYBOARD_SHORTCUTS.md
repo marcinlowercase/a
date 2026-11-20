@@ -17,4 +17,13 @@
 | `alt + k` | switch to previous tab |
 | `ctrl + alt + j` | switch to next profile |
 | `ctrl + alt + k` | switch to previous profile |
+| `shift + shift` | show bottom panel and hide back square |
 | `esc` | dismiss url bar |
+
+# mouse shortcuts
+
+| shortcut | action |
+| --- | --- |
+| `right click x2` | show bottom panel and hide back square |
+| `scroll` | vertical scroll and swipe up/down gestures |
+| `shift + scroll` | horizontal scroll and swipe left/right gestures |

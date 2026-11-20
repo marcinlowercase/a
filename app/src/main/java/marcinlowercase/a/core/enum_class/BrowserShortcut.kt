@@ -16,5 +16,6 @@ enum class BrowserShortcut {
     NEXT_PROFILE,
     PREVIOUS_PROFILE,
     OPEN_DOWNLOADS,
-    OPEN_FIND_IN_PAGE
+    OPEN_FIND_IN_PAGE,
+    SHOW_BOTTOM_PANEL
 }
