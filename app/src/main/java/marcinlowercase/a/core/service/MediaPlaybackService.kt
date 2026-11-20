@@ -41,6 +41,7 @@ class MediaPlaybackService : Service() {
     private var currentCanPrev = false
     private var currentCanNext = false
     private var blackArtBitmap: Bitmap? = null
+    private var wakeLock: android.os.PowerManager.WakeLock? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -49,6 +50,13 @@ class MediaPlaybackService : Service() {
         createNotificationChannel()
         blackArtBitmap = Bitmap.createBitmap(64, 64, Bitmap.Config.ARGB_8888).apply {
             eraseColor(Color.BLACK)
+        }
+        val powerManager = getSystemService(POWER_SERVICE) as? android.os.PowerManager
+        wakeLock = powerManager?.newWakeLock(
+            android.os.PowerManager.PARTIAL_WAKE_LOCK,
+            "browser:MediaPlaybackWakeLock"
+        )?.apply {
+            setReferenceCounted(false)
         }
 
         val activityIntent = Intent(this, MainActivity::class.java).apply {
@@ -264,6 +272,19 @@ class MediaPlaybackService : Service() {
                 .setShowActionsInCompactView(*compactIndices)
         )
 
+        try {
+            if (!isPaused) {
+                if (wakeLock?.isHeld == false) {
+                    wakeLock?.acquire(4 * 60 * 60 * 1000L)
+                }
+            } else {
+                if (wakeLock?.isHeld == true) {
+                    wakeLock?.release()
+                }
+            }
+        } catch (_: Exception) {
+        }
+
         val notification = notificationBuilder.build()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -274,6 +295,13 @@ class MediaPlaybackService : Service() {
     }
 
     override fun onDestroy() {
+        try {
+            if (wakeLock?.isHeld == true) {
+                wakeLock?.release()
+            }
+        } catch (_: Exception) {
+        }
+        wakeLock = null
         mediaSession?.isActive = false
         mediaSession?.release()
         blackArtBitmap?.recycle()

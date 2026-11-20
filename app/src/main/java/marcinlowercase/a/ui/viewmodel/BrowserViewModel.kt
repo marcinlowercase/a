@@ -233,16 +233,16 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
             when (memoryUsage) {
                 0 -> {
-                    if (tab.id == playingMediaTabId) {
-                        geckoManager.pauseSessionIfExists(tab.id)
-                    } else {
+                    if (tab.id != playingMediaTabId) {
                         loadingTabIds.remove(tab.id)
                         geckoManager.closeSession(tab)
                     }
                 }
 
                 1 -> {
-                    if (tab.id == currentActiveTabId || tab.id == playingMediaTabId) {
+                    if (tab.id == playingMediaTabId) {
+                        // keep playing media session active so playlist auto-next continues
+                    } else if (tab.id == currentActiveTabId) {
                         geckoManager.pauseSessionIfExists(tab.id)
                     } else {
                         loadingTabIds.remove(tab.id)
@@ -251,7 +251,9 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 }
 
                 2 -> {
-                    geckoManager.pauseSessionIfExists(tab.id)
+                    if (tab.id != playingMediaTabId) {
+                        geckoManager.pauseSessionIfExists(tab.id)
+                    }
                 }
             }
             updatedTab
@@ -1643,10 +1645,15 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         if (newIndex != currentIndex && newIndex in tabs.indices) {
 
 
-            // 2. Deactivate current tab
+            // deactivate current tab unless it is actively playing background media
             if (currentIndex in tabs.indices) {
                 val oldTab = tabs[currentIndex]
-                geckoManager.pauseSessionIfExists(oldTab.id)
+                val isPlayingTab = !geckoManager.isActiveMediaSessionPaused &&
+                    _browserSettings.value.isEnabledBackgroundPlayback &&
+                    oldTab.id == geckoManager.getActiveMediaTabId()
+                if (!isPlayingTab) {
+                    geckoManager.pauseSessionIfExists(oldTab.id)
+                }
                 tabs[currentIndex] = tabs[currentIndex].copy(state = TabState.BACKGROUND)
             }
 

@@ -141,6 +141,7 @@ class GeckoManager(private val context: Context) {
                   gfx.webrender.compositor.force-enabled: true
                   layers.acceleration.force-enabled: true
                   dom.webgpu.workers.enabled: true
+                  media.block-autoplay-until-in-foreground: false
                 """.trimIndent()
             )
         }
@@ -1187,6 +1188,23 @@ class GeckoManager(private val context: Context) {
         lastSnapshotTime.longValue = System.currentTimeMillis()
     }
 
+    private var pendingServiceStopJob: kotlinx.coroutines.Job? = null
+
+    private fun scheduleMediaServiceStop() {
+        pendingServiceStopJob?.cancel()
+        pendingServiceStopJob = MainScope().launch {
+            kotlinx.coroutines.delay(3000)
+            if (activeGeckoMediaSession == null && activeSilentVideoSession == null && currentFullscreenSession == null) {
+                context.stopService(Intent(context, MediaPlaybackService::class.java))
+            }
+        }
+    }
+
+    private fun cancelPendingMediaServiceStop() {
+        pendingServiceStopJob?.cancel()
+        pendingServiceStopJob = null
+    }
+
     fun getActiveMediaTabId(): Long? {
         val targetSession = activeMediaGeckoSession ?: currentFullscreenSession ?: activeSilentVideoSession ?: return null
         return sessionPool.entries.firstOrNull { it.value == targetSession }?.key
@@ -1195,6 +1213,7 @@ class GeckoManager(private val context: Context) {
     fun syncMediaNotification() {
         onMediaPlaybackStateChanged?.invoke()
         if (activeGeckoMediaSession == null && currentFullscreenSession == null && activeSilentVideoSession == null) return
+        cancelPendingMediaServiceStop()
         val title = lastTitle.value.ifBlank { "Browser Video" }
         val artist = lastArtist.value
         val canPrev = activeGeckoMediaSession != null &&
@@ -2581,6 +2600,7 @@ class GeckoManager(private val context: Context) {
 
         session.mediaSessionDelegate = object : MediaSession.Delegate {
             override fun onActivated(session: GeckoSession, mediaSession: MediaSession) {
+                cancelPendingMediaServiceStop()
                 activeSilentVideoSession = null
                 activeGeckoMediaSession = mediaSession
                 activeMediaGeckoSession = session
@@ -2617,7 +2637,8 @@ class GeckoManager(private val context: Context) {
                     activePlaybackSpeed = 1.0f
                     isHolding2xSpeed = false
                     isInit = true
-                    context.stopService(Intent(context, MediaPlaybackService::class.java))
+                    // keep service and wakelock alive briefly so next track in playlist can auto-start
+                    scheduleMediaServiceStop()
                 }
             }
 
@@ -2702,7 +2723,7 @@ class GeckoManager(private val context: Context) {
                     activePlaybackSpeed = 1.0f
                     isHolding2xSpeed = false
                     isInit = true
-                    context.stopService(Intent(context, MediaPlaybackService::class.java))
+                    scheduleMediaServiceStop()
                 }
                 super.onStop(session, mediaSession)
             }
