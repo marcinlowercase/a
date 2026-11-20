@@ -1387,7 +1387,7 @@ class GeckoManager(private val context: Context) {
         onJsConfirm: (Long, String, (Boolean) -> Unit) -> Unit,
         onJsPrompt: (Long, String, String, (String?) -> Unit) -> Unit,
         onLoadErrorFun: (eventTabId: Long, session: GeckoSession, uri: String?, error: WebRequestError) -> Unit,
-        onSessionCrash: () -> Unit,
+        onSessionCrash: (Long) -> Unit,
 
         onFilePromptFun: (prompt: GeckoSession.PromptDelegate.FilePrompt, result: GeckoResult<GeckoSession.PromptDelegate.PromptResponse>) -> Unit,
         onColorPromptFun: (JsColorState) -> Unit,
@@ -2376,18 +2376,13 @@ class GeckoManager(private val context: Context) {
             }
 
             override fun onCrash(session: GeckoSession) {
-                //Log.e("GeckoManager", "Session $session Crashed: ${session.isOpen}")
-                // TODO handle auto crash session
                 handleSessionDeath(session, eventTabId)
-                onSessionCrash()
-
+                onSessionCrash(eventTabId)
             }
 
             override fun onKill(session: GeckoSession) {
-                // TODO handle auto crash session
-                //Log.e("GeckoManager", "Session $session Killed by OS")
                 handleSessionDeath(session, eventTabId)
-                onSessionCrash()
+                onSessionCrash(eventTabId)
             }
 
         }

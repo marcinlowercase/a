@@ -2222,6 +2222,13 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
             viewModel.jsTopBackgroundColor.value = null
             viewModel.jsBottomBackgroundColor.value = null
 
+         val currentActiveTab = viewModel.activeTab
+            if (currentActiveTab != null && viewModel.consumeTabNeedsReload(currentActiveTab.id)) {
+                viewModel.updateTabById(currentActiveTab.id) { it.copy(errorState = null) }
+                viewModel.geckoManager.forceKillSession(currentActiveTab.id)
+                viewModel.sessionRefreshTrigger.intValue++
+            }
+
             val currentUrl = viewModel.activeTab?.currentURL ?: ""
             if (!uiState.value.isFocusOnUrlTextField) {
                 textFieldState.setTextAndPlaceCursorAtEnd(currentUrl.toDomain())
@@ -2480,6 +2487,7 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
 
         val onHighlightState = rememberUpdatedState(settings.activeOnHighlight())
         val offHighlightState = rememberUpdatedState(settings.activeOffHighlight())
+        var isAppInForeground by remember { mutableStateOf(true) }
 
         LaunchedEffect(activeSession) {
             activeSession.setActive(true)
@@ -2740,25 +2748,30 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                     val failingUrl = uri ?: viewModel.tabs.find { it.id == eventTabId }?.currentURL ?: ""
 
                     viewModel.setTabLoading(eventTabId, false)
-                    if (session == activeSession) {
-                        if (!uiState.value.isFocusOnUrlTextField) {
-                            textFieldState.setTextAndPlaceCursorAtEnd(failingUrl.toDomain())
+
+                    if (!isAppInForeground) {
+                        // background load failed during doze; reload once user returns to foreground
+                        viewModel.markTabNeedsReload(eventTabId)
+                    } else {
+                        if (session == activeSession) {
+                            if (!uiState.value.isFocusOnUrlTextField) {
+                                textFieldState.setTextAndPlaceCursorAtEnd(failingUrl.toDomain())
+                            }
                         }
-                    }
 
-                    val newError = ErrorState(
-                        error = error,
-                        failingUrl = failingUrl
-                    )
-
-                    // Update the Tab object
-                    viewModel.updateTabById(eventTabId) {
-                        it.copy(
-                            errorState = newError,
-                            currentURL = failingUrl,
-                            currentTitle = errorTitle,
-                            currentFaviconUrl = ""
+                        val newError = ErrorState(
+                            error = error,
+                            failingUrl = failingUrl
                         )
+
+                        viewModel.updateTabById(eventTabId) {
+                            it.copy(
+                                errorState = newError,
+                                currentURL = failingUrl,
+                                currentTitle = errorTitle,
+                                currentFaviconUrl = ""
+                            )
+                        }
                     }
                 },
                 siteSettings = viewModel.siteSettings,
@@ -2828,11 +2841,15 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                         }
                     }
                 },
-                onSessionCrash = {
-                    val crashedId = viewModel.activeTab!!.id
-                    viewModel.geckoManager.forceKillSession(crashedId)
+                onSessionCrash = { crashedId ->
                     viewModel.setTabLoading(crashedId, false)
-                    viewModel.sessionRefreshTrigger.intValue++
+                    if (isAppInForeground && crashedId == viewModel.activeTab?.id) {
+                        viewModel.geckoManager.forceKillSession(crashedId)
+                        viewModel.sessionRefreshTrigger.intValue++
+                    } else {
+                        // defer reload until app returns to foreground or user switches to this tab
+                        viewModel.markTabNeedsReload(crashedId)
+                    }
                 },
                 onChoicePromptFun = { viewModel.choiceState.value = it },
                 onFilePromptFun = { prompt, result ->
@@ -2922,19 +2939,28 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
         val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
         val isNewAndroid = Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE
 
-        // 1. Keep a constantly updated reference to the active session.
-        // This allows the lifecycle observer to use the correct session without restarting!
         val currentActiveSession by rememberUpdatedState(activeSession)
 
-        // 2. ONLY key on the lifecycleOwner. Tab switches will no longer restart this effect!
         DisposableEffect(lifecycleOwner) {
             val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
                 when (event) {
+                    androidx.lifecycle.Lifecycle.Event.ON_START -> {
+                        isAppInForeground = true
+                    }
+
                     androidx.lifecycle.Lifecycle.Event.ON_RESUME -> {
+                        isAppInForeground = true
                         isBrowserVisible = true
 
                         coroutineScope.launch {
                             delay(250.milliseconds)
+
+                            val currentTab = viewModel.activeTab
+                            if (currentTab != null && viewModel.consumeTabNeedsReload(currentTab.id)) {
+                                viewModel.updateTabById(currentTab.id) { it.copy(errorState = null) }
+                                viewModel.geckoManager.forceKillSession(currentTab.id)
+                                viewModel.sessionRefreshTrigger.intValue++
+                            }
 
                             val currentGeckoView = geckoViewRef.value
                             val safeGeckoView = currentGeckoView as? SafeGeckoView
@@ -2977,6 +3003,7 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
 
 //                    androidx.lifecycle.Lifecycle.Event.ON_PAUSE -> {
                     androidx.lifecycle.Lifecycle.Event.ON_STOP -> {
+                        isAppInForeground = false
                         val powerManager = context.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
                         val isScreenInteractive = powerManager?.isInteractive ?: true
                         val allowBackground = settingsState.value.isEnabledBackgroundPlayback

@@ -2994,7 +2994,16 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private val loadingTabIds = mutableStateMapOf<Long, Boolean>()
+    private val pendingReloadTabIds = mutableSetOf<Long>()
     private var isSyncLoading = false
+
+    fun markTabNeedsReload(tabId: Long) {
+        pendingReloadTabIds.add(tabId)
+    }
+
+    fun consumeTabNeedsReload(tabId: Long): Boolean {
+        return pendingReloadTabIds.remove(tabId)
+    }
 
     fun setTabLoading(tabId: Long, loading: Boolean) {
         if (loading) {
