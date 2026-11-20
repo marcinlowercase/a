@@ -438,6 +438,17 @@
     return true;
   }
 
+  function getFallbackArtworkUrl(v) {
+    if (v && v.poster) return v.poster;
+    try {
+      if (window === window.top) {
+        var meta = document.querySelector("meta[property='og:image'], meta[name='twitter:image']");
+        if (meta && meta.content) return meta.content;
+      }
+    } catch (_) {}
+    return "";
+  }
+
   function emitSilentVideoState(v, eventName, forcedPaused) {
     if (!v) return;
     var isPaused = typeof forcedPaused === "boolean" ? forcedPaused : Boolean(v.paused);
@@ -447,6 +458,7 @@
       position: isFinite(v.currentTime) ? v.currentTime : 0,
       duration: isFinite(v.duration) && v.duration > 0 ? v.duration : -1,
       playbackRate: isFinite(v.playbackRate) && v.playbackRate > 0 ? v.playbackRate : 1.0,
+      artworkUrl: getFallbackArtworkUrl(v),
       title: document.title || ""
     }).catch(function () {});
   }
@@ -561,7 +573,8 @@
         var hasPrevCap = Boolean(prevBtnCap && prevBtnCap.getAttribute("aria-disabled") !== "true");
         send("trackCaps", {
           canPrev: hasPrevCap,
-          canNext: hasNextCap
+          canNext: hasNextCap,
+          artworkUrl: getFallbackArtworkUrl(findActiveMediaElement())
         }).catch(function () {});
         return;
       }

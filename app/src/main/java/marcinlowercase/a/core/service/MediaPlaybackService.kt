@@ -196,7 +196,9 @@ class MediaPlaybackService : Service() {
         val metadataBuilder = MediaMetadataCompat.Builder()
             .putString(MediaMetadataCompat.METADATA_KEY_TITLE, title)
             .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, artist)
-        blackArtBitmap?.takeIf { !it.isRecycled }?.let {
+        val artwork = (applicationContext as? CustomApplication)?.geckoManager?.currentArtworkBitmap
+            ?: blackArtBitmap
+        artwork?.takeIf { !it.isRecycled }?.let {
             metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, it)
         }
         if (currentDurationMs > 0L) {

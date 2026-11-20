@@ -79,6 +79,12 @@ import kotlinx.serialization.json.Json
 import androidx.compose.runtime.mutableFloatStateOf
 import marcinlowercase.a.core.constant.leave_site_permission
 import marcinlowercase.a.core.function.copyImageToClipboard
+import android.graphics.Bitmap
+import android.graphics.drawable.BitmapDrawable
+import coil.Coil
+import coil.request.ImageRequest
+import coil.request.SuccessResult
+import kotlinx.coroutines.withContext
 
 private const val UBLOCK_ID = "uBlock0@raymondhill.net"
 private const val FAVICON_ID = "browser_core_extension@marcinlowercase"
@@ -113,6 +119,9 @@ class GeckoManager(private val context: Context) {
 
     var lastTitle = mutableStateOf("")
     var lastArtist = mutableStateOf("")
+    var currentArtworkBitmap: Bitmap? = null
+    private var lastArtworkImage: org.mozilla.geckoview.Image? = null
+    private var lastFallbackArtworkUrl: String = ""
 
     var isActiveMediaSessionPaused by mutableStateOf(true)
     var activePlaybackSpeed by mutableFloatStateOf(1.0f)
@@ -1019,6 +1028,9 @@ class GeckoManager(private val context: Context) {
 
     fun startReset() {
         // save where video a was when switching videos
+        currentArtworkBitmap = null
+        lastArtworkImage = null
+        lastFallbackArtworkUrl = ""
         if (!isInit) {
             if (lastDuration.doubleValue != RESET) exitDuration = lastDuration.doubleValue
             if (lastPositionSnapshot.doubleValue != INIT) exitPosition = getEstimatedLivePosition()
@@ -1195,7 +1207,38 @@ class GeckoManager(private val context: Context) {
         pendingServiceStopJob = MainScope().launch {
             kotlinx.coroutines.delay(3000)
             if (activeGeckoMediaSession == null && activeSilentVideoSession == null && currentFullscreenSession == null) {
+                currentArtworkBitmap = null
+                lastArtworkImage = null
+                lastFallbackArtworkUrl = ""
                 context.stopService(Intent(context, MediaPlaybackService::class.java))
+            }
+        }
+    }
+
+    private fun loadFallbackArtworkFromUrl(url: String, forSession: GeckoSession) {
+        if (url.isBlank() || url == lastFallbackArtworkUrl || currentArtworkBitmap != null) return
+        lastFallbackArtworkUrl = url
+        MainScope().launch(Dispatchers.IO) {
+            try {
+                val request = ImageRequest.Builder(context)
+                    .data(url)
+                    .size(512)
+                    .allowHardware(false)
+                    .build()
+                val result = Coil.imageLoader(context).execute(request)
+                val bitmap = (result as? SuccessResult)?.drawable.let { it as? BitmapDrawable }?.bitmap
+                if (bitmap != null) {
+                    withContext(Dispatchers.Main) {
+                        val isSameActiveSession = activeMediaGeckoSession == forSession ||
+                            activeSilentVideoSession == forSession ||
+                            currentFullscreenSession == forSession
+                        if (isSameActiveSession && currentArtworkBitmap == null) {
+                            currentArtworkBitmap = bitmap
+                            syncMediaNotification()
+                        }
+                    }
+                }
+            } catch (_: Exception) {
             }
         }
     }
@@ -1503,6 +1546,11 @@ class GeckoManager(private val context: Context) {
                                             is Map<*, *> -> message["title"] as? String ?: ""
                                             else -> ""
                                         }
+                                        val artworkUrl = when (message) {
+                                            is JSONObject -> message.optString("artworkUrl", "")
+                                            is Map<*, *> -> message["artworkUrl"] as? String ?: ""
+                                            else -> ""
+                                        }
                                         isActiveMediaSessionPaused = paused
                                         lastPositionSnapshot.doubleValue = pos.coerceAtLeast(0.0)
                                         lastSnapshotTime.longValue = System.currentTimeMillis()
@@ -1516,6 +1564,9 @@ class GeckoManager(private val context: Context) {
                                         val domain = tab.value.currentURL.toDomain()
                                         lastTitle.value = title.ifBlank { tab.value.currentTitle.ifBlank { domain } }
                                         lastArtist.value = domain
+                                        if (artworkUrl.isNotBlank() && currentArtworkBitmap == null) {
+                                            loadFallbackArtworkFromUrl(artworkUrl, session)
+                                        }
                                         syncMediaNotification()
                                     }
                                 }
@@ -1584,6 +1635,14 @@ class GeckoManager(private val context: Context) {
                                     is JSONObject -> message.optBoolean("canNext", false)
                                     is Map<*, *> -> (message["canNext"] as? Boolean) ?: false
                                     else -> false
+                                }
+                                val artworkUrl = when (message) {
+                                    is JSONObject -> message.optString("artworkUrl", "")
+                                    is Map<*, *> -> message["artworkUrl"] as? String ?: ""
+                                    else -> ""
+                                }
+                                if (artworkUrl.isNotBlank() && currentArtworkBitmap == null) {
+                                    loadFallbackArtworkFromUrl(artworkUrl, session)
                                 }
                                 if (domHasPrevTrack != prev || domHasNextTrack != next) {
                                     domHasPrevTrack = prev
@@ -2600,6 +2659,9 @@ class GeckoManager(private val context: Context) {
                 activeGeckoMediaSession = mediaSession
                 activeMediaGeckoSession = session
                 activeMediaProfileId = sessionProfileMap[session] ?: session.settings.contextId ?: tab.value.profileId
+                currentArtworkBitmap = null
+                lastArtworkImage = null
+                lastFallbackArtworkUrl = ""
                 activeMediaFeatures = 0L
                 domHasPrevTrack = false
                 domHasNextTrack = false
@@ -2655,10 +2717,24 @@ class GeckoManager(private val context: Context) {
                     lastArtist.value = newArtist
                     changed = true
                 }
+                val artwork = metadata.artwork
+                if (artwork != null && artwork != lastArtworkImage) {
+                    lastArtworkImage = artwork
+                    artwork.getBitmap(512).accept(
+                        { bitmap ->
+                            if (bitmap != null && activeGeckoMediaSession == mediaSession) {
+                                currentArtworkBitmap = bitmap
+                                syncMediaNotification()
+                            }
+                        },
+                        { }
+                    )
+                }
+
                 if (changed) {
                     syncMediaNotification()
                 }
-                if ((activeMediaFeatures and MediaSession.Feature.NEXT_TRACK) == 0L) {
+                if ((activeMediaFeatures and MediaSession.Feature.NEXT_TRACK) == 0L || artwork == null) {
                     dispatchSilentVideoCommand(session, "query_track_caps", 0.0)
                 }
             }
