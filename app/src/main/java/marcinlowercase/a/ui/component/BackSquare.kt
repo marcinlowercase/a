@@ -338,64 +338,50 @@ fun BackSquare(
                                         }
                                     }
 
-                                    // snap logic
-                                    val screenWidth = viewModel.screenSize.value.width.toFloat()
+                                    // snap logic across all four edges
+                                    val currentScreenWidth = viewModel.screenSize.value.width.toFloat()
+                                    val currentScreenHeight = viewModel.screenSize.value.height.toFloat()
+                                    val maxX = (currentScreenWidth - backsquareSizePx - paddingPx).coerceAtLeast(paddingPx)
+                                    val maxY = (currentScreenHeight - backsquareSizePx - paddingPx).coerceAtLeast(paddingPx)
+                                    val bottomLimit = if (imeInsets.calculateBottomPadding().value > 0) {
+                                        keyboardBottomLine.floatValue.coerceIn(paddingPx, maxY)
+                                    } else {
+                                        maxY
+                                    }
 
+                                    val distLeft = kotlin.math.abs(backSquareOffsetX.value - paddingPx)
+                                    val distRight = kotlin.math.abs(maxX - backSquareOffsetX.value)
+                                    val minHorizontalDist = minOf(distLeft, distRight)
 
-                                    // snap back square to left or right side of the screen if Y is between 10% and 90%
+                                    val distTop = kotlin.math.abs(backSquareOffsetY.value - paddingPx)
+                                    val distBottom = kotlin.math.abs(bottomLimit - backSquareOffsetY.value)
+                                    val minVerticalDist = minOf(distTop, distBottom)
 
+                                    val isSnapLeftRight = minHorizontalDist < minVerticalDist
 
-                                    // USE this block if we want the back square go around all edges
-//                                    val xCompareValue =  if (backSquareOffsetX.value + (backsquareSizePx / 2) < screenWidth / 2) {
-//                                        backSquareOffsetX.value // Take Left
-//                                    } else
-//                                        screenWidth - backSquareOffsetX.value // Take Right
-//
-//                                    val yCompareValue =  if (backSquareOffsetY.value + (backsquareSizePx / 2) < screenHeight / 2) {
-//                                        backSquareOffsetY.value // Snap Top
-//                                    } else
-//                                        screenHeight - backSquareOffsetY.value // Snap Bottom
-//
-//                                    val isSnapLeftRight = xCompareValue < yCompareValue
-                                    val isSnapLeftRight = true
+                                    val targetX = if (isSnapLeftRight) {
+                                        if (distLeft <= distRight) paddingPx else maxX
+                                    } else {
+                                        backSquareOffsetX.value.coerceIn(paddingPx, maxX)
+                                    }
 
-                                    val targetX =
-                                        if (isSnapLeftRight) {
-                                            if (backSquareOffsetX.value + (backsquareSizePx / 2) < screenWidth / 2) {
-                                                paddingPx // Snap Left
-                                            } else
-                                                screenWidth - backsquareSizePx - paddingPx // Snap Right
+                                    val targetY = if (isSnapLeftRight) {
+                                        backSquareOffsetY.value.coerceIn(paddingPx, bottomLimit)
+                                    } else {
+                                        if (distTop <= distBottom) paddingPx else bottomLimit
+                                    }
 
-                                        } else {
-                                            backSquareOffsetX.value.coerceIn(
-                                                paddingPx,
-                                                viewModel.screenSize.value.width.toFloat() - backsquareSizePx - paddingPx
-                                            )
-                                        }
-
-
-                                    // Clamp Y to screen bounds / keyboard bounds
-                                    val targetY =
-                                        if (isSnapLeftRight) {
-                                            backSquareOffsetY.value.coerceIn(
-                                                paddingPx,
-                                                if (imeInsets.calculateBottomPadding().value > 0) keyboardBottomLine.floatValue else viewModel.screenSize.value.height.toFloat() - backsquareSizePx - paddingPx
-                                            )
-                                        } else {
-                                            if (backSquareOffsetY.value + (backsquareSizePx / 2) < screenHeight / 2) {
-                                                paddingPx // Snap Top
-                                            } else
-                                                screenHeight - backsquareSizePx - paddingPx // Snap Bottom
-                                        }
-
-
-                                    val xPercentage =
-                                        (targetX - backsquareSizePx / 2 - paddingPx + backsquareSizePx / 2) / bsVisibleWidth
-                                    val yPercentage =
-                                        (targetY - backsquareSizePx / 2 - paddingPx + backsquareSizePx / 2) / bsVisibleHeight
+                                    val currentVisibleWidth = (currentScreenWidth - backsquareSizePx - (paddingPx * 2)).coerceAtLeast(1f)
+                                    val currentVisibleHeight = (currentScreenHeight - backsquareSizePx - (paddingPx * 2)).coerceAtLeast(1f)
+                                    val xPercentage = ((targetX - paddingPx) / currentVisibleWidth).coerceIn(0f, 1f)
+                                    val yPercentage = if (!isSnapLeftRight && imeInsets.calculateBottomPadding().value > 0 && distBottom < distTop) {
+                                        1f
+                                    } else {
+                                        ((targetY - paddingPx) / currentVisibleHeight).coerceIn(0f, 1f)
+                                    }
 
                                     coroutineScope.launch {
-                                        // Animate snap in
+                                        // animate snap in
                                         launch {
                                             backSquareOffsetX.animateTo(targetX, spring())
                                         }
@@ -403,14 +389,9 @@ fun BackSquare(
                                             backSquareOffsetY.animateTo(targetY, spring())
                                         }
 
-
-
-                                        if (imeInsets.calculateBottomPadding().value > 0) {
+                                        if (imeInsets.calculateBottomPadding().value > 0 && isSnapLeftRight) {
                                             viewModel.updateSettings {
-                                                it.copy(
-                                                    backSquareX = xPercentage,
-//                                                    backSquareY = yPercentage
-                                                )
+                                                it.copy(backSquareX = xPercentage)
                                             }
                                         } else {
                                             viewModel.updateSettings {
@@ -420,10 +401,9 @@ fun BackSquare(
                                                 )
                                             }
                                         }
-                                        // Fade out after snap
+                                        // fade out after snap
                                         hideBackSquare(false)
                                         isDragging = false
-
                                     }
                                 } else {
                                     // TAP
