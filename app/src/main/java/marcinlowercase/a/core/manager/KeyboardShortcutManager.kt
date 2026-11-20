@@ -155,6 +155,14 @@ class KeyboardShortcutManager(private val context: Context) {
                 BrowserShortcut.PREVIOUS_PROFILE
             }
 
+            // ctrl + j opens download panel and defocuses url bar if focused
+            event.keyCode == KeyEvent.KEYCODE_J &&
+                    isCtrl && !isShift && !isAlt && !isMeta &&
+                    !viewModel.isStandaloneMode.value &&
+                    uiState.appState == AppState.REGULAR -> {
+                BrowserShortcut.OPEN_DOWNLOADS
+            }
+
             // ctrl + enter opens url bar input in a new tab
             (event.keyCode == KeyEvent.KEYCODE_ENTER || event.keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) &&
                     isCtrl && !isShift && !isAlt && !isMeta &&
@@ -318,6 +326,36 @@ class KeyboardShortcutManager(private val context: Context) {
                         .coerceAtLeast(0)
                     val prevIndex = (currentIndex - 1 + count) % count
                     viewModel.switchProfile(viewModel.profiles[prevIndex].id)
+                }
+            }
+
+            BrowserShortcut.OPEN_DOWNLOADS -> {
+                val wasTextFocused = uiState.isFocusOnUrlTextField || uiState.isFocusOnIconUrlTextField
+                _pendingUrlFocusAction.value = null
+                _isPendingNewTab.value = false
+                viewModel.updateUI {
+                    it.copy(
+                        isPinningApp = false,
+                        isCreatingProfile = false,
+                        isRenamingProfile = false,
+                        isFocusOnUrlTextField = false,
+                        isFocusOnIconUrlTextField = false,
+                        isUrlBarVisible = true,
+                        isBottomPanelVisible = true,
+                        isUrlOverlayBoxVisible = true,
+                        isDownloadPanelVisible = true,
+                        isOptionsPanelVisible = false,
+                        isAppsPanelVisible = false,
+                        isSettingsPanelVisible = false,
+                        isSyncPanelVisible = false,
+                        isFindInPageVisible = false,
+                        isTabDataPanelVisible = false,
+                        isNavPanelVisible = false,
+                        savedPanelState = null
+                    )
+                }
+                if (wasTextFocused) {
+                    _shortcutEvents.tryEmit(BrowserShortcut.DISMISS_URL_BAR)
                 }
             }
         }

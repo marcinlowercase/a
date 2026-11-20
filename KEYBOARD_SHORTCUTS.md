@@ -5,6 +5,7 @@
 | `ctrl + l` | focus and select url, or edit current url |
 | `ctrl + shift + c` | copy current url |
 | `ctrl + r` | refresh current tab |
+| `ctrl + j` | open download panel |
 | `ctrl + t` | focus url bar and open new tab on submit |
 | `ctrl + w` | close current tab |
 | `ctrl + shift + t` | reopen last closed tab |

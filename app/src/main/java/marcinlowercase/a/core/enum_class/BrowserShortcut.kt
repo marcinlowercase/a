@@ -14,5 +14,6 @@ enum class BrowserShortcut {
     NEXT_TAB,
     PREVIOUS_TAB,
     NEXT_PROFILE,
-    PREVIOUS_PROFILE
+    PREVIOUS_PROFILE,
+    OPEN_DOWNLOADS
 }
