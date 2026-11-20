@@ -571,6 +571,7 @@ fun BottomPanel(
                 }
 
                 val editCurrentUrl: () -> Unit = {
+                    viewModel.keyboardShortcutManager.clearPendingNewTab()
                     val activeUrl = viewModel.activeTab!!.currentURL
                     val cleanUrl = LocalAppServer.formatForDisplay(activeUrl)
                     textFieldState.setTextAndPlaceCursorAtEnd(
@@ -587,13 +588,15 @@ fun BottomPanel(
                 }
 
                 val dismissUrlBar: () -> Unit = {
+                    viewModel.keyboardShortcutManager.clearPendingNewTab()
                     viewModel.keyboardShortcutManager.clearPendingUrlFocusAction()
                     viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
                     focusManager.clearFocus()
                     keyboardController?.hide()
                 }
 
-                val submitUrlBar: (Boolean) -> Unit = { openInNewTab ->
+                val submitUrlBar: (Boolean) -> Unit = { forceNewTab ->
+                    val openInNewTab = forceNewTab || viewModel.keyboardShortcutManager.consumePendingNewTab()
                     val input = (textFieldState.text as String).trim()
                     val resetUrl = viewModel.activeTab!!.currentURL
 
@@ -1064,6 +1067,7 @@ fun BottomPanel(
                                                 val currentState = viewModel.uiState.value
                                                 // Protect the UI from tearing down if the picker is open
                                                 if (!currentState.isFocusOnIconUrlTextField && !currentState.isFocusOnUrlTextField && !isPickingImage.value) {
+                                                    viewModel.keyboardShortcutManager.clearPendingNewTab()
 
                                                     if (currentState.isPinningApp) viewModel.updateUI {
                                                         it.copy(

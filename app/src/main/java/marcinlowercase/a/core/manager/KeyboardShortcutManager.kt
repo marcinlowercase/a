@@ -26,6 +26,9 @@ class KeyboardShortcutManager(private val context: Context) {
     private val _pendingUrlFocusAction = MutableStateFlow<UrlFocusAction?>(null)
     val pendingUrlFocusAction = _pendingUrlFocusAction.asStateFlow()
 
+    private val _isPendingNewTab = MutableStateFlow(false)
+    val isPendingNewTab = _isPendingNewTab.asStateFlow()
+
     fun consumePendingUrlFocusAction(): UrlFocusAction? {
         val action = _pendingUrlFocusAction.value ?: return null
         _pendingUrlFocusAction.value = null
@@ -34,6 +37,16 @@ class KeyboardShortcutManager(private val context: Context) {
 
     fun clearPendingUrlFocusAction() {
         _pendingUrlFocusAction.value = null
+    }
+
+    fun consumePendingNewTab(): Boolean {
+        if (!_isPendingNewTab.value) return false
+        _isPendingNewTab.value = false
+        return true
+    }
+
+    fun clearPendingNewTab() {
+        _isPendingNewTab.value = false
     }
 
     fun handleKeyEvent(event: KeyEvent, viewModel: BrowserViewModel): Boolean {
@@ -72,12 +85,28 @@ class KeyboardShortcutManager(private val context: Context) {
                 BrowserShortcut.REFRESH_TAB
             }
 
-            // ctrl + t creates a new tab in regular mode
+            // ctrl + shift + t reopens last closed tab in regular mode
+            event.keyCode == KeyEvent.KEYCODE_T &&
+                    isCtrl && isShift && !isAlt && !isMeta &&
+                    !viewModel.isStandaloneMode.value &&
+                    uiState.appState == AppState.REGULAR -> {
+                BrowserShortcut.REOPEN_CLOSED_TAB
+            }
+
+            // ctrl + t focuses url bar to open a new tab on submit
             event.keyCode == KeyEvent.KEYCODE_T &&
                     isCtrl && !isShift && !isAlt && !isMeta &&
                     !viewModel.isStandaloneMode.value &&
                     uiState.appState == AppState.REGULAR -> {
                 BrowserShortcut.NEW_TAB
+            }
+
+            // ctrl + w closes active tab in regular mode
+            event.keyCode == KeyEvent.KEYCODE_W &&
+                    isCtrl && !isShift && !isAlt && !isMeta &&
+                    !viewModel.isStandaloneMode.value &&
+                    uiState.appState == AppState.REGULAR -> {
+                BrowserShortcut.CLOSE_TAB
             }
 
             // ctrl + enter opens url bar input in a new tab
@@ -111,10 +140,12 @@ class KeyboardShortcutManager(private val context: Context) {
 
             BrowserShortcut.DISMISS_URL_BAR -> {
                 _pendingUrlFocusAction.value = null
+                _isPendingNewTab.value = false
                 _shortcutEvents.tryEmit(BrowserShortcut.DISMISS_URL_BAR)
             }
 
             BrowserShortcut.FOCUS_OR_EDIT_URL -> {
+                _isPendingNewTab.value = false
                 if (uiState.isFocusOnUrlTextField) {
                     _shortcutEvents.tryEmit(BrowserShortcut.FOCUS_OR_EDIT_URL)
                 } else if (!uiState.isPinningApp && !uiState.isCreatingProfile && !uiState.isRenamingProfile) {
@@ -133,15 +164,23 @@ class KeyboardShortcutManager(private val context: Context) {
                 viewModel.activeTab?.let { viewModel.geckoManager.getSession(it).reload() }
                 if (uiState.isFocusOnUrlTextField || uiState.isFocusOnIconUrlTextField) {
                     _pendingUrlFocusAction.value = null
+                    _isPendingNewTab.value = false
                     _shortcutEvents.tryEmit(BrowserShortcut.DISMISS_URL_BAR)
                 }
             }
 
             BrowserShortcut.NEW_TAB -> {
-                val newIndex = viewModel.activeTabIndex.value + 1
-                viewModel.createNewTab(newIndex, "")
-
+                _isPendingNewTab.value = true
                 if (uiState.isFocusOnUrlTextField) {
+                    if (uiState.isPinningApp || uiState.isCreatingProfile || uiState.isRenamingProfile) {
+                        viewModel.updateUI {
+                            it.copy(
+                                isPinningApp = false,
+                                isCreatingProfile = false,
+                                isRenamingProfile = false
+                            )
+                        }
+                    }
                     _shortcutEvents.tryEmit(BrowserShortcut.NEW_TAB)
                 } else {
                     _pendingUrlFocusAction.value = UrlFocusAction.EMPTY
@@ -160,6 +199,26 @@ class KeyboardShortcutManager(private val context: Context) {
 
             BrowserShortcut.OPEN_URL_IN_NEW_TAB -> {
                 _shortcutEvents.tryEmit(BrowserShortcut.OPEN_URL_IN_NEW_TAB)
+            }
+
+            BrowserShortcut.CLOSE_TAB -> {
+                _pendingUrlFocusAction.value = null
+                _isPendingNewTab.value = false
+                if (uiState.isFocusOnUrlTextField || uiState.isFocusOnIconUrlTextField) {
+                    _shortcutEvents.tryEmit(BrowserShortcut.DISMISS_URL_BAR)
+                }
+                _shortcutEvents.tryEmit(BrowserShortcut.CLOSE_TAB)
+            }
+
+            BrowserShortcut.REOPEN_CLOSED_TAB -> {
+                if (viewModel.recentlyClosedTabs.isNotEmpty()) {
+                    _pendingUrlFocusAction.value = null
+                    _isPendingNewTab.value = false
+                    viewModel.reopenClosedTab()
+                    if (uiState.isFocusOnUrlTextField || uiState.isFocusOnIconUrlTextField) {
+                        _shortcutEvents.tryEmit(BrowserShortcut.DISMISS_URL_BAR)
+                    }
+                }
             }
         }
     }

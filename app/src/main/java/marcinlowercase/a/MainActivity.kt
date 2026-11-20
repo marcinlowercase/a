@@ -149,6 +149,7 @@ import marcinlowercase.a.core.data_class.activeOffHighlight
 import marcinlowercase.a.core.data_class.activeOnHighlight
 import marcinlowercase.a.core.enum_class.ActivePanel
 import marcinlowercase.a.core.enum_class.AppState
+import marcinlowercase.a.core.enum_class.BrowserShortcut
 import marcinlowercase.a.core.enum_class.DownloadStatus
 import marcinlowercase.a.core.enum_class.GestureNavAction
 import marcinlowercase.a.core.enum_class.MediaControlMode
@@ -3121,6 +3122,8 @@ fun BrowserScreen(
         }
         LaunchedEffect(uiState.value.isUrlBarVisible) {
             if (!uiState.value.isUrlBarVisible) {
+                viewModel.keyboardShortcutManager.clearPendingNewTab()
+                viewModel.keyboardShortcutManager.clearPendingUrlFocusAction()
 //                setIsOptionsPanelVisible(false)
                 viewModel.updateUI {
                     it.copy(
@@ -3287,6 +3290,18 @@ fun BrowserScreen(
 
         LaunchedEffect(Unit) {
             focusManager.clearFocus()
+        }
+
+        LaunchedEffect(Unit) {
+            viewModel.keyboardShortcutManager.shortcutEvents.collect { shortcut ->
+                if (shortcut == BrowserShortcut.CLOSE_TAB) {
+                    viewModel.activeTab?.let { viewModel.setTabLoading(it.id, false) }
+                    viewModel.closeActiveTab {
+                        activity.finishAndRemoveTask()
+                        exitProcess(0)
+                    }
+                }
+            }
         }
         //endregion
 
@@ -3987,7 +4002,11 @@ fun BrowserScreen(
                                 )
                             },
                             onSuggestionClick = { suggestion ->
-                                webViewLoad(activeSession, suggestion.url)
+                                if (viewModel.keyboardShortcutManager.consumePendingNewTab()) {
+                                    viewModel.createNewTab(activeTabIndex + 1, suggestion.url)
+                                } else {
+                                    webViewLoad(activeSession, suggestion.url)
+                                }
 
                                 focusManager.clearFocus()
                                 keyboardController?.hide()
