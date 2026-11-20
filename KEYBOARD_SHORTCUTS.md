@@ -13,4 +13,6 @@
 | `alt + l` | go forward on current tab |
 | `alt + j` | switch to next tab |
 | `alt + k` | switch to previous tab |
+| `ctrl + alt + j` | switch to next profile |
+| `ctrl + alt + k` | switch to previous profile |
 | `esc` | dismiss url bar |

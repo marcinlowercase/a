@@ -139,6 +139,22 @@ class KeyboardShortcutManager(private val context: Context) {
                 BrowserShortcut.PREVIOUS_TAB
             }
 
+            // ctrl + alt + j switches to next profile without changing focus
+            event.keyCode == KeyEvent.KEYCODE_J &&
+                    isCtrl && !isShift && isAlt && !isMeta &&
+                    !viewModel.isStandaloneMode.value &&
+                    uiState.appState == AppState.REGULAR -> {
+                BrowserShortcut.NEXT_PROFILE
+            }
+
+            // ctrl + alt + k switches to previous profile without changing focus
+            event.keyCode == KeyEvent.KEYCODE_K &&
+                    isCtrl && !isShift && isAlt && !isMeta &&
+                    !viewModel.isStandaloneMode.value &&
+                    uiState.appState == AppState.REGULAR -> {
+                BrowserShortcut.PREVIOUS_PROFILE
+            }
+
             // ctrl + enter opens url bar input in a new tab
             (event.keyCode == KeyEvent.KEYCODE_ENTER || event.keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) &&
                     isCtrl && !isShift && !isAlt && !isMeta &&
@@ -280,6 +296,28 @@ class KeyboardShortcutManager(private val context: Context) {
                 if (count > 1) {
                     val prevIndex = (viewModel.activeTabIndex.value - 1 + count) % count
                     viewModel.selectTab(prevIndex)
+                }
+            }
+
+            BrowserShortcut.NEXT_PROFILE -> {
+                val count = viewModel.profiles.size
+                if (count > 1) {
+                    val currentIndex = viewModel.profiles
+                        .indexOfFirst { it.id == viewModel.activeProfileId.value }
+                        .coerceAtLeast(0)
+                    val nextIndex = (currentIndex + 1) % count
+                    viewModel.switchProfile(viewModel.profiles[nextIndex].id)
+                }
+            }
+
+            BrowserShortcut.PREVIOUS_PROFILE -> {
+                val count = viewModel.profiles.size
+                if (count > 1) {
+                    val currentIndex = viewModel.profiles
+                        .indexOfFirst { it.id == viewModel.activeProfileId.value }
+                        .coerceAtLeast(0)
+                    val prevIndex = (currentIndex - 1 + count) % count
+                    viewModel.switchProfile(viewModel.profiles[prevIndex].id)
                 }
             }
         }

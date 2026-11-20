@@ -12,5 +12,7 @@ enum class BrowserShortcut {
     GO_BACK,
     GO_FORWARD,
     NEXT_TAB,
-    PREVIOUS_TAB
+    PREVIOUS_TAB,
+    NEXT_PROFILE,
+    PREVIOUS_PROFILE
 }
