@@ -6,7 +6,6 @@ import android.content.Context
 import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
-import android.view.ViewConfiguration
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -42,81 +41,115 @@ class KeyboardShortcutManager(private val context: Context) {
     private var shiftDownTimeMs = 0L
     private var lastCleanShiftTapMs = 0L
 
-    private var rightMouseDownActive = false
-    private var rightMouseDownTimeMs = 0L
-    private var rightMouseDownX = 0f
-    private var rightMouseDownY = 0f
-    private var lastRightMouseClickUpMs = 0L
-    private val touchSlop by lazy { ViewConfiguration.get(context).scaledTouchSlop }
+    enum class MouseTouchResult {
+        PASS_THROUGH,
+        CONSUME,
+        CANCEL_AND_CONSUME
+    }
+
+    private var isLeftMouseDown = false
+    private var isRightChordPressed = false
+    private var cancelActiveLeftPointer = false
 
     fun cancelShiftTap() {
         shiftDownPendingTap = false
         lastCleanShiftTapMs = 0L
     }
 
-    fun handleTouchEvent(ev: MotionEvent, viewModel: BrowserViewModel) {
+    private fun canShowBottomPanelWithMouse(viewModel: BrowserViewModel): Boolean {
+        val uiState = viewModel.uiState.value
+        return !viewModel.isStandaloneMode.value &&
+                uiState.appState == AppState.REGULAR &&
+                !uiState.isBottomPanelVisible
+    }
+
+    private fun triggerMouseShowBottomPanel(viewModel: BrowserViewModel) {
+        viewModel.contextMenuData.value = null
+        executeShortcut(BrowserShortcut.SHOW_BOTTOM_PANEL, viewModel)
+        cancelActiveLeftPointer = true
+    }
+
+    fun handleTouchEvent(ev: MotionEvent, viewModel: BrowserViewModel): MouseTouchResult {
         val isMouse = ev.isFromSource(InputDevice.SOURCE_MOUSE) ||
                 (ev.pointerCount > 0 && ev.getToolType(0) == MotionEvent.TOOL_TYPE_MOUSE)
         if (!isMouse) {
-            rightMouseDownActive = false
-            lastRightMouseClickUpMs = 0L
-            return
+            isLeftMouseDown = false
+            isRightChordPressed = false
+            cancelActiveLeftPointer = false
+            return MouseTouchResult.PASS_THROUGH
         }
 
         when (ev.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
-                val isRightButton = (ev.buttonState and MotionEvent.BUTTON_SECONDARY) != 0
-                if (isRightButton) {
-                    rightMouseDownActive = true
-                    rightMouseDownTimeMs = ev.eventTime
-                    rightMouseDownX = ev.x
-                    rightMouseDownY = ev.y
-                } else {
-                    rightMouseDownActive = false
-                    lastRightMouseClickUpMs = 0L
-                }
+                isLeftMouseDown = ev.buttonState == MotionEvent.BUTTON_PRIMARY
+                isRightChordPressed = false
+                cancelActiveLeftPointer = false
+                return MouseTouchResult.PASS_THROUGH
             }
 
             MotionEvent.ACTION_MOVE -> {
-                if (rightMouseDownActive) {
-                    val dx = ev.x - rightMouseDownX
-                    val dy = ev.y - rightMouseDownY
-                    if (dx * dx + dy * dy > touchSlop * touchSlop) {
-                        rightMouseDownActive = false
-                        lastRightMouseClickUpMs = 0L
+                if (cancelActiveLeftPointer) {
+                    return MouseTouchResult.CONSUME
+                }
+                if (isLeftMouseDown && canShowBottomPanelWithMouse(viewModel)) {
+                    val isRightDown = (ev.buttonState and MotionEvent.BUTTON_SECONDARY) != 0
+                    val isLeftStillDown = (ev.buttonState and MotionEvent.BUTTON_PRIMARY) != 0
+                    if (isRightDown && isLeftStillDown) {
+                        isRightChordPressed = true
+                    } else if (isRightChordPressed && !isRightDown && isLeftStillDown) {
+                        // right button clicked and released while left button stays held
+                        isRightChordPressed = false
+                        triggerMouseShowBottomPanel(viewModel)
+                        return MouseTouchResult.CANCEL_AND_CONSUME
                     }
+                }
+                return MouseTouchResult.PASS_THROUGH
+            }
+
+            MotionEvent.ACTION_UP,
+            MotionEvent.ACTION_CANCEL -> {
+                isLeftMouseDown = false
+                isRightChordPressed = false
+                if (cancelActiveLeftPointer) {
+                    cancelActiveLeftPointer = false
+                    return MouseTouchResult.CONSUME
+                }
+                return MouseTouchResult.PASS_THROUGH
+            }
+
+            else -> return MouseTouchResult.PASS_THROUGH
+        }
+    }
+
+    fun handleGenericMotionEvent(ev: MotionEvent, viewModel: BrowserViewModel): MouseTouchResult {
+        val isMouse = ev.isFromSource(InputDevice.SOURCE_MOUSE) ||
+                (ev.pointerCount > 0 && ev.getToolType(0) == MotionEvent.TOOL_TYPE_MOUSE)
+        if (!isMouse || !isLeftMouseDown || cancelActiveLeftPointer || !canShowBottomPanelWithMouse(viewModel)) {
+            return MouseTouchResult.PASS_THROUGH
+        }
+
+        when (ev.actionMasked) {
+            MotionEvent.ACTION_BUTTON_PRESS -> {
+                if (ev.actionButton == MotionEvent.BUTTON_SECONDARY &&
+                    (ev.buttonState and MotionEvent.BUTTON_PRIMARY) != 0
+                ) {
+                    isRightChordPressed = true
+                    return MouseTouchResult.CONSUME
                 }
             }
 
-            MotionEvent.ACTION_CANCEL -> {
-                rightMouseDownActive = false
-                lastRightMouseClickUpMs = 0L
-            }
-
-            MotionEvent.ACTION_UP -> {
-                val isQuickClick = rightMouseDownActive &&
-                        (ev.eventTime - rightMouseDownTimeMs) <= 300L
-                rightMouseDownActive = false
-                if (isQuickClick) {
-                    val now = ev.eventTime
-                    if (lastRightMouseClickUpMs != 0L && (now - lastRightMouseClickUpMs) <= 400L) {
-                        lastRightMouseClickUpMs = 0L
-                        val uiState = viewModel.uiState.value
-                        if (!viewModel.isStandaloneMode.value &&
-                            uiState.appState == AppState.REGULAR &&
-                            !uiState.isBottomPanelVisible
-                        ) {
-                            viewModel.contextMenuData.value = null
-                            executeShortcut(BrowserShortcut.SHOW_BOTTOM_PANEL, viewModel)
-                        }
-                    } else {
-                        lastRightMouseClickUpMs = now
-                    }
-                } else {
-                    lastRightMouseClickUpMs = 0L
+            MotionEvent.ACTION_BUTTON_RELEASE -> {
+                if (ev.actionButton == MotionEvent.BUTTON_SECONDARY &&
+                    isRightChordPressed &&
+                    (ev.buttonState and MotionEvent.BUTTON_PRIMARY) != 0
+                ) {
+                    isRightChordPressed = false
+                    triggerMouseShowBottomPanel(viewModel)
+                    return MouseTouchResult.CANCEL_AND_CONSUME
                 }
             }
         }
+        return MouseTouchResult.PASS_THROUGH
     }
 
     fun clearPendingUrlFocusAction() {

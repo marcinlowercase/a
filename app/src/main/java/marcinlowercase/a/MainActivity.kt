@@ -511,18 +511,45 @@ class MainActivity : ComponentActivity() {
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
         val viewModel: BrowserViewModel by viewModels()
-        viewModel.keyboardShortcutManager.handleTouchEvent(ev, viewModel)
-        return super.dispatchTouchEvent(ev)
+        return when (viewModel.keyboardShortcutManager.handleTouchEvent(ev, viewModel)) {
+            marcinlowercase.a.core.manager.KeyboardShortcutManager.MouseTouchResult.PASS_THROUGH -> {
+                super.dispatchTouchEvent(ev)
+            }
+            marcinlowercase.a.core.manager.KeyboardShortcutManager.MouseTouchResult.CONSUME -> {
+                true
+            }
+            marcinlowercase.a.core.manager.KeyboardShortcutManager.MouseTouchResult.CANCEL_AND_CONSUME -> {
+                val cancelEv = MotionEvent.obtain(ev).apply {
+                    action = MotionEvent.ACTION_CANCEL
+                }
+                super.dispatchTouchEvent(cancelEv)
+                cancelEv.recycle()
+                true
+            }
+        }
     }
 
     override fun dispatchGenericMotionEvent(ev: MotionEvent): Boolean {
+        val viewModel: BrowserViewModel by viewModels()
+        when (viewModel.keyboardShortcutManager.handleGenericMotionEvent(ev, viewModel)) {
+            marcinlowercase.a.core.manager.KeyboardShortcutManager.MouseTouchResult.PASS_THROUGH -> {}
+            marcinlowercase.a.core.manager.KeyboardShortcutManager.MouseTouchResult.CONSUME -> return true
+            marcinlowercase.a.core.manager.KeyboardShortcutManager.MouseTouchResult.CANCEL_AND_CONSUME -> {
+                val cancelEv = MotionEvent.obtain(ev).apply {
+                    action = MotionEvent.ACTION_CANCEL
+                }
+                super.dispatchTouchEvent(cancelEv)
+                cancelEv.recycle()
+                return true
+            }
+        }
+
         if (ev.actionMasked == MotionEvent.ACTION_SCROLL &&
             (ev.metaState and KeyEvent.META_SHIFT_ON) != 0 &&
             ev.getAxisValue(MotionEvent.AXIS_HSCROLL) == 0f
         ) {
             val vScroll = ev.getAxisValue(MotionEvent.AXIS_VSCROLL)
             if (vScroll != 0f) {
-                val viewModel: BrowserViewModel by viewModels()
                 viewModel.keyboardShortcutManager.cancelShiftTap()
                 val converted = convertVerticalScrollToHorizontal(ev, -vScroll)
                 return try {

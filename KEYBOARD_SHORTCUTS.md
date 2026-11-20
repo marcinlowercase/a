@@ -24,6 +24,6 @@
 
 | shortcut | action |
 | --- | --- |
-| `right click x2` | show bottom panel and hide back square |
+| `hold left + right click` | show bottom panel and hide back square |
 | `scroll` | vertical scroll and swipe up/down gestures |
 | `shift + scroll` | horizontal scroll and swipe left/right gestures |
