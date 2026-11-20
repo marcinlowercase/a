@@ -6,6 +6,7 @@
 | `ctrl + shift + c` | copy current url |
 | `ctrl + r` | refresh current tab |
 | `ctrl + j` | open download panel |
+| `ctrl + f` | open find in page and focus search field |
 | `ctrl + t` | focus url bar and open new tab on submit |
 | `ctrl + w` | close current tab |
 | `ctrl + shift + t` | reopen last closed tab |

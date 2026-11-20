@@ -8,49 +8,33 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.text.input.TextFieldLineLimits
-import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import marcinlowercase.a.R
 import marcinlowercase.a.ui.component.CustomIconButton
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
-import androidx.compose.runtime.collectAsState
 
 @Composable
 fun FindInPagePanel(
-//    currentRotation: Float,
     isVisible: Boolean,
-
-    searchTextFieldState: TextFieldState,
     onFindNext: () -> Unit,
     onFindPrevious: () -> Unit,
     onClose: () -> Unit,
 ) {
     val viewModel = LocalBrowserViewModel.current
     val settings = viewModel.browserSettings.collectAsState()
-    val keyboardController = LocalSoftwareKeyboardController.current
+
     AnimatedVisibility(
         visible = isVisible,
         enter = expandVertically(
@@ -72,112 +56,54 @@ fun FindInPagePanel(
             )
         )
     ) {
-
-        Column(
+        Row(
             modifier = Modifier
                 .clip(
                     RoundedCornerShape(
                         settings.value.cornerRadiusForLayer(1).dp
                     )
                 )
+                .fillMaxWidth()
                 .padding(horizontal = settings.value.padding.dp)
-                .padding(top = settings.value.padding.dp)
-
+                .padding(top = settings.value.padding.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
         ) {
-            TextField(
-                state = searchTextFieldState,
-                lineLimits = TextFieldLineLimits.SingleLine,
-                contentPadding = PaddingValues(
-                    horizontal = settings.value.cornerRadiusForLayer(
-                        2
-                    ).dp + settings.value.padding.dp
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(
-                        RoundedCornerShape(
-                            settings.value.cornerRadiusForLayer(2).dp
-                        )
-                    )
-                    .heightIn(
-                        min = settings.value.heightForLayer(2).dp
-                    )
-                    .onFocusChanged { focusState ->
-                        viewModel.updateUI { it.copy(isFocusOnFindTextField = focusState.isFocused) }
-                    },
-                shape = RoundedCornerShape(
-                    settings.value.cornerRadiusForLayer(2).dp
-                ),
-                placeholder = { Text(
-                    stringResource(R.string.ui_find_in_page),
-                    color = MaterialTheme.colorScheme.onSurface
-                ) },
-//                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                onKeyboardAction = { keyboardController?.hide() },
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                    cursorColor = MaterialTheme.colorScheme.onSurface,
-                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-
-                    // 3. This is the key to removing the underline
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    disabledIndicatorColor = Color.Transparent,
-                    errorIndicatorColor = Color.Transparent
-                ),
+            CustomIconButton(
+                layer = 2,
+                modifier = Modifier.weight(1f),
+                onTap = onClose,
+                buttonDescription = stringResource(R.string.desc_cancel),
+                painterId = R.drawable.ic_arrow_back,
+                isWhite = false,
             )
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = settings.value.padding.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
+            CustomIconButton(
+                layer = 2,
+                modifier = Modifier.weight(1f),
+                onTap = onFindNext,
+                buttonDescription = stringResource(R.string.desc_find_next),
+                painterId = R.drawable.ic_arrow_downward,
+                isWhite = viewModel.findInPageResult.value.second > 0,
+            )
+
+            Box(
+                modifier = Modifier.weight(1f),
+                contentAlignment = Alignment.Center
             ) {
-
-                CustomIconButton(
-                    layer = 2,
-                    modifier = Modifier.weight(1f),
-                    onTap = onClose,
-
-                    buttonDescription = stringResource(R.string.desc_cancel),
-                    painterId = R.drawable.ic_arrow_back,
-                    isWhite = false,
-                )
-                CustomIconButton(
-                    layer = 2,
-                    modifier = Modifier.weight(1f),
-                    onTap = onFindNext,
-
-                    buttonDescription = stringResource(R.string.desc_find_next),
-                    painterId = R.drawable.ic_arrow_downward,
-                    isWhite = viewModel.findInPageResult.value.second > 0,
-                )
-
-
-
-                Box(
-                    modifier = Modifier.weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        "${viewModel.findInPageResult.value.first}/${viewModel.findInPageResult.value.second}",
-                        color = MaterialTheme.colorScheme.onSurface,
-
-                        )
-                }
-                CustomIconButton(
-                    layer = 2,
-                    modifier = Modifier.weight(1f),
-                    onTap = onFindPrevious,
-
-                    buttonDescription = stringResource(R.string.desc_find_previous),
-                    painterId = R.drawable.ic_arrow_upward,
-                    isWhite = viewModel.findInPageResult.value.second > 0,
+                Text(
+                    "${viewModel.findInPageResult.value.first}/${viewModel.findInPageResult.value.second}",
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
             }
+
+            CustomIconButton(
+                layer = 2,
+                modifier = Modifier.weight(1f),
+                onTap = onFindPrevious,
+                buttonDescription = stringResource(R.string.desc_find_previous),
+                painterId = R.drawable.ic_arrow_upward,
+                isWhite = viewModel.findInPageResult.value.second > 0,
+            )
         }
     }
 }

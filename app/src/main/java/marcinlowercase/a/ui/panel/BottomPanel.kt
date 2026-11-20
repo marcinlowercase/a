@@ -299,30 +299,47 @@ fun BottomPanel(
                     onDownload = onDownload,
                 )
 
-                LaunchedEffect(viewModel.findInPageTextFieldState) {
-                    androidx.compose.runtime.snapshotFlow {
-                        viewModel.findInPageTextFieldState.text.toString()
-                    }.collect { newText ->
-                        if (newText.isEmpty()) {
-                            activeSession.finder.clear()
-                            viewModel.findInPageResult.value = 0 to 0
-                        } else {
-                            activeSession.finder.find(newText, 0).then { result ->
-                                if (result != null) {
-                                    val currentMatch =
-                                        if (result.total > 0) result.current + 1 else 0
-                                    viewModel.findInPageResult.value = currentMatch to result.total
+                LaunchedEffect(uiState.value.isFindInPageVisible) {
+                    if (uiState.value.isFindInPageVisible) {
+                        textFieldState.setTextAndPlaceCursorAtEnd(
+                            viewModel.findInPageTextFieldState.text.toString()
+                        )
+                    } else {
+                        viewModel.findInPageTextFieldState.setTextAndPlaceCursorAtEnd("")
+                        viewModel.findInPageResult.value = 0 to 0
+                        activeSession.finder.clear()
+                        if (!uiState.value.isFocusOnUrlTextField) {
+                            val liveUrl = viewModel.activeTab?.currentURL ?: ""
+                            textFieldState.setTextAndPlaceCursorAtEnd(liveUrl.toDomain())
+                        }
+                    }
+                }
+
+                LaunchedEffect(uiState.value.isFindInPageVisible, activeSession) {
+                    if (uiState.value.isFindInPageVisible) {
+                        androidx.compose.runtime.snapshotFlow {
+                            textFieldState.text.toString()
+                        }.collect { newText ->
+                            viewModel.findInPageTextFieldState.setTextAndPlaceCursorAtEnd(newText)
+                            if (newText.isEmpty()) {
+                                activeSession.finder.clear()
+                                viewModel.findInPageResult.value = 0 to 0
+                            } else {
+                                activeSession.finder.find(newText, 0).then { result ->
+                                    if (result != null) {
+                                        val currentMatch =
+                                            if (result.total > 0) result.current + 1 else 0
+                                        viewModel.findInPageResult.value = currentMatch to result.total
+                                    }
+                                    GeckoResult.fromValue(result)
                                 }
-                                GeckoResult.fromValue(result)
                             }
                         }
                     }
                 }
 
-// 2. Pass searchTextFieldState to FindInPagePanel
                 FindInPagePanel(
                     isVisible = uiState.value.isFindInPageVisible,
-                    searchTextFieldState = viewModel.findInPageTextFieldState,
                     onFindNext = {
                         activeSession.finder.find(
                             viewModel.findInPageTextFieldState.text.toString(),
@@ -351,6 +368,8 @@ fun BottomPanel(
                         viewModel.updateUI { it.copy(isFindInPageVisible = false) }
                         viewModel.findInPageTextFieldState.setTextAndPlaceCursorAtEnd("")
                         activeSession.finder.clear()
+                        focusManager.clearFocus()
+                        keyboardController?.hide()
                     },
                 )
                 PromptPanel(
@@ -484,7 +503,7 @@ fun BottomPanel(
                 )
 
 
-                AnimatedVisibility(visible = viewModel.suggestions.isNotEmpty() && textFieldState.text.isNotEmpty() && uiState.value.isFocusOnUrlTextField && (!uiState.value.isPinningApp && !uiState.value.isRenamingProfile && !uiState.value.isCreatingProfile)) {
+                AnimatedVisibility(visible = viewModel.suggestions.isNotEmpty() && textFieldState.text.isNotEmpty() && uiState.value.isFocusOnUrlTextField && (!uiState.value.isPinningApp && !uiState.value.isRenamingProfile && !uiState.value.isCreatingProfile && !uiState.value.isFindInPageVisible)) {
                     LazyColumn(
                         modifier = Modifier
                             .padding(horizontal = settings.value.padding.dp)
@@ -590,12 +609,33 @@ fun BottomPanel(
                 val dismissUrlBar: () -> Unit = {
                     viewModel.keyboardShortcutManager.clearPendingNewTab()
                     viewModel.keyboardShortcutManager.clearPendingUrlFocusAction()
-                    viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
+                    viewModel.updateUI {
+                        it.copy(
+                            isFocusOnUrlTextField = false,
+                            isFindInPageVisible = false
+                        )
+                    }
                     focusManager.clearFocus()
                     keyboardController?.hide()
                 }
 
                 val submitUrlBar: (Boolean) -> Unit = { forceNewTab ->
+                    if (uiState.value.isFindInPageVisible && !forceNewTab) {
+                        val query = textFieldState.text.toString()
+                        if (query.isNotEmpty()) {
+                            activeSession.finder.find(query, GeckoSession.FINDER_FIND_FORWARD)
+                                .then { result ->
+                                    if (result != null) {
+                                        val currentMatch =
+                                            if (result.total > 0) result.current else 0
+                                        viewModel.findInPageResult.value =
+                                            currentMatch to result.total
+                                    }
+                                    GeckoResult.fromValue(result)
+                                }
+                        }
+                        keyboardController?.hide()
+                    } else {
                     val openInNewTab = forceNewTab || viewModel.keyboardShortcutManager.consumePendingNewTab()
                     val input = (textFieldState.text as String).trim()
                     val resetUrl = viewModel.activeTab!!.currentURL
@@ -761,6 +801,7 @@ fun BottomPanel(
                         keyboardController?.hide()
                         viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
                     }
+                    }
                 }
 
                 LaunchedEffect(Unit) {
@@ -770,6 +811,10 @@ fun BottomPanel(
                             BrowserShortcut.FOCUS_OR_EDIT_URL -> editCurrentUrl()
                             BrowserShortcut.NEW_TAB -> {
                                 textFieldState.setTextAndPlaceCursorAtEnd("")
+                                urlBarFocusRequester.requestFocus()
+                                keyboardController?.show()
+                            }
+                            BrowserShortcut.OPEN_FIND_IN_PAGE -> {
                                 urlBarFocusRequester.requestFocus()
                                 keyboardController?.show()
                             }
@@ -1008,7 +1053,21 @@ fun BottomPanel(
                                         viewModel.updateUI { it.copy(isFocusOnUrlTextField = focusState.isFocused) }
 
                                         if (focusState.isFocused) {
-                                            if (!(uiState.value.isPinningApp)) {
+                                            if (uiState.value.isFindInPageVisible) {
+                                                viewModel.keyboardShortcutManager.consumePendingUrlFocusAction()
+                                                viewModel.updateUI {
+                                                    it.copy(
+                                                        isOptionsPanelVisible = false,
+                                                        isTabsPanelVisible = false,
+                                                        isDownloadPanelVisible = false,
+                                                        isTabDataPanelVisible = false,
+                                                        isNavPanelVisible = false,
+                                                        isSettingsPanelVisible = false,
+                                                        isUrlOverlayBoxVisible = false,
+                                                        isAppsPanelVisible = false
+                                                    )
+                                                }
+                                            } else if (!(uiState.value.isPinningApp)) {
                                                 viewModel.updateUI { state ->
                                                     // STRICT EVALUATION: If an exclusive panel is active, Options CANNOT be saved as visible!
                                                     val isAnyExclusivePanelOpen =
@@ -1100,10 +1159,12 @@ fun BottomPanel(
                                                             it.copy(isTabsPanelVisible = savedState.tabs)
                                                         }
                                                     }
-                                                    val liveUrl = viewModel.activeTab?.currentURL ?: ""
-                                                    textFieldState.setTextAndPlaceCursorAtEnd(
-                                                        liveUrl.toDomain()
-                                                    )
+                                                    if (!currentState.isFindInPageVisible) {
+                                                        val liveUrl = viewModel.activeTab?.currentURL ?: ""
+                                                        textFieldState.setTextAndPlaceCursorAtEnd(
+                                                            liveUrl.toDomain()
+                                                        )
+                                                    }
                                                     viewModel.updateUI {
                                                         it.copy(
                                                             isUrlOverlayBoxVisible = true
@@ -1125,8 +1186,11 @@ fun BottomPanel(
                                 ),
                                 placeholder = {
                                     when {
-//                                        uiState.value.isEnteringEmail -> Text(stringResource(R.string.placeholder_email))
-//                                        uiState.value.isEnteringLoginCode -> Text(stringResource(R.string.placeholder_login_code))
+                                        uiState.value.isFindInPageVisible -> Text(
+                                            stringResource(R.string.ui_find_in_page),
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+
                                         uiState.value.isCreatingProfile -> Text(
                                             stringResource(R.string.placeholder_profile_label),
                                             color = MaterialTheme.colorScheme.onSurface
@@ -1150,16 +1214,15 @@ fun BottomPanel(
                                 },
                                 state = textFieldState,
                                 textStyle = LocalTextStyle.current.copy(
-                                    //                            fontFamily = FontFamily.Monospace,
-                                    textAlign = if (uiState.value.isFocusOnUrlTextField || uiState.value.isFocusOnIconUrlTextField) TextAlign.Start else TextAlign.Center
+                                    textAlign = if (uiState.value.isFocusOnUrlTextField || uiState.value.isFocusOnIconUrlTextField || uiState.value.isFindInPageVisible) TextAlign.Start else TextAlign.Center
                                 ),
-                                //                        state = rememberTextFieldState("Hello"),
                                 lineLimits = TextFieldLineLimits.SingleLine,
                                 keyboardOptions = KeyboardOptions(
                                     keyboardType = when {
                                         uiState.value.isRenamingProfile
                                                 || uiState.value.isCreatingProfile
                                                 || uiState.value.isPinningApp
+                                                || uiState.value.isFindInPageVisible
                                             -> androidx.compose.ui.text.input.KeyboardType.Text
 
                                         else -> androidx.compose.ui.text.input.KeyboardType.Uri
@@ -1169,6 +1232,9 @@ fun BottomPanel(
                                                 || uiState.value.isCreatingProfile
                                                 || uiState.value.isPinningApp
                                             -> ImeAction.Done
+
+                                        uiState.value.isFindInPageVisible
+                                            -> ImeAction.Search
 
                                         else -> ImeAction.Go
                                     }
@@ -1201,7 +1267,7 @@ fun BottomPanel(
                         val currentCanGoBack by rememberUpdatedState(viewModel.activeTab!!.canGoBack)
                         val currentCanGoForward by rememberUpdatedState(viewModel.activeTab!!.canGoForward)
 
-                        if (uiState.value.isUrlOverlayBoxVisible && !uiState.value.isFocusOnUrlTextField) Box(
+                        if (uiState.value.isUrlOverlayBoxVisible && !uiState.value.isFocusOnUrlTextField && !uiState.value.isFindInPageVisible) Box(
                             modifier = Modifier
                                 .background(
                                     Color.Transparent, shape = RoundedCornerShape(
@@ -1391,7 +1457,7 @@ fun BottomPanel(
                 }
 
                 TextEditPanel(
-                    isVisible = !isStudioKeyboard && (
+                    isVisible = !isStudioKeyboard && !uiState.value.isFindInPageVisible && (
                         uiState.value.isPinningApp ||
                         (uiState.value.isFocusOnUrlTextField && textFieldState.text.isBlank())
                     ),

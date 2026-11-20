@@ -2313,34 +2313,30 @@ fun BrowserScreen(
             uiState.value.isDownloadPanelVisible,
             uiState.value.isSyncPanelVisible,
             uiState.value.isSettingsPanelVisible,
-            uiState.value.isFindInPageVisible,
             uiState.value.isTabDataPanelVisible
         ) {
-            // If the user is currently typing in the URL bar...
+            // if the user is currently typing in the url bar
             if (uiState.value.isFocusOnUrlTextField) {
 
-                // Check if any panel somehow managed to sneak open
+                // check if any incompatible panel somehow managed to sneak open
                 val hasInvalidPanelOpen = uiState.value.isTabsPanelVisible ||
                         uiState.value.isOptionsPanelVisible ||
                         uiState.value.isAppsPanelVisible ||
                         uiState.value.isDownloadPanelVisible ||
                         uiState.value.isSettingsPanelVisible ||
-                        uiState.value.isFindInPageVisible ||
                         uiState.value.isSyncPanelVisible ||
                         uiState.value.isTabDataPanelVisible
 
-                // If one did, forcefully shut them all down
+                // if one did, shut it down
                 if (hasInvalidPanelOpen) {
                     viewModel.updateUI {
                         it.copy(
                             isTabsPanelVisible = false,
-//                            isTabsPanelLock = false,
                             isOptionsPanelVisible = false,
                             isAppsPanelVisible = false,
                             isDownloadPanelVisible = false,
                             isSyncPanelVisible = false,
                             isSettingsPanelVisible = false,
-                            isFindInPageVisible = false,
                             isTabDataPanelVisible = false
                         )
                     }
@@ -2449,8 +2445,12 @@ fun BrowserScreen(
             }
         }
 
-        LaunchedEffect(textFieldState.text, uiState.value.isFocusOnUrlTextField) {
-            if (uiState.value.isFocusOnUrlTextField) {
+        LaunchedEffect(
+            textFieldState.text,
+            uiState.value.isFocusOnUrlTextField,
+            uiState.value.isFindInPageVisible
+        ) {
+            if (uiState.value.isFocusOnUrlTextField && !uiState.value.isFindInPageVisible) {
                 viewModel.fetchSuggestions(
                     query = textFieldState.text.toString(),
                     isPinning = uiState.value.isPinningApp

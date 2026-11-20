@@ -163,6 +163,14 @@ class KeyboardShortcutManager(private val context: Context) {
                 BrowserShortcut.OPEN_DOWNLOADS
             }
 
+            // ctrl + f opens find in page panel and focuses its text field
+            event.keyCode == KeyEvent.KEYCODE_F &&
+                    isCtrl && !isShift && !isAlt && !isMeta &&
+                    !viewModel.isStandaloneMode.value &&
+                    uiState.appState == AppState.REGULAR -> {
+                BrowserShortcut.OPEN_FIND_IN_PAGE
+            }
+
             // ctrl + enter opens url bar input in a new tab
             (event.keyCode == KeyEvent.KEYCODE_ENTER || event.keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) &&
                     isCtrl && !isShift && !isAlt && !isMeta &&
@@ -200,12 +208,16 @@ class KeyboardShortcutManager(private val context: Context) {
 
             BrowserShortcut.FOCUS_OR_EDIT_URL -> {
                 _isPendingNewTab.value = false
+                if (uiState.isFindInPageVisible) {
+                    viewModel.updateUI { it.copy(isFindInPageVisible = false) }
+                }
                 if (uiState.isFocusOnUrlTextField) {
                     _shortcutEvents.tryEmit(BrowserShortcut.FOCUS_OR_EDIT_URL)
                 } else if (!uiState.isPinningApp && !uiState.isCreatingProfile && !uiState.isRenamingProfile) {
                     _pendingUrlFocusAction.value = UrlFocusAction.SELECT_ALL
                     viewModel.updateUI {
                         it.copy(
+                            isFindInPageVisible = false,
                             isUrlBarVisible = true,
                             isBottomPanelVisible = true,
                             isUrlOverlayBoxVisible = false
@@ -226,12 +238,13 @@ class KeyboardShortcutManager(private val context: Context) {
             BrowserShortcut.NEW_TAB -> {
                 _isPendingNewTab.value = true
                 if (uiState.isFocusOnUrlTextField) {
-                    if (uiState.isPinningApp || uiState.isCreatingProfile || uiState.isRenamingProfile) {
+                    if (uiState.isPinningApp || uiState.isCreatingProfile || uiState.isRenamingProfile || uiState.isFindInPageVisible) {
                         viewModel.updateUI {
                             it.copy(
                                 isPinningApp = false,
                                 isCreatingProfile = false,
-                                isRenamingProfile = false
+                                isRenamingProfile = false,
+                                isFindInPageVisible = false
                             )
                         }
                     }
@@ -243,6 +256,7 @@ class KeyboardShortcutManager(private val context: Context) {
                             isPinningApp = false,
                             isCreatingProfile = false,
                             isRenamingProfile = false,
+                            isFindInPageVisible = false,
                             isUrlBarVisible = true,
                             isBottomPanelVisible = true,
                             isUrlOverlayBoxVisible = false
@@ -356,6 +370,36 @@ class KeyboardShortcutManager(private val context: Context) {
                 }
                 if (wasTextFocused) {
                     _shortcutEvents.tryEmit(BrowserShortcut.DISMISS_URL_BAR)
+                }
+            }
+
+            BrowserShortcut.OPEN_FIND_IN_PAGE -> {
+                _isPendingNewTab.value = false
+                if (!uiState.isFocusOnUrlTextField) {
+                    _pendingUrlFocusAction.value = UrlFocusAction.EMPTY
+                }
+                viewModel.updateUI {
+                    it.copy(
+                        isPinningApp = false,
+                        isCreatingProfile = false,
+                        isRenamingProfile = false,
+                        isFocusOnIconUrlTextField = false,
+                        isUrlBarVisible = true,
+                        isBottomPanelVisible = true,
+                        isUrlOverlayBoxVisible = false,
+                        isFindInPageVisible = true,
+                        isOptionsPanelVisible = false,
+                        isAppsPanelVisible = false,
+                        isSettingsPanelVisible = false,
+                        isSyncPanelVisible = false,
+                        isDownloadPanelVisible = false,
+                        isTabDataPanelVisible = false,
+                        isNavPanelVisible = false,
+                        savedPanelState = null
+                    )
+                }
+                if (uiState.isFocusOnUrlTextField) {
+                    _shortcutEvents.tryEmit(BrowserShortcut.OPEN_FIND_IN_PAGE)
                 }
             }
         }
