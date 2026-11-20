@@ -19,6 +19,7 @@ import marcinlowercase.a.MainActivity
 import marcinlowercase.a.R
 import android.graphics.Bitmap
 import android.graphics.Color
+import kotlin.system.exitProcess
 
 private const val ACTION_PLAY = "marcinlowercase.a.PLAY"
 private const val ACTION_PAUSE = "marcinlowercase.a.PAUSE"
@@ -109,8 +110,19 @@ class MediaPlaybackService : Service() {
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
+        (applicationContext as? CustomApplication)?.geckoManager?.stopAllMediaImmediate()
+        try {
+            if (wakeLock?.isHeld == true) {
+                wakeLock?.release()
+            }
+        } catch (_: Exception) {
+        }
+        mediaSession?.isActive = false
+        mediaSession?.release()
+        mediaSession = null
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
+        exitProcess(0)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -146,7 +158,7 @@ class MediaPlaybackService : Service() {
         val isPaused = intent?.getBooleanExtra("IS_PAUSED", false) ?: false
 
         updateNotification(currentTitle, currentArtist, isPaused)
-        return START_STICKY
+        return START_NOT_STICKY
     }
 
     private fun serviceActionPendingIntent(requestCode: Int, action: String): PendingIntent {

@@ -33,6 +33,7 @@ import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import marcinlowercase.a.core.enum_class.MediaControlMode
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
 
@@ -74,6 +75,14 @@ fun MediaPanel() {
             horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
         ) {
             val isPlaying = !viewModel.geckoManager.isActiveMediaSessionPaused
+            val title = viewModel.geckoManager.lastTitle.value.ifBlank { "video" }
+            val scrollState = rememberScrollState()
+
+            LaunchedEffect(isPlaying, title) {
+                if (isPlaying || scrollState.value != 0) {
+                    scrollState.scrollTo(0)
+                }
+            }
 
             Box(
                 modifier = Modifier
@@ -86,17 +95,15 @@ fun MediaPanel() {
                 contentAlignment = Alignment.CenterStart
             ) {
                 Text(
-                    text = viewModel.geckoManager.lastTitle.value.ifBlank { "video" },
+                    text = title,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
-                    overflow = if (isPlaying) TextOverflow.Clip else TextOverflow.Ellipsis,
-                    modifier = Modifier.then(
-                        if (isPlaying) {
-                            Modifier.basicMarquee(iterations = Int.MAX_VALUE)
-                        } else {
-                            Modifier
-                        }
-                    )
+                    overflow = TextOverflow.Clip,
+                    modifier = if (isPlaying) {
+                        Modifier.basicMarquee(iterations = Int.MAX_VALUE)
+                    } else {
+                        Modifier.horizontalScroll(scrollState)
+                    }
                 )
             }
 

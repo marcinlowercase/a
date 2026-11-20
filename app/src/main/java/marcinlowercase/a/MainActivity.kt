@@ -496,9 +496,10 @@ class MainActivity : ComponentActivity() {
             unregisterReceiver(pipActionReceiver)
         } catch (_: Exception) {
         }
-        // clean up the highlander reference if this instance is destroyed natively
+        // clean up the highlander reference and stop active media if this instance is destroyed natively
         if (currentFullBrowserInstance?.get() == this) {
             currentFullBrowserInstance = null
+            (application as CustomApplication).geckoManager.stopAllMediaImmediate()
         }
     }
 

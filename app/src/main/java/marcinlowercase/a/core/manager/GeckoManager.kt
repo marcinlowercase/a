@@ -940,6 +940,45 @@ class GeckoManager(private val context: Context) {
         session?.setActive(false)
     }
 
+    fun stopAllMediaImmediate() {
+        cancelPendingMediaServiceStop()
+        try {
+            activeGeckoMediaSession?.pause()
+            activeGeckoMediaSession?.stop()
+        } catch (_: Exception) {
+        }
+        isActiveMediaSessionPaused = true
+        lastPlaybackRate.doubleValue = 0.0
+        activePlaybackSpeed = 1.0f
+        isHolding2xSpeed = false
+
+        sessionPool.values.toList().forEach { session ->
+            try {
+                if (session.isOpen) {
+                    session.setActive(false)
+                    session.close()
+                }
+            } catch (_: Exception) {
+            }
+        }
+        sessionPool.clear()
+        sessionProfileMap.clear()
+        sessionPageTitleMap.clear()
+        sessionUrlMap.clear()
+        engineManagedSessionIds.clear()
+
+        activeGeckoMediaSession = null
+        activeMediaGeckoSession = null
+        activeSilentVideoSession = null
+        currentFullscreenSession = null
+        activeMediaProfileId = null
+        currentArtworkBitmap = null
+        lastArtworkImage = null
+        lastFallbackArtworkUrl = ""
+
+        context.stopService(Intent(context, MediaPlaybackService::class.java))
+    }
+
     fun closeSession(tab: Tab) {
         val sessionToClose = sessionPool.remove(tab.id)
         sessionToClose?.apply {
