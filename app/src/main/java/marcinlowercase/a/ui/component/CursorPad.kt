@@ -33,7 +33,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -48,6 +47,7 @@ import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.GeckoView
 import kotlin.math.roundToInt
+import kotlin.time.Duration.Companion.milliseconds
 
 
 @Composable
@@ -105,7 +105,7 @@ fun CursorPad(
 
 
                             val longPressJob = coroutineScope.launch {
-                                delay(viewConfiguration.longPressTimeoutMillis)
+                                delay(viewConfiguration.longPressTimeoutMillis.milliseconds)
                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
 
                                 longPressDownTime = SystemClock.uptimeMillis()
@@ -292,14 +292,6 @@ fun CursorPad(
                                                     viewModel.screenSize.value.height.toFloat()
 
                                                 viewModel.cursorPointerPosition.value = Offset(newX, newY)
-//                                                activeWebView?.evaluateJavascript(
-//                                                    "window.simulateHover($newX, $newY)",
-//                                                    null
-//                                                )
-//                                            viewModel.cursorPointerPosition.value += Offset(
-//                                                changeSpaceX,
-//                                                changeSpaceY
-//                                            )
                                             }
 
                                             2 -> {

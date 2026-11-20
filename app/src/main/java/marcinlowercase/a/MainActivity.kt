@@ -1,22 +1,19 @@
 package marcinlowercase.a
 
 import android.Manifest
-import androidx.compose.material3.Icon
-import androidx.compose.ui.draw.blur
-import androidx.compose.ui.res.painterResource
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import marcinlowercase.a.ui.panel.GestureMediaControlOverlay
-import marcinlowercase.a.core.function.parseHexColorOrNull
-import marcinlowercase.a.core.enum_class.PipAction
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.DownloadManager
+import android.app.PendingIntent
+import android.app.RemoteAction
 import android.content.ActivityNotFoundException
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
+import android.graphics.drawable.Icon
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -25,6 +22,7 @@ import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.util.Log
 import android.view.InputDevice
+import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.ViewGroup
 import android.widget.Toast
@@ -37,6 +35,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.core.animateDpAsState
@@ -53,6 +52,8 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.AnchoredDraggableDefaults
 import androidx.compose.foundation.gestures.DraggableAnchors
 import androidx.compose.foundation.gestures.animateTo
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -69,6 +70,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -91,6 +93,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
@@ -98,6 +101,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -107,6 +112,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
@@ -129,6 +135,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import marcinlowercase.a.core.constant.generic_location_permission
 import marcinlowercase.a.core.constant.google_drive_access_permission
+import marcinlowercase.a.core.constant.leave_site_permission
 import marcinlowercase.a.core.data_class.ConfirmationDialogState
 import marcinlowercase.a.core.data_class.CustomPermissionRequest
 import marcinlowercase.a.core.data_class.DownloadItem
@@ -144,12 +151,16 @@ import marcinlowercase.a.core.enum_class.ActivePanel
 import marcinlowercase.a.core.enum_class.AppState
 import marcinlowercase.a.core.enum_class.DownloadStatus
 import marcinlowercase.a.core.enum_class.GestureNavAction
+import marcinlowercase.a.core.enum_class.MediaControlMode
 import marcinlowercase.a.core.enum_class.MediaControlOption
+import marcinlowercase.a.core.enum_class.PipAction
 import marcinlowercase.a.core.enum_class.RevealState
 import marcinlowercase.a.core.enum_class.SharpMode
 import marcinlowercase.a.core.enum_class.WindowMode
 import marcinlowercase.a.core.function.createNotificationChannel
+import marcinlowercase.a.core.function.extractEdgeColorsFromBitmap
 import marcinlowercase.a.core.function.isBubbleMode
+import marcinlowercase.a.core.function.parseHexColorOrNull
 import marcinlowercase.a.core.function.rememberAnchoredDraggableState
 import marcinlowercase.a.core.function.toDomain
 import marcinlowercase.a.core.function.webViewLoad
@@ -159,22 +170,20 @@ import marcinlowercase.a.core.service.ShakeDetector
 import marcinlowercase.a.ui.component.BackSquare
 import marcinlowercase.a.ui.component.CursorPad
 import marcinlowercase.a.ui.component.CursorPointer
-import marcinlowercase.a.ui.component.CustomIconButton
 import marcinlowercase.a.ui.panel.BottomPanel
-import marcinlowercase.a.ui.panel.ChatView
 import marcinlowercase.a.ui.panel.BuildPanel
+import marcinlowercase.a.ui.panel.ChatView
 import marcinlowercase.a.ui.panel.ChoicePanel
 import marcinlowercase.a.ui.panel.ColorPickerPanel
 import marcinlowercase.a.ui.panel.DateTimePickerPanel
+import marcinlowercase.a.ui.panel.GestureMediaControlOverlay
 import marcinlowercase.a.ui.panel.MediaControlPanel
-import android.app.PendingIntent
-import android.app.RemoteAction
-import android.content.BroadcastReceiver
-import android.content.IntentFilter
-import android.graphics.drawable.Icon
 import marcinlowercase.a.ui.panel.SettingPanelView
 import marcinlowercase.a.ui.panel.SettingsPanel
+import marcinlowercase.a.ui.panel.VideoSeekBar
+import marcinlowercase.a.ui.panel.VideoStatusAction
 import marcinlowercase.a.ui.panel.VideoStatusPanel
+import marcinlowercase.a.ui.panel.isColorDark
 import marcinlowercase.a.ui.screen.ErrorScreen
 import marcinlowercase.a.ui.theme.Theme
 import marcinlowercase.a.ui.viewmodel.BrowserViewModel
@@ -188,23 +197,9 @@ import org.mozilla.geckoview.GeckoView
 import org.mozilla.geckoview.StorageController
 import java.io.File
 import java.io.FileOutputStream
-import kotlin.math.ceil
-import kotlin.math.round
 import kotlin.math.roundToInt
 import kotlin.system.exitProcess
 import kotlin.time.Duration.Companion.milliseconds
-import androidx.compose.animation.animateColorAsState
-import marcinlowercase.a.core.function.extractEdgeColorsFromBitmap
-import marcinlowercase.a.ui.panel.isColorDark
-import android.view.KeyEvent
-import marcinlowercase.a.ui.panel.VideoStatusAction
-import marcinlowercase.a.core.enum_class.MediaControlMode
-import marcinlowercase.a.ui.panel.VideoSeekBar
-import marcinlowercase.a.core.constant.leave_site_permission
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.pointerInput
 
 //region Composable
 
@@ -219,6 +214,7 @@ class MainActivity : ComponentActivity() {
         const val ACTION_PIP_NEXT_5 = "marcinlowercase.a.PIP_NEXT_5"
         const val ACTION_PIP_NEXT_TRACK = "marcinlowercase.a.PIP_NEXT_TRACK"
     }
+
     val newUrlFromIntent = MutableStateFlow<String?>(null)
 
     private var pendingFilePrompt: GeckoSession.PromptDelegate.FilePrompt? = null
@@ -334,7 +330,9 @@ class MainActivity : ComponentActivity() {
                     hasUnresolvedOrWildcard = true
                     break
                 }
-            } else if (token.contains('/') && token.substringBefore('/').isNotBlank() && token.substringAfter('/').isNotBlank()) {
+            } else if (token.contains('/') && token.substringBefore('/')
+                    .isNotBlank() && token.substringAfter('/').isNotBlank()
+            ) {
                 resolvedTypes.add(token)
             } else {
                 hasUnresolvedOrWildcard = true
@@ -348,10 +346,10 @@ class MainActivity : ComponentActivity() {
             if (hasUnresolvedOrWildcard || resolvedTypes.isEmpty()) {
                 type = "*/*"
             } else if (resolvedTypes.size == 1 && (
-                    resolvedTypes[0].startsWith("image/") ||
-                        resolvedTypes[0].startsWith("video/") ||
-                        resolvedTypes[0].startsWith("audio/")
-                    )
+                        resolvedTypes[0].startsWith("image/") ||
+                                resolvedTypes[0].startsWith("video/") ||
+                                resolvedTypes[0].startsWith("audio/")
+                        )
             ) {
                 type = resolvedTypes[0]
             } else {
@@ -399,9 +397,7 @@ class MainActivity : ComponentActivity() {
                 android.graphics.Color.TRANSPARENT,
             )
         )
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            window.isNavigationBarContrastEnforced = false
-        }
+        window.isNavigationBarContrastEnforced = false
 
 
         super.onCreate(savedInstanceState)
@@ -459,13 +455,14 @@ class MainActivity : ComponentActivity() {
         if (startupViewModel.browserSettings.value.isFullscreenMode) {
             val insetsController = WindowCompat.getInsetsController(window, window.decorView)
             insetsController.hide(WindowInsetsCompat.Type.systemBars())
-            insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            insetsController.systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
 
         setContent {
             val viewModel: BrowserViewModel = viewModel()
             val settings by viewModel.browserSettings.collectAsState()
-            Theme (dynamicColor = settings.isEnabledMaterialYou) {
+            Theme(dynamicColor = settings.isEnabledMaterialYou) {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     BrowserScreen(
                         innerPadding = innerPadding,
@@ -504,12 +501,10 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    @SuppressLint("RestrictedApi")
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         val viewModel: BrowserViewModel by viewModels()
-        if (viewModel.keyboardShortcutManager.handleKeyEvent(event, viewModel)) {
-            return true
-        }
-        return super.dispatchKeyEvent(event)
+        return viewModel.keyboardShortcutManager.handleKeyEvent(event, viewModel) || super.dispatchKeyEvent(event)
     }
 
 
@@ -523,7 +518,10 @@ class MainActivity : ComponentActivity() {
         if (intent?.action == "marcinlowercase.a.WEB_NOTIFICATION_CLICK") {
             try {
                 val webNotification = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    intent.getParcelableExtra("web_notification", org.mozilla.geckoview.WebNotification::class.java)
+                    intent.getParcelableExtra(
+                        "web_notification",
+                        org.mozilla.geckoview.WebNotification::class.java
+                    )
                 } else {
                     @Suppress("DEPRECATION")
                     intent.getParcelableExtra("web_notification")
@@ -548,10 +546,12 @@ class MainActivity : ComponentActivity() {
                 viewModel.isStandaloneMode.value = isPwa
 
                 if (isPwa) {
-                    viewModel.initPwa(urlFromIntent, targetProfileId ?: viewModel.activeProfileId.value)
+                    viewModel.initPwa(
+                        urlFromIntent,
+                        targetProfileId ?: viewModel.activeProfileId.value
+                    )
                 } else {
                     // Normal Browser Mode: Rely on TabManager for cold starts, Flow for hot starts
-                    Log.i("mrcLink", "$urlFromIntent")
                     if (!isColdStart) {
                         newUrlFromIntent.update { urlFromIntent }
                     }
@@ -564,7 +564,10 @@ class MainActivity : ComponentActivity() {
         if (!viewModel.isStandaloneMode.value) {
             val oldInstance = currentFullBrowserInstance?.get()
             if (oldInstance != null && oldInstance != this@MainActivity) {
-                Log.i("MultiWindow", "Killing old full browser instance to prevent state collision!")
+                Log.i(
+                    "MultiWindow",
+                    "Killing old full browser instance to prevent state collision!"
+                )
                 try {
                     val caller = oldInstance.callingActivity
                     Log.i("marcCloned", "caller ${caller?.packageName}")
@@ -618,6 +621,7 @@ class MainActivity : ComponentActivity() {
                     if (gm.isActiveMediaSessionPaused) gm.sendVideoCommand("play")
                     else gm.sendVideoCommand("pause")
                 }
+
                 ACTION_PIP_NEXT_5 -> gm.sendVideoCommand("next_5")
                 ACTION_PIP_NEXT_TRACK -> gm.sendVideoCommand("next_track")
             }
@@ -648,15 +652,39 @@ class MainActivity : ComponentActivity() {
 
         return viewModel.browserSettings.value.getPipActionList().map { action ->
             when (action) {
-                PipAction.PREV_TRACK -> makeAction(104, ACTION_PIP_PREV_TRACK, R.drawable.ic_skip_previous, "Previous video")
-                PipAction.PREV_5 -> makeAction(101, ACTION_PIP_PREV_5, R.drawable.ic_replay_5, "Back ${stepSec}s")
+                PipAction.PREV_TRACK -> makeAction(
+                    104,
+                    ACTION_PIP_PREV_TRACK,
+                    R.drawable.ic_skip_previous,
+                    "Previous video"
+                )
+
+                PipAction.PREV_5 -> makeAction(
+                    101,
+                    ACTION_PIP_PREV_5,
+                    R.drawable.ic_replay_5,
+                    "Back ${stepSec}s"
+                )
+
                 PipAction.PLAY_PAUSE -> if (isPaused) {
                     makeAction(102, ACTION_PIP_PLAY_PAUSE, R.drawable.ic_play_arrow, "Play")
                 } else {
                     makeAction(102, ACTION_PIP_PLAY_PAUSE, R.drawable.ic_pause, "Pause")
                 }
-                PipAction.NEXT_5 -> makeAction(103, ACTION_PIP_NEXT_5, R.drawable.ic_forward_5, "Forward ${stepSec}s")
-                PipAction.NEXT_TRACK -> makeAction(105, ACTION_PIP_NEXT_TRACK, R.drawable.ic_skip_next, "Next video")
+
+                PipAction.NEXT_5 -> makeAction(
+                    103,
+                    ACTION_PIP_NEXT_5,
+                    R.drawable.ic_forward_5,
+                    "Forward ${stepSec}s"
+                )
+
+                PipAction.NEXT_TRACK -> makeAction(
+                    105,
+                    ACTION_PIP_NEXT_TRACK,
+                    R.drawable.ic_skip_next,
+                    "Next video"
+                )
             }
         }
     }
@@ -679,7 +707,8 @@ class MainActivity : ComponentActivity() {
 
     fun updatePipParams(isDataFullscreen: Boolean) {
         val viewModel: BrowserViewModel by viewModels()
-        val effectiveAutoEnter = isDataFullscreen && viewModel.browserSettings.value.isEnabledBackgroundPlayback
+        val effectiveAutoEnter =
+            isDataFullscreen && viewModel.browserSettings.value.isEnabledBackgroundPlayback
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val params = android.app.PictureInPictureParams.Builder()
                 .setAutoEnterEnabled(effectiveAutoEnter)
@@ -774,7 +803,8 @@ class MainActivity : ComponentActivity() {
                 requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
                 WindowCompat.getInsetsController(window, window.decorView).apply {
                     hide(WindowInsetsCompat.Type.systemBars())
-                    systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                    systemBarsBehavior =
+                        WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
                 }
             }
         }
@@ -834,7 +864,6 @@ fun BrowserScreen(
 ) {
 
 
-
     //region Variables
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -882,21 +911,23 @@ fun BrowserScreen(
 
 
     val currentDomain = viewModel.siteSettingsManager.getDomain(viewModel.activeTab?.currentURL)
-    val isCurrentDomainDesktop = currentDomain?.let { viewModel.siteSettings[it]?.isDesktopMode } ?: false
+    val isCurrentDomainDesktop =
+        currentDomain?.let { viewModel.siteSettings[it]?.isDesktopMode } ?: false
 
     val activeSession =
         remember(viewModel.activeTab!!.id, viewModel.sessionRefreshTrigger.intValue) {
             viewModel.geckoManager.getSession(
-                tab= viewModel.activeTab!!,
+                tab = viewModel.activeTab!!,
 //                isDesktopMode = settings.isDesktopMode,
                 isDesktopMode = isCurrentDomainDesktop,
 
-                isEnabledBackgroundPlayback = settings.isEnabledBackgroundPlayback)
+                isEnabledBackgroundPlayback = settings.isEnabledBackgroundPlayback
+            )
         }
 //    tab: Tab, isDesktopMode: Boolean = false, isEnabledBackgroundPlayback: Boolean = true
 
 
-LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
+    LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
         viewModel.onActiveDomainChanged(viewModel.activeTab?.id, currentDomain)
     }
 
@@ -920,7 +951,9 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
         label = "Top Corner Radius Animation",
     )
     val animatedBottomCornerRadius by animateDpAsState(
-        targetValue = if (isPipMode || hasSharpBottomCorners) 0.dp else settings.cornerRadiusForLayer(0).dp,
+        targetValue = if (isPipMode || hasSharpBottomCorners) 0.dp else settings.cornerRadiusForLayer(
+            0
+        ).dp,
         label = "Bottom Corner Radius Animation",
     )
 
@@ -1098,7 +1131,9 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
 
             try {
                 // Start the Google Play Services FIDO dialog
-                val request = androidx.activity.result.IntentSenderRequest.Builder(intent.intentSender).build()
+                val request =
+                    androidx.activity.result.IntentSenderRequest.Builder(intent.intentSender)
+                        .build()
                 webAuthenticationLauncher.launch(request)
             } catch (e: Exception) {
                 geckoResult.completeExceptionally(e)
@@ -1154,7 +1189,6 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
             pendingDriveCallback = null
         }
     }
-
 
 
     //endregion
@@ -1234,12 +1268,12 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
     ) {
         val tab = viewModel.activeTab
         val isShowingWeb = settings.isEnabledImmersiveWebview &&
-            tab != null &&
-            tab.errorState == null &&
-            tab.currentURL.isNotBlank() &&
-            tab.currentURL != "about:blank" &&
-            !uiState.value.isOnFullscreenVideo &&
-            !(uiState.value.appState == AppState.BUILD && !uiState.value.isBuildPreview)
+                tab != null &&
+                tab.errorState == null &&
+                tab.currentURL.isNotBlank() &&
+                tab.currentURL != "about:blank" &&
+                !uiState.value.isOnFullscreenVideo &&
+                !(uiState.value.appState == AppState.BUILD && !uiState.value.isBuildPreview)
 
         if (!isShowingWeb) {
             viewModel.sampledTopBarColor.value = Color.Black
@@ -1293,13 +1327,6 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
 //region OptionsPanel Drag State
     val optionsPanelHeight = (settings.heightForLayer(2) + settings.padding * 2).dp
 
-//    val fullyDisplayRow = round(settings.maxListHeight)
-//    val numberOfPaddings = fullyDisplayRow + if (ceil(settings.maxListHeight) > settings.maxListHeight) + 2
-//        else + 1
-//    val appsPanelHeight =
-//        (
-//                (settings.heightForLayer(3) * settings.maxListHeight) + settings.padding * numberOfPaddings
-//                ).dp
 
     val appsPanelHeight = settings.maxContainerSizeForLayer(3, uiState.value.windowMode).dp
 
@@ -1388,11 +1415,6 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
     //endregion
 
 
-
-
-
-
-
     //endregion
     // region Top Function
     fun confirmationPopup(
@@ -1420,6 +1442,7 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
         }
 
     }
+
     var isShakeHighlightActive by remember { mutableStateOf(false) }
     var shakeTrigger by remember { mutableIntStateOf(0) }
 
@@ -1455,7 +1478,8 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
         draggableState.settledValue,
         draggableState.isAnimationRunning
     ) {
-        val isUrlInputFocused = uiState.value.isFocusOnUrlTextField || uiState.value.isFocusOnIconUrlTextField
+        val isUrlInputFocused =
+            uiState.value.isFocusOnUrlTextField || uiState.value.isFocusOnIconUrlTextField
         val targetState = when {
             isUrlInputFocused -> RevealState.Hidden
             uiState.value.isAppsPanelVisible -> RevealState.Expanded
@@ -1464,7 +1488,8 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
         }
 
         val targetOffset = draggableState.anchors.positionOf(targetState)
-        val isOffsetAtTarget = !targetOffset.isNaN() && kotlin.math.abs(draggableState.offset - targetOffset) < 1f
+        val isOffsetAtTarget =
+            !targetOffset.isNaN() && kotlin.math.abs(draggableState.offset - targetOffset) < 1f
 
         if (draggableState.currentValue != targetState ||
             draggableState.targetValue != targetState ||
@@ -1601,7 +1626,8 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                     // 1. Guess the file name
                     var fileName = viewModel.getBestGuessFilename(url, contentDisposition, mimeType)
                     if (fileName.startsWith("downloadfile")) {
-                        val ext = android.webkit.MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType) ?: "bin"
+                        val ext = android.webkit.MimeTypeMap.getSingleton()
+                            .getExtensionFromMimeType(mimeType) ?: "bin"
                         fileName = "download_${System.currentTimeMillis()}.$ext"
                     }
 
@@ -1610,29 +1636,26 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                         coroutineScope.launch(Dispatchers.IO) {
                             var fileSize = 0L
                             try {
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                                    val resolver = context.contentResolver
-                                    val contentValues = android.content.ContentValues().apply {
-                                        put(MediaStore.Downloads.DISPLAY_NAME, fileName)
-                                        put(MediaStore.Downloads.MIME_TYPE, mimeType ?: "application/octet-stream")
-                                        put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
-                                    }
-                                    val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
-                                    if (uri != null) {
-                                        resolver.openOutputStream(uri)?.use { output ->
-                                            stream.use { input -> fileSize = input.copyTo(output) }
-                                        }
-                                    }
-                                } else {
-                                    val targetDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-                                    if (!targetDir.exists()) targetDir.mkdirs()
-
-                                    val file = File(targetDir, fileName)
-                                    FileOutputStream(file).use { output ->
+                                val resolver = context.contentResolver
+                                val contentValues = android.content.ContentValues().apply {
+                                    put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+                                    put(
+                                        MediaStore.Downloads.MIME_TYPE,
+                                        mimeType ?: "application/octet-stream"
+                                    )
+                                    put(
+                                        MediaStore.Downloads.RELATIVE_PATH,
+                                        Environment.DIRECTORY_DOWNLOADS
+                                    )
+                                }
+                                val uri = resolver.insert(
+                                    MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                                    contentValues
+                                )
+                                if (uri != null) {
+                                    resolver.openOutputStream(uri)?.use { output ->
                                         stream.use { input -> fileSize = input.copyTo(output) }
                                     }
-
-                                    android.media.MediaScannerConnection.scanFile(context, arrayOf(file.absolutePath), arrayOf(mimeType), null)
                                 }
 
                                 // 3. Update UI on success
@@ -1674,47 +1697,34 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                             } catch (e: Exception) {
                                 e.printStackTrace()
                                 withContext(Dispatchers.Main) {
-                                    Toast.makeText(context, "Blob download failed", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(
+                                        context,
+                                        "Blob download failed",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
                                 }
                             } finally {
                                 // Important: Only close the stream AFTER writing finishes
-                                try { stream.close() } catch (_: Exception) {}
+                                try {
+                                    stream.close()
+                                } catch (_: Exception) {
+                                }
                             }
                         }
                     }
 
                     // 4. Check permissions and run
-                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-                        val hasPermission = ContextCompat.checkSelfPermission(
-                            context, Manifest.permission.WRITE_EXTERNAL_STORAGE
-                        ) == PackageManager.PERMISSION_GRANTED
-
-                        if (!hasPermission) {
-                            // Delay the execution until permission is granted
-                            pendingBlobAction = { isGranted ->
-                                if (isGranted) {
-                                    performBlobWrite()
-                                } else {
-                                    // If user denied permission, discard and close the stream safely
-                                    try { stream.close() } catch (_: Exception) {}
-                                }
-                            }
-                            storagePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                        } else {
-                            performBlobWrite()
-                        }
-                    } else {
-                        performBlobWrite()
-                    }
+                    performBlobWrite()
 
                 } else {
-                    Toast.makeText(context, "Error: Data stream is empty", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Error: Data stream is empty", Toast.LENGTH_SHORT)
+                        .show()
                 }
             } else {
                 // Standard HTTP/HTTPS download
                 val params = DownloadParams(url, userAgent, contentDisposition, mimeType)
 
-                val needsPermission = Build.VERSION.SDK_INT <= Build.VERSION_CODES.P
+                val needsPermission = false
                 val hasPermission = ContextCompat.checkSelfPermission(
                     context, Manifest.permission.WRITE_EXTERNAL_STORAGE
                 ) == PackageManager.PERMISSION_GRANTED
@@ -1780,11 +1790,8 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                 addCategory(Intent.CATEGORY_OPENABLE)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    setDataAndType(MediaStore.Downloads.EXTERNAL_CONTENT_URI, "*/*")
-                } else {
-                    type = "*/*"
-                }            }
+                setDataAndType(MediaStore.Downloads.EXTERNAL_CONTENT_URI, "*/*")
+            }
             try {
                 context.startActivity(genericFileManagerIntent)
             } catch (_: ActivityNotFoundException) {
@@ -1976,7 +1983,8 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
             }
         }
         // In MainActivity.kt -> BrowserScreen
-        val googleDriveAppFolderString = stringResource(R.string.desc_permission_google_drive_app_folder)
+        val googleDriveAppFolderString =
+            stringResource(R.string.desc_permission_google_drive_app_folder)
         val saveFileToDevice = stringResource(R.string.desc_permission_save_file_to_device)
         val cameraPermissionString = stringResource(R.string.desc_permission_camera)
         val leavePermissionString = stringResource(R.string.desc_permission_leave)
@@ -1994,7 +2002,10 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                         permissionsToRequest = listOf(Manifest.permission.CAMERA),
                         onResult = { permissionsMap, pendingRequest ->
                             val isGranted = permissionsMap[Manifest.permission.CAMERA] == true
-                            viewModel.savePermissionDecision(domain, mapOf(Manifest.permission.CAMERA to isGranted))
+                            viewModel.savePermissionDecision(
+                                domain,
+                                mapOf(Manifest.permission.CAMERA to isGranted)
+                            )
                             onDecision(isGranted)
                             pendingRequest.value = null
                         },
@@ -2010,7 +2021,8 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                 val activeDomain = viewModel.activeTab?.currentURL?.toDomain()
 
                 if (domain == activeDomain) {
-                    val targetOrigin = if (domain.startsWith("http") || domain.startsWith("local://")) domain else "https://$domain"
+                    val targetOrigin =
+                        if (domain.startsWith("http") || domain.startsWith("local://")) domain else "https://$domain"
                     val driveRequest = CustomPermissionRequest(
                         origin = targetOrigin,
                         title = googleDriveAppFolderString,
@@ -2020,7 +2032,10 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                         permissionsToRequest = listOf(google_drive_access_permission),
                         onResult = { permissionsMap, pendingRequest ->
                             val isGranted = permissionsMap[google_drive_access_permission] == true
-                            viewModel.savePermissionDecision(domain, mapOf(google_drive_access_permission to isGranted))
+                            viewModel.savePermissionDecision(
+                                domain,
+                                mapOf(google_drive_access_permission to isGranted)
+                            )
                             onDecision(isGranted)
                             pendingRequest.value = null
                         },
@@ -2035,7 +2050,8 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                 val activeDomain = viewModel.activeTab?.currentURL?.toDomain()
 
                 if (domain == activeDomain) {
-                    val targetOrigin = if (domain.startsWith("http") || domain.startsWith("local://")) domain else "https://$domain"
+                    val targetOrigin =
+                        if (domain.startsWith("http") || domain.startsWith("local://")) domain else "https://$domain"
                     val fileRequest = CustomPermissionRequest(
                         origin = targetOrigin,
                         title = saveFileToDevice,
@@ -2044,8 +2060,12 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                         iconResDeny = R.drawable.ic_write_file_deny,
                         permissionsToRequest = listOf(marcinlowercase.a.core.constant.local_file_storage_permission),
                         onResult = { permissionsMap, pendingRequest ->
-                            val isGranted = permissionsMap[marcinlowercase.a.core.constant.local_file_storage_permission] == true
-                            viewModel.savePermissionDecision(domain, mapOf(marcinlowercase.a.core.constant.local_file_storage_permission to isGranted))
+                            val isGranted =
+                                permissionsMap[marcinlowercase.a.core.constant.local_file_storage_permission] == true
+                            viewModel.savePermissionDecision(
+                                domain,
+                                mapOf(marcinlowercase.a.core.constant.local_file_storage_permission to isGranted)
+                            )
                             onDecision(isGranted)
                             pendingRequest.value = null
                         },
@@ -2057,31 +2077,36 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                 }
             }
 
-            viewModel.geckoManager.onDomainLeavePermissionRequested = { domain, targetUrl, onDecision ->
-                val activeDomain = viewModel.activeTab?.currentURL?.toDomain()
+            viewModel.geckoManager.onDomainLeavePermissionRequested =
+                { domain, targetUrl, onDecision ->
+                    val activeDomain = viewModel.activeTab?.currentURL?.toDomain()
 
-                if (domain == activeDomain) {
-                    val targetOrigin = if (domain.startsWith("http") || domain.startsWith("local://")) domain else "https://$domain"
-                    val leaveRequest = CustomPermissionRequest(
-                        origin = targetOrigin,
-                        title = leavePermissionString,
-                        rationale = "Allow $domain to open $targetUrl in a new tab.",
-                        iconResAllow = R.drawable.ic_open_in_new,
-                        iconResDeny = R.drawable.ic_open_in_new_off,
-                        permissionsToRequest = listOf(leave_site_permission),
-                        onResult = { permissionsMap, pendingRequest ->
-                            val isGranted = permissionsMap[leave_site_permission] == true
-                            viewModel.savePermissionDecision(domain, mapOf(leave_site_permission to isGranted))
-                            onDecision(isGranted)
-                            pendingRequest.value = null
-                        },
-                        isSystemRequest = false
-                    )
-                    viewModel.pendingPermissionRequest.value = leaveRequest
-                } else {
-                    onDecision(false)
+                    if (domain == activeDomain) {
+                        val targetOrigin =
+                            if (domain.startsWith("http") || domain.startsWith("local://")) domain else "https://$domain"
+                        val leaveRequest = CustomPermissionRequest(
+                            origin = targetOrigin,
+                            title = leavePermissionString,
+                            rationale = "Allow $domain to open $targetUrl in a new tab.",
+                            iconResAllow = R.drawable.ic_open_in_new,
+                            iconResDeny = R.drawable.ic_open_in_new_off,
+                            permissionsToRequest = listOf(leave_site_permission),
+                            onResult = { permissionsMap, pendingRequest ->
+                                val isGranted = permissionsMap[leave_site_permission] == true
+                                viewModel.savePermissionDecision(
+                                    domain,
+                                    mapOf(leave_site_permission to isGranted)
+                                )
+                                onDecision(isGranted)
+                                pendingRequest.value = null
+                            },
+                            isSystemRequest = false
+                        )
+                        viewModel.pendingPermissionRequest.value = leaveRequest
+                    } else {
+                        onDecision(false)
+                    }
                 }
-            }
 
             onDispose {
                 viewModel.geckoManager.cancelPendingLeaveRequest()
@@ -2222,7 +2247,7 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
             viewModel.jsTopBackgroundColor.value = null
             viewModel.jsBottomBackgroundColor.value = null
 
-         val currentActiveTab = viewModel.activeTab
+            val currentActiveTab = viewModel.activeTab
             if (currentActiveTab != null && viewModel.consumeTabNeedsReload(currentActiveTab.id)) {
                 viewModel.updateTabById(currentActiveTab.id) { it.copy(errorState = null) }
                 viewModel.geckoManager.forceKillSession(currentActiveTab.id)
@@ -2342,7 +2367,8 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
 
             if (shouldHideBars) {
                 insetsController.hide(WindowInsetsCompat.Type.systemBars())
-                insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                insetsController.systemBarsBehavior =
+                    WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             } else {
                 insetsController.show(WindowInsetsCompat.Type.systemBars())
                 insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
@@ -2384,8 +2410,10 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
             }
 
         }
-        val isLightTopBar = !uiState.value.isSettingCornerRadius && !isColorDark(targetTopBarColor.toArgb())
-        val isLightBottomBar = !uiState.value.isSettingCornerRadius && !isColorDark(targetBottomBarColor.toArgb())
+        val isLightTopBar =
+            !uiState.value.isSettingCornerRadius && !isColorDark(targetTopBarColor.toArgb())
+        val isLightBottomBar =
+            !uiState.value.isSettingCornerRadius && !isColorDark(targetBottomBarColor.toArgb())
 
         if (!view.isInEditMode) {
             SideEffect {
@@ -2463,7 +2491,11 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                 activeSession.flushSessionState()
             }
         }
-        LaunchedEffect(settings.isEnabledBackgroundPlayback, activeSession, uiState.value.isOnFullscreenVideo) {
+        LaunchedEffect(
+            settings.isEnabledBackgroundPlayback,
+            activeSession,
+            uiState.value.isOnFullscreenVideo
+        ) {
             val targetSuspend = !settings.isEnabledBackgroundPlayback
 
             // instantly apply the setting to the live engine
@@ -2541,7 +2573,10 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
 
                         if (!isGhostBlank) {
                             val activeTab = viewModel.activeTab
-                            val isCurrentLocal = activeTab?.currentURL?.startsWith("local://", ignoreCase = true) == true
+                            val isCurrentLocal = activeTab?.currentURL?.startsWith(
+                                "local://",
+                                ignoreCase = true
+                            ) == true
                             val isIncomingDataUri = url.startsWith("data:", ignoreCase = true)
 
                             // Protect local:// scheme from being overwritten by GeckoView's internal data: URI
@@ -2550,11 +2585,18 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                             } else {
                                 url
                             }
-                            val finalUrl = marcinlowercase.a.core.server.LocalAppServer.toVirtualUrl(rawUrl)
+                            val finalUrl =
+                                marcinlowercase.a.core.server.LocalAppServer.toVirtualUrl(rawUrl)
 
                             if (!uiState.value.isFocusOnUrlTextField) {
-                                val displayUrl = if (finalUrl.startsWith(marcinlowercase.a.core.server.LocalAppServer.VIRTUAL_SCHEME, ignoreCase = true)) {
-                                    marcinlowercase.a.core.server.LocalAppServer.formatForDisplay(finalUrl)
+                                val displayUrl = if (finalUrl.startsWith(
+                                        marcinlowercase.a.core.server.LocalAppServer.VIRTUAL_SCHEME,
+                                        ignoreCase = true
+                                    )
+                                ) {
+                                    marcinlowercase.a.core.server.LocalAppServer.formatForDisplay(
+                                        finalUrl
+                                    )
                                 } else {
                                     finalUrl.toDomain()
                                 }
@@ -2653,7 +2695,10 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                             viewModel.jsBottomBackgroundColor.value = null
 
                             val activeTab = viewModel.activeTab
-                            val isCurrentLocal = activeTab?.currentURL?.startsWith("local://", ignoreCase = true) == true
+                            val isCurrentLocal = activeTab?.currentURL?.startsWith(
+                                "local://",
+                                ignoreCase = true
+                            ) == true
                             val isIncomingDataUri = url.startsWith("data:", ignoreCase = true)
 
                             val rawDisplay = if (isCurrentLocal && isIncomingDataUri) {
@@ -2662,8 +2707,14 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                                 marcinlowercase.a.core.server.LocalAppServer.toVirtualUrl(url)
                             }
 
-                            val displayUrl = if (rawDisplay.startsWith(marcinlowercase.a.core.server.LocalAppServer.VIRTUAL_SCHEME, ignoreCase = true)) {
-                                marcinlowercase.a.core.server.LocalAppServer.formatForDisplay(rawDisplay)
+                            val displayUrl = if (rawDisplay.startsWith(
+                                    marcinlowercase.a.core.server.LocalAppServer.VIRTUAL_SCHEME,
+                                    ignoreCase = true
+                                )
+                            ) {
+                                marcinlowercase.a.core.server.LocalAppServer.formatForDisplay(
+                                    rawDisplay
+                                )
                             } else {
                                 rawDisplay.toDomain()
                             }
@@ -2681,8 +2732,8 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                         viewModel.updateUI {
                             it.copy(isFirstLoadPWA = false)
                         }
-                    (geckoViewRef.value as? SafeGeckoView)?.wakeCompositor()
-                    sampleTrigger++
+                        (geckoViewRef.value as? SafeGeckoView)?.wakeCompositor()
+                        sampleTrigger++
                     }
                 },
                 onFaviconChanged = { tabId, faviconUrl ->
@@ -2745,7 +2796,8 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                 },
 
                 onLoadErrorFun = { eventTabId, session, uri, error ->
-                    val failingUrl = uri ?: viewModel.tabs.find { it.id == eventTabId }?.currentURL ?: ""
+                    val failingUrl =
+                        uri ?: viewModel.tabs.find { it.id == eventTabId }?.currentURL ?: ""
 
                     viewModel.setTabLoading(eventTabId, false)
 
@@ -2787,9 +2839,9 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                     }
 
                     val inPip = mainActivity.isInPictureInPictureMode ||
-                        mainActivity.isPipMode ||
-                        mainActivity.isEnteringPip ||
-                        System.currentTimeMillis() < mainActivity.pipTransitionGraceUntilMs
+                            mainActivity.isPipMode ||
+                            mainActivity.isEnteringPip ||
+                            System.currentTimeMillis() < mainActivity.pipTransitionGraceUntilMs
 
                     if (inPip && !isFullscreen) {
                         // just nothing right now
@@ -2820,23 +2872,23 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                             // Only exit landscape/immersive if NOT in PiP
 //                            if (!inPip) {
 
-                                if (uiState.value.isLandscapeByButton) viewModel.updateUI {
-                                    it.copy(
-                                        isLandscapeByButton = false
-                                    )
-                                }
+                            if (uiState.value.isLandscapeByButton) viewModel.updateUI {
+                                it.copy(
+                                    isLandscapeByButton = false
+                                )
+                            }
 //                                gestureManager.resetBrightness()
 
-                                activity.requestedOrientation =
-                                    ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                                if (!isEffectivelyFullscreen) {
-                                    insetsController.show(WindowInsetsCompat.Type.systemBars())
-                                    insetsController.systemBarsBehavior =
-                                        WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
-                                }
-                                coroutineScope.launch {
-                                    hideBackSquare(true)
-                                }
+                            activity.requestedOrientation =
+                                ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                            if (!isEffectivelyFullscreen) {
+                                insetsController.show(WindowInsetsCompat.Type.systemBars())
+                                insetsController.systemBarsBehavior =
+                                    WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
+                            }
+                            coroutineScope.launch {
+                                hideBackSquare(true)
+                            }
 //                            }
                         }
                     }
@@ -2874,7 +2926,8 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                 onExternalAppRequest = { eventTabId, url ->
                     if (eventTabId == viewModel.activeTab?.id) {
                         viewModel.geckoManager.cancelPendingLeaveRequest()
-                        val originUrl = viewModel.activeTab?.currentURL?.takeIf { it.isNotBlank() } ?: url
+                        val originUrl =
+                            viewModel.activeTab?.currentURL?.takeIf { it.isNotBlank() } ?: url
                         viewModel.pendingPermissionRequest.value = CustomPermissionRequest(
                             origin = originUrl,
                             title = leavePermissionString,
@@ -3004,7 +3057,8 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
 //                    androidx.lifecycle.Lifecycle.Event.ON_PAUSE -> {
                     androidx.lifecycle.Lifecycle.Event.ON_STOP -> {
                         isAppInForeground = false
-                        val powerManager = context.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+                        val powerManager =
+                            context.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
                         val isScreenInteractive = powerManager?.isInteractive ?: true
                         val allowBackground = settingsState.value.isEnabledBackgroundPlayback
 
@@ -3016,7 +3070,8 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
 
                         val isPip = mainActivity.isPipMode || mainActivity.isEnteringPip
                         if (!isPip) {
-                            val closedPipManually = mainActivity.wasInPipMode && !mainActivity.isInPictureInPictureMode
+                            val closedPipManually =
+                                mainActivity.wasInPipMode && !mainActivity.isInPictureInPictureMode
                             if (closedPipManually || !allowBackground) {
                                 viewModel.geckoManager.sendVideoCommand("pause")
                             }
@@ -3151,7 +3206,7 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
             }
             if (shakeTrigger > 0 && isShakeHighlightActive) {
                 squareAlpha.animateTo(1f, animationSpec = tween(200))
-                delay(5000)
+                delay(5000.milliseconds)
                 if (isShakeHighlightActive) {
                     isShakeHighlightActive = false
                     squareAlpha.animateTo(
@@ -3170,7 +3225,7 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
         }
         // This effect will re-launch whenever isBottomPanelVisible changes.
         LaunchedEffect(uiState.value.isBottomPanelVisible) {
-            Log.i("mrc","isBottomPanelVisible Change")
+            Log.i("mrc", "isBottomPanelVisible Change")
             if (!uiState.value.isBottomPanelVisible) {
                 // -- The URL bar has just been hidden. Start the "show and blink" sequence. --
 
@@ -3184,7 +3239,8 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                 if (!uiState.value.isFocusOnUrlTextField) {
                     geckoViewRef.value?.let { gv ->
                         gv.clearFocus()
-                        val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
+                        val imm =
+                            context.getSystemService(Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
                         imm?.hideSoftInputFromWindow(gv.windowToken, 0)
                     }
                 }
@@ -3333,7 +3389,6 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
             )
 
 
-
             // Adjust Device Corner Radius Screen
             AnimatedVisibility(
                 modifier = Modifier
@@ -3462,8 +3517,7 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                                         it.height.toDp().value.roundToInt()
                                     )
                                 }
-                            }
-                        ,
+                            },
                     ) {
                         // Webview Container
                         key(viewModel.sessionRefreshTrigger.intValue) {
@@ -3510,7 +3564,8 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                                             .fillMaxSize()
                                     ) {
                                         if (isBrowserVisible) {
-                                            val isChatMode = uiState.value.appState == AppState.BUILD && !uiState.value.isBuildPreview
+                                            val isChatMode =
+                                                uiState.value.appState == AppState.BUILD && !uiState.value.isBuildPreview
                                             val speed = settings.animationSpeedForLayer(1)
 
                                             // Single shared driver: 0f = Preview (Gecko), -1f = Chat
@@ -3527,84 +3582,85 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                                                         .fillMaxSize()
                                                         .blur(pipBlurRadius)
                                                         .graphicsLayer {
-                                                            translationX = offsetFraction * size.width
+                                                            translationX =
+                                                                offsetFraction * size.width
                                                         }
                                                 ) {
-                                                AndroidView(
-                                                    modifier = Modifier
-                                                        .fillMaxSize()
-                                                        .focusProperties { canFocus = false }
-                                                    ,
-                                                    factory = { context ->
-                                                        // Create the View ONCE.
-                                                        // We never need to recreate this View during tab switching.
-                                                        SafeGeckoView(context).apply {
+                                                    AndroidView(
+                                                        modifier = Modifier
+                                                            .fillMaxSize()
+                                                            .focusProperties { canFocus = false },
+                                                        factory = { context ->
+                                                            // Create the View ONCE.
+                                                            // We never need to recreate this View during tab switching.
+                                                            SafeGeckoView(context).apply {
 //                                                            setViewBackend(GeckoView.BACKEND_TEXTURE_VIEW)
-                                                            setBackgroundColor(android.graphics.Color.TRANSPARENT)
-                                                            coverUntilFirstPaint(android.graphics.Color.TRANSPARENT)
-                                                            layoutParams = ViewGroup.LayoutParams(
-                                                                ViewGroup.LayoutParams.MATCH_PARENT,
-                                                                ViewGroup.LayoutParams.MATCH_PARENT
-                                                            )
-                                                            isSaveEnabled = false
-                                                            activityContextDelegate =
-                                                                GeckoView.ActivityContextDelegate { context }
-                                                            setOnTouchListener { _, event ->
+                                                                setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                                                                coverUntilFirstPaint(android.graphics.Color.TRANSPARENT)
+                                                                layoutParams =
+                                                                    ViewGroup.LayoutParams(
+                                                                        ViewGroup.LayoutParams.MATCH_PARENT,
+                                                                        ViewGroup.LayoutParams.MATCH_PARENT
+                                                                    )
+                                                                isSaveEnabled = false
+                                                                activityContextDelegate =
+                                                                    GeckoView.ActivityContextDelegate { context }
+                                                                setOnTouchListener { _, event ->
 
-                                                                if (event.source == InputDevice.SOURCE_UNKNOWN) {
-                                                                    return@setOnTouchListener false
-                                                                }
+                                                                    if (event.source == InputDevice.SOURCE_UNKNOWN) {
+                                                                        return@setOnTouchListener false
+                                                                    }
 
-                                                                if (event.action == MotionEvent.ACTION_DOWN) {
-                                                                    // The user touched the web content
-                                                                    if (uiState.value.isUrlBarVisible) {
-                                                                        viewModel.updateUI {
+                                                                    if (event.action == MotionEvent.ACTION_DOWN) {
+                                                                        // The user touched the web content
+                                                                        if (uiState.value.isUrlBarVisible) {
+                                                                            viewModel.updateUI {
+                                                                                it.copy(
+                                                                                    isUrlBarVisible = false
+                                                                                )
+                                                                            }
+                                                                        }
+                                                                        if (uiState.value.isMediaControlPanelVisible) viewModel.updateUI {
                                                                             it.copy(
-                                                                                isUrlBarVisible = false
+                                                                                isMediaControlPanelVisible = false
                                                                             )
                                                                         }
-                                                                    }
-                                                                    if (uiState.value.isMediaControlPanelVisible) viewModel.updateUI {
-                                                                        it.copy(
-                                                                            isMediaControlPanelVisible = false
-                                                                        )
-                                                                    }
 
-                                                                    if (viewModel.contextMenuData.value != null) viewModel.contextMenuData.value =
-                                                                        null
-                                                                    if (viewModel.choiceState.value != null) viewModel.choiceState.value =
-                                                                        null
-                                                                    if (viewModel.colorState.value != null) {
-                                                                        viewModel.colorState.value?.result?.complete(
-                                                                            viewModel.colorState.value?.prompt?.dismiss()
-                                                                        )
-
-                                                                        viewModel.colorState.value =
+                                                                        if (viewModel.contextMenuData.value != null) viewModel.contextMenuData.value =
                                                                             null
+                                                                        if (viewModel.choiceState.value != null) viewModel.choiceState.value =
+                                                                            null
+                                                                        if (viewModel.colorState.value != null) {
+                                                                            viewModel.colorState.value?.result?.complete(
+                                                                                viewModel.colorState.value?.prompt?.dismiss()
+                                                                            )
+
+                                                                            viewModel.colorState.value =
+                                                                                null
+                                                                        }
                                                                     }
+                                                                    if (event.action == MotionEvent.ACTION_UP) {
+                                                                        sampleTrigger++
+                                                                    }
+                                                                    false
                                                                 }
-                                                                if (event.action == MotionEvent.ACTION_UP) {
-                                                                    sampleTrigger++
-                                                                }
-                                                                false
+                                                                geckoViewRef.value = this
+                                                                mainActivity.activeGeckoView = this
                                                             }
-                                                            geckoViewRef.value = this
-                                                            mainActivity.activeGeckoView = this
+                                                        },
+                                                        update = { geckoView ->
+                                                            if (geckoView.session != activeSession) {
+                                                                geckoView.releaseSession()
+                                                                geckoView.setSession(activeSession)
+                                                                activeSession.setActive(true)
+                                                                geckoView.wakeCompositor()
+                                                            }
+                                                            geckoViewRef.value = geckoView
+                                                            mainActivity.activeGeckoView = geckoView
                                                         }
-                                                    },
-                                                    update = { geckoView ->
-                                                        if (geckoView.session != activeSession) {
-                                                            geckoView.releaseSession()
-                                                            geckoView.setSession(activeSession)
-                                                            activeSession.setActive(true)
-                                                            (geckoView as? SafeGeckoView)?.wakeCompositor()
-                                                        }
-                                                        geckoViewRef.value = geckoView
-                                                        mainActivity.activeGeckoView = geckoView
-                                                    }
-                                                )
+                                                    )
+                                                }
                                             }
-                                        }
 
                                             if (offsetFraction < 0f || isChatMode) {
                                                 Box(
@@ -3612,13 +3668,14 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                                                         .fillMaxSize()
                                                         .graphicsLayer {
                                                             // exactly touching geckoview at all times
-                                                            translationX = (1f + offsetFraction) * size.width
+                                                            translationX =
+                                                                (1f + offsetFraction) * size.width
                                                         }
                                                 ) {
                                                     ChatView(modifier = Modifier.fillMaxSize())
                                                 }
                                             }
-                                            }
+                                        }
 
                                         androidx.compose.animation.AnimatedVisibility(
                                             visible = isPipMode && isPipResizing,
@@ -3674,9 +3731,16 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                                                         with(density) { 192.dp.roundToPx() }
 
                                                     // --- NEW: Handle raw SVG text for the Splash Screen ---
-                                                    val fallbackUrl = viewModel.activeTab?.currentURL ?: ""
-                                                    val dataPayload: Any = if (pwaIconUrl.trim().startsWith("<svg", ignoreCase = true)) {
-                                                        java.nio.ByteBuffer.wrap(pwaIconUrl.toByteArray(Charsets.UTF_8))
+                                                    val fallbackUrl =
+                                                        viewModel.activeTab?.currentURL ?: ""
+                                                    val dataPayload: Any = if (pwaIconUrl.trim()
+                                                            .startsWith("<svg", ignoreCase = true)
+                                                    ) {
+                                                        java.nio.ByteBuffer.wrap(
+                                                            pwaIconUrl.toByteArray(
+                                                                Charsets.UTF_8
+                                                            )
+                                                        )
                                                     } else {
                                                         pwaIconUrl.ifBlank { fallbackUrl }
                                                     }
@@ -3770,13 +3834,16 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                         val statusAction = remember { mutableStateOf<VideoStatusAction?>(null) }
                         val temporaryEscapeSeconds = remember { mutableIntStateOf(0) }
 
-                        LaunchedEffect(temporaryEscapeSeconds.intValue, uiState.value.isOnFullscreenVideo) {
+                        LaunchedEffect(
+                            temporaryEscapeSeconds.intValue,
+                            uiState.value.isOnFullscreenVideo
+                        ) {
                             if (!uiState.value.isOnFullscreenVideo) {
                                 temporaryEscapeSeconds.intValue = 0
                                 return@LaunchedEffect
                             }
                             if (temporaryEscapeSeconds.intValue > 0) {
-                                delay(1000)
+                                delay(1000.milliseconds)
                                 if (temporaryEscapeSeconds.intValue > 0) {
                                     temporaryEscapeSeconds.intValue -= 1
                                 }
@@ -3810,9 +3877,11 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                             isTemporarilyHidden = temporaryEscapeSeconds.intValue > 0,
                         )
 
-                        val isGestureMode = settings.currentMediaControlMode() == MediaControlMode.GESTURE
+                        val isGestureMode =
+                            settings.currentMediaControlMode() == MediaControlMode.GESTURE
                         val effectiveStatusAtTop = if (isGestureMode) true else isStatusAtTop.value
-                        val effectiveStatusOnRight = if (isGestureMode) isGestureStatusOnRight.value else !isControlsOnRight.value
+                        val effectiveStatusOnRight =
+                            if (isGestureMode) isGestureStatusOnRight.value else !isControlsOnRight.value
 
                         VideoStatusPanel(
                             modifier = Modifier
@@ -3998,10 +4067,10 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                         )
                         AnimatedVisibility(
                             visible = isShakeHighlightActive &&
-                                !uiState.value.isBottomPanelVisible &&
-                                !uiState.value.isLandscape &&
-                                !uiState.value.isOtherPanelVisible &&
-                                !viewModel.isStandaloneMode.value,
+                                    !uiState.value.isBottomPanelVisible &&
+                                    !uiState.value.isLandscape &&
+                                    !uiState.value.isOtherPanelVisible &&
+                                    !viewModel.isStandaloneMode.value,
                             enter = fadeIn(tween(200)),
                             exit = fadeOut(tween(300)),
                             modifier = Modifier.fillMaxSize()

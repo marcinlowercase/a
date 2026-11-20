@@ -676,7 +676,7 @@ fun BottomPanel(
                                     val extractedTitle = Regex("<title>(.*?)</title>", RegexOption.IGNORE_CASE)
                                         .find(input)?.groupValues?.get(1)?.trim() ?: "Local App"
 
-                                    // buffer raw html in the loopback server
+                                    // buffer raw HTML in the loopback server
                                     (context.applicationContext as? marcinlowercase.a.CustomApplication)?.localAppServer?.currentDraftHtml = input
 
                                     val virtualDraftUrl = "local://draft/index.html"

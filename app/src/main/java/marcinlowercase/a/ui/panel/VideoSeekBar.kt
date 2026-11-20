@@ -1,9 +1,5 @@
 package marcinlowercase.a.ui.panel
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -29,21 +25,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.delay
+import marcinlowercase.a.R
 import marcinlowercase.a.core.enum_class.MediaControlMode
 import marcinlowercase.a.core.enum_class.MediaControlOption
+import marcinlowercase.a.ui.component.CustomIconButton
 import marcinlowercase.a.ui.component.OptionsRoller
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToInt
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.stringResource
-import marcinlowercase.a.R
-import marcinlowercase.a.ui.component.CustomIconButton
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun VideoSeekBar(
@@ -83,7 +80,7 @@ fun VideoSeekBar(
             while (true) {
                 viewModel.geckoManager.tickLivePosition()
                 liveTick++
-                delay(500)
+                delay(500.milliseconds)
             }
         }
     }

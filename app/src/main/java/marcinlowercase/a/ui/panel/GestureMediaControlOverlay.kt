@@ -30,6 +30,7 @@ import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import kotlin.math.abs
 import kotlin.math.hypot
 import kotlin.math.roundToInt
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun GestureMediaControlOverlay(
@@ -117,7 +118,7 @@ fun GestureMediaControlOverlay(
                     val isLeftSide = down.position.x < size.width * 0.5f
 
                     val holdJob = coroutineScope.launch {
-                        delay(350)
+                        delay(350.milliseconds)
                         isHolding2x = true
                         lastSeekTapTimeMs = 0L
                         lastSeekDirection = 0
@@ -228,7 +229,7 @@ fun GestureMediaControlOverlay(
                     } else if (dragMode == 2) {
                         lastSeekTapTimeMs = 0L
                         lastSeekDirection = 0
-                    } else if (dragMode == 0 && !isHolding2x) {
+                    } else if (!isHolding2x) {
                         if (isContinuationSeek || isPotentialDoubleTap) {
                             lastTapTimeMs = 0L
                             when (tapDirection) {
@@ -274,7 +275,7 @@ fun GestureMediaControlOverlay(
                             lastTapTimeMs = System.currentTimeMillis()
                             lastTapPosition = down.position
                             pendingSingleTapJob = coroutineScope.launch {
-                                delay(viewConfiguration.doubleTapTimeoutMillis)
+                                delay(viewConfiguration.doubleTapTimeoutMillis.milliseconds)
                                 lastTapTimeMs = 0L
                                 viewModel.updateUI {
                                     it.copy(isMediaControlPanelVisible = !it.isMediaControlPanelVisible)

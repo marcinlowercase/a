@@ -17,7 +17,6 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -65,9 +64,8 @@ import marcinlowercase.a.core.data_class.activeOnHighlight
 import marcinlowercase.a.core.enum_class.RevealState
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import kotlin.math.ceil
-import kotlin.math.round
+import kotlin.time.Duration.Companion.milliseconds
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun AppsPanel(
     onAppClick: (App) -> Unit = {},
@@ -572,8 +570,8 @@ fun PlaceholderIcon(
                             awaitEachGesture {
                                 awaitFirstDown(requireUnconsumed = false)
 
-                                val longPressJob = launch {
-                                    delay(viewConfiguration.longPressTimeoutMillis)
+                                val longPressJob = this@coroutineScope.launch {
+                                    delay(viewConfiguration.longPressTimeoutMillis.milliseconds)
                                     hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                                     viewModel.descriptionContent.value = buttonDescription
                                 }

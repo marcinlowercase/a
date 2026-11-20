@@ -1,8 +1,5 @@
 package marcinlowercase.a.ui.panel
 
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -19,11 +16,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -45,9 +44,8 @@ import marcinlowercase.a.core.manager.MediaGestureManager
 import marcinlowercase.a.ui.component.CustomIconButton
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import kotlin.math.abs
-import androidx.compose.runtime.mutableStateOf
 import kotlin.math.roundToInt
-import androidx.compose.runtime.DisposableEffect
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun MediaControlPanel(
@@ -88,7 +86,7 @@ fun MediaControlPanel(
         if (!viewModel.geckoManager.isActiveMediaSessionPaused) {
             while (true) {
                 viewModel.geckoManager.tickLivePosition()
-                delay(500)
+                delay(500.milliseconds)
             }
         }
     }

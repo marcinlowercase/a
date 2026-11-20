@@ -8,8 +8,6 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
-import android.graphics.Bitmap
-import android.graphics.drawable.BitmapDrawable
 import android.media.MediaScannerConnection
 import android.os.Environment
 import android.util.Log
@@ -25,14 +23,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.IntSize
 import androidx.core.content.edit
-import androidx.core.graphics.createBitmap
-import androidx.core.graphics.toColorInt
 import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.application
 import androidx.lifecycle.viewModelScope
-import coil.request.ImageRequest
-import coil.request.SuccessResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -85,7 +79,6 @@ import marcinlowercase.a.core.manager.SiteSettingsManager
 import marcinlowercase.a.core.manager.TabManager
 import marcinlowercase.a.core.manager.VisitedUrlManager
 import java.io.File
-import java.net.URLDecoder
 import java.net.URLEncoder
 import java.util.Collections
 import java.util.regex.Pattern
@@ -967,7 +960,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             .mapNotNull { extractAppAssetSlug(it.url, it.iconUrl) }
             .toSet()
 
-        val driveFileManager = marcinlowercase.a.core.manager.DriveFileManager(driveSyncManager)
+        val driveFileManager = marcinlowercase.a.core.manager.DriveFileManager()
 
         appsDir.listFiles()?.forEach { file ->
             val fileName = file.name
@@ -999,7 +992,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     private suspend fun pullCloudAppsToDiskOnIO(token: String, cloudData: SyncPayload) {
         val context = getApplication<Application>()
         val appsDir = File(context.filesDir, "apps").apply { if (!exists()) mkdirs() }
-        val driveFileManager = marcinlowercase.a.core.manager.DriveFileManager(driveSyncManager)
+        val driveFileManager = marcinlowercase.a.core.manager.DriveFileManager()
 
         val deletedSlugs = getDeletedAppSlugs()
 

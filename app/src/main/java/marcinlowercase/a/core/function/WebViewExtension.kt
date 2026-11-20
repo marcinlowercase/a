@@ -116,7 +116,7 @@ fun webViewLoad(session: GeckoSession?, url: String, context: Context? = null) {
         // Fallback: fetch from Google Drive if missing (e.g. Device B)
         MainScope().launch {
             val driveSyncManager = DriveSyncManager(context)
-            val driveFileManager = DriveFileManager(driveSyncManager)
+            val driveFileManager = DriveFileManager()
             val token = withContext(Dispatchers.IO) { driveSyncManager.getFreshAccessToken() }
 
             if (!token.isNullOrBlank()) {

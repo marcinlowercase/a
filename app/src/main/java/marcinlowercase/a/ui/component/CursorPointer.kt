@@ -39,6 +39,7 @@ import kotlinx.coroutines.delay
 import marcinlowercase.a.R
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import kotlin.math.roundToInt
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun CursorPointer(
@@ -100,11 +101,11 @@ fun CursorPointer(
         trailPoints = (trailPoints + position).takeLast(maxTailLength)
 
         // Wait a short duration; if the cursor moves again, this coroutine resets
-        delay(30)
+        delay(30.milliseconds)
 
         // If movement stops, gracefully shrink the tail frame-by-frame
         while (trailPoints.isNotEmpty()) {
-            delay(16) // roughly 1 frame at 60fps
+            delay(16.milliseconds) // roughly 1 frame at 60fps
             trailPoints = trailPoints.drop(1)
         }
     }

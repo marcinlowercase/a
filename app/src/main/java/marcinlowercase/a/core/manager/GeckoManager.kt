@@ -85,6 +85,7 @@ import coil.Coil
 import coil.request.ImageRequest
 import coil.request.SuccessResult
 import kotlinx.coroutines.withContext
+import kotlin.time.Duration.Companion.milliseconds
 
 private const val UBLOCK_ID = "uBlock0@raymondhill.net"
 private const val FAVICON_ID = "browser_core_extension@marcinlowercase"
@@ -96,7 +97,7 @@ private const val RESET = -2.0
 class GeckoManager(private val context: Context) {
 
     private val driveSyncManager = DriveSyncManager(context)
-    private val driveFileManager = DriveFileManager(driveSyncManager)
+    private val driveFileManager = DriveFileManager()
 
     var activeGeckoMediaSession: MediaSession? = null
     var activeMediaGeckoSession: GeckoSession? = null
@@ -587,7 +588,7 @@ class GeckoManager(private val context: Context) {
         }
     }
 
-    /* ensures app html code and icon are present on drive for pinned apps */
+    /* ensures app HTML code and icon are present on drive for pinned apps */
     private suspend fun ensureAppHtmlSyncedToDrive(token: String, appId: String) {
         if (appId == "draft") return
 
@@ -597,9 +598,9 @@ class GeckoManager(private val context: Context) {
                 return
             }
 
-            val appsDir = java.io.File(context.filesDir, "apps")
-            val singleFile = java.io.File(appsDir, "$appId.html")
-            val nestedFile = java.io.File(java.io.File(appsDir, appId), "index.html")
+            val appsDir = File(context.filesDir, "apps")
+            val singleFile = File(appsDir, "$appId.html")
+            val nestedFile = File(File(appsDir, appId), "index.html")
 
             val localHtml = when {
                 singleFile.exists() -> singleFile.readText(Charsets.UTF_8)
@@ -612,10 +613,10 @@ class GeckoManager(private val context: Context) {
                 Log.i("DriveSync", "auto-synced app html to drive: $appId/index.html")
             }
 
-            val iconFile = java.io.File(appsDir, "${appId}_icon.png")
+            val iconFile = File(appsDir, "${appId}_icon.png")
             if (iconFile.exists()) {
                 val iconBytes = iconFile.readBytes()
-                val iconBase64 = android.util.Base64.encodeToString(iconBytes, android.util.Base64.NO_WRAP)
+                val iconBase64 = Base64.encodeToString(iconBytes, Base64.NO_WRAP)
                 driveFileManager.saveText(token, appId, "icon.png", iconBase64, "image/png")
             }
         } catch (e: Exception) {
@@ -747,7 +748,7 @@ class GeckoManager(private val context: Context) {
                 }
             },
             { e ->
-                Log.e("GeckoExt", "Failed to install uBlock from web", e)
+                Log.e("GeckoExt", "Failed to install ublock from web", e)
             }
         )
     }
@@ -1238,7 +1239,7 @@ class GeckoManager(private val context: Context) {
     private fun scheduleMediaServiceStop() {
         pendingServiceStopJob?.cancel()
         pendingServiceStopJob = MainScope().launch {
-            kotlinx.coroutines.delay(3000)
+            kotlinx.coroutines.delay(3000.milliseconds)
             if (activeGeckoMediaSession == null && activeSilentVideoSession == null && currentFullscreenSession == null) {
                 currentArtworkBitmap = null
                 lastArtworkImage = null
@@ -1805,7 +1806,7 @@ class GeckoManager(private val context: Context) {
                                     return GeckoResult.fromValue("ERROR_EMPTY_DATA")
                                 }
 
-                                val domain = sender.url?.toDomain() ?: "standalone_app"
+                                val domain = sender.url.toDomain()
                                 val result = GeckoResult<Any>()
 
                                 MainScope().launch(Dispatchers.IO) {
@@ -1840,7 +1841,7 @@ class GeckoManager(private val context: Context) {
                                     else -> "application/json"
                                 }
 
-                                val sourceUrl = sender.url ?: tab.value.currentURL
+                                val sourceUrl = sender.url
                                 val domain = sourceUrl.toDomain()
                                 val appId = extractAppId(sourceUrl)
 
@@ -1861,10 +1862,10 @@ class GeckoManager(private val context: Context) {
                                     val isDraft = appId == "draft" || sourceUrl.startsWith("local://draft", ignoreCase = true)
 
                                     if (isDraft) {
-                                        /* draft mode: purge old files from drive draft folder, never upload html */
+                                        /* draft mode: purge old files from drive draft folder, never upload HTML */
                                         cleanOldDraftFiles(token, filename)
                                     } else {
-                                        /* pinned app: auto-sync html and register app to cloud profile payload */
+                                        /* pinned app: auto-sync HTML and register app to cloud profile payload */
                                         if (filename != "index.html" && filename != "index.htm") {
                                             ensureAppHtmlSyncedToDrive(token, appId)
                                             ensureAppInCloudSyncPayload(token, tab.value.profileId, appId)
@@ -1884,7 +1885,7 @@ class GeckoManager(private val context: Context) {
                                     else -> null
                                 } ?: "").replace("/", "_")
 
-                                val sourceUrl = sender.url ?: tab.value.currentURL
+                                val sourceUrl = sender.url
                                 val domain = sourceUrl.toDomain()
                                 val appId = extractAppId(sourceUrl)
 
@@ -1909,7 +1910,7 @@ class GeckoManager(private val context: Context) {
                             }
 
                             "driveListFiles" -> {
-                                val sourceUrl = sender.url ?: tab.value.currentURL
+                                val sourceUrl = sender.url
                                 val domain = sourceUrl.toDomain()
                                 val appId = extractAppId(sourceUrl)
 
@@ -1940,7 +1941,7 @@ class GeckoManager(private val context: Context) {
                                     else -> null
                                 } ?: "").replace("/", "_")
 
-                                val sourceUrl = sender.url ?: tab.value.currentURL
+                                val sourceUrl = sender.url
                                 val domain = sourceUrl.toDomain()
                                 val appId = extractAppId(sourceUrl)
 
@@ -2005,7 +2006,7 @@ class GeckoManager(private val context: Context) {
                                 }
                                 val app = context.applicationContext as? marcinlowercase.a.CustomApplication
                                 val activity = marcinlowercase.a.MainActivity.currentFullBrowserInstance?.get()
-                                val domain = (sender.url ?: tab.value.currentURL).toDomain()
+                                val domain = sender.url.toDomain()
 
                                 Log.i("GeckoManager", "cameraStart received for domain: $domain, torch: $torch")
 
@@ -2033,7 +2034,7 @@ class GeckoManager(private val context: Context) {
 
                                     if (!hasCamera) {
                                         Log.i("GeckoManager", "Requesting OS CAMERA permission from Activity...")
-                                        androidx.core.app.ActivityCompat.requestPermissions(
+                                        ActivityCompat.requestPermissions(
                                             activity,
                                             arrayOf(Manifest.permission.CAMERA),
                                             101
@@ -2162,7 +2163,7 @@ class GeckoManager(private val context: Context) {
                     session.webExtensionController.setTabDelegate(
                         ext,
                         object : WebExtension.SessionTabDelegate {
-                            // Triggered when uBlock intercepts a tracking link and redirects
+                            // Triggered when ublock intercepts a tracking link and redirects
                             // to its "Strict Blocking" moz-extension:// warning page.
                             override fun onUpdateTab(
                                 extension: WebExtension,
@@ -2317,7 +2318,7 @@ class GeckoManager(private val context: Context) {
         session.progressDelegate = object : GeckoSession.ProgressDelegate {
             // EQUIVALENT TO onPageStarted on WebView
             override fun onPageStart(session: GeckoSession, url: String) {
-                // ignore javascript injection
+                // ignore JavaScript injection
                 if (url.startsWith("javascript:")) return
 
                 if (session == activeMediaGeckoSession || session == activeSilentVideoSession) {
@@ -2760,8 +2761,8 @@ class GeckoManager(private val context: Context) {
                 metadata: MediaSession.Metadata
             ) {
                 val state = sessionMediaMap.getOrPut(mediaSession) { SessionMediaState() }
-                val newTitle = metadata.title?.toString()
-                val newArtist = metadata.artist?.toString()
+                val newTitle = metadata.title
+                val newArtist = metadata.artist
                 var changed = false
 
                 if (!newTitle.isNullOrBlank() && newTitle != state.title) {

@@ -1,12 +1,11 @@
 package marcinlowercase.a.ui.panel
 
+import android.annotation.SuppressLint
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -50,12 +49,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
-import marcinlowercase.a.core.enum_class.AppState
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import kotlin.time.Duration.Companion.milliseconds
 
+@SuppressLint("FrequentlyChangingValue")
 @Composable
 fun ChatView(
     modifier: Modifier = Modifier,
@@ -63,13 +61,11 @@ fun ChatView(
     val listState = rememberLazyListState()
     val viewModel = LocalBrowserViewModel.current
     val settings = viewModel.browserSettings.collectAsState()
-    val uiState = viewModel.uiState.collectAsState()
 
     val messages = viewModel.buildChatHistory
     val isThinking = viewModel.isChatThinking.value
     val layer = 4
     val density = LocalDensity.current
-    val layoutInfo = listState.layoutInfo
     val lastUserIndex = messages.indexOfLast { it.first == "user" }
     var cachedSpacerHeight by remember { mutableStateOf(0.dp) }
     var viewingPromptText by remember { mutableStateOf<String?>(null) }
@@ -111,11 +107,9 @@ fun ChatView(
             val targetIndex = messages.indexOfLast { it.first == "user" }
             if (targetIndex != -1) {
                 // Wait until the LazyColumn actually lays out the new item
-                snapshotFlow { listState.layoutInfo }
-                    .filter { info ->
-                        info.visibleItemsInfo.any { it.index == targetIndex }
-                    }
-                    .first()
+                snapshotFlow { listState.layoutInfo }.first { info ->
+                    info.visibleItemsInfo.any { it.index == targetIndex }
+                }
 
                 // Wait 1 frame for the spacer height to be applied to the scroll bounds
                 kotlinx.coroutines.delay(16.milliseconds)
@@ -124,7 +118,6 @@ fun ChatView(
             }
         }
     }
-    val isChatMode = uiState.value.appState == AppState.BUILD && !uiState.value.isBuildPreview
     Box(
         modifier = modifier.fillMaxSize()
     ) {

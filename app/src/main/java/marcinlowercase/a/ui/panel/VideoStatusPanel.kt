@@ -1,26 +1,19 @@
 package marcinlowercase.a.ui.panel
 
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.ui.zIndex
-import marcinlowercase.a.core.enum_class.MediaControlMode
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Icon
-import androidx.compose.ui.res.painterResource
-import marcinlowercase.a.R
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
@@ -36,16 +29,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import kotlinx.coroutines.delay
+import marcinlowercase.a.R
+import marcinlowercase.a.core.enum_class.MediaControlMode
 import marcinlowercase.a.core.enum_class.MediaControlOption
 import marcinlowercase.a.core.function.formatTime
 import marcinlowercase.a.core.manager.MediaGestureManager
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
+import kotlin.time.Duration.Companion.milliseconds
 
 
 sealed class VideoStatusAction(val seq: Long = System.nanoTime()) {
@@ -98,7 +95,7 @@ fun VideoStatusPanel(
     LaunchedEffect(interactionTrigger.value) {
         if (interactionTrigger.value > 0) {
             isTemporarilyVisible = true
-            delay(2000) // keep visible for 2 seconds after interaction
+            delay(2000.milliseconds) // keep visible for 2 seconds after interaction
             isTemporarilyVisible = false
         }
     }
@@ -115,7 +112,7 @@ fun VideoStatusPanel(
     LaunchedEffect(interactionTrigger.value, controlOption.value) {
         if (controlOption.value != MediaControlOption.TIME) {
             showTimeAfterIdle = false
-            delay(3000)
+            delay(3000.milliseconds)
             showTimeAfterIdle = true
         } else {
             showTimeAfterIdle = false
@@ -126,7 +123,7 @@ fun VideoStatusPanel(
     LaunchedEffect(statusAction.value) {
         val current = statusAction.value
         if (current != null && current !is VideoStatusAction.Speed2x) {
-            delay(1000)
+            delay(1000.milliseconds)
             if (statusAction.value === current) {
                 statusAction.value = null
             }
@@ -166,7 +163,7 @@ fun VideoStatusPanel(
             while (true) {
                 viewModel.geckoManager.tickLivePosition()
                 liveTick++
-                delay(500)
+                delay(500.milliseconds)
             }
         }
     }

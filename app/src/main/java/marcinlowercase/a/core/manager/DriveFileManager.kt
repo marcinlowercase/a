@@ -9,7 +9,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 
-class DriveFileManager(private val syncManager: DriveSyncManager) {
+class DriveFileManager {
 
     private fun getDriveService(accessToken: String): Drive {
         return Drive.Builder(
@@ -182,7 +182,7 @@ class DriveFileManager(private val syncManager: DriveSyncManager) {
                 mapOf(
                     "id" to (file.id ?: ""),
                     "name" to (file.name ?: ""),
-                    "size" to (file.size ?: 0L),
+                    "size" to file.size,
                     "modifiedTime" to (file.modifiedTime?.value ?: 0L),
                     "mimeType" to (file.mimeType ?: "")
                 )

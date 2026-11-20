@@ -42,6 +42,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import kotlin.math.abs
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun <T> OptionsRoller(
@@ -129,7 +130,7 @@ fun <T> OptionsRoller(
     // auto-collapse back to single button after 2.5s of stillness
     LaunchedEffect(isExpanded, listState.isScrollInProgress, centeredIndex) {
         if (isExpanded && !listState.isScrollInProgress) {
-            delay(2500)
+            delay(2500.milliseconds)
             isExpanded = false
         }
     }

@@ -2,7 +2,6 @@ package marcinlowercase.a.core.function
 
 import android.content.ContentValues
 import android.content.Context
-import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import android.util.Base64
@@ -29,29 +28,18 @@ fun saveBase64ToStorage(
             put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
             put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val isImage = folderType.equals("PICTURES", ignoreCase = true) || folderType.equals("DCIM", ignoreCase = true)
-                val envFolder = if (isImage) Environment.DIRECTORY_PICTURES else Environment.DIRECTORY_DOWNLOADS
+            val isImage = folderType.equals("PICTURES", ignoreCase = true) || folderType.equals("DCIM", ignoreCase = true)
+            val envFolder = if (isImage) Environment.DIRECTORY_PICTURES else Environment.DIRECTORY_DOWNLOADS
 
-                put(MediaStore.MediaColumns.RELATIVE_PATH, envFolder)
-                put(MediaStore.MediaColumns.IS_PENDING, 1) // Lock file while writing
-            }
+            put(MediaStore.MediaColumns.RELATIVE_PATH, envFolder)
+            put(MediaStore.MediaColumns.IS_PENDING, 1) // Lock file while writing
         }
 
         val isImage = folderType.equals("PICTURES", ignoreCase = true) || folderType.equals("DCIM", ignoreCase = true)
         val collection = if (isImage) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-            } else {
-                MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-            }
+            MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
         } else {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-            } else {
-                // Pre-Android 10 fallback for downloads requires WRITE_EXTERNAL_STORAGE permission
-                MediaStore.Files.getContentUri("external")
-            }
+            MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
         }
 
         val uri = resolver.insert(collection, contentValues)
@@ -60,11 +48,9 @@ fun saveBase64ToStorage(
                 outputStream.write(bytes)
                 outputStream.flush()
             }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                contentValues.clear()
-                contentValues.put(MediaStore.MediaColumns.IS_PENDING, 0) // Unlock file
-                resolver.update(uri, contentValues, null, null)
-            }
+            contentValues.clear()
+            contentValues.put(MediaStore.MediaColumns.IS_PENDING, 0) // Unlock file
+            resolver.update(uri, contentValues, null, null)
             true
         } else {
             false
