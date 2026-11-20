@@ -109,6 +109,36 @@ class KeyboardShortcutManager(private val context: Context) {
                 BrowserShortcut.CLOSE_TAB
             }
 
+            // alt + h goes back on active tab without changing focus
+            event.keyCode == KeyEvent.KEYCODE_H &&
+                    !isCtrl && !isShift && isAlt && !isMeta &&
+                    uiState.appState == AppState.REGULAR -> {
+                BrowserShortcut.GO_BACK
+            }
+
+            // alt + l goes forward on active tab without changing focus
+            event.keyCode == KeyEvent.KEYCODE_L &&
+                    !isCtrl && !isShift && isAlt && !isMeta &&
+                    uiState.appState == AppState.REGULAR -> {
+                BrowserShortcut.GO_FORWARD
+            }
+
+            // alt + j switches to next tab on same profile without changing focus
+            event.keyCode == KeyEvent.KEYCODE_J &&
+                    !isCtrl && !isShift && isAlt && !isMeta &&
+                    !viewModel.isStandaloneMode.value &&
+                    uiState.appState == AppState.REGULAR -> {
+                BrowserShortcut.NEXT_TAB
+            }
+
+            // alt + k switches to previous tab on same profile without changing focus
+            event.keyCode == KeyEvent.KEYCODE_K &&
+                    !isCtrl && !isShift && isAlt && !isMeta &&
+                    !viewModel.isStandaloneMode.value &&
+                    uiState.appState == AppState.REGULAR -> {
+                BrowserShortcut.PREVIOUS_TAB
+            }
+
             // ctrl + enter opens url bar input in a new tab
             (event.keyCode == KeyEvent.KEYCODE_ENTER || event.keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) &&
                     isCtrl && !isShift && !isAlt && !isMeta &&
@@ -218,6 +248,38 @@ class KeyboardShortcutManager(private val context: Context) {
                     if (uiState.isFocusOnUrlTextField || uiState.isFocusOnIconUrlTextField) {
                         _shortcutEvents.tryEmit(BrowserShortcut.DISMISS_URL_BAR)
                     }
+                }
+            }
+
+            BrowserShortcut.GO_BACK -> {
+                viewModel.activeTab?.let { tab ->
+                    if (tab.canGoBack) {
+                        viewModel.geckoManager.getSession(tab).goBack(true)
+                    }
+                }
+            }
+
+            BrowserShortcut.GO_FORWARD -> {
+                viewModel.activeTab?.let { tab ->
+                    if (tab.canGoForward) {
+                        viewModel.geckoManager.getSession(tab).goForward(true)
+                    }
+                }
+            }
+
+            BrowserShortcut.NEXT_TAB -> {
+                val count = viewModel.tabs.size
+                if (count > 1) {
+                    val nextIndex = (viewModel.activeTabIndex.value + 1) % count
+                    viewModel.selectTab(nextIndex)
+                }
+            }
+
+            BrowserShortcut.PREVIOUS_TAB -> {
+                val count = viewModel.tabs.size
+                if (count > 1) {
+                    val prevIndex = (viewModel.activeTabIndex.value - 1 + count) % count
+                    viewModel.selectTab(prevIndex)
                 }
             }
         }

@@ -8,5 +8,9 @@ enum class BrowserShortcut {
     NEW_TAB,
     OPEN_URL_IN_NEW_TAB,
     CLOSE_TAB,
-    REOPEN_CLOSED_TAB
+    REOPEN_CLOSED_TAB,
+    GO_BACK,
+    GO_FORWARD,
+    NEXT_TAB,
+    PREVIOUS_TAB
 }
