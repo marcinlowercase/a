@@ -1091,11 +1091,19 @@ fun BrowserScreen(
     //endregion
 
     //region Panel Paddings
-    // If keyboard is displayed, only need the regular padding, no need extra padding
-    val floatingPanelBottomPaddingNoKeyboard = if (isEffectivelyFullscreen) {
-        webViewBottomPaddingFullscreen
+    // if keyboard is displayed, only need the regular padding, no need extra padding
+    val floatingPanelBottomPaddingNoKeyboard = if (settings.isEnabledImmersiveWebview) {
+        if (isEffectivelyFullscreen) {
+            cutoutBottom
+        } else {
+            innerPadding.calculateBottomPadding()
+        }
     } else {
-        webViewBottomPaddingRegular
+        if (isEffectivelyFullscreen) {
+            webViewBottomPaddingFullscreen
+        } else {
+            webViewBottomPaddingRegular
+        }
     }
     val floatingPanelBottomPadding by animateDpAsState(
         targetValue = if (isKeyboardVisible) (
