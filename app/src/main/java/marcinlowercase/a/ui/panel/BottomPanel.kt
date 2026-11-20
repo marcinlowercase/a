@@ -30,7 +30,6 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -123,7 +122,6 @@ import marcinlowercase.a.core.enum_class.BrowserShortcut
 import marcinlowercase.a.core.function.rememberIsStudioKeyboard
 import marcinlowercase.a.core.manager.KeyboardShortcutManager
 
-@OptIn(ExperimentalLayoutApi::class)
 @SuppressLint("FrequentlyChangingValue")
 @Composable
 fun BottomPanel(
@@ -811,7 +809,7 @@ fun BottomPanel(
                     val pendingUrlFocusAction by viewModel.keyboardShortcutManager.pendingUrlFocusAction.collectAsState()
                     LaunchedEffect(pendingUrlFocusAction) {
                         if (pendingUrlFocusAction != null) {
-                            // wait one frame so url bar textfield is attached before requesting focus
+                            // wait one frame so url bar text field is attached before requesting focus
                             withFrameNanos {}
                             geckoViewRef.value?.clearFocus()
                             urlBarFocusRequester.requestFocus()
@@ -1004,7 +1002,6 @@ fun BottomPanel(
                                     .focusRequester(urlBarFocusRequester)
 
                                     .onFocusChanged { focusState ->
-                                        val resetUrl = viewModel.activeTab!!.currentURL
                                         viewModel.updateUI { it.copy(isFocusOnUrlTextField = focusState.isFocused) }
 
                                         if (focusState.isFocused) {
