@@ -201,6 +201,10 @@ import marcinlowercase.a.ui.panel.VideoStatusAction
 import marcinlowercase.a.core.enum_class.MediaControlMode
 import marcinlowercase.a.ui.panel.VideoSeekBar
 import marcinlowercase.a.core.constant.leave_site_permission
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 
 //region Composable
 
@@ -3113,7 +3117,7 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
             }
         }
 
-        LaunchedEffect(shakeTrigger, uiState.value.isBottomPanelVisible) {
+        LaunchedEffect(shakeTrigger, isShakeHighlightActive, uiState.value.isBottomPanelVisible) {
             if (uiState.value.isBottomPanelVisible) {
                 isShakeHighlightActive = false
                 return@LaunchedEffect
@@ -3121,8 +3125,13 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
             if (shakeTrigger > 0 && isShakeHighlightActive) {
                 squareAlpha.animateTo(1f, animationSpec = tween(200))
                 delay(5000)
-                isShakeHighlightActive = false
-                squareAlpha.animateTo(settings.backSquareIdleOpacity, animationSpec = tween(400))
+                if (isShakeHighlightActive) {
+                    isShakeHighlightActive = false
+                    squareAlpha.animateTo(
+                        settingsState.value.backSquareIdleOpacity,
+                        animationSpec = tween(400)
+                    )
+                }
             }
         }
         LaunchedEffect(viewModel.pendingPermissionRequest.value) {
@@ -3369,7 +3378,7 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                 }
             }
 
-            // WebView
+            // webview
             AnimatedVisibility(
                 visible = !isFirstModeLoad,
                 enter = slideInVertically(
@@ -3388,9 +3397,30 @@ LaunchedEffect(viewModel.activeTab?.id, currentDomain) {
                 Box(
                     modifier = modifier
                         .fillMaxSize()
+                        .pointerInput(Unit) {
+                            awaitEachGesture {
+                                awaitFirstDown(
+                                    requireUnconsumed = false,
+                                    pass = PointerEventPass.Initial
+                                )
+                                if (isShakeHighlightActive) {
+                                    // clear dim immediately on finger down anywhere on screen without consuming touch
+                                    isShakeHighlightActive = false
+                                    do {
+                                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                                    } while (event.changes.any { it.pressed })
 
-
-//                .padding(top = cutoutTop, bottom = cutoutBottom)
+                                    if (!uiState.value.isBottomPanelVisible && !uiState.value.isCursorPadVisible) {
+                                        coroutineScope.launch {
+                                            squareAlpha.animateTo(
+                                                settingsState.value.backSquareIdleOpacity,
+                                                animationSpec = tween(400)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
                 ) {
 
                     Column(
