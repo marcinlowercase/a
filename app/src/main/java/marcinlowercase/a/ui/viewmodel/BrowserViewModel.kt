@@ -2814,6 +2814,9 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     val screenSize = mutableStateOf(IntSize.Zero)
     val screenSizeDp = mutableStateOf(IntSize.Zero)
 
+    var lastMouseWheelScrollMs: Long = 0L
+    var lastMouseWheelDirection: Int = 0
+
     val backgroundColor = mutableStateOf(Color.Black)
     val sampledTopBarColor = mutableStateOf(Color.Black)
     val sampledBottomBarColor = mutableStateOf(Color.Black)

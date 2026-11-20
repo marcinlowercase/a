@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
@@ -36,7 +37,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,7 +48,9 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
+import marcinlowercase.a.core.function.mouseHorizontalPagerScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -139,6 +145,7 @@ fun AppsPanel(
 
         HorizontalPager(
             state = pagerState,
+            modifier = Modifier.mouseHorizontalPagerScroll(pagerState, enabled = realPageCount > 1),
             userScrollEnabled = realPageCount > 1
         ) { page ->
             val safeCount = realPageCount.coerceAtLeast(1)
@@ -159,12 +166,47 @@ fun AppsPanel(
                 val pageAppsKey = pageApps.map { it.id }.hashCode()
 
                 androidx.compose.runtime.key(pageProfile.id, pageAppsKey) {
+                    val gridState = rememberLazyGridState()
+
                     LazyVerticalGrid(
+                        state = gridState,
                         columns = GridCells.Fixed(4),
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(maxPanelHeight)
                             .focusProperties { canFocus = false }
+                            .pointerInput(gridState) {
+                                awaitPointerEventScope {
+                                    while (true) {
+                                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                                        if (event.type == PointerEventType.Scroll) {
+                                            val change = event.changes.firstOrNull() ?: continue
+                                            val dy = change.scrollDelta.y
+                                            if (dy != 0f && kotlin.math.abs(dy) >= kotlin.math.abs(change.scrollDelta.x)) {
+                                                val now = System.currentTimeMillis()
+                                                val dir = if (dy > 0f) 1 else -1
+                                                val isNewRoll = (dir != viewModel.lastMouseWheelDirection) ||
+                                                    (now - viewModel.lastMouseWheelScrollMs >= 150L)
+                                                viewModel.lastMouseWheelScrollMs = now
+                                                viewModel.lastMouseWheelDirection = dir
+
+                                                if (dy < 0f && uiState.value.isAppsPanelVisible && !gridState.canScrollBackward) {
+                                                    // consume trailing events at top so collapsing requires a new scroll roll
+                                                    change.consume()
+                                                    if (isNewRoll) {
+                                                        viewModel.updateUI {
+                                                            it.copy(
+                                                                isOptionsPanelVisible = true,
+                                                                isAppsPanelVisible = false
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                             .padding(horizontal = settings.value.padding.dp)
                             .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp))
                             .background(MaterialTheme.colorScheme.inverseSurface)

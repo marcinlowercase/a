@@ -26,7 +26,9 @@ import androidx.compose.foundation.gestures.anchoredDraggable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -271,9 +273,73 @@ fun BottomPanel(
                         state = draggableState,
                         orientation = Orientation.Vertical,
                         flingBehavior = flingBehavior,
-//                        enabled = uiState.value.isUrlBarVisible && (!uiState.value.isFocusOnTextField && viewModel.contextMenuData.value == null && !uiState.value.isPromptPanelVisible && !uiState.value.isPermissionPanelVisible && !uiState.value.isEnteringLoginCode)
                         enabled = isDragEnabled
                     )
+                    .pointerInput(isDragEnabled) {
+                        if (!isDragEnabled) return@pointerInput
+                        awaitPointerEventScope {
+                            while (true) {
+                                val event = awaitPointerEvent(PointerEventPass.Final)
+                                if (event.type == PointerEventType.Scroll) {
+                                    val change = event.changes.firstOrNull() ?: continue
+                                    if (change.isConsumed) continue
+                                    val dy = change.scrollDelta.y
+                                    if (dy != 0f && kotlin.math.abs(dy) >= kotlin.math.abs(change.scrollDelta.x)) {
+                                        val now = System.currentTimeMillis()
+                                        val dir = if (dy > 0f) 1 else -1
+                                        val isNewRoll = (dir != viewModel.lastMouseWheelDirection) ||
+                                            (now - viewModel.lastMouseWheelScrollMs >= 150L)
+                                        viewModel.lastMouseWheelScrollMs = now
+                                        viewModel.lastMouseWheelDirection = dir
+                                        if (isNewRoll) {
+                                            val current = viewModel.uiState.value
+                                            if (dy > 0f) {
+                                                // natural scroll down reveals options then apps panel
+                                                when {
+                                                    !current.isOptionsPanelVisible -> {
+                                                        viewModel.updateUI {
+                                                            it.copy(
+                                                                isOptionsPanelVisible = true,
+                                                                isAppsPanelVisible = false
+                                                            )
+                                                        }
+                                                    }
+                                                    !current.isAppsPanelVisible -> {
+                                                        viewModel.updateUI {
+                                                            it.copy(
+                                                                isOptionsPanelVisible = true,
+                                                                isAppsPanelVisible = true
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            } else {
+                                                // natural scroll up collapses apps then options panel
+                                                when {
+                                                    current.isAppsPanelVisible -> {
+                                                        viewModel.updateUI {
+                                                            it.copy(
+                                                                isOptionsPanelVisible = true,
+                                                                isAppsPanelVisible = false
+                                                            )
+                                                        }
+                                                    }
+                                                    current.isOptionsPanelVisible -> {
+                                                        viewModel.updateUI {
+                                                            it.copy(
+                                                                isOptionsPanelVisible = false,
+                                                                isAppsPanelVisible = false
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
 
             ) {
 

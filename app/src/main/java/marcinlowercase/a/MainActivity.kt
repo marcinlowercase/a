@@ -509,6 +509,59 @@ class MainActivity : ComponentActivity() {
         return viewModel.keyboardShortcutManager.handleKeyEvent(event, viewModel) || super.dispatchKeyEvent(event)
     }
 
+    override fun dispatchGenericMotionEvent(ev: MotionEvent): Boolean {
+        if (ev.actionMasked == MotionEvent.ACTION_SCROLL &&
+            (ev.metaState and KeyEvent.META_SHIFT_ON) != 0 &&
+            ev.getAxisValue(MotionEvent.AXIS_HSCROLL) == 0f
+        ) {
+            val vScroll = ev.getAxisValue(MotionEvent.AXIS_VSCROLL)
+            if (vScroll != 0f) {
+                val converted = convertVerticalScrollToHorizontal(ev, -vScroll)
+                return try {
+                    super.dispatchGenericMotionEvent(converted)
+                } finally {
+                    converted.recycle()
+                }
+            }
+        }
+        return super.dispatchGenericMotionEvent(ev)
+    }
+
+    private fun convertVerticalScrollToHorizontal(ev: MotionEvent, hScroll: Float): MotionEvent {
+        val pointerCount = ev.pointerCount
+        val properties = Array(pointerCount) { i ->
+            MotionEvent.PointerProperties().also { ev.getPointerProperties(i, it) }
+        }
+        val coords = Array(pointerCount) { i ->
+            MotionEvent.PointerCoords().also {
+                ev.getPointerCoords(i, it)
+                if (i == 0) {
+                    it.setAxisValue(MotionEvent.AXIS_HSCROLL, hScroll)
+                    it.setAxisValue(MotionEvent.AXIS_VSCROLL, 0f)
+                }
+            }
+        }
+        val cleanMeta = ev.metaState and (
+            KeyEvent.META_SHIFT_ON or KeyEvent.META_SHIFT_LEFT_ON or KeyEvent.META_SHIFT_RIGHT_ON
+        ).inv()
+        return MotionEvent.obtain(
+            ev.downTime,
+            ev.eventTime,
+            ev.action,
+            pointerCount,
+            properties,
+            coords,
+            cleanMeta,
+            ev.buttonState,
+            ev.xPrecision,
+            ev.yPrecision,
+            ev.deviceId,
+            ev.edgeFlags,
+            ev.source,
+            ev.flags
+        )
+    }
+
 
     //region Intent
     //region Intent

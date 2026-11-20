@@ -50,6 +50,7 @@ import marcinlowercase.a.core.function.getFaviconUrlFromGoogleServer
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.res.stringResource
+import marcinlowercase.a.core.function.mouseHorizontalPagerScroll
 import marcinlowercase.a.core.function.toDomain
 
 @Composable
@@ -257,7 +258,9 @@ fun TabsPanel(
         ) {
             HorizontalPager(
                 state = pagerState,
-                modifier = modifier.fillMaxWidth(),
+                modifier = modifier
+                    .fillMaxWidth()
+                    .mouseHorizontalPagerScroll(pagerState),
                 contentPadding = PaddingValues(horizontal = settings.value.padding.dp * 4),
                 pageSpacing = settings.value.padding.dp / 2
             ) { pageIndex ->

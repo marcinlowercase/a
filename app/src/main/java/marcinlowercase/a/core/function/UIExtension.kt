@@ -36,11 +36,17 @@ import android.database.ContentObserver
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.composed
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.platform.LocalContext
 @Composable
 fun Modifier.buttonSettingsForLayer(
@@ -374,4 +380,40 @@ fun rememberIsStudioKeyboard(): Boolean {
     }
 
     return isStudioKeyboard
+}
+
+fun Modifier.mouseHorizontalPagerScroll(
+    pagerState: PagerState,
+    enabled: Boolean = true
+): Modifier = composed {
+    if (!enabled) return@composed this
+    val scope = rememberCoroutineScope()
+    var lastScrollTimeMs by remember { mutableLongStateOf(0L) }
+
+    this.pointerInput(pagerState) {
+        awaitPointerEventScope {
+            while (true) {
+                val event = awaitPointerEvent(PointerEventPass.Initial)
+                if (event.type == PointerEventType.Scroll) {
+                    val change = event.changes.firstOrNull() ?: continue
+                    val dx = change.scrollDelta.x
+                    if (dx != 0f) {
+                        change.consume()
+                        val now = System.currentTimeMillis()
+                        if (now - lastScrollTimeMs >= 120L) {
+                            lastScrollTimeMs = now
+                            val direction = if (dx > 0f) 1 else -1
+                            val target = (pagerState.targetPage + direction)
+                                .coerceIn(0, (pagerState.pageCount - 1).coerceAtLeast(0))
+                            if (target != pagerState.targetPage) {
+                                scope.launch {
+                                    pagerState.animateScrollToPage(target)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

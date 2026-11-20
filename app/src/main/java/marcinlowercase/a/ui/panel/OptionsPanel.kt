@@ -92,6 +92,7 @@ import marcinlowercase.a.core.enum_class.SharpMode
 import marcinlowercase.a.core.enum_class.WindowMode
 import kotlin.time.Duration.Companion.milliseconds
 import marcinlowercase.a.core.enum_class.PipAction
+import marcinlowercase.a.core.function.mouseHorizontalPagerScroll
 
 
 enum class SettingPanelView {
@@ -633,7 +634,10 @@ fun OptionsPanel(
     if (displayOptions.isNotEmpty()) {
         Box(modifier = Modifier.fillMaxWidth()) {
             HorizontalPager(
-                state = pagerState, modifier = Modifier.fillMaxWidth(),
+                state = pagerState,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .mouseHorizontalPagerScroll(pagerState, enabled = realPageCount > 1),
                 userScrollEnabled = realPageCount > 1
             ) { pageIndex ->
                 val actualPageIndex = if (realPageCount > 0) pageIndex % realPageCount else 0
@@ -870,7 +874,9 @@ fun SettingsPanel(
                         if (displayOptions.isNotEmpty()) {
                             HorizontalPager(
                                 state = pagerState,
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .mouseHorizontalPagerScroll(pagerState, enabled = realPageCount > 1),
                                 userScrollEnabled = realPageCount > 1
                             ) { pageIndex ->
                                 val actualPageIndex =
