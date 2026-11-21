@@ -191,10 +191,11 @@ fun rememberBrowserOptionsRegistry(
                 contentDescription = R.string.desc_find_in_page,
                 enabled = uiState.value.isFindInPageVisible
             ) {
+                val keepOptionsInLandscape = uiState.value.isLandscape && !uiState.value.isOnFullscreenVideo
                 viewModel.updateUI {
                     it.copy(
                         isFindInPageVisible = !it.isFindInPageVisible,
-                        isOptionsPanelVisible = false,
+                        isOptionsPanelVisible = if (keepOptionsInLandscape) it.isOptionsPanelVisible else false,
                         isAppsPanelVisible = false
                     )
                 }
@@ -628,11 +629,18 @@ fun OptionsPanel(
 
     val optionPages = displayOptions.chunked(4)
     val realPageCount = optionPages.size
+    val savedPageOffset = if (realPageCount > 0) viewModel.lastOptionsPanelPage.coerceIn(0, realPageCount - 1) else 0
     val initialInfinitePage =
-        if (realPageCount > 0) (Int.MAX_VALUE / 2) - ((Int.MAX_VALUE / 2) % realPageCount) else 0
+        if (realPageCount > 0) (Int.MAX_VALUE / 2) - ((Int.MAX_VALUE / 2) % realPageCount) + savedPageOffset else 0
 
     val pagerState =
         rememberPagerState(initialPage = initialInfinitePage, pageCount = { Int.MAX_VALUE })
+
+    LaunchedEffect(pagerState.currentPage, realPageCount) {
+        if (realPageCount > 0) {
+            viewModel.lastOptionsPanelPage = pagerState.currentPage % realPageCount
+        }
+    }
 
     val actualPageIndexForSync =
         if (realPageCount > 0) pagerState.currentPage % realPageCount else 0
@@ -919,11 +927,20 @@ fun SettingsPanel(
 
     val optionPages = displayOptions.chunked(4)
     val realPageCount = optionPages.size
+    val savedPageOffset = if (realPageCount > 0) viewModel.lastSettingsPanelPage.coerceIn(0, realPageCount - 1) else 0
     val initialInfinitePage =
-        if (realPageCount > 0) (Int.MAX_VALUE / 2) - ((Int.MAX_VALUE / 2) % realPageCount) else 0
+        if (realPageCount > 0) (Int.MAX_VALUE / 2) - ((Int.MAX_VALUE / 2) % realPageCount) + savedPageOffset else 0
 
     val pagerState =
         rememberPagerState(initialPage = initialInfinitePage, pageCount = { Int.MAX_VALUE })
+
+    if (!renderSubViewsOnly) {
+        LaunchedEffect(pagerState.currentPage, realPageCount) {
+            if (realPageCount > 0) {
+                viewModel.lastSettingsPanelPage = pagerState.currentPage % realPageCount
+            }
+        }
+    }
     val inspectingOpt = viewModel.inspectingOption.value
     LaunchedEffect(inspectingOpt, displayOptions) {
         if (inspectingOpt != null && displayOptions.isNotEmpty() && realPageCount > 0) {

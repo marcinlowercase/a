@@ -371,11 +371,9 @@ fun BottomPanel(
                                 animationSpec = tween(settings.value.animationSpeedForLayer(1))
                             )
                         }
-                    } else if (isLandscapeCol2Open) {
+                    } else if (isLandscapeCol2Open && landscapeOptionsDraggableState.currentValue != RevealState.Visible) {
                         snappedForCol2Only = true
-                        if (landscapeOptionsDraggableState.currentValue != RevealState.Visible) {
-                            landscapeOptionsDraggableState.snapTo(RevealState.Visible)
-                        }
+                        landscapeOptionsDraggableState.snapTo(RevealState.Visible)
                     }
                 } else {
                     if (snappedForCol2Only) {
@@ -570,7 +568,12 @@ fun BottomPanel(
                         when {
                             uiState.value.isCreatingProfile -> {
                                 viewModel.createNewProfile()
-                                viewModel.updateUI { it.copy(isAppsPanelVisible = true) }
+                                viewModel.updateUI {
+                                    it.copy(
+                                        isCreatingProfile = false,
+                                        isAppsPanelVisible = true
+                                    )
+                                }
                             }
 
                             uiState.value.isPinningApp -> {
@@ -583,6 +586,12 @@ fun BottomPanel(
                             }
 
                             uiState.value.isRenamingProfile -> {
+                                viewModel.updateUI {
+                                    it.copy(
+                                        isRenamingProfile = false,
+                                        isAppsPanelVisible = true
+                                    )
+                                }
                             }
 
                             else -> activeSession.reload()
@@ -591,21 +600,33 @@ fun BottomPanel(
                         focusManager.clearFocus()
                         keyboardController?.hide()
                         val liveUrl = viewModel.activeTab?.currentURL ?: ""
-                        textFieldState.setTextAndPlaceCursorAtEnd(
-                            LocalAppServer.formatForDisplay(liveUrl)
-                        )
+                        textFieldState.setTextAndPlaceCursorAtEnd(liveUrl.toDomain())
                         viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
                     }
                 } else {
                     when {
                         uiState.value.isRenamingProfile -> {
                             viewModel.renameProfile(input)
-                            viewModel.updateUI { it.copy(isAppsPanelVisible = true) }
+                            val liveUrl = viewModel.activeTab?.currentURL ?: ""
+                            textFieldState.setTextAndPlaceCursorAtEnd(liveUrl.toDomain())
+                            viewModel.updateUI {
+                                it.copy(
+                                    isRenamingProfile = false,
+                                    isAppsPanelVisible = true
+                                )
+                            }
                         }
 
                         uiState.value.isCreatingProfile -> {
                             viewModel.createNewProfile(input)
-                            viewModel.updateUI { it.copy(isAppsPanelVisible = true) }
+                            val liveUrl = viewModel.activeTab?.currentURL ?: ""
+                            textFieldState.setTextAndPlaceCursorAtEnd(liveUrl.toDomain())
+                            viewModel.updateUI {
+                                it.copy(
+                                    isCreatingProfile = false,
+                                    isAppsPanelVisible = true
+                                )
+                            }
                         }
 
                         uiState.value.isPinningApp -> {
@@ -786,14 +807,23 @@ fun BottomPanel(
                     } else {
                         if (currentUi.isFindInPageVisible) {
                             viewModel.findInPageTextFieldState.setTextAndPlaceCursorAtEnd(typedText)
+                        } else if (currentUi.isPinningApp || currentUi.isCreatingProfile || currentUi.isRenamingProfile) {
+                            hasLandscapeUrlDraft = false
+                            viewModel.keyboardShortcutManager.clearPendingNewTab()
+                            viewModel.updateUI {
+                                it.copy(
+                                    isPinningApp = false,
+                                    isCreatingProfile = false,
+                                    isRenamingProfile = false
+                                )
+                            }
+                            val liveUrl = viewModel.activeTab?.currentURL ?: ""
+                            textFieldState.setTextAndPlaceCursorAtEnd(liveUrl.toDomain())
                         } else if (typedText.isNotBlank()) {
                             hasLandscapeUrlDraft = true
                         } else {
                             hasLandscapeUrlDraft = false
                             viewModel.keyboardShortcutManager.clearPendingNewTab()
-                            if (currentUi.isPinningApp) viewModel.updateUI { it.copy(isPinningApp = false) }
-                            if (currentUi.isCreatingProfile) viewModel.updateUI { it.copy(isCreatingProfile = false) }
-                            if (currentUi.isRenamingProfile) viewModel.updateUI { it.copy(isRenamingProfile = false) }
                             val liveUrl = viewModel.activeTab?.currentURL ?: ""
                             textFieldState.setTextAndPlaceCursorAtEnd(liveUrl.toDomain())
                         }

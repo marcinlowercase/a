@@ -2817,6 +2817,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     var lastMouseWheelScrollMs: Long = 0L
     var lastMouseWheelDirection: Int = 0
+    var lastOptionsPanelPage: Int = 0
+    var lastSettingsPanelPage: Int = 0
 
     val landscapeInputSession = mutableStateOf<LandscapeInputSession?>(null)
     val requestedManualOrientation = mutableStateOf<Int?>(null)
