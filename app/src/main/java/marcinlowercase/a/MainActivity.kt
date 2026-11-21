@@ -1036,7 +1036,8 @@ fun BrowserScreen(
     }
 
     val hasSharpTopCorners = sharpMode != SharpMode.ROUND
-    val hasSharpBottomCorners = sharpMode == SharpMode.SHARP
+    val hasSharpBottomCorners =
+        sharpMode == SharpMode.SHARP || (sharpMode == SharpMode.SEMI_SHARP && uiState.value.isLandscape)
 
     val animatedTopCornerRadius by animateDpAsState(
         targetValue = if (isPipMode || hasSharpTopCorners) 0.dp else settings.cornerRadiusForLayer(0).dp,
