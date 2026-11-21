@@ -255,6 +255,12 @@ fun parseHexColorOrNull(hex: String?): Color? {
     }
 }
 
+private data class EdgeSample(
+    val color: Color,
+    val usedJsFallback: Boolean,
+    val hasPixelSample: Boolean
+)
+
 fun extractEdgeColorsFromBitmap(
     bitmap: Bitmap,
     jsTopBg: Color? = null,
@@ -264,12 +270,24 @@ fun extractEdgeColorsFromBitmap(
     if (bitmap.width <= 0 || height <= 0) {
         return (jsTopBg ?: Color.Black) to (jsBottomBg ?: Color.Black)
     }
-    val topColor = sampleEdgeColor(bitmap, listOf(1, 3), jsTopBg)
-    val bottomColor = sampleEdgeColor(bitmap, listOf(height - 2, height - 4), jsBottomBg)
+    val topSample = sampleEdgeColor(bitmap, listOf(1, 3), jsTopBg)
+    val bottomSample = sampleEdgeColor(bitmap, listOf(height - 2, height - 4), jsBottomBg)
+
+    // if one side fell back to js background, reuse the sampled pixel color from the other side
+    val topColor = if (topSample.usedJsFallback && !bottomSample.usedJsFallback && bottomSample.hasPixelSample) {
+        bottomSample.color
+    } else {
+        topSample.color
+    }
+    val bottomColor = if (bottomSample.usedJsFallback && !topSample.usedJsFallback && topSample.hasPixelSample) {
+        topSample.color
+    } else {
+        bottomSample.color
+    }
     return topColor to bottomColor
 }
 
-private fun sampleEdgeColor(bitmap: Bitmap, ys: List<Int>, jsFallbackColor: Color?): Color {
+private fun sampleEdgeColor(bitmap: Bitmap, ys: List<Int>, jsFallbackColor: Color?): EdgeSample {
     val width = bitmap.width
     val height = bitmap.height
     val sampleCount = 32
@@ -314,9 +332,19 @@ private fun sampleEdgeColor(bitmap: Bitmap, ys: List<Int>, jsFallbackColor: Colo
         }
     }
 
-    if (totalOpaque == 0) return jsFallbackColor ?: Color.Black
+    if (totalOpaque == 0) {
+        return EdgeSample(
+            color = jsFallbackColor ?: Color.Black,
+            usedJsFallback = jsFallbackColor != null,
+            hasPixelSample = false
+        )
+    }
 
-    val winningEntry = bucketCounts.maxByOrNull { it.value } ?: return jsFallbackColor ?: Color.Black
+    val winningEntry = bucketCounts.maxByOrNull { it.value } ?: return EdgeSample(
+        color = jsFallbackColor ?: Color.Black,
+        usedJsFallback = jsFallbackColor != null,
+        hasPixelSample = false
+    )
     val winningKey = winningEntry.key
     val winningCount = winningEntry.value
     val winningRatio = winningCount.toFloat() / totalOpaque
@@ -333,22 +361,38 @@ private fun sampleEdgeColor(bitmap: Bitmap, ys: List<Int>, jsFallbackColor: Colo
     val rightMatchesWinner = rightKeys.any { it == winningKey }
 
     // use pixel dominant color only when it truly spans edge to edge
-    if (winningRatio >= 0.85f && leftMatchesWinner && rightMatchesWinner) {
-        return colorForKey(winningKey)
+// use pixel dominant color only when it truly spans edge to edge
+    if (winningRatio >= 0.51f && leftMatchesWinner && rightMatchesWinner) {        return EdgeSample(
+            color = colorForKey(winningKey),
+            usedJsFallback = false,
+            hasPixelSample = true
+        )
     }
 
-    // prefer js page background when a centered card touches the edge
+    // mark js background fallback so the other side's pixel sample can be reused
     if (jsFallbackColor != null) {
-        return jsFallbackColor
+        return EdgeSample(
+            color = jsFallbackColor,
+            usedJsFallback = true,
+            hasPixelSample = false
+        )
     }
 
     // fallback to matching outer edge pixel color for gradient or image backgrounds
     val sharedEdgeKey = leftKeys.firstOrNull { it in rightKeys }
     if (sharedEdgeKey != null) {
-        return colorForKey(sharedEdgeKey)
+        return EdgeSample(
+            color = colorForKey(sharedEdgeKey),
+            usedJsFallback = false,
+            hasPixelSample = true
+        )
     }
 
-    return colorForKey(winningKey)
+    return EdgeSample(
+        color = colorForKey(winningKey),
+        usedJsFallback = false,
+        hasPixelSample = true
+    )
 }
 
 
