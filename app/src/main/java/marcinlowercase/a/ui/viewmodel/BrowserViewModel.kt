@@ -2819,6 +2819,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     var lastMouseWheelDirection: Int = 0
 
     val landscapeInputSession = mutableStateOf<LandscapeInputSession?>(null)
+    val requestedManualOrientation = mutableStateOf<Int?>(null)
     val backgroundColor = mutableStateOf(Color.Black)
     val sampledTopBarColor = mutableStateOf(Color.Black)
     val sampledBottomBarColor = mutableStateOf(Color.Black)

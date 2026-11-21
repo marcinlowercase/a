@@ -1,6 +1,7 @@
 package marcinlowercase.a.ui.panel
 
 import android.annotation.SuppressLint
+import android.content.pm.ActivityInfo
 import android.os.Build
 import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
@@ -470,11 +471,15 @@ fun rememberBrowserOptionsRegistry(
                 id = BrowserOption.ROTATE,
                 iconRes = R.drawable.ic_screen_rotation_up,
                 contentDescription = R.string.desc_rotate,
-                enabled = uiState.value.isLandscapeByButton
+                enabled = uiState.value.isLandscape && !uiState.value.isOnFullscreenVideo
             ) {
+                viewModel.requestedManualOrientation.value = if (uiState.value.isLandscape) {
+                    ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                } else {
+                    ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                }
                 viewModel.updateUI {
                     it.copy(
-                        isLandscapeByButton = !it.isLandscapeByButton,
                         isOptionsPanelVisible = false,
                         isAppsPanelVisible = false
                     )

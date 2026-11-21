@@ -104,6 +104,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
@@ -428,7 +429,7 @@ class MainActivity : ComponentActivity() {
         }
 //        GeckoRuntime.getDefault(applicationContext)
 
-        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+
 
         createNotificationChannel(this)
 
@@ -1066,8 +1067,8 @@ fun BrowserScreen(
     val isEffectivelyFullscreen = when (uiState.value.windowMode) {
         WindowMode.FLOAT -> true
         WindowMode.SPLIT -> false
-        WindowMode.FULLSCREEN -> settings.isFullscreenMode
-    } || uiState.value.isOnFullscreenVideo || uiState.value.isLandscapeByButton
+        WindowMode.FULLSCREEN -> settings.isFullscreenMode || uiState.value.isLandscape
+    } || uiState.value.isOnFullscreenVideo
 
     // top padding
     val webViewTopPaddingFullscreen = if (hasSharpTopCorners && !uiState.value.isLandscape) {
@@ -2232,16 +2233,59 @@ fun BrowserScreen(
             }
         }
 
-        LaunchedEffect(activity.isInMultiWindowMode, isPipMode) {
+        LaunchedEffect(
+            viewModel.requestedManualOrientation.value,
+            uiState.value.isOnFullscreenVideo,
+            activity.isInMultiWindowMode,
+            isPipMode
+        ) {
             if (activity.isInPictureInPictureMode || isPipMode || mainActivity.isEnteringPip) {
                 return@LaunchedEffect
             }
-            if (!mainActivity.isCurrentlyFullscreen && !uiState.value.isOnFullscreenVideo && !uiState.value.isLandscapeByButton) {
-                activity.requestedOrientation = if (activity.isInMultiWindowMode) {
-                    ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-                } else {
-                    ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            if (uiState.value.isOnFullscreenVideo || mainActivity.isCurrentlyFullscreen) {
+                return@LaunchedEffect
+            }
+            val target = if (activity.isInMultiWindowMode) {
+                ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            } else {
+                viewModel.requestedManualOrientation.value ?: ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            }
+            if (activity.requestedOrientation != target) {
+                activity.requestedOrientation = target
+            }
+        }
+
+        val manualOrientationTarget = viewModel.requestedManualOrientation.value
+        DisposableEffect(manualOrientationTarget) {
+            if (manualOrientationTarget == null) {
+                return@DisposableEffect onDispose {}
+            }
+            val orientationListener = object : android.view.OrientationEventListener(context) {
+                override fun onOrientationChanged(orientation: Int) {
+                    if (orientation == ORIENTATION_UNKNOWN) return
+                    val autoRotateOn = android.provider.Settings.System.getInt(
+                        context.contentResolver,
+                        android.provider.Settings.System.ACCELEROMETER_ROTATION,
+                        0
+                    ) == 1
+                    if (!autoRotateOn) return
+
+                    val isPhysicalLandscape = (orientation in 60..120) || (orientation in 240..300)
+                    val isPhysicalPortrait = (orientation <= 30) || (orientation >= 330)
+
+                    val aligned = (manualOrientationTarget == ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE && isPhysicalLandscape) ||
+                        (manualOrientationTarget == ActivityInfo.SCREEN_ORIENTATION_PORTRAIT && isPhysicalPortrait)
+
+                    if (aligned) {
+                        viewModel.requestedManualOrientation.value = null
+                    }
                 }
+            }
+            if (orientationListener.canDetectOrientation()) {
+                orientationListener.enable()
+            }
+            onDispose {
+                orientationListener.disable()
             }
         }
 
@@ -2489,33 +2533,20 @@ fun BrowserScreen(
                 insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
             }
         }
-        LaunchedEffect(uiState.value.isLandscapeByButton, uiState.value.isOnFullscreenVideo) {
-            val nextLandscape = uiState.value.isLandscapeByButton || uiState.value.isOnFullscreenVideo
+        val configuration = LocalConfiguration.current
+        val isSystemLandscape =
+            configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+
+        LaunchedEffect(isSystemLandscape, uiState.value.isOnFullscreenVideo) {
+            val nextLandscape = isSystemLandscape || uiState.value.isOnFullscreenVideo
             viewModel.updateUI { it.copy(isLandscape = nextLandscape) }
             if (!nextLandscape) {
                 viewModel.landscapeInputSession.value = null
             }
         }
-             LaunchedEffect(uiState.value.isLandscapeByButton) {
-            if (uiState.value.isLandscapeByButton) {
-                activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-            } else {
-                activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-            }
-        }
 
         LaunchedEffect(uiState.value.isOnFullscreenVideo) {
             viewModel.updateUI { it.copy(isMediaControlPanelVisible = uiState.value.isOnFullscreenVideo) }
-
-//            viewModel.updateSettings { it.copy(isFullscreenMode = uiState.value.isOnFullscreenVideo) }
-            if (uiState.value.isOnFullscreenVideo) {
-//                gestureManager.ensureFullscreenBrightness()
-            } else {
-                if (activity.requestedOrientation != ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) {
-                    activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                }
-            }
-
         }
         LaunchedEffect(uiState.value.isFocusOnTextField, uiState.value.isPromptPanelVisible) {
             if ((!uiState.value.isFocusOnTextField && !uiState.value.isPromptPanelVisible)) {
@@ -2989,11 +3020,9 @@ fun BrowserScreen(
                                 )
                             }
                                } else {
-                            activity.requestedOrientation = if (uiState.value.isLandscapeByButton) {
-                                ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-                            } else {
-                                ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                            }
+                            activity.requestedOrientation =
+                                viewModel.requestedManualOrientation.value
+                                    ?: ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
                             if (!isEffectivelyFullscreen) {
                                 insetsController.show(WindowInsetsCompat.Type.systemBars())
                                 insetsController.systemBarsBehavior =
@@ -3420,16 +3449,8 @@ fun BrowserScreen(
         BackHandler(enabled = true) {
             when {
 
-                // when full screen video ( 100 % landscape mode)
+                // when full screen video
                 uiState.value.isOnFullscreenVideo -> activeSession.exitFullScreen()
-
-                // landscape mode but not video
-                activity.requestedOrientation != ActivityInfo.SCREEN_ORIENTATION_PORTRAIT -> {
-                    activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                    if (uiState.value.isLandscapeByButton) {
-                        viewModel.updateUI { it.copy(isLandscapeByButton = false) }
-                    }
-                }
 
                 viewModel.confirmationState.value != null -> {
                     viewModel.confirmationState.value = null
