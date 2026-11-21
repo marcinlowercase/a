@@ -106,12 +106,20 @@ data class BrowserSettings(
     fun getMaxListHeight(mode: WindowMode, isLandscape: Boolean = false): Float {
         return if (mode == WindowMode.SPLIT || isLandscape) minOf(maxListHeight, 1.0f) else maxListHeight
     }
+    fun getAppsListHeight(mode: WindowMode, isLandscape: Boolean = false): Float {
+        return when {
+            mode == WindowMode.SPLIT -> 1.0f
+            isLandscape -> 2.0f
+            else -> maxListHeight
+        }
+    }
     fun maxContainerSizeForLayer(
         layer: Int,
         mode: WindowMode = WindowMode.FULLSCREEN,
-        isLandscape: Boolean = false
+        isLandscape: Boolean = false,
+        listHeightOverride: Float? = null
     ): Float {
-        val listHeight = getMaxListHeight(mode, isLandscape)
+        val listHeight = listHeightOverride ?: getMaxListHeight(mode, isLandscape)
         val fullyDisplayRow = round(listHeight)
         val numberOfPaddings = fullyDisplayRow + if (ceil(listHeight) > listHeight) 2 else 1
 

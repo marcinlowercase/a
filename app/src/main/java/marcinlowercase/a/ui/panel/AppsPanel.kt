@@ -95,10 +95,13 @@ fun AppsPanel(
 //                settings.value.padding * numberOfPaddings
 //                ).dp
 
-  val maxPanelHeight = settings.value.maxContainerSizeForLayer(
+  val inLandscape = uiState.value.isLandscape && !uiState.value.isOnFullscreenVideo
+    val appsListHeight = settings.value.getAppsListHeight(uiState.value.windowMode, inLandscape)
+    val maxPanelHeight = settings.value.maxContainerSizeForLayer(
         3,
         uiState.value.windowMode,
-        uiState.value.isLandscape && !uiState.value.isOnFullscreenVideo
+        inLandscape,
+        listHeightOverride = appsListHeight
     ).dp
     val profiles = viewModel.profiles
     val realPageCount = profiles.size
@@ -562,13 +565,7 @@ fun AppsPanel(
                             }
                             visualItemCount++
                         }
-                      val minRows =
-                            ceil(
-                                settings.value.getMaxListHeight(
-                                    uiState.value.windowMode,
-                                    uiState.value.isLandscape && !uiState.value.isOnFullscreenVideo
-                                )
-                            ).toInt()
+                      val minRows = ceil(appsListHeight).toInt()
                         val currentRows = ceil(visualItemCount / 4f).toInt()
                         val targetRows = maxOf(minRows, currentRows)
                         val remainingPlaceholders =
