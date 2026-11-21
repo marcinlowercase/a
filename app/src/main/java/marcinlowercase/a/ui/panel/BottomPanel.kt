@@ -1560,6 +1560,28 @@ fun BottomPanel(
                                 onCurrentViewChange = { currentSettingView = it },
                                 renderSubViewsOnly = true
                             )
+                            SyncPanel(
+                                isVisible = uiState.value.isSyncPanelVisible,
+                                onDismiss = { viewModel.updateUI { it.copy(isSyncPanelVisible = false) } },
+                                onPush = {
+                                    confirmationPopup(R.string.confirm_push, "", { viewModel.triggerManualPush() }, {})
+                                },
+                                onPull = {
+                                    confirmationPopup(R.string.confirm_pull, "", { viewModel.triggerManualPull() }, {})
+                                },
+                                onMerge = {
+                                    confirmationPopup(R.string.confirm_merge, "", { viewModel.triggerSmartMerge() }, {})
+                                },
+                                onLogout = {
+                                    confirmationPopup(R.string.confirm_logout, viewModel.getLoggedInEmail(), { viewModel.logout() }, {})
+                                },
+                                onDeleteAccount = {
+                                    confirmationPopup(R.string.confirm_wipe_cloud_data, viewModel.getLoggedInEmail(), {
+                                        viewModel.triggerDeleteAccount()
+                                        viewModel.logout()
+                                    }, {})
+                                }
+                            )
                             suggestionsSection()
                             urlBarSection()
 
@@ -1612,7 +1634,7 @@ fun BottomPanel(
                             }
                         }
 
-                        // bottom-right half: tabs, media, permission, sync, context menu, confirmation, text edit
+                        // bottom-right half: tabs, media, permission, context menu, confirmation, text edit
                         Column(
                             modifier = Modifier
                                 .weight(1f)
@@ -1621,28 +1643,6 @@ fun BottomPanel(
                         ) {
                             ConfirmationPanel()
                             ContextMenuPanel(onDownload = onDownload)
-                            SyncPanel(
-                                isVisible = uiState.value.isSyncPanelVisible,
-                                onDismiss = { viewModel.updateUI { it.copy(isSyncPanelVisible = false) } },
-                                onPush = {
-                                    confirmationPopup(R.string.confirm_push, "", { viewModel.triggerManualPush() }, {})
-                                },
-                                onPull = {
-                                    confirmationPopup(R.string.confirm_pull, "", { viewModel.triggerManualPull() }, {})
-                                },
-                                onMerge = {
-                                    confirmationPopup(R.string.confirm_merge, "", { viewModel.triggerSmartMerge() }, {})
-                                },
-                                onLogout = {
-                                    confirmationPopup(R.string.confirm_logout, viewModel.getLoggedInEmail(), { viewModel.logout() }, {})
-                                },
-                                onDeleteAccount = {
-                                    confirmationPopup(R.string.confirm_wipe_cloud_data, viewModel.getLoggedInEmail(), {
-                                        viewModel.triggerDeleteAccount()
-                                        viewModel.logout()
-                                    }, {})
-                                }
-                            )
                             PermissionPanel(
                                 isUrlBarVisible = uiState.value.isUrlBarVisible,
                                 hasContentBelow = uiState.value.isTabsPanelVisible || isTextEditVisible,

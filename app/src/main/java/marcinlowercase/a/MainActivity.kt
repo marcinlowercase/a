@@ -1204,6 +1204,24 @@ fun BrowserScreen(
         animationSpec = tween(settings.animationSpeedForLayer(1)),
         label = "Floating Panel Padding Animation"
     )
+    val floatingPanelStartPadding by animateDpAsState(
+        targetValue = when {
+            uiState.value.isSettingCornerRadius || isPipMode -> 0.dp
+            settings.isEnabledImmersiveWebview -> cutoutLeft
+            else -> targetWebViewStartPadding
+        },
+        animationSpec = paddingAnimationSpec,
+        label = "Floating Panel Start Padding Animation"
+    )
+    val floatingPanelEndPadding by animateDpAsState(
+        targetValue = when {
+            uiState.value.isSettingCornerRadius || isPipMode -> 0.dp
+            settings.isEnabledImmersiveWebview -> cutoutRight
+            else -> targetWebViewEndPadding
+        },
+        animationSpec = paddingAnimationSpec,
+        label = "Floating Panel End Padding Animation"
+    )
     //endregion
 
 
@@ -4091,8 +4109,8 @@ fun BrowserScreen(
                             modifier = Modifier
                                 .padding(
                                     PaddingValues(
-                                        start = webViewStartPadding,
-                                        end = webViewEndPadding,
+                                        start = floatingPanelStartPadding,
+                                        end = floatingPanelEndPadding,
                                         bottom = 0.dp,
                                         top = 0.dp
                                     )
@@ -4199,8 +4217,8 @@ fun BrowserScreen(
                             modifier = Modifier
                                 .padding(
                                     PaddingValues(
-                                        start = webViewStartPadding,
-                                        end = webViewEndPadding,
+                                        start = floatingPanelStartPadding,
+                                        end = floatingPanelEndPadding,
                                         bottom = 0.dp,
                                         top = 0.dp
                                     )
