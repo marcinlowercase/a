@@ -34,11 +34,8 @@ import kotlin.math.roundToInt
 @Composable
 fun PermissionPanel(
     isUrlBarVisible: Boolean,
-    // The pending request, which also controls visibility. Null means hidden.
-    // Event for when the user clicks "Allow" on our panel.
     onAllow: () -> Unit,
-    // Event for when the user clicks "Deny" on our panel.
-
+    hasContentBelow: Boolean = isUrlBarVisible,
 ) {
     val viewModel = LocalBrowserViewModel.current
     val uiState = viewModel.uiState.collectAsState()
@@ -70,7 +67,7 @@ fun PermissionPanel(
                 .fillMaxWidth()
                 .padding(horizontal = settings.value.padding.dp)
                 .padding(
-                    bottom = if (!isUrlBarVisible) settings.value.padding.dp else 0.dp,
+                    bottom = if (!hasContentBelow) settings.value.padding.dp else 0.dp,
                     top = settings.value.padding.dp,
                 )
 

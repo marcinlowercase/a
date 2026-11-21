@@ -34,6 +34,7 @@ fun TextEditPanel(
     onDismiss: () -> Unit,
     activeWebViewTitle: String,
     onAddToHomeScreen: () -> Unit,
+    isLandscapeLayout: Boolean = false,
 ) {
     val context = LocalContext.current
     val viewModel = LocalBrowserViewModel.current
@@ -55,7 +56,10 @@ fun TextEditPanel(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = settings.value.padding.dp)
-                .padding(bottom = settings.value.padding.dp)
+                .padding(
+                    top = if (isLandscapeLayout) settings.value.padding.dp else 0.dp,
+                    bottom = settings.value.padding.dp
+                )
                 .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp))
                 .height(settings.value.heightForLayer(3).dp + (settings.value.padding.dp * 2)) // Lock height to 1 row + padding
                 .padding(settings.value.padding.dp),

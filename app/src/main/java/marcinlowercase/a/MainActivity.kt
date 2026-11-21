@@ -2402,7 +2402,7 @@ fun BrowserScreen(
                 )
             }
         }
-        LaunchedEffect(
+         LaunchedEffect(
             uiState.value.isFocusOnUrlTextField,
             uiState.value.isTabsPanelVisible,
             uiState.value.isOptionsPanelVisible,
@@ -2410,14 +2410,18 @@ fun BrowserScreen(
             uiState.value.isDownloadPanelVisible,
             uiState.value.isSyncPanelVisible,
             uiState.value.isSettingsPanelVisible,
-            uiState.value.isTabDataPanelVisible
+            uiState.value.isTabDataPanelVisible,
+            uiState.value.isFindInPageVisible,
+            uiState.value.isLandscape
         ) {
             // if the user is currently typing in the url bar
             if (uiState.value.isFocusOnUrlTextField) {
+                val allowOptionsInLandscapeFind =
+                    uiState.value.isLandscape && !uiState.value.isOnFullscreenVideo && uiState.value.isFindInPageVisible
 
                 // check if any incompatible panel somehow managed to sneak open
                 val hasInvalidPanelOpen = uiState.value.isTabsPanelVisible ||
-                        uiState.value.isOptionsPanelVisible ||
+                        (!allowOptionsInLandscapeFind && uiState.value.isOptionsPanelVisible) ||
                         uiState.value.isAppsPanelVisible ||
                         uiState.value.isDownloadPanelVisible ||
                         uiState.value.isSettingsPanelVisible ||
@@ -2429,7 +2433,7 @@ fun BrowserScreen(
                     viewModel.updateUI {
                         it.copy(
                             isTabsPanelVisible = false,
-                            isOptionsPanelVisible = false,
+                            isOptionsPanelVisible = if (allowOptionsInLandscapeFind) it.isOptionsPanelVisible else false,
                             isAppsPanelVisible = false,
                             isDownloadPanelVisible = false,
                             isSyncPanelVisible = false,
@@ -2471,17 +2475,14 @@ fun BrowserScreen(
         LaunchedEffect(uiState.value.isLandscapeByButton, uiState.value.isOnFullscreenVideo) {
             viewModel.updateUI { it.copy(isLandscape = uiState.value.isLandscapeByButton || uiState.value.isOnFullscreenVideo) }
         }
-        LaunchedEffect(uiState.value.isLandscapeByButton) {
+             LaunchedEffect(uiState.value.isLandscapeByButton) {
             if (uiState.value.isLandscapeByButton) {
                 activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-                viewModel.updateUI { it.copy(isBottomPanelVisible = false) }
-                viewModel.updateUI { it.copy(isUrlBarVisible = false) }
             } else {
                 activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
             }
-
-//            viewModel.updateSettings { it.copy(isFullscreenMode = uiState.value.isLandscapeByButton) }
         }
+
         LaunchedEffect(uiState.value.isOnFullscreenVideo) {
             viewModel.updateUI { it.copy(isMediaControlPanelVisible = uiState.value.isOnFullscreenVideo) }
 
@@ -2966,19 +2967,12 @@ fun BrowserScreen(
                                     isBottomPanelVisible = false
                                 )
                             }
-                        } else {
-                            // Only exit landscape/immersive if NOT in PiP
-//                            if (!inPip) {
-
-                            if (uiState.value.isLandscapeByButton) viewModel.updateUI {
-                                it.copy(
-                                    isLandscapeByButton = false
-                                )
-                            }
-//                                gestureManager.resetBrightness()
-
-                            activity.requestedOrientation =
+                               } else {
+                            activity.requestedOrientation = if (uiState.value.isLandscapeByButton) {
+                                ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                            } else {
                                 ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                            }
                             if (!isEffectivelyFullscreen) {
                                 insetsController.show(WindowInsetsCompat.Type.systemBars())
                                 insetsController.systemBarsBehavior =
@@ -3279,10 +3273,10 @@ fun BrowserScreen(
         }
 
 
-        DisposableEffect(Unit) {
+           DisposableEffect(Unit) {
             val shakeDetector = ShakeDetector(context) {
                 if (!uiState.value.isBottomPanelVisible &&
-                    !uiState.value.isLandscape &&
+                    !uiState.value.isOnFullscreenVideo &&
                     !uiState.value.isOtherPanelVisible &&
                     !viewModel.isStandaloneMode.value &&
                     !mainActivity.isPipMode
@@ -4181,10 +4175,10 @@ fun BrowserScreen(
                             cursorPadHeight = cursorPadHeight,
                             geckoViewRef = geckoViewRef
                         )
-                        AnimatedVisibility(
+                              AnimatedVisibility(
                             visible = isShakeHighlightActive &&
                                     !uiState.value.isBottomPanelVisible &&
-                                    !uiState.value.isLandscape &&
+                                    !uiState.value.isOnFullscreenVideo &&
                                     !uiState.value.isOtherPanelVisible &&
                                     !viewModel.isStandaloneMode.value,
                             enter = fadeIn(tween(200)),

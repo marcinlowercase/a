@@ -64,8 +64,8 @@ fun DownloadPanel(
     onOpenFolderClicked: () -> Unit,
 ) {
     val viewModel = LocalBrowserViewModel.current
+    val uiState = viewModel.uiState.collectAsState()
     val settings = viewModel.browserSettings.collectAsState()
-
     // Cache the string resource for the popup lambda
 
     AnimatedVisibility(
@@ -105,7 +105,13 @@ fun DownloadPanel(
             if (!viewModel.downloads.isEmpty()) {
                 LazyColumn(
                     modifier = Modifier
-                        .heightIn(max = settings.value.maxContainerSizeForLayer(3).dp)
+                        .heightIn(
+                            max = settings.value.maxContainerSizeForLayer(
+                                3,
+                                uiState.value.windowMode,
+                                uiState.value.isLandscape && !uiState.value.isOnFullscreenVideo
+                            ).dp
+                        )
 
                         .padding(top = settings.value.padding.dp)
                         .padding(horizontal = settings.value.padding.dp)
@@ -187,7 +193,8 @@ fun DownloadRow(
     onClick: () -> Unit,
     onDeleteClicked: () -> Unit
 ) {
-    val viewModel = LocalBrowserViewModel.current
+  val viewModel = LocalBrowserViewModel.current
+    val uiState = viewModel.uiState.collectAsState()
     val settings = viewModel.browserSettings.collectAsState()
     var showDeleteConfirm by remember { mutableStateOf(false) }
 

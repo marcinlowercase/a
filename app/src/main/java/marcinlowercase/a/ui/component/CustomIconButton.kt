@@ -108,10 +108,11 @@ fun CustomIconButton(
 
             .then(sizeModifier)
 
-            .buttonSettingsForLayer(
+             .buttonSettingsForLayer(
                 layer,
                 settings.value,
-                animatedBackgroundColor
+                animatedBackgroundColor,
+                isLandscape = isLandscape || isSquare
             )
 
             .buttonPointerInput(

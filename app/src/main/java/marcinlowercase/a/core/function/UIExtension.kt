@@ -9,6 +9,7 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -52,7 +53,8 @@ import androidx.compose.ui.platform.LocalContext
 fun Modifier.buttonSettingsForLayer(
     layer: Int,
     browserSettings: BrowserSettings,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    isLandscape: Boolean = false
 ): Modifier = this.then(
     Modifier
         .clip(
@@ -60,7 +62,10 @@ fun Modifier.buttonSettingsForLayer(
                 browserSettings.cornerRadiusForLayer(layer).dp
             )
         )
-        .heightIn(min = browserSettings.heightForLayer(layer).dp)
+        .then(
+            if (isLandscape) Modifier.widthIn(min = browserSettings.heightForLayer(layer).dp)
+            else Modifier.heightIn(min = browserSettings.heightForLayer(layer).dp)
+        )
         .background(if (enabled) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
 )
 
@@ -68,7 +73,8 @@ fun Modifier.buttonSettingsForLayer(
 fun Modifier.buttonSettingsForLayer(
     layer: Int,
     browserSettings: BrowserSettings,
-    backgroundColor: Color
+    backgroundColor: Color,
+    isLandscape: Boolean = false
 ): Modifier = this.then(
     Modifier
         .clip(
@@ -76,7 +82,10 @@ fun Modifier.buttonSettingsForLayer(
                 browserSettings.cornerRadiusForLayer(layer).dp
             )
         )
-        .heightIn(min = browserSettings.heightForLayer(layer).dp)
+        .then(
+            if (isLandscape) Modifier.widthIn(min = browserSettings.heightForLayer(layer).dp)
+            else Modifier.heightIn(min = browserSettings.heightForLayer(layer).dp)
+        )
         .background(backgroundColor)
 )
 
@@ -447,6 +456,42 @@ fun Modifier.mouseHorizontalPagerScroll(
                         if (now - lastScrollTimeMs >= 120L) {
                             lastScrollTimeMs = now
                             val direction = if (dx > 0f) 1 else -1
+                            val target = (pagerState.targetPage + direction)
+                                .coerceIn(0, (pagerState.pageCount - 1).coerceAtLeast(0))
+                            if (target != pagerState.targetPage) {
+                                scope.launch {
+                                    pagerState.animateScrollToPage(target)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+fun Modifier.mouseVerticalPagerScroll(
+    pagerState: PagerState,
+    enabled: Boolean = true
+): Modifier = composed {
+    if (!enabled) return@composed this
+    val scope = rememberCoroutineScope()
+    var lastScrollTimeMs by remember { mutableLongStateOf(0L) }
+
+    this.pointerInput(pagerState) {
+        awaitPointerEventScope {
+            while (true) {
+                val event = awaitPointerEvent(PointerEventPass.Initial)
+                if (event.type == PointerEventType.Scroll) {
+                    val change = event.changes.firstOrNull() ?: continue
+                    val dy = change.scrollDelta.y
+                    if (dy != 0f && kotlin.math.abs(dy) >= kotlin.math.abs(change.scrollDelta.x)) {
+                        change.consume()
+                        val now = System.currentTimeMillis()
+                        if (now - lastScrollTimeMs >= 120L) {
+                            lastScrollTimeMs = now
+                            val direction = if (dy > 0f) 1 else -1
                             val target = (pagerState.targetPage + direction)
                                 .coerceIn(0, (pagerState.pageCount - 1).coerceAtLeast(0))
                             if (target != pagerState.targetPage) {

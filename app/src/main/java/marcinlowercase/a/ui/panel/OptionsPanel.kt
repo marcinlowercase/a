@@ -91,8 +91,15 @@ import androidx.compose.ui.platform.LocalContext
 import marcinlowercase.a.core.enum_class.SharpMode
 import marcinlowercase.a.core.enum_class.WindowMode
 import kotlin.time.Duration.Companion.milliseconds
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.VerticalPager
+import androidx.compose.ui.unit.Dp
 import marcinlowercase.a.core.enum_class.PipAction
 import marcinlowercase.a.core.function.mouseHorizontalPagerScroll
+import marcinlowercase.a.core.function.mouseVerticalPagerScroll
 
 
 enum class SettingPanelView {
@@ -178,10 +185,11 @@ fun rememberBrowserOptionsRegistry(
                 contentDescription = R.string.desc_find_in_page,
                 enabled = uiState.value.isFindInPageVisible
             ) {
+                val keepOptionsInLandscape = uiState.value.isLandscape && !uiState.value.isOnFullscreenVideo
                 viewModel.updateUI {
                     it.copy(
                         isFindInPageVisible = !it.isFindInPageVisible,
-                        isOptionsPanelVisible = false,
+                        isOptionsPanelVisible = if (keepOptionsInLandscape) it.isOptionsPanelVisible else false,
                         isAppsPanelVisible = false
                     )
                 }
@@ -206,10 +214,11 @@ fun rememberBrowserOptionsRegistry(
                 contentDescription = R.string.desc_settings,
                 enabled = uiState.value.isSettingsPanelVisible
             ) {
+                val keepOptionsInLandscape = uiState.value.isLandscape && !uiState.value.isOnFullscreenVideo
                 viewModel.updateUI {
                     it.copy(
                         isSettingsPanelVisible = !it.isSettingsPanelVisible,
-                        isOptionsPanelVisible = false,
+                        isOptionsPanelVisible = if (keepOptionsInLandscape) it.isOptionsPanelVisible else false,
                         isAppsPanelVisible = false
                     )
                 }
@@ -452,11 +461,20 @@ fun rememberBrowserOptionsRegistry(
                 )
             }
             },
-            BrowserOption.ROTATE to OptionItem(
+           BrowserOption.ROTATE to OptionItem(
                 id = BrowserOption.ROTATE,
                 iconRes = R.drawable.ic_screen_rotation_up,
-                contentDescription = R.string.desc_rotate
-            ) { viewModel.updateUI { it.copy(isLandscapeByButton = true) } },
+                contentDescription = R.string.desc_rotate,
+                enabled = uiState.value.isLandscapeByButton
+            ) {
+                viewModel.updateUI {
+                    it.copy(
+                        isLandscapeByButton = !it.isLandscapeByButton,
+                        isOptionsPanelVisible = false,
+                        isAppsPanelVisible = false
+                    )
+                }
+            },
             BrowserOption.CLOSE_ALL_TABS to OptionItem(
                 id = BrowserOption.CLOSE_ALL_TABS,
                 iconRes = R.drawable.ic_close_all_tabs,
@@ -569,6 +587,8 @@ fun OptionsPanel(
     onCloseAllTabs: () -> Unit,
     confirmationPopup: (Int, String, () -> Unit, () -> Unit) -> Unit,
     onLoginClick: () -> Unit,
+    isLandscapeLayout: Boolean = false,
+    leftStemHeight: Dp = 305.dp,
 ) {
     val viewModel = LocalBrowserViewModel.current
     val settings = viewModel.browserSettings.collectAsState()
@@ -631,7 +651,77 @@ fun OptionsPanel(
             }
         }
     }
-    if (displayOptions.isNotEmpty()) {
+   if (displayOptions.isNotEmpty()) {
+        if (isLandscapeLayout) {
+            Box(
+                modifier = Modifier
+                    .width(settings.value.heightForLayer(2).dp + settings.value.padding.dp * 2)
+                    .height(leftStemHeight)
+                    .padding(settings.value.padding.dp)
+            ) {
+                VerticalPager(
+                    state = pagerState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .mouseVerticalPagerScroll(pagerState, enabled = realPageCount > 1),
+                    userScrollEnabled = realPageCount > 1
+                ) { pageIndex ->
+                    val actualPageIndex = if (realPageCount > 0) pageIndex % realPageCount else 0
+                    val pageOptions = optionPages.getOrNull(actualPageIndex) ?: emptyList()
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.3f),
+                                shape = RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp)
+                            ),
+                        verticalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
+                    ) {
+                        pageOptions.forEach { option ->
+                            val isHidden = viewModel.isOptionHidden(option.id, settings.value)
+                            val isInspecting = viewModel.inspectingOption.value == option.id
+
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxWidth()
+                                    .alpha(if (isHidden) 0.3f else 1f)
+                                    .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp))
+                                    .border(
+                                        width = if (isInspecting) 2.dp else 0.dp,
+                                        color = if (isInspecting) Color(settings.value.highlightColor) else Color.Transparent,
+                                        shape = RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp)
+                                    )
+                            ) {
+                                CustomIconButton(
+                                    isLandscape = true,
+                                    layer = 2,
+                                    modifier = Modifier.fillMaxSize(),
+                                    onTap = {
+                                        if (viewModel.isSortingButtons.value) {
+                                            viewModel.inspectingOption.value = option.id
+                                            viewModel.updateUI { it.copy(isAppsPanelVisible = true) }
+                                        } else {
+                                            if (!pagerState.isScrollInProgress) option.onClick()
+                                        }
+                                    },
+                                    textIcon = option.textIcon,
+                                    buttonDescription = stringResource(option.contentDescription),
+                                    painterId = option.iconRes,
+                                    isWhite = option.enabled
+                                )
+                            }
+                        }
+
+                        val remaining = 4 - pageOptions.size
+                        repeat(remaining) {
+                            Spacer(modifier = Modifier.weight(1f).fillMaxWidth())
+                        }
+                    }
+                }
+            }
+        } else {
         Box(modifier = Modifier.fillMaxWidth()) {
             HorizontalPager(
                 state = pagerState,
@@ -696,7 +786,7 @@ fun OptionsPanel(
                         }
                     }
 
-                    // Fill empty slots so the grid doesn't collapse
+                        // Fill empty slots so the grid doesn't collapse
                     val remaining = 4 - pageOptions.size
                     if (remaining > 0) {
                         items(
@@ -713,6 +803,7 @@ fun OptionsPanel(
                 }
             }
         }
+        }
     }
 }
 
@@ -723,23 +814,34 @@ fun SettingsPanel(
     onCloseAllTabs: () -> Unit,
     targetSetting: SettingPanelView = SettingPanelView.MAIN,
     onLoginClick: () -> Unit = {},
+    isLandscapeLayout: Boolean = false,
+    leftStemHeight: Dp = 305.dp,
+    currentViewOverride: SettingPanelView? = null,
+    onCurrentViewChange: ((SettingPanelView) -> Unit)? = null,
+    renderMainOnly: Boolean = false,
+    renderSubViewsOnly: Boolean = false,
 ) {
     val viewModel = LocalBrowserViewModel.current
     val uiState = viewModel.uiState.collectAsState()
     val settings = viewModel.browserSettings.collectAsState()
     val isFirstModeLoad = settings.value.isFirstLoadForMode(uiState.value.windowMode)
 
-    var currentView by remember { mutableStateOf(targetSetting) }
+    var internalView by remember { mutableStateOf(targetSetting) }
+    val currentView = currentViewOverride ?: internalView
+    val setCurrentView: (SettingPanelView) -> Unit = { newView ->
+        if (onCurrentViewChange != null) onCurrentViewChange(newView)
+        else internalView = newView
+    }
 
     LaunchedEffect(isFirstModeLoad, uiState.value.windowMode) {
         if (settings.value.isFirstLoadForMode(uiState.value.windowMode)) {
-            currentView = SettingPanelView.CORNER_RADIUS
+            setCurrentView(SettingPanelView.CORNER_RADIUS)
         }
     }
 
     val onBackClick = {
         if (!isFirstModeLoad) {
-            currentView = SettingPanelView.MAIN
+            setCurrentView(SettingPanelView.MAIN)
         } else {
             viewModel.updateSettings { current ->
                 when (uiState.value.windowMode) {
@@ -749,42 +851,44 @@ fun SettingsPanel(
                 }
             }
             viewModel.updateUI { it.copy(isSettingsPanelVisible = false) }
-            currentView = SettingPanelView.MAIN
-        }
-    }
-    LaunchedEffect(currentView) {
-        if (currentView == SettingPanelView.CORNER_RADIUS) {
-            viewModel.backgroundColor.value = Color.Red
-            viewModel.updateUI {
-                it.copy(
-                    isSettingCornerRadius = true,
-                    isFullscreenPreview = true
-                )
-            }
-        } else {
-            viewModel.backgroundColor.value = Color.Black
-            Log.e("mrcFF", "here")
-            if (uiState.value.isSettingCornerRadius) viewModel.updateUI {
-                it.copy(
-                    isFullscreenPreview = false
-                )
-            }
-            viewModel.updateUI { it.copy(isSettingCornerRadius = false) }
+            setCurrentView(SettingPanelView.MAIN)
         }
     }
 
-    LaunchedEffect(uiState.value.isSettingsPanelVisible, isFirstModeLoad) {
-        // Only reset to MAIN if the panel closed normally AND it's not a first-time setup
-        if (!uiState.value.isSettingsPanelVisible && !isFirstModeLoad) {
-            delay(settings.value.animationSpeed.toLong().milliseconds)
-            currentView = SettingPanelView.MAIN
+    if (!renderMainOnly) {
+        LaunchedEffect(currentView) {
+            if (currentView == SettingPanelView.CORNER_RADIUS) {
+                viewModel.backgroundColor.value = Color.Red
+                viewModel.updateUI {
+                    it.copy(
+                        isSettingCornerRadius = true,
+                        isFullscreenPreview = true
+                    )
+                }
+            } else {
+                viewModel.backgroundColor.value = Color.Black
+                if (uiState.value.isSettingCornerRadius) viewModel.updateUI {
+                    it.copy(
+                        isFullscreenPreview = false
+                    )
+                }
+                viewModel.updateUI { it.copy(isSettingCornerRadius = false) }
+            }
+        }
+
+        LaunchedEffect(uiState.value.isSettingsPanelVisible, isFirstModeLoad) {
+            // only reset to MAIN when the panel closed normally and is not first-time setup
+            if (!uiState.value.isSettingsPanelVisible && !isFirstModeLoad) {
+                delay(settings.value.animationSpeed.toLong().milliseconds)
+                setCurrentView(SettingPanelView.MAIN)
+            }
         }
     }
 
     // build registry first so page count always matches rendered items
     val registry = rememberBrowserOptionsRegistry(
         onCloseAllTabs = onCloseAllTabs,
-        onNavigateToSetting = { currentView = it },
+        onNavigateToSetting = { setCurrentView(it) },
         confirmationPopup = confirmationPopup,
         onLoginClick = onLoginClick
     )
@@ -830,22 +934,50 @@ fun SettingsPanel(
             }
         }
     }
+    val shouldShowPanel = (uiState.value.isSettingsPanelVisible || isFirstModeLoad) && when {
+        renderMainOnly -> currentView == SettingPanelView.MAIN && !isFirstModeLoad
+        renderSubViewsOnly -> currentView != SettingPanelView.MAIN || isFirstModeLoad
+        else -> true
+    }
+
+    val isLandscapeLeftColumn = isLandscapeLayout && renderMainOnly
+
     AnimatedVisibility(
-        visible = uiState.value.isSettingsPanelVisible || isFirstModeLoad,
-        enter = expandVertically(tween(settings.value.animationSpeedForLayer(1))),
-        exit = shrinkVertically(
-            tween(
-                if (isFirstModeLoad) settings.value.animationSpeedForLayer(0) * 6
-                else settings.value.animationSpeedForLayer(1)
+        visible = shouldShowPanel,
+        enter = if (isLandscapeLeftColumn) {
+            expandHorizontally(tween(settings.value.animationSpeedForLayer(1))) +
+                fadeIn(tween(settings.value.animationSpeedForLayer(1)))
+        } else {
+            expandVertically(tween(settings.value.animationSpeedForLayer(1)))
+        },
+        exit = if (isLandscapeLeftColumn) {
+            shrinkHorizontally(tween(settings.value.animationSpeedForLayer(1))) +
+                fadeOut(tween(settings.value.animationSpeedForLayer(1)))
+        } else {
+            shrinkVertically(
+                tween(
+                    if (isFirstModeLoad) settings.value.animationSpeedForLayer(0) * 6
+                    else settings.value.animationSpeedForLayer(1)
+                )
             )
-        )
+        }
     ) {
         Box(
-            modifier = Modifier
-                .padding(horizontal = settings.value.padding.dp)
-                .padding(top = settings.value.padding.dp)
-                .fillMaxWidth()
-                .animateContentSize(tween(settings.value.animationSpeedForLayer(1)))
+            modifier = if (isLandscapeLeftColumn) {
+                Modifier
+                    .padding(end = settings.value.padding.dp)
+                    .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                    .padding(settings.value.padding.dp)
+                    .width(settings.value.heightForLayer(2).dp)
+                    .height((leftStemHeight - settings.value.padding.dp * 2).coerceAtLeast(80.dp))
+            } else {
+                Modifier
+                    .padding(horizontal = settings.value.padding.dp)
+                    .padding(top = settings.value.padding.dp)
+                    .fillMaxWidth()
+                    .animateContentSize(tween(settings.value.animationSpeedForLayer(1)))
+            }
         ) {
 
             // --- NEW: AnimatedContent wrapper ---
@@ -869,9 +1001,87 @@ fun SettingsPanel(
                 },
                 label = "SettingsViewTransition"
             ) { targetView ->
-                when (targetView) {
+               when (targetView) {
                     SettingPanelView.MAIN -> {
                         if (displayOptions.isNotEmpty()) {
+                            if (isLandscapeLeftColumn) {
+                                VerticalPager(
+                                    state = pagerState,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .mouseVerticalPagerScroll(pagerState, enabled = realPageCount > 1),
+                                    userScrollEnabled = realPageCount > 1
+                                ) { pageIndex ->
+                                    val actualPageIndex =
+                                        if (realPageCount > 0) pageIndex % realPageCount else 0
+                                    val pageOptions = optionPages.getOrNull(actualPageIndex) ?: emptyList()
+
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(
+                                                MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.3f),
+                                                shape = RoundedCornerShape(
+                                                    settings.value.cornerRadiusForLayer(2).dp
+                                                )
+                                            ),
+                                        verticalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
+                                    ) {
+                                        pageOptions.forEach { option ->
+                                            val isHidden =
+                                                viewModel.isOptionHidden(option.id, settings.value)
+                                            val isInspecting =
+                                                viewModel.inspectingOption.value == option.id
+
+                                            Box(
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .fillMaxWidth()
+                                                    .alpha(if (isHidden) 0.3f else 1f)
+                                                    .clip(
+                                                        RoundedCornerShape(
+                                                            settings.value.cornerRadiusForLayer(2).dp
+                                                        )
+                                                    )
+                                                    .border(
+                                                        width = if (isInspecting) 2.dp else 0.dp,
+                                                        color = if (isInspecting) Color(settings.value.highlightColor) else Color.Transparent,
+                                                        shape = RoundedCornerShape(
+                                                            settings.value.cornerRadiusForLayer(2).dp
+                                                        )
+                                                    )
+                                            ) {
+                                                CustomIconButton(
+                                                    isLandscape = true,
+                                                    layer = 2,
+                                                    modifier = Modifier.fillMaxSize(),
+                                                    onTap = {
+                                                        if (viewModel.isSortingButtons.value) {
+                                                            viewModel.inspectingOption.value = option.id
+                                                            viewModel.updateUI {
+                                                                it.copy(
+                                                                    isAppsPanelVisible = true
+                                                                )
+                                                            }
+                                                        } else {
+                                                            if (!pagerState.isScrollInProgress) option.onClick()
+                                                        }
+                                                    },
+                                                    textIcon = option.textIcon,
+                                                    buttonDescription = stringResource(option.contentDescription),
+                                                    painterId = option.iconRes,
+                                                    isWhite = option.enabled,
+                                                )
+                                            }
+                                        }
+
+                                        val remaining = 4 - pageOptions.size
+                                        repeat(remaining) {
+                                            Spacer(modifier = Modifier.weight(1f).fillMaxWidth())
+                                        }
+                                    }
+                                }
+                            } else {
                             HorizontalPager(
                                 state = pagerState,
                                 modifier = Modifier
@@ -950,7 +1160,7 @@ fun SettingsPanel(
                                         }
                                     }
 
-                                    val remaining = 4 - pageOptions.size
+                                       val remaining = 4 - pageOptions.size
                                     if (remaining > 0) {
                                         items(
                                             count = remaining,
@@ -961,6 +1171,7 @@ fun SettingsPanel(
                                         }
                                     }
                                 }
+                            }
                             }
                         }
                     }
@@ -1069,8 +1280,8 @@ fun SettingsPanel(
                         field = BrowserSettingField.BACK_SQUARE_OPACITY
                     )
 
-                    SettingPanelView.MAX_LIST_HEIGHT -> SliderSetting(
-                        onBackClick = { currentView = SettingPanelView.MAIN },
+                  SettingPanelView.MAX_LIST_HEIGHT -> SliderSetting(
+                        onBackClick = { setCurrentView(SettingPanelView.MAIN) },
                         valueRange = 0f..5f,
                         steps = 49,
                         textFieldValueFun = { src -> src.take(2) + "." + src.substring(2, 4) },
@@ -1084,9 +1295,9 @@ fun SettingsPanel(
                         val memoryLow = stringResource(R.string.memory_low)
                         val memoryStandard = stringResource(R.string.memory_standard)
                         val memoryHigh = stringResource(R.string.memory_high)
-                        SliderSetting(
+                       SliderSetting(
                             textEnabled = false,
-                            onBackClick = { currentView = SettingPanelView.MAIN },
+                            onBackClick = { setCurrentView(SettingPanelView.MAIN) },
                             valueRange = 0f..2f,
                             steps = 1,
                             textFieldValueFun = { src ->
@@ -1133,9 +1344,10 @@ fun SettingsPanel(
                         }
                     )
 
-                    SettingPanelView.SEARCH_ENGINE -> SliderSetting(
+                                       SettingPanelView.SEARCH_ENGINE -> SliderSetting(
                         textEnabled = false,
-                        onBackClick = { currentView = SettingPanelView.MAIN },
+                        onBackClick = { setCurrentView(SettingPanelView.MAIN) },
+
                         valueRange = 0f..SearchEngine.entries.lastIndex.toFloat(),
                         steps = SearchEngine.entries.lastIndex - 1,
                         textFieldValueFun = { src -> SearchEngine.entries[src[1].digitToInt()].title },

@@ -217,6 +217,8 @@ fun TabItem(
 fun TabsPanel(
     modifier: Modifier = Modifier,
     updateInspectingTab: (Tab) -> Unit,
+    isLandscapeLayout: Boolean = false,
+    hasContentBelow: Boolean = false,
 ) {
     val viewModel = LocalBrowserViewModel.current
     val uiState = viewModel.uiState.collectAsState()
@@ -249,10 +251,11 @@ fun TabsPanel(
         enter = expandVertically(tween(settings.value.animationSpeedForLayer(1))) + fadeIn(tween(settings.value.animationSpeedForLayer(1))),
         exit = shrinkVertically(tween(settings.value.animationSpeedForLayer(1))) + fadeOut(tween(settings.value.animationSpeedForLayer(1)))
     ) {
-        Box(
+         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = settings.value.padding.dp)
+                .padding(bottom = if (isLandscapeLayout && !hasContentBelow) settings.value.padding.dp else 0.dp)
                 .padding(horizontal = settings.value.padding.dp)
                 .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp))
         ) {

@@ -95,8 +95,11 @@ fun AppsPanel(
 //                settings.value.padding * numberOfPaddings
 //                ).dp
 
-    val maxPanelHeight = settings.value.maxContainerSizeForLayer(3, uiState.value.windowMode).dp
-
+  val maxPanelHeight = settings.value.maxContainerSizeForLayer(
+        3,
+        uiState.value.windowMode,
+        uiState.value.isLandscape && !uiState.value.isOnFullscreenVideo
+    ).dp
     val profiles = viewModel.profiles
     val realPageCount = profiles.size
     if (realPageCount == 0) return
@@ -190,13 +193,14 @@ fun AppsPanel(
                                                 viewModel.lastMouseWheelScrollMs = now
                                                 viewModel.lastMouseWheelDirection = dir
 
-                                                if (dy < 0f && uiState.value.isAppsPanelVisible && !gridState.canScrollBackward) {
+                                                 if (dy < 0f && uiState.value.isAppsPanelVisible && !gridState.canScrollBackward) {
                                                     // consume trailing events at top so collapsing requires a new scroll roll
                                                     change.consume()
                                                     if (isNewRoll) {
+                                                        val inLandscape = uiState.value.isLandscape && !uiState.value.isOnFullscreenVideo
                                                         viewModel.updateUI {
                                                             it.copy(
-                                                                isOptionsPanelVisible = true,
+                                                                isOptionsPanelVisible = if (inLandscape) it.isOptionsPanelVisible else true,
                                                                 isAppsPanelVisible = false
                                                             )
                                                         }
@@ -558,8 +562,13 @@ fun AppsPanel(
                             }
                             visualItemCount++
                         }
-                        val minRows =
-                            ceil(settings.value.getMaxListHeight(uiState.value.windowMode)).toInt()
+                      val minRows =
+                            ceil(
+                                settings.value.getMaxListHeight(
+                                    uiState.value.windowMode,
+                                    uiState.value.isLandscape && !uiState.value.isOnFullscreenVideo
+                                )
+                            ).toInt()
                         val currentRows = ceil(visualItemCount / 4f).toInt()
                         val targetRows = maxOf(minRows, currentRows)
                         val remainingPlaceholders =

@@ -103,11 +103,15 @@ data class BrowserSettings(
         return singleLineHeight - (padding * layer* 2)
     }
 
-    fun getMaxListHeight(mode: WindowMode): Float {
-        return if (mode == WindowMode.SPLIT) 1.0f else maxListHeight
+    fun getMaxListHeight(mode: WindowMode, isLandscape: Boolean = false): Float {
+        return if (mode == WindowMode.SPLIT || isLandscape) minOf(maxListHeight, 1.0f) else maxListHeight
     }
-    fun maxContainerSizeForLayer(layer: Int, mode: WindowMode = WindowMode.FULLSCREEN): Float {
-        val listHeight = getMaxListHeight(mode)
+    fun maxContainerSizeForLayer(
+        layer: Int,
+        mode: WindowMode = WindowMode.FULLSCREEN,
+        isLandscape: Boolean = false
+    ): Float {
+        val listHeight = getMaxListHeight(mode, isLandscape)
         val fullyDisplayRow = round(listHeight)
         val numberOfPaddings = fullyDisplayRow + if (ceil(listHeight) > listHeight) 2 else 1
 

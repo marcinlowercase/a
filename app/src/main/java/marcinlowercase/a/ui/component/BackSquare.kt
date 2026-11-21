@@ -194,8 +194,8 @@ fun BackSquare(
     }
 
 
-    AnimatedVisibility(
-        visible = !uiState.value.isBottomPanelVisible && !uiState.value.isLandscape && !uiState.value.isOtherPanelVisible && !viewModel.isStandaloneMode.value,
+   AnimatedVisibility(
+        visible = !uiState.value.isBottomPanelVisible && !uiState.value.isOnFullscreenVideo && !uiState.value.isOtherPanelVisible && !viewModel.isStandaloneMode.value,
         modifier = modifier
             .fillMaxSize()
             .padding(webViewPaddingValue)

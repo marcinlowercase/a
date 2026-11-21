@@ -4,9 +4,11 @@ import android.Manifest
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -16,9 +18,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -31,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import marcinlowercase.a.R
 import marcinlowercase.a.core.constant.drm_access_permission
@@ -51,6 +57,19 @@ private enum class TabDataPanelView {
     PERMISSIONS
 }
 
+private fun resolvePermissionVisual(permission: String): Triple<Int, Int, Int> = when (permission) {
+    generic_location_permission -> Triple(R.drawable.ic_location_on, R.drawable.ic_location_off, R.string.desc_permission_location)
+    google_drive_access_permission -> Triple(R.drawable.ic_drive_access_allow, R.drawable.ic_drive_access_deny, R.string.desc_permission_drive_access)
+    local_file_storage_permission -> Triple(R.drawable.ic_write_file, R.drawable.ic_write_file_deny, R.string.desc_permission_save_file_to_device)
+    Manifest.permission.CAMERA -> Triple(R.drawable.ic_camera_on, R.drawable.ic_camera_off, R.string.desc_permission_camera)
+    Manifest.permission.RECORD_AUDIO -> Triple(R.drawable.ic_mic_on, R.drawable.ic_mic_off, R.string.desc_permission_microphone)
+    Manifest.permission.POST_NOTIFICATIONS, generic_notification_permission -> Triple(R.drawable.ic_notifications, R.drawable.ic_notifications_off, R.string.desc_permission_notifications)
+    persistent_storage_permission -> Triple(R.drawable.ic_persistent_storage, R.drawable.ic_persistent_storage_deny, R.string.desc_permission_storage)
+    drm_access_permission -> Triple(R.drawable.ic_media_output, R.drawable.ic_media_output_off, R.string.desc_permission_drm)
+    leave_site_permission -> Triple(R.drawable.ic_open_in_new, R.drawable.ic_open_in_new_off, R.string.desc_permission_leave)
+    else -> Triple(R.drawable.ic_bug, R.drawable.ic_bug, R.string.desc_permission_unknown)
+}
+
 @Composable
 fun TabDataPanel(
     isTabDataPanelVisible: Boolean,
@@ -58,11 +77,12 @@ fun TabDataPanel(
     onPermissionToggle: (domain: String?, permission: String, isGranted: Boolean) -> Unit,
     onClearSiteData: () -> Unit,
     onCloseTab: () -> Unit,
+    isLandscapeLayout: Boolean = false,
+    leftStemHeight: Dp = 305.dp,
 ) {
     val viewModel = LocalBrowserViewModel.current
     val browserSettings = viewModel.browserSettings.collectAsState()
 
-    // 1. ADD THIS LINE: Collect uiState so Compose tracks when inspectingTabId changes!
     val uiState by viewModel.uiState.collectAsState()
 
     var currentView by remember { mutableStateOf(TabDataPanelView.PERMISSIONS) }
@@ -72,13 +92,118 @@ fun TabDataPanel(
 
     AnimatedVisibility(
         visible = isTabDataPanelVisible,
-        enter = fadeIn(tween(browserSettings.value.animationSpeed.roundToInt())) + expandVertically(
-            expandFrom = Alignment.Bottom
-        ),
-        exit = shrinkVertically(tween(browserSettings.value.animationSpeedForLayer(1))) + fadeOut(
-            tween(browserSettings.value.animationSpeedForLayer(1))
-        )
+        enter = if (isLandscapeLayout) {
+            expandHorizontally(tween(browserSettings.value.animationSpeedForLayer(1))) +
+                fadeIn(tween(browserSettings.value.animationSpeedForLayer(1)))
+        } else {
+            fadeIn(tween(browserSettings.value.animationSpeed.roundToInt())) + expandVertically(
+                expandFrom = Alignment.Bottom
+            )
+        },
+        exit = if (isLandscapeLayout) {
+            shrinkHorizontally(tween(browserSettings.value.animationSpeedForLayer(1))) +
+                fadeOut(tween(browserSettings.value.animationSpeedForLayer(1)))
+        } else {
+            shrinkVertically(tween(browserSettings.value.animationSpeedForLayer(1))) + fadeOut(
+                tween(browserSettings.value.animationSpeedForLayer(1))
+            )
+        }
     ) {
+        if (isLandscapeLayout) {
+            Row(
+                modifier = Modifier
+                    .padding(end = browserSettings.value.padding.dp)
+                    .height(leftStemHeight)
+                    .clip(RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(1).dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                    .padding(browserSettings.value.padding.dp),
+                horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp),
+                verticalAlignment = Alignment.Bottom
+            ) {
+                Column(
+                    modifier = Modifier
+                        .width(browserSettings.value.heightForLayer(2).dp)
+                        .fillMaxHeight(),
+                    verticalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
+                ) {
+                    CustomIconButton(
+                        isLandscape = true,
+                        layer = 2,
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        onTap = onClearSiteData,
+                        buttonDescription = stringResource(R.string.desc_clear_site_data),
+                        painterId = R.drawable.ic_database_off
+                    )
+
+                    CustomIconButton(
+                        isLandscape = true,
+                        layer = 2,
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        onTap = { viewModel.duplicateInspectedTab() },
+                        buttonDescription = stringResource(R.string.desc_duplicate_tab),
+                        painterId = R.drawable.ic_tab_duplicate
+                    )
+
+                    CustomIconButton(
+                        isLandscape = true,
+                        layer = 2,
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        onTap = onCloseTab,
+                        buttonDescription = stringResource(R.string.desc_close_tab),
+                        painterId = R.drawable.ic_tab_close
+                    )
+
+                    CustomIconButton(
+                        isLandscape = true,
+                        layer = 2,
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        onTap = { viewModel.moveInspectedTabToNextProfile() },
+                        buttonDescription = stringResource(R.string.desc_move_tab_to_next_profile),
+                        painterId = R.drawable.ic_tab_move
+                    )
+                }
+
+                if (settings != null && settings.permissionDecisions.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .clip(RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(2).dp))
+                            .border(
+                                browserSettings.value.padding.dp / 2,
+                                MaterialTheme.colorScheme.onSurface,
+                                RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(2).dp)
+                            )
+                            .padding(browserSettings.value.padding.dp),
+                        horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
+                    ) {
+                        settings.permissionDecisions.entries.toList().chunked(4).forEach { colPermissions ->
+                            Column(
+                                modifier = Modifier
+                                    .width(browserSettings.value.heightForLayer(3).dp)
+                                    .fillMaxHeight(),
+                                verticalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
+                            ) {
+                                colPermissions.forEach { (permission, isGranted) ->
+                                    val (allowIcon, denyIcon, nameResId) = resolvePermissionVisual(permission)
+                                    CustomIconButton(
+                                        isLandscape = true,
+                                        layer = 3,
+                                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                                        onTap = { onPermissionToggle(domain, permission, !isGranted) },
+                                        buttonDescription = stringResource(nameResId),
+                                        painterId = if (isGranted) allowIcon else denyIcon,
+                                        isWhite = isGranted,
+                                    )
+                                }
+                                repeat(4 - colPermissions.size) {
+                                    Spacer(modifier = Modifier.weight(1f).fillMaxWidth())
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
         Box(
             modifier = Modifier.clickable(onClick = onDismiss),
             contentAlignment = Alignment.BottomCenter
@@ -225,6 +350,7 @@ fun TabDataPanel(
                     )
                 }
             }
+        }
         }
     }
 }
