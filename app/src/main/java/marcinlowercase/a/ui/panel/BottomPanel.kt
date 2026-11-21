@@ -81,10 +81,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.text.input.KeyboardType
+import marcinlowercase.a.core.data_class.LandscapeInputSession
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -253,6 +257,11 @@ fun BottomPanel(
 
         val isLandscapeLayout = uiState.value.isLandscape && !uiState.value.isOnFullscreenVideo
         var currentSettingView by remember { mutableStateOf(SettingPanelView.MAIN) }
+        var hasLandscapeUrlDraft by remember { mutableStateOf(false) }
+
+        LaunchedEffect(viewModel.activeTab?.id, viewModel.activeProfileId.value) {
+            hasLandscapeUrlDraft = false
+        }
 
         val density = LocalDensity.current
         val landscapeOptionsWidthDp = settings.value.heightForLayer(2).dp + settings.value.padding.dp * 3
@@ -436,6 +445,7 @@ fun BottomPanel(
         }
 
         val submitUrlBar: (Boolean) -> Unit = { forceNewTab ->
+            hasLandscapeUrlDraft = false
             if (uiState.value.isFindInPageVisible && !forceNewTab) {
                 val query = textFieldState.text.toString()
                 if (query.isNotEmpty()) {
@@ -619,22 +629,141 @@ fun BottomPanel(
             }
         }
 
+        val placeholderUrlText = stringResource(R.string.placeholder_url)
+        val placeholderPinText = stringResource(R.string.placeholder_pin_label)
+        val placeholderProfileText = stringResource(R.string.placeholder_profile_label)
+        val placeholderFindText = stringResource(R.string.ui_find_in_page)
+        val placeholderIconLinkText = stringResource(R.string.placeholder_icon_link)
+
+        val openLandscapeUrlInput: (KeyboardShortcutManager.UrlFocusAction?) -> Unit = { focusAction ->
+            val currentUi = viewModel.uiState.value
+            val activeUrl = viewModel.activeTab?.currentURL ?: ""
+            val cleanUrl = LocalAppServer.formatForDisplay(activeUrl)
+            val fullUrl = if (cleanUrl.startsWith(LocalAppServer.VIRTUAL_SCHEME)) {
+                cleanUrl
+            } else {
+                viewModel.activeTab?.errorState?.failingUrl ?: activeUrl
+            }
+
+            val initialText = when {
+                currentUi.isFindInPageVisible -> viewModel.findInPageTextFieldState.text.toString()
+                currentUi.isCreatingProfile -> ""
+                currentUi.isRenamingProfile -> viewModel.profiles.find { it.id == viewModel.activeProfileId.value }?.name ?: ""
+                currentUi.isPinningApp -> if (focusAction == KeyboardShortcutManager.UrlFocusAction.SELECT_ALL) viewModel.activeTab?.currentTitle ?: "" else ""
+                focusAction == KeyboardShortcutManager.UrlFocusAction.SELECT_ALL -> fullUrl
+                focusAction == KeyboardShortcutManager.UrlFocusAction.EMPTY -> ""
+                hasLandscapeUrlDraft -> textFieldState.text.toString()
+                else -> ""
+            }
+
+            val placeholder = when {
+                currentUi.isFindInPageVisible -> placeholderFindText
+                currentUi.isCreatingProfile || currentUi.isRenamingProfile -> placeholderProfileText
+                currentUi.isPinningApp -> placeholderPinText
+                else -> placeholderUrlText
+            }
+
+            val kbType = when {
+                currentUi.isFindInPageVisible || currentUi.isCreatingProfile || currentUi.isRenamingProfile || currentUi.isPinningApp -> KeyboardType.Text
+                else -> KeyboardType.Uri
+            }
+
+            val actionType = when {
+                currentUi.isFindInPageVisible -> ImeAction.Search
+                currentUi.isCreatingProfile || currentUi.isRenamingProfile || currentUi.isPinningApp -> ImeAction.Done
+                else -> ImeAction.Go
+            }
+
+            viewModel.landscapeInputSession.value = LandscapeInputSession(
+                initialText = initialText,
+                selectAllOnOpen = focusAction == KeyboardShortcutManager.UrlFocusAction.SELECT_ALL,
+                placeholder = placeholder,
+                keyboardType = kbType,
+                imeAction = actionType,
+                isUrlBar = !currentUi.isFindInPageVisible && !currentUi.isPinningApp && !currentUi.isCreatingProfile && !currentUi.isRenamingProfile,
+                onTextChanged = if (currentUi.isFindInPageVisible) {
+                    { live -> textFieldState.setTextAndPlaceCursorAtEnd(live) }
+                } else null,
+                onCommit = { typedText, submitAction ->
+                    textFieldState.setTextAndPlaceCursorAtEnd(typedText)
+                    if (submitAction) {
+                        hasLandscapeUrlDraft = false
+                        submitUrlBar(false)
+                    } else {
+                        if (currentUi.isFindInPageVisible) {
+                            viewModel.findInPageTextFieldState.setTextAndPlaceCursorAtEnd(typedText)
+                        } else if (typedText.isNotBlank()) {
+                            hasLandscapeUrlDraft = true
+                        } else {
+                            hasLandscapeUrlDraft = false
+                            viewModel.keyboardShortcutManager.clearPendingNewTab()
+                            if (currentUi.isPinningApp) viewModel.updateUI { it.copy(isPinningApp = false) }
+                            if (currentUi.isCreatingProfile) viewModel.updateUI { it.copy(isCreatingProfile = false) }
+                            if (currentUi.isRenamingProfile) viewModel.updateUI { it.copy(isRenamingProfile = false) }
+                            val liveUrl = viewModel.activeTab?.currentURL ?: ""
+                            textFieldState.setTextAndPlaceCursorAtEnd(liveUrl.toDomain())
+                        }
+                    }
+                },
+                onCancel = {
+                    hasLandscapeUrlDraft = false
+                    viewModel.keyboardShortcutManager.clearPendingNewTab()
+                    if (currentUi.isFindInPageVisible) {
+                        viewModel.updateUI { it.copy(isFindInPageVisible = false) }
+                    } else {
+                        if (currentUi.isPinningApp) viewModel.updateUI { it.copy(isPinningApp = false) }
+                        if (currentUi.isCreatingProfile) viewModel.updateUI { it.copy(isCreatingProfile = false) }
+                        if (currentUi.isRenamingProfile) viewModel.updateUI { it.copy(isRenamingProfile = false) }
+                        val liveUrl = viewModel.activeTab?.currentURL ?: ""
+                        textFieldState.setTextAndPlaceCursorAtEnd(liveUrl.toDomain())
+                    }
+                }
+            )
+        }
+
+        val openLandscapeIconInput: () -> Unit = {
+            viewModel.landscapeInputSession.value = LandscapeInputSession(
+                initialText = customIconUrlState.text.toString(),
+                placeholder = placeholderIconLinkText,
+                keyboardType = KeyboardType.Uri,
+                imeAction = ImeAction.Done,
+                onCommit = { typedText, _ ->
+                    val input = typedText.trim()
+                    val isValid = input.isEmpty() ||
+                        Patterns.WEB_URL.matcher(input).matches() ||
+                        input.startsWith("data:image", ignoreCase = true) ||
+                        input.startsWith("content://", ignoreCase = true) ||
+                        input.startsWith("<svg", ignoreCase = true)
+                    customIconUrlState.setTextAndPlaceCursorAtEnd(if (isValid) input else "")
+                }
+            )
+        }
+
         LaunchedEffect(Unit) {
             viewModel.keyboardShortcutManager.shortcutEvents.collect { shortcut ->
-                when (shortcut) {
-                    BrowserShortcut.DISMISS_URL_BAR -> dismissUrlBar()
-                    BrowserShortcut.FOCUS_OR_EDIT_URL -> editCurrentUrl()
-                    BrowserShortcut.NEW_TAB -> {
-                        textFieldState.setTextAndPlaceCursorAtEnd("")
-                        urlBarFocusRequester.requestFocus()
-                        keyboardController?.show()
+                if (isLandscapeLayout) {
+                    when (shortcut) {
+                        BrowserShortcut.FOCUS_OR_EDIT_URL -> openLandscapeUrlInput(KeyboardShortcutManager.UrlFocusAction.SELECT_ALL)
+                        BrowserShortcut.NEW_TAB -> openLandscapeUrlInput(KeyboardShortcutManager.UrlFocusAction.EMPTY)
+                        BrowserShortcut.OPEN_FIND_IN_PAGE -> openLandscapeUrlInput(null)
+                        else -> {}
                     }
-                    BrowserShortcut.OPEN_FIND_IN_PAGE -> {
-                        urlBarFocusRequester.requestFocus()
-                        keyboardController?.show()
+                } else {
+                    when (shortcut) {
+                        BrowserShortcut.DISMISS_URL_BAR -> dismissUrlBar()
+                        BrowserShortcut.FOCUS_OR_EDIT_URL -> editCurrentUrl()
+                        BrowserShortcut.NEW_TAB -> {
+                            textFieldState.setTextAndPlaceCursorAtEnd("")
+                            urlBarFocusRequester.requestFocus()
+                            keyboardController?.show()
+                        }
+                        BrowserShortcut.OPEN_FIND_IN_PAGE -> {
+                            urlBarFocusRequester.requestFocus()
+                            keyboardController?.show()
+                        }
+                        BrowserShortcut.OPEN_URL_IN_NEW_TAB -> submitUrlBar(true)
+                        else -> {}
                     }
-                    BrowserShortcut.OPEN_URL_IN_NEW_TAB -> submitUrlBar(true)
-                    else -> {}
                 }
             }
         }
@@ -716,7 +845,7 @@ fun BottomPanel(
 
         val urlBarSection: @Composable () -> Unit = {
             AnimatedVisibility(
-                modifier = modifier,
+                modifier = Modifier,
                 visible = uiState.value.isUrlBarVisible && !viewModel.isStandaloneMode.value,
                 enter =
                     if (uiState.value.isIndependentPanelVisible())
@@ -730,12 +859,17 @@ fun BottomPanel(
                 else fadeOut(tween(settings.value.animationSpeedForLayer(1)))
             ) {
                 val pendingUrlFocusAction by viewModel.keyboardShortcutManager.pendingUrlFocusAction.collectAsState()
-                LaunchedEffect(pendingUrlFocusAction) {
+                LaunchedEffect(pendingUrlFocusAction, isLandscapeLayout) {
                     if (pendingUrlFocusAction != null) {
-                        withFrameNanos {}
-                        geckoViewRef.value?.clearFocus()
-                        urlBarFocusRequester.requestFocus()
-                        keyboardController?.show()
+                        if (isLandscapeLayout) {
+                            val action = viewModel.keyboardShortcutManager.consumePendingUrlFocusAction()
+                            openLandscapeUrlInput(action)
+                        } else {
+                            withFrameNanos {}
+                            geckoViewRef.value?.clearFocus()
+                            urlBarFocusRequester.requestFocus()
+                            keyboardController?.show()
+                        }
                     }
                 }
 
@@ -764,9 +898,11 @@ fun BottomPanel(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
                             ) {
+                                Box(modifier = Modifier.weight(1f)) {
                                 TextField(
                                     modifier = Modifier
-                                        .weight(1f)
+                                        .fillMaxWidth()
+                                        .focusProperties { canFocus = !isLandscapeLayout }
                                         .heightIn(min = settings.value.heightForLayer(2).dp)
                                         .onFocusChanged { focusState ->
                                             viewModel.updateUI {
@@ -846,6 +982,19 @@ fun BottomPanel(
                                         ),
                                     )
                                 )
+                                if (isLandscapeLayout) {
+                                    Box(
+                                        modifier = Modifier
+                                            .matchParentSize()
+                                            .clickable(
+                                                interactionSource = remember { MutableInteractionSource() },
+                                                indication = null
+                                            ) {
+                                                openLandscapeIconInput()
+                                            }
+                                    )
+                                }
+                                }
 
                                 CustomIconButton(
                                     isLandscape = true,
@@ -868,6 +1017,7 @@ fun BottomPanel(
                                     setTextFieldHeightPx(size.height)
                                 }
                                 .fillMaxWidth()
+                                .focusProperties { canFocus = !isLandscapeLayout }
                                 .focusRequester(urlBarFocusRequester)
                                 .onFocusChanged { focusState ->
                                     viewModel.updateUI { it.copy(isFocusOnUrlTextField = focusState.isFocused) }
@@ -1146,13 +1296,17 @@ fun BottomPanel(
                                             longPressJob.cancel()
                                         }
                                         if (!movedBeforeLongPress) {
-                                            if (urlBarFocusRequester.requestFocus()) {
-                                                keyboardController?.show()
+                                            if (isLandscapeLayout) {
+                                                openLandscapeUrlInput(null)
                                             } else {
-                                                urlBarFocusRequester.requestFocus()
-                                            }
-                                            viewModel.updateUI {
-                                                it.copy(isUrlOverlayBoxVisible = false)
+                                                if (urlBarFocusRequester.requestFocus()) {
+                                                    keyboardController?.show()
+                                                } else {
+                                                    urlBarFocusRequester.requestFocus()
+                                                }
+                                                viewModel.updateUI {
+                                                    it.copy(isUrlOverlayBoxVisible = false)
+                                                }
                                             }
                                         }
                                     }
@@ -1162,6 +1316,19 @@ fun BottomPanel(
                                 }
                             }
                     ) {}
+
+                    if (isLandscapeLayout && (uiState.value.isFindInPageVisible || uiState.value.isPinningApp || uiState.value.isCreatingProfile || uiState.value.isRenamingProfile)) {
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) {
+                                    openLandscapeUrlInput(null)
+                                }
+                        )
+                    }
                 }
             }
         }
@@ -1393,15 +1560,15 @@ fun BottomPanel(
                                         },
                                         addAppToPin = {
                                             viewModel.updateUI { it.copy(isPinningApp = true) }
-                                            urlBarFocusRequester.requestFocus()
+                                            openLandscapeUrlInput(KeyboardShortcutManager.UrlFocusAction.EMPTY)
                                         },
                                         createNewProfile = {
                                             viewModel.updateUI { it.copy(isCreatingProfile = true) }
-                                            urlBarFocusRequester.requestFocus()
+                                            openLandscapeUrlInput(KeyboardShortcutManager.UrlFocusAction.EMPTY)
                                         },
                                         renameProfile = {
                                             viewModel.updateUI { it.copy(isRenamingProfile = true) }
-                                            urlBarFocusRequester.requestFocus()
+                                            openLandscapeUrlInput(KeyboardShortcutManager.UrlFocusAction.EMPTY)
                                         },
                                         deleteProfile = {
                                             viewModel.updateUI {

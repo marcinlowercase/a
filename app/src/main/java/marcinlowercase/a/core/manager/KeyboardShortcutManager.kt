@@ -162,6 +162,10 @@ class KeyboardShortcutManager(private val context: Context) {
         return true
     }
 
+    fun markPendingNewTab() {
+        _isPendingNewTab.value = true
+    }
+
     fun clearPendingNewTab() {
         _isPendingNewTab.value = false
     }
@@ -219,10 +223,10 @@ class KeyboardShortcutManager(private val context: Context) {
         cancelShiftTap()
 
         val shortcut = when {
-            // esc only applies while url bar or icon field is focused
+            // esc only applies while url bar, icon field, or landscape overlay is focused
             event.keyCode == KeyEvent.KEYCODE_ESCAPE &&
                     !isCtrl && !isShift && !isAlt && !isMeta &&
-                    (uiState.isFocusOnUrlTextField || uiState.isFocusOnIconUrlTextField) -> {
+                    (uiState.isFocusOnUrlTextField || uiState.isFocusOnIconUrlTextField || viewModel.landscapeInputSession.value != null) -> {
                 BrowserShortcut.DISMISS_URL_BAR
             }
 
@@ -338,7 +342,7 @@ class KeyboardShortcutManager(private val context: Context) {
                     isCtrl && !isShift && !isAlt && !isMeta &&
                     !viewModel.isStandaloneMode.value &&
                     uiState.appState == AppState.REGULAR &&
-                    uiState.isFocusOnUrlTextField -> {
+                    (uiState.isFocusOnUrlTextField || viewModel.landscapeInputSession.value?.isUrlBar == true) -> {
                 BrowserShortcut.OPEN_URL_IN_NEW_TAB
             }
 
@@ -373,7 +377,7 @@ class KeyboardShortcutManager(private val context: Context) {
                 if (uiState.isFindInPageVisible) {
                     viewModel.updateUI { it.copy(isFindInPageVisible = false) }
                 }
-                if (uiState.isFocusOnUrlTextField) {
+                if (uiState.isFocusOnUrlTextField || viewModel.landscapeInputSession.value != null) {
                     _shortcutEvents.tryEmit(BrowserShortcut.FOCUS_OR_EDIT_URL)
                 } else if (!uiState.isPinningApp && !uiState.isCreatingProfile && !uiState.isRenamingProfile) {
                     _pendingUrlFocusAction.value = UrlFocusAction.SELECT_ALL
@@ -382,7 +386,7 @@ class KeyboardShortcutManager(private val context: Context) {
                             isFindInPageVisible = false,
                             isUrlBarVisible = true,
                             isBottomPanelVisible = true,
-                            isUrlOverlayBoxVisible = false
+                            isUrlOverlayBoxVisible = uiState.isLandscape && !uiState.isOnFullscreenVideo
                         )
                     }
                 }
@@ -399,7 +403,7 @@ class KeyboardShortcutManager(private val context: Context) {
 
             BrowserShortcut.NEW_TAB -> {
                 _isPendingNewTab.value = true
-                if (uiState.isFocusOnUrlTextField) {
+                if (uiState.isFocusOnUrlTextField || viewModel.landscapeInputSession.value != null) {
                     if (uiState.isPinningApp || uiState.isCreatingProfile || uiState.isRenamingProfile || uiState.isFindInPageVisible) {
                         viewModel.updateUI {
                             it.copy(
@@ -421,7 +425,7 @@ class KeyboardShortcutManager(private val context: Context) {
                             isFindInPageVisible = false,
                             isUrlBarVisible = true,
                             isBottomPanelVisible = true,
-                            isUrlOverlayBoxVisible = false
+                            isUrlOverlayBoxVisible = uiState.isLandscape && !uiState.isOnFullscreenVideo
                         )
                     }
                 }
@@ -537,7 +541,8 @@ class KeyboardShortcutManager(private val context: Context) {
 
             BrowserShortcut.OPEN_FIND_IN_PAGE -> {
                 _isPendingNewTab.value = false
-                if (!uiState.isFocusOnUrlTextField) {
+                val isAlreadyFocused = uiState.isFocusOnUrlTextField || viewModel.landscapeInputSession.value != null
+                if (!isAlreadyFocused) {
                     _pendingUrlFocusAction.value = UrlFocusAction.EMPTY
                 }
                 viewModel.updateUI {
@@ -560,7 +565,7 @@ class KeyboardShortcutManager(private val context: Context) {
                         savedPanelState = null
                     )
                 }
-                if (uiState.isFocusOnUrlTextField) {
+                if (isAlreadyFocused) {
                     _shortcutEvents.tryEmit(BrowserShortcut.OPEN_FIND_IN_PAGE)
                 }
             }

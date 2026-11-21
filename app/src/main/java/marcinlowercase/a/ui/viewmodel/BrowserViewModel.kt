@@ -53,6 +53,7 @@ import marcinlowercase.a.core.data_class.JsChoiceState
 import marcinlowercase.a.core.data_class.JsColorState
 import marcinlowercase.a.core.data_class.JsDateTimeState
 import marcinlowercase.a.core.data_class.JsDialogState
+import marcinlowercase.a.core.data_class.LandscapeInputSession
 import marcinlowercase.a.core.data_class.PollData
 import marcinlowercase.a.core.data_class.Profile
 import marcinlowercase.a.core.data_class.ProfileSyncDTO
@@ -2817,6 +2818,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     var lastMouseWheelScrollMs: Long = 0L
     var lastMouseWheelDirection: Int = 0
 
+    val landscapeInputSession = mutableStateOf<LandscapeInputSession?>(null)
     val backgroundColor = mutableStateOf(Color.Black)
     val sampledTopBarColor = mutableStateOf(Color.Black)
     val sampledBottomBarColor = mutableStateOf(Color.Black)

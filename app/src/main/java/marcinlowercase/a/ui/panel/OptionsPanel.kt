@@ -97,6 +97,11 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.ui.unit.Dp
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.text.input.KeyboardType
+import marcinlowercase.a.core.data_class.LandscapeInputSession
 import marcinlowercase.a.core.enum_class.PipAction
 import marcinlowercase.a.core.function.mouseHorizontalPagerScroll
 import marcinlowercase.a.core.function.mouseVerticalPagerScroll
@@ -1416,6 +1421,7 @@ fun SettingsPanel(
                                         tint = MaterialTheme.colorScheme.surfaceContainer
                                     )
                                 }
+                                val isLandscapeTypingMode = uiState.value.isLandscape && !uiState.value.isOnFullscreenVideo
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
@@ -1427,7 +1433,37 @@ fun SettingsPanel(
                                                 ).dp
                                             )
                                         )
-                                        .background(Color(selectedColorInt)),
+                                        .background(Color(selectedColorInt))
+                                        .then(
+                                            if (isLandscapeTypingMode) {
+                                                Modifier.clickable(
+                                                    interactionSource = remember { MutableInteractionSource() },
+                                                    indication = null
+                                                ) {
+                                                    viewModel.landscapeInputSession.value = LandscapeInputSession(
+                                                        initialText = hexText,
+                                                        selectAllOnOpen = true,
+                                                        keyboardType = KeyboardType.Ascii,
+                                                        imeAction = ImeAction.Done,
+                                                        onCommit = { typedText, _ ->
+                                                            val filtered = typedText.filter {
+                                                                it.isDigit() || it in 'a'..'f' || it in 'A'..'F' || it == '#'
+                                                            }.take(7)
+                                                            try {
+                                                                val parsedColor = (if (filtered.startsWith("#")) filtered else "#$filtered").toColorInt()
+                                                                val hsv = FloatArray(3)
+                                                                AndroidColor.colorToHSV(parsedColor, hsv)
+                                                                hue = hsv[0]
+                                                                saturation = hsv[1]
+                                                                value = hsv[2]
+                                                                hexText = String.format("#%06X", 0xFFFFFF and parsedColor)
+                                                            } catch (_: Exception) {
+                                                            }
+                                                        }
+                                                    )
+                                                }
+                                            } else Modifier
+                                        ),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     val textColor =
@@ -1455,6 +1491,7 @@ fun SettingsPanel(
                                         },
                                         modifier = Modifier
                                             .fillMaxWidth()
+                                            .focusProperties { canFocus = !isLandscapeTypingMode }
                                             .onFocusChanged { focusState ->
                                                 viewModel.updateUI {
                                                     it.copy(isFocusOnSettingTextField = focusState.hasFocus)

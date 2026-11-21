@@ -178,6 +178,7 @@ import marcinlowercase.a.ui.panel.ChoicePanel
 import marcinlowercase.a.ui.panel.ColorPickerPanel
 import marcinlowercase.a.ui.panel.DateTimePickerPanel
 import marcinlowercase.a.ui.panel.GestureMediaControlOverlay
+import marcinlowercase.a.ui.panel.LandscapeTextInputOverlay
 import marcinlowercase.a.ui.panel.MediaControlPanel
 import marcinlowercase.a.ui.panel.SettingPanelView
 import marcinlowercase.a.ui.panel.SettingsPanel
@@ -1321,6 +1322,7 @@ fun BrowserScreen(
     var sampleTrigger by remember { mutableIntStateOf(0) }
 
     val targetTopBarColor = when {
+        viewModel.landscapeInputSession.value != null -> MaterialTheme.colorScheme.surfaceContainer
         uiState.value.isSettingCornerRadius -> viewModel.backgroundColor.value
         !settings.isEnabledImmersiveWebview -> Color.Black
         uiState.value.isOnFullscreenVideo -> Color.Black
@@ -1331,6 +1333,7 @@ fun BrowserScreen(
     }
 
     val targetBottomBarColor = when {
+        viewModel.landscapeInputSession.value != null -> MaterialTheme.colorScheme.surfaceContainer
         uiState.value.isSettingCornerRadius -> viewModel.backgroundColor.value
         !settings.isEnabledImmersiveWebview -> Color.Black
         uiState.value.isOnFullscreenVideo -> Color.Black
@@ -2473,7 +2476,11 @@ fun BrowserScreen(
             }
         }
         LaunchedEffect(uiState.value.isLandscapeByButton, uiState.value.isOnFullscreenVideo) {
-            viewModel.updateUI { it.copy(isLandscape = uiState.value.isLandscapeByButton || uiState.value.isOnFullscreenVideo) }
+            val nextLandscape = uiState.value.isLandscapeByButton || uiState.value.isOnFullscreenVideo
+            viewModel.updateUI { it.copy(isLandscape = nextLandscape) }
+            if (!nextLandscape) {
+                viewModel.landscapeInputSession.value = null
+            }
         }
              LaunchedEffect(uiState.value.isLandscapeByButton) {
             if (uiState.value.isLandscapeByButton) {
@@ -4196,12 +4203,15 @@ fun BrowserScreen(
                             modifier = modifier,
                             activeSession = activeSession,
                             geckoViewRef = geckoViewRef,
-//                            backSquareOffsetX = backSquareOffsetX,
-//                            backSquareOffsetY = backSquareOffsetY,
                             squareAlpha = squareAlpha,
                             cutoutTop = cutoutTop,
                             webViewPaddingValue = webViewPaddingValue,
                             hideBackSquare = ::hideBackSquare
+                        )
+
+                        LandscapeTextInputOverlay(
+                            webViewPaddingValue = webViewPaddingValue,
+                            onClearWebViewFocus = { geckoViewRef.value?.clearFocus() }
                         )
 
                     }

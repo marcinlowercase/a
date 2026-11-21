@@ -33,7 +33,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
+import marcinlowercase.a.core.data_class.LandscapeInputSession
+import kotlin.math.roundToInt
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.KeyEventType
@@ -186,17 +191,42 @@ fun SliderSetting(
                 )
             }
 
+            val isLandscapeLayout = uiState.value.isLandscape && !uiState.value.isOnFullscreenVideo
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .fillMaxHeight(),
-                contentAlignment = Alignment.Center // 2. Center the content of the Box
+                    .fillMaxHeight()
+                    .then(
+                        if (isLandscapeLayout && textEnabled) {
+                            Modifier.clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) {
+                                viewModel.landscapeInputSession.value = LandscapeInputSession(
+                                    initialText = textFieldValueFun(digits).trim(),
+                                    selectAllOnOpen = true,
+                                    keyboardType = KeyboardType.Number,
+                                    imeAction = ImeAction.Done,
+                                    onCommit = { typedText, _ ->
+                                        val numericVal = typedText.trim().toFloatOrNull()
+                                        if (numericVal != null) {
+                                            val scaled = (numericVal * if (afterDecimal) 100f else 1f).roundToInt()
+                                            digits = scaled.toString().takeLast(digitCount).padStart(digitCount, '0')
+                                            commitTextFieldValue()
+                                        }
+                                    }
+                                )
+                            }
+                        } else Modifier
+                    ),
+                contentAlignment = Alignment.Center
             ) {
                 BasicTextField(
                     enabled = textEnabled,
                     value = textFieldValueFun(digits),
                     onValueChange = {},
                     modifier = Modifier
+                        .focusProperties { canFocus = !isLandscapeLayout }
 
                         .onKeyEvent { event ->
                             if (event.type == KeyEventType.KeyUp) {
@@ -323,12 +353,48 @@ fun TextSetting(
 
     val viewModel = LocalBrowserViewModel.current
     val settings = viewModel.browserSettings.collectAsState()
+    val uiState = viewModel.uiState.collectAsState()
+    val isLandscapeLayout = uiState.value.isLandscape && !uiState.value.isOnFullscreenVideo
 
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
 
-    // State to hold the text being edited.
     var textValue by remember { mutableStateOf(currentSettingOriginalValue) }
+
+    val applySubmittedValue: (String) -> Unit = { rawText ->
+        val finalValue = if (field == BrowserSettingField.DEFAULT_URL) {
+            val input = rawText.trim()
+            if (input.isEmpty()) {
+                "about:blank"
+            } else {
+                val isUrl = try {
+                    android.util.Patterns.WEB_URL.matcher(input).matches() ||
+                            (input.contains(".") && !input.contains(" ")) &&
+                            !input.endsWith(".") &&
+                            !input.startsWith(".")
+                } catch (_: Exception) {
+                    false
+                }
+                if (isUrl) {
+                    if (input.startsWith("http://") || input.startsWith("https://")) {
+                        input
+                    } else {
+                        "https://$input"
+                    }
+                } else {
+                    val encodedQuery = java.net.URLEncoder.encode(
+                        input,
+                        java.nio.charset.StandardCharsets.UTF_8.toString()
+                    )
+                    SearchEngine.entries[settings.value.searchEngine].getSearchUrl(encodedQuery)
+                }
+            }
+        } else {
+            rawText
+        }
+        textValue = finalValue
+        viewModel.updateField(field, finalValue)
+    }
 
     Column(
         modifier = Modifier
@@ -398,91 +464,74 @@ fun TextSetting(
             }
         }
 
-        // --- OutlinedTextField (replaces Slider) ---
-        TextField(
-            value = textValue,
-            onValueChange = { textValue = it },
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = settings.value.padding.dp)
-                .heightIn(
-                    min = settings.value.heightForLayer(3).dp
-                )
-                .onFocusChanged{ focusState ->
-                    viewModel.updateUI { it.copy(isFocusOnSettingTextField = focusState.hasFocus) }
-                },
-            shape = RoundedCornerShape(
-                settings.value.cornerRadiusForLayer(3).dp
-            ),
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                cursorColor = MaterialTheme.colorScheme.onSurface,
-                focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-
-                // 3. This is the key to removing the underline
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent,
-                disabledIndicatorColor = Color.Transparent,
-                errorIndicatorColor = Color.Transparent,
-                selectionColors = TextSelectionColors(
-                    handleColor = MaterialTheme.colorScheme.onSurface,
-                    backgroundColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f)
+        ) {
+            TextField(
+                value = textValue,
+                onValueChange = { textValue = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusProperties { canFocus = !isLandscapeLayout }
+                    .heightIn(min = settings.value.heightForLayer(3).dp)
+                    .onFocusChanged { focusState ->
+                        viewModel.updateUI { it.copy(isFocusOnSettingTextField = focusState.hasFocus) }
+                    },
+                shape = RoundedCornerShape(settings.value.cornerRadiusForLayer(3).dp),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    cursorColor = MaterialTheme.colorScheme.onSurface,
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    disabledIndicatorColor = Color.Transparent,
+                    errorIndicatorColor = Color.Transparent,
+                    selectionColors = TextSelectionColors(
+                        handleColor = MaterialTheme.colorScheme.onSurface,
+                        backgroundColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f)
+                    ),
                 ),
-            ),
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Uri, // Good for URLs
-                imeAction = ImeAction.Done
-            ),
-            keyboardActions = KeyboardActions(
-                onDone = {
-                    // APPLY URL BAR LOGIC FOR DEFAULT_URL
-                    val finalValue = if (field == BrowserSettingField.DEFAULT_URL) {
-                        val input = textValue.trim()
-
-                        if (input.isEmpty()) {
-                            "about:blank" // Let it be empty if user clears it
-                        } else {
-                            val isUrl = try {
-                                android.util.Patterns.WEB_URL.matcher(input).matches() ||
-                                        (input.contains(".") && !input.contains(" "))
-                                        && !input.endsWith(".")
-                                        && !input.startsWith(".")
-                            } catch (_: Exception) {
-                                false
-                            }
-
-                            if (isUrl) {
-                                if (input.startsWith("http://") || input.startsWith("https://")) {
-                                    input
-                                } else {
-                                    "https://$input"
-                                }
-                            } else {
-                                val encodedQuery = java.net.URLEncoder.encode(
-                                    input,
-                                    java.nio.charset.StandardCharsets.UTF_8.toString()
-                                )
-                                SearchEngine.entries[settings.value.searchEngine].getSearchUrl(encodedQuery)
-                            }
-                        }
-                    } else {
-                        textValue
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Uri,
+                    imeAction = ImeAction.Done
+                ),
+                keyboardActions = KeyboardActions(
+                    onDone = {
+                        applySubmittedValue(textValue)
+                        keyboardController?.hide()
+                        focusManager.clearFocus()
                     }
-
-                    // Update the TextField visually so the user sees the generated web search URL/scheme
-                    textValue = finalValue
-
-                    // Update global settings
-                    viewModel.updateField(field, finalValue)
-
-                    keyboardController?.hide()
-                    focusManager.clearFocus()
-                }
-            ),
-            singleLine = true
-        )
+                ),
+                singleLine = true
+            )
+            if (isLandscapeLayout) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            viewModel.landscapeInputSession.value = LandscapeInputSession(
+                                initialText = textValue,
+                                keyboardType = KeyboardType.Uri,
+                                imeAction = ImeAction.Done,
+                                onCommit = { typedText, submitAction ->
+                                    if (submitAction) {
+                                        applySubmittedValue(typedText)
+                                    } else {
+                                        textValue = typedText
+                                    }
+                                }
+                            )
+                        }
+                )
+            }
+        }
     }
 
 }
