@@ -1493,8 +1493,16 @@ fun BrowserScreen(
         hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
     }
 
-    LaunchedEffect(draggableState.settledValue) {
+    LaunchedEffect(
+        draggableState.settledValue,
+        uiState.value.isLandscape,
+        uiState.value.isOnFullscreenVideo
+    ) {
         lastSettledState = draggableState.settledValue
+
+        if (uiState.value.isLandscape && !uiState.value.isOnFullscreenVideo) {
+            return@LaunchedEffect
+        }
 
         if (uiState.value.isFocusOnUrlTextField || uiState.value.isFocusOnIconUrlTextField) {
             return@LaunchedEffect
@@ -1576,9 +1584,15 @@ fun BrowserScreen(
         uiState.value.isAppsPanelVisible,
         uiState.value.isFocusOnUrlTextField,
         uiState.value.isFocusOnIconUrlTextField,
+        uiState.value.isLandscape,
+        uiState.value.isOnFullscreenVideo,
         draggableState.settledValue,
         draggableState.isAnimationRunning
     ) {
+        if (uiState.value.isLandscape && !uiState.value.isOnFullscreenVideo) {
+            return@LaunchedEffect
+        }
+
         val isUrlInputFocused =
             uiState.value.isFocusOnUrlTextField || uiState.value.isFocusOnIconUrlTextField
         val targetState = when {

@@ -313,9 +313,20 @@ fun BottomPanel(
                     viewModel.updateUI { it.copy(isOptionsPanelVisible = shouldBeVisible) }
                 }
             }
-            LaunchedEffect(uiState.value.isOptionsPanelVisible, landscapeOptionsWidthPx) {
+            LaunchedEffect(
+                uiState.value.isOptionsPanelVisible,
+                landscapeOptionsWidthPx,
+                landscapeOptionsDraggableState.settledValue,
+                landscapeOptionsDraggableState.isAnimationRunning
+            ) {
                 val target = if (uiState.value.isOptionsPanelVisible) RevealState.Visible else RevealState.Hidden
-                if (landscapeOptionsDraggableState.targetValue != target) {
+                val targetOffset = landscapeOptionsDraggableState.anchors.positionOf(target)
+                val isOffsetAtTarget = !targetOffset.isNaN() &&
+                    kotlin.math.abs(landscapeOptionsDraggableState.offset - targetOffset) < 1f
+                if (landscapeOptionsDraggableState.currentValue != target ||
+                    landscapeOptionsDraggableState.targetValue != target ||
+                    (!landscapeOptionsDraggableState.isAnimationRunning && !isOffsetAtTarget)
+                ) {
                     landscapeOptionsDraggableState.animateTo(
                         targetValue = target,
                         animationSpec = tween(settings.value.animationSpeedForLayer(1))
@@ -330,9 +341,20 @@ fun BottomPanel(
                     viewModel.updateUI { it.copy(isAppsPanelVisible = shouldBeVisible) }
                 }
             }
-            LaunchedEffect(uiState.value.isAppsPanelVisible, landscapeAppsHeightPx) {
+            LaunchedEffect(
+                uiState.value.isAppsPanelVisible,
+                landscapeAppsHeightPx,
+                landscapeAppsDraggableState.settledValue,
+                landscapeAppsDraggableState.isAnimationRunning
+            ) {
                 val target = if (uiState.value.isAppsPanelVisible) RevealState.Visible else RevealState.Hidden
-                if (landscapeAppsDraggableState.targetValue != target) {
+                val targetOffset = landscapeAppsDraggableState.anchors.positionOf(target)
+                val isOffsetAtTarget = !targetOffset.isNaN() &&
+                    kotlin.math.abs(landscapeAppsDraggableState.offset - targetOffset) < 1f
+                if (landscapeAppsDraggableState.currentValue != target ||
+                    landscapeAppsDraggableState.targetValue != target ||
+                    (!landscapeAppsDraggableState.isAnimationRunning && !isOffsetAtTarget)
+                ) {
                     landscapeAppsDraggableState.animateTo(
                         targetValue = target,
                         animationSpec = tween(settings.value.animationSpeedForLayer(1))
