@@ -278,7 +278,20 @@ fun BottomPanel(
         ).dp + settings.value.padding.dp
         val landscapeAppsHeightPx = with(density) { landscapeAppsHeightDp.toPx() }
 
-        var landscapeOptionsSettled by remember { mutableStateOf(RevealState.Hidden) }
+        val isFirstModeLoad = settings.value.isFirstLoadForMode(uiState.value.windowMode)
+        val isLandscapeSettingsMainOpen =
+            uiState.value.isSettingsPanelVisible && currentSettingView == SettingPanelView.MAIN && !isFirstModeLoad
+        val isLandscapeCol2Open =
+            isLandscapeSettingsMainOpen || uiState.value.isFindInPageVisible || isTabDataPanelVisible
+        val isAnyLandscapeLeftPanelOpen = uiState.value.isOptionsPanelVisible || isLandscapeCol2Open
+
+        val initialLeftStemState = if (isAnyLandscapeLeftPanelOpen) RevealState.Visible else RevealState.Hidden
+        var landscapeOptionsSettled by remember { mutableStateOf(initialLeftStemState) }
+        var prevLandscapeOptionsSettled by remember { mutableStateOf(initialLeftStemState) }
+        var snappedForCol2Only by remember {
+            mutableStateOf(!uiState.value.isOptionsPanelVisible && isLandscapeCol2Open)
+        }
+
         val landscapeOptionsAnchors = remember(landscapeOptionsWidthPx, landscapeOptionsSettled) {
             DraggableAnchors {
                 RevealState.Hidden at 0f
@@ -294,7 +307,9 @@ fun BottomPanel(
             positionalThreshold = { distance -> distance * 0.5f },
         )
 
-        var landscapeAppsSettled by remember { mutableStateOf(RevealState.Hidden) }
+        val initialAppsState = if (uiState.value.isAppsPanelVisible) RevealState.Visible else RevealState.Hidden
+        var landscapeAppsSettled by remember { mutableStateOf(initialAppsState) }
+        var prevLandscapeAppsSettled by remember { mutableStateOf(initialAppsState) }
         val landscapeAppsAnchors = remember(landscapeAppsHeightPx, landscapeAppsSettled) {
             DraggableAnchors {
                 RevealState.Hidden at 0f
@@ -310,21 +325,15 @@ fun BottomPanel(
             positionalThreshold = { distance -> distance * 0.5f },
         )
 
-        val isLandscapeSettingsMainOpen =
-            uiState.value.isSettingsPanelVisible && currentSettingView == SettingPanelView.MAIN && !settings.value.isFirstLoadForMode(uiState.value.windowMode)
-        val isLandscapeCol2Open =
-            isLandscapeSettingsMainOpen || uiState.value.isFindInPageVisible || isTabDataPanelVisible
-        val isAnyLandscapeLeftPanelOpen = uiState.value.isOptionsPanelVisible || isLandscapeCol2Open
-        var snappedForCol2Only by remember { mutableStateOf(false) }
-
         if (isLandscapeLayout) {
             LaunchedEffect(landscapeOptionsDraggableState.settledValue) {
-                landscapeOptionsSettled = landscapeOptionsDraggableState.settledValue
-                if (landscapeOptionsDraggableState.settledValue == RevealState.Visible) {
+                val newSettled = landscapeOptionsDraggableState.settledValue
+                landscapeOptionsSettled = newSettled
+                if (newSettled == RevealState.Visible && prevLandscapeOptionsSettled == RevealState.Hidden) {
                     if (!snappedForCol2Only && !uiState.value.isOptionsPanelVisible) {
                         viewModel.updateUI { it.copy(isOptionsPanelVisible = true) }
                     }
-                } else {
+                } else if (newSettled == RevealState.Hidden && prevLandscapeOptionsSettled == RevealState.Visible) {
                     snappedForCol2Only = false
                     if (isAnyLandscapeLeftPanelOpen) {
                         viewModel.updateUI {
@@ -337,6 +346,7 @@ fun BottomPanel(
                         }
                     }
                 }
+                prevLandscapeOptionsSettled = newSettled
             }
             LaunchedEffect(
                 isAnyLandscapeLeftPanelOpen,
@@ -351,7 +361,7 @@ fun BottomPanel(
                         snappedForCol2Only = false
                         val targetOffset = landscapeOptionsDraggableState.anchors.positionOf(RevealState.Visible)
                         val isOffsetAtTarget = !targetOffset.isNaN() &&
-                            kotlin.math.abs(landscapeOptionsDraggableState.offset - targetOffset) < 1f
+                                kotlin.math.abs(landscapeOptionsDraggableState.offset - targetOffset) < 1f
                         if (landscapeOptionsDraggableState.currentValue != RevealState.Visible ||
                             landscapeOptionsDraggableState.targetValue != RevealState.Visible ||
                             (!landscapeOptionsDraggableState.isAnimationRunning && !isOffsetAtTarget)
@@ -361,9 +371,11 @@ fun BottomPanel(
                                 animationSpec = tween(settings.value.animationSpeedForLayer(1))
                             )
                         }
-                    } else if (isLandscapeCol2Open && landscapeOptionsDraggableState.currentValue != RevealState.Visible) {
+                    } else if (isLandscapeCol2Open) {
                         snappedForCol2Only = true
-                        landscapeOptionsDraggableState.snapTo(RevealState.Visible)
+                        if (landscapeOptionsDraggableState.currentValue != RevealState.Visible) {
+                            landscapeOptionsDraggableState.snapTo(RevealState.Visible)
+                        }
                     }
                 } else {
                     if (snappedForCol2Only) {
@@ -376,7 +388,7 @@ fun BottomPanel(
                     } else {
                         val targetOffset = landscapeOptionsDraggableState.anchors.positionOf(RevealState.Hidden)
                         val isOffsetAtTarget = !targetOffset.isNaN() &&
-                            kotlin.math.abs(landscapeOptionsDraggableState.offset - targetOffset) < 1f
+                                kotlin.math.abs(landscapeOptionsDraggableState.offset - targetOffset) < 1f
                         if (landscapeOptionsDraggableState.currentValue != RevealState.Hidden ||
                             landscapeOptionsDraggableState.targetValue != RevealState.Hidden ||
                             (!landscapeOptionsDraggableState.isAnimationRunning && !isOffsetAtTarget)
@@ -391,11 +403,15 @@ fun BottomPanel(
             }
 
             LaunchedEffect(landscapeAppsDraggableState.settledValue) {
-                landscapeAppsSettled = landscapeAppsDraggableState.settledValue
-                val shouldBeVisible = landscapeAppsDraggableState.settledValue == RevealState.Visible
-                if (uiState.value.isAppsPanelVisible != shouldBeVisible) {
-                    viewModel.updateUI { it.copy(isAppsPanelVisible = shouldBeVisible) }
+                val newSettled = landscapeAppsDraggableState.settledValue
+                landscapeAppsSettled = newSettled
+                if (newSettled != prevLandscapeAppsSettled) {
+                    val shouldBeVisible = newSettled == RevealState.Visible
+                    if (uiState.value.isAppsPanelVisible != shouldBeVisible) {
+                        viewModel.updateUI { it.copy(isAppsPanelVisible = shouldBeVisible) }
+                    }
                 }
+                prevLandscapeAppsSettled = newSettled
             }
             LaunchedEffect(
                 uiState.value.isAppsPanelVisible,
@@ -1459,7 +1475,7 @@ fun BottomPanel(
                                     ),
                                 verticalAlignment = Alignment.Bottom
                             ) {
-                                if (uiState.value.isOptionsPanelVisible || (!isLandscapeCol2Open && landscapeOptionsDraggableState.offset > 0f)) {
+                                if (uiState.value.isOptionsPanelVisible || (!isLandscapeCol2Open && !snappedForCol2Only && landscapeOptionsDraggableState.offset > 0f)) {
                                     Box(modifier = Modifier.padding(end = settings.value.padding.dp)) {
                                         Box(
                                             modifier = Modifier
@@ -1712,7 +1728,7 @@ fun BottomPanel(
                             ContextMenuPanel(onDownload = onDownload)
                             PermissionPanel(
                                 isUrlBarVisible = uiState.value.isUrlBarVisible,
-                                hasContentBelow = uiState.value.isTabsPanelVisible || isTextEditVisible,
+                                hasContentBelow = (uiState.value.isTabsPanelVisible && !uiState.value.isFindInPageVisible) || isTextEditVisible,
                                 onAllow = {
                                     viewModel.pendingPermissionRequest.value?.let { request ->
                                         if (!request.isSystemRequest) {

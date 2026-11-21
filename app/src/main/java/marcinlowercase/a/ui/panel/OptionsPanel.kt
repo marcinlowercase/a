@@ -191,11 +191,10 @@ fun rememberBrowserOptionsRegistry(
                 contentDescription = R.string.desc_find_in_page,
                 enabled = uiState.value.isFindInPageVisible
             ) {
-                val keepOptionsInLandscape = uiState.value.isLandscape && !uiState.value.isOnFullscreenVideo
                 viewModel.updateUI {
                     it.copy(
                         isFindInPageVisible = !it.isFindInPageVisible,
-                        isOptionsPanelVisible = if (keepOptionsInLandscape) it.isOptionsPanelVisible else false,
+                        isOptionsPanelVisible = false,
                         isAppsPanelVisible = false
                     )
                 }

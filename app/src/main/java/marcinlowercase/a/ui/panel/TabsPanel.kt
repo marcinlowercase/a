@@ -247,7 +247,7 @@ fun TabsPanel(
     }
 
     AnimatedVisibility(
-        visible = uiState.value.isTabsPanelVisible,
+        visible = uiState.value.isTabsPanelVisible && !uiState.value.isFindInPageVisible,
         enter = expandVertically(tween(settings.value.animationSpeedForLayer(1))) + fadeIn(tween(settings.value.animationSpeedForLayer(1))),
         exit = shrinkVertically(tween(settings.value.animationSpeedForLayer(1))) + fadeOut(tween(settings.value.animationSpeedForLayer(1)))
     ) {

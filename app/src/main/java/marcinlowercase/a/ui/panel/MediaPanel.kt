@@ -53,6 +53,7 @@ fun MediaPanel() {
 
     val isVisible = uiState.value.isUrlBarVisible &&
             !uiState.value.isFocusOnTextField &&
+            !uiState.value.isFindInPageVisible &&
             hasActiveVideo
 
     AnimatedVisibility(
