@@ -12,7 +12,7 @@ data class Tab(
     var currentURL: String,
     var currentTitle: String = "",
     var currentFaviconUrl: String = currentURL,
-    var savedState: String? = null,
+    @Transient var savedState: String? = null,
     var profileId: String,
 
     val faviconCache: Map<String, String> = emptyMap(),

@@ -487,6 +487,7 @@ class MainActivity : ComponentActivity() {
             || isPipMode || isEnteringPip
         ) return
         if (!viewModel.isStandaloneMode.value) {
+            viewModel.flushLiveTabStatesToDisk()
             viewModel.tabManager.freezeAllTabs(viewModel.activeProfileId.value)
         }
     }
@@ -1712,6 +1713,7 @@ fun BrowserScreen(
 
                                     // check if this tab belongs to the domain just cleared
                                     if (tabDomain == domain) {
+                                        viewModel.geckoManager.clearSavedState(tab.id)
                                         viewModel.updateTabById(tab.id) { t ->
                                             t.copy(savedState = null)
                                         }
@@ -2788,12 +2790,7 @@ fun BrowserScreen(
                 },
                 onHistoryStateChangeFun = { _, _, _ -> },
                 onSessionStateChangeFun = { eventTabId, _, _ ->
-                    val stateToSave =
-                        viewModel.geckoManager.getSessionStateString(eventTabId)
-                    if (stateToSave != null) {
-                        // updateTabById already triggers debounced io saveTabs()
-                        viewModel.updateTabById(eventTabId) { it.copy(savedState = stateToSave) }
-                    }
+                    viewModel.scheduleSaveTabState(eventTabId)
                 },
                 onCanGoBackFun = { _, canGoBack ->
                     viewModel.updateTabById(viewModel.activeTab!!.id) { it.copy(canGoBack = canGoBack) }
@@ -3132,20 +3129,16 @@ fun BrowserScreen(
                 }
             )
 
-            if (!uiState.value.initialLoadDone && initialIntentUrl != null && viewModel.activeTab!!.currentURL == initialIntentUrl) {
+            val currentActiveTab = viewModel.activeTab!!
+            val wasStateRestored = viewModel.geckoManager.consumeRestoredStateFlag(currentActiveTab.id)
+            if (!uiState.value.initialLoadDone && initialIntentUrl != null && currentActiveTab.currentURL == initialIntentUrl) {
                 webViewLoad(activeSession, initialIntentUrl, context)
                 viewModel.updateUI { it.copy(initialLoadDone = true) }
-            } else {
-                val stateToRestore = viewModel.activeTab!!.savedState?.let {
-                    viewModel.geckoManager.restoreStateFromString(it)
-                }
-                if (stateToRestore == null && !viewModel.geckoManager.isEngineManaged(viewModel.activeTab!!.id)) {
-                    val baseLoad = viewModel.activeTab!!.currentURL.ifBlank { settings.defaultUrl }
+            } else if (!wasStateRestored && !viewModel.geckoManager.isEngineManaged(currentActiveTab.id)) {
+                val baseLoad = currentActiveTab.currentURL.ifBlank { settings.defaultUrl }
 
-                    val urlToLoad = baseLoad.ifBlank { "about:blank" }
-                    Log.d("marcBlank", "load blank from launched effect, $urlToLoad")
-                    webViewLoad(activeSession, urlToLoad, context)
-                }
+                val urlToLoad = baseLoad.ifBlank { "about:blank" }
+                webViewLoad(activeSession, urlToLoad, context)
             }
         }
         var isBrowserVisible by remember { mutableStateOf(true) }

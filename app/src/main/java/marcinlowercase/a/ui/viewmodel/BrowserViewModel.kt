@@ -218,12 +218,14 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             null
         }
 
-        // prepare tabs for saving and manage ram
+        // persist live tab states into per-tab files and manage ram
         val memoryUsage = _browserSettings.value.memoryUsage
 
-        val updatedTabsForSave = tabs.map { tab ->
+        tabs.forEach { tab ->
             val liveState = geckoManager.getSessionStateString(tab.id)
-            val updatedTab = if (liveState != null) tab.copy(savedState = liveState) else tab
+            if (liveState != null) {
+                tabManager.saveTabStateAsync(tab.id, liveState)
+            }
 
             when (memoryUsage) {
                 0 -> {
@@ -250,11 +252,9 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                     }
                 }
             }
-            updatedTab
         }
 
-        // 3. Freeze current tabs to disk before switching
-        tabManager.saveTabs(activeProfileId.value, updatedTabsForSave, _activeTabIndex.value)
+        tabManager.saveTabs(activeProfileId.value, tabs.toList(), _activeTabIndex.value)
 
         // reset domain tracking so switching profiles does not copy across profiles
         lastObservedTabId = null
@@ -289,8 +289,9 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         tabs.clear()
         tabs.addAll(loadedTabs)
 
-        // 8. Set new Active Index
         _activeTabIndex.value = tabManager.getActiveTabIndex(newProfileId).coerceAtLeast(0)
+        geckoManager.activeTabId = activeTab?.id
+        enforceLiveSessionLimit()
 
         // force ui to update session and reflect the newly active tab's loading state
         sessionRefreshTrigger.intValue++
@@ -363,13 +364,21 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             targetProfileId = profiles[nextIndex].id
         }
 
-        // 2. Add Tab to Target Profile (Disk Operation)
         val targetTabs = tabManager.loadTabs(targetProfileId, null).toMutableList()
+        val liveState = geckoManager.getSessionStateString(tabToMove.id)
+            ?: tabToMove.savedState
+            ?: tabManager.loadTabState(tabToMove.id)
 
-        // Use .copy() to preserve savedState, history, etc., and ensure a fresh ID
+        val newTabId = System.currentTimeMillis()
+        if (liveState != null) {
+            tabManager.saveTabStateAsync(newTabId, liveState)
+        }
+        tabManager.deleteTabState(tabToMove.id)
+
         val newTabForTarget = tabToMove.copy(
             profileId = targetProfileId,
-            id = System.currentTimeMillis(),
+            id = newTabId,
+            savedState = liveState,
             state = TabState.ACTIVE
         )
 
@@ -482,10 +491,11 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         val targetIndex = if (currentIndex > 0) currentIndex - 1 else 1
         val profileIdToSwitchTo = profiles[targetIndex].id
 
-        // close all live sessions of the deleted profile so nothing keeps playing
+        // close all live sessions and delete state files of the deleted profile
         tabs.toList().forEach { tab ->
             loadingTabIds.remove(tab.id)
             geckoManager.closeSession(tab)
+            geckoManager.clearSavedState(tab.id)
         }
 
         // wipe the container data from geckoview
@@ -756,6 +766,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                         is Int -> value
                         else -> current.memoryUsage
                     }
+                    geckoManager.trimToLimit(index, activeTab?.id)
                     current.copy(memoryUsage = index)
                 }
 
@@ -1606,39 +1617,90 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     private val _activeTabIndex = MutableStateFlow(0)
     val activeTabIndex = _activeTabIndex.asStateFlow()
 
-    //    val activeTab: Tab?
-//        get() = tabs.getOrNull(_activeTabIndex.value)
     val activeTab: Tab?
         get() = if (isStandaloneMode.value) pwaTab.value else tabs.getOrNull(_activeTabIndex.value)
     private var isInitialized = false
+    private var lastTabId = 0L
+
+    private fun nextUniqueTabId(): Long {
+        val now = System.currentTimeMillis()
+        lastTabId = maxOf(now, lastTabId + 1)
+        return lastTabId
+    }
+
+    private fun enforceLiveSessionLimit() {
+        val activeId = activeTab?.id ?: return
+        geckoManager.touchAndTrimSessions(activeId, _browserSettings.value.memoryUsage)
+    }
+
+    private fun trimRecentlyClosedHistory() {
+        val limit = _browserSettings.value.closedTabHistorySize.toInt()
+        while (recentlyClosedTabs.size > limit) {
+            val dropped = recentlyClosedTabs.removeAt(0)
+            geckoManager.clearSavedState(dropped.id)
+        }
+    }
+
+    private fun snapshotStateBeforeClose(tab: Tab) {
+        val stateStr = geckoManager.getSessionStateString(tab.id)
+            ?: tab.savedState
+            ?: tabManager.loadTabState(tab.id)
+        if (stateStr != null) {
+            tabManager.saveTabStateAsync(tab.id, stateStr)
+        }
+        geckoManager.clearStateCacheEntry(tab.id)
+    }
+
+    private val tabStateSaveJobs = mutableMapOf<Long, Job>()
+
+    fun scheduleSaveTabState(tabId: Long) {
+        tabStateSaveJobs[tabId]?.cancel()
+        tabStateSaveJobs[tabId] = viewModelScope.launch(Dispatchers.IO) {
+            delay(500.milliseconds)
+            val stateStr = geckoManager.getSessionStateString(tabId)
+            if (stateStr != null) {
+                tabManager.saveTabStateSync(tabId, stateStr)
+            }
+        }
+    }
+
+    fun flushLiveTabStatesToDisk() {
+        tabStateSaveJobs.values.forEach { it.cancel() }
+        tabStateSaveJobs.clear()
+        geckoManager.flushStateCacheToDisk()
+    }
+
     val initializeTabs = { initialUrl: String? ->
         if (!isInitialized) {
-            // 1. Load tabs using the intent URL (if provided)
             val loadedTabs = tabManager.loadTabs(activeProfileId.value, initialUrl)
             tabs.clear()
             tabs.addAll(loadedTabs)
 
-            // 2. Set the active index
             _activeTabIndex.value =
                 tabManager.getActiveTabIndex(activeProfileId.value).coerceAtLeast(0)
+            geckoManager.activeTabId = activeTab?.id
 
             isInitialized = true
+
+            viewModelScope.launch(Dispatchers.IO) {
+                val validIds = profiles.flatMap { profile ->
+                    if (profile.id == activeProfileId.value) tabs.map { it.id }
+                    else tabManager.loadTabs(profile.id, null).map { it.id }
+                }.toSet()
+                tabManager.pruneOrphanTabStates(validIds)
+            }
         }
     }
-
 
     val currentInspectingTab: Tab?
         get() = _uiState.value.inspectingTabId?.let { id ->
             tabs.find { it.id == id }
         }
 
-
     val selectTab = { newIndex: Int ->
         val currentIndex = _activeTabIndex.value
 
         if (newIndex != currentIndex && newIndex in tabs.indices) {
-
-
             // deactivate current tab unless it is actively playing background media
             if (currentIndex in tabs.indices) {
                 val oldTab = tabs[currentIndex]
@@ -1651,17 +1713,16 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 tabs[currentIndex] = tabs[currentIndex].copy(state = TabState.BACKGROUND)
             }
 
-            // 3. Activate new tab
             tabs[newIndex] = tabs[newIndex].copy(state = TabState.ACTIVE)
-
-            // 4. Update the active index
             _activeTabIndex.value = newIndex
 
-            // 5. Sync the inspection ID to the newly selected tab
-            updateUI { it.copy(inspectingTabId = tabs[newIndex].id) }
+            val newlyActiveId = tabs[newIndex].id
+            geckoManager.activeTabId = newlyActiveId
+            enforceLiveSessionLimit()
+
+            updateUI { it.copy(inspectingTabId = newlyActiveId) }
 
             syncActiveTabLoadingState()
-            // persist changes
             saveTabs()
         }
     }
@@ -1742,7 +1803,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     }
 
     val handleNewSession = { engineId: Long, uri: String ->
-        // copy sharp mode from opener tab if target domain has no sharp mode yet
         val parentDomain = siteSettingsManager.getDomain(activeTab?.currentURL)
             ?.takeIf { it.isNotBlank() && it != "about:blank" }
         val parentSharpMode = parentDomain?.let { siteSettings[it]?.currentSharpMode() } ?: SharpMode.ROUND
@@ -1754,13 +1814,19 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             siteSettingsManager.saveSettings(currentProfileId, siteSettings)
         }
 
-        // deactivate current active tab
+        // deactivate current active tab unless playing background media
         val currentIndex = _activeTabIndex.value
         if (currentIndex in tabs.indices) {
+            val oldTab = tabs[currentIndex]
+            val isPlayingTab = !geckoManager.isActiveMediaSessionPaused &&
+                _browserSettings.value.isEnabledBackgroundPlayback &&
+                oldTab.id == geckoManager.getActiveMediaTabId()
+            if (!isPlayingTab) {
+                geckoManager.pauseSessionIfExists(oldTab.id)
+            }
             tabs[currentIndex] = tabs[currentIndex].copy(state = TabState.BACKGROUND)
         }
 
-        // 2. Create the new Tab object using the ID provided by the engine
         val newTab = Tab(
             profileId = currentProfileId,
             id = engineId,
@@ -1768,117 +1834,127 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             state = TabState.ACTIVE
         )
 
-        // 3. Insert right after the current active tab
         val insertIndex = (currentIndex + 1).coerceIn(0, tabs.size)
         tabs.add(insertIndex, newTab)
 
-        // 4. Switch the active index
         _activeTabIndex.value = insertIndex
+        geckoManager.activeTabId = engineId
+        enforceLiveSessionLimit()
 
-        // sync inspection and loading state
         updateUI { it.copy(inspectingTabId = newTab.id) }
         syncActiveTabLoadingState()
-
-        // persist to disk
         saveTabs()
     }
 
     val reopenClosedTab = {
-        // Check if there are any viewModel.tabs to reopen.
         if (recentlyClosedTabs.isNotEmpty()) {
-            // Get the last closed tab and remove it from the stack.
             val tabToReopen = recentlyClosedTabs.removeAt(recentlyClosedTabs.lastIndex)
 
-            // Deactivate the current tab.
             val currentIndex = _activeTabIndex.value
             if (currentIndex in tabs.indices) {
+                val oldTab = tabs[currentIndex]
+                val isPlayingTab = !geckoManager.isActiveMediaSessionPaused &&
+                    _browserSettings.value.isEnabledBackgroundPlayback &&
+                    oldTab.id == geckoManager.getActiveMediaTabId()
+                if (!isPlayingTab) {
+                    geckoManager.pauseSessionIfExists(oldTab.id)
+                }
                 tabs[currentIndex] = tabs[currentIndex].copy(state = TabState.BACKGROUND)
             }
 
-            // Add the reopened tab back to the list, usually at the end or a specific index.
-            // Let's add it at the end for simplicity.
             tabs.add(tabToReopen)
 
-            // Make the reopened tab the new active tab.
             val newIndex = tabs.lastIndex
             _activeTabIndex.value = newIndex
             tabs[newIndex] = tabs[newIndex].copy(state = TabState.ACTIVE)
+
+            geckoManager.activeTabId = tabToReopen.id
+            enforceLiveSessionLimit()
 
             syncActiveTabLoadingState()
             saveTabs()
         }
     }
+
     val duplicateInspectedTab = {
         val originalTab = currentInspectingTab
 
         if (originalTab != null) {
             val liveState = geckoManager.getSessionStateString(originalTab.id)
                 ?: originalTab.savedState
+                ?: tabManager.loadTabState(originalTab.id)
 
+            val clonedId = nextUniqueTabId()
+            if (liveState != null) {
+                tabManager.saveTabStateAsync(clonedId, liveState)
+            }
 
             val clonedTab = originalTab.copy(
-                id = System.currentTimeMillis(), // New unique ID
+                id = clonedId,
                 savedState = liveState,
                 state = TabState.BACKGROUND
             )
 
-            // 3. Find where the original is in the list
             val originalIndex = tabs.indexOf(originalTab)
             val insertIndex = (originalIndex + 1).coerceIn(0, tabs.size)
 
-            // 4. Deactivate the current active tab
             val currentIndex = _activeTabIndex.value
             if (currentIndex in tabs.indices) {
+                val oldTab = tabs[currentIndex]
+                val isPlayingTab = !geckoManager.isActiveMediaSessionPaused &&
+                    _browserSettings.value.isEnabledBackgroundPlayback &&
+                    oldTab.id == geckoManager.getActiveMediaTabId()
+                if (!isPlayingTab) {
+                    geckoManager.pauseSessionIfExists(oldTab.id)
+                }
                 tabs[currentIndex] = tabs[currentIndex].copy(state = TabState.BACKGROUND)
             }
 
-            // 5. Insert the clone and jump to it
             tabs.add(insertIndex, clonedTab)
             _activeTabIndex.value = insertIndex
             tabs[insertIndex] = tabs[insertIndex].copy(state = TabState.ACTIVE)
+
+            geckoManager.activeTabId = clonedTab.id
+            enforceLiveSessionLimit()
 
             updateUI { it.copy(isTabDataPanelVisible = false) }
             syncActiveTabLoadingState()
             saveTabs()
         }
     }
+
     val closeTabById = { idToClose: Long ->
         val tabToClose = tabs.find { it.id == idToClose }
         if (tabToClose != null) {
             val indexToClose = tabs.indexOf(tabToClose)
             val wasActive = (indexToClose == _activeTabIndex.value)
 
+            tabStateSaveJobs.remove(tabToClose.id)?.cancel()
             loadingTabIds.remove(tabToClose.id)
+            snapshotStateBeforeClose(tabToClose)
             geckoManager.closeSession(tabToClose)
 
-            // 2. Manage Recently Closed History
             recentlyClosedTabs.add(tabToClose)
-            val limit = _browserSettings.value.closedTabHistorySize.toInt()
-            while (recentlyClosedTabs.size > limit) {
-                recentlyClosedTabs.removeAt(0)
-            }
+            trimRecentlyClosedHistory()
 
-            // 3. Remove from main list
             tabs.removeAt(indexToClose)
 
-            // 4. Handle index and state updates
             if (wasActive) {
-                // Opener pattern: move to the tab to the left
                 val nextIndex = (indexToClose - 1).coerceAtLeast(0)
                 if (tabs.isNotEmpty()) {
                     _activeTabIndex.value = nextIndex
-                    // Update the new active tab's state
                     tabs[nextIndex] = tabs[nextIndex].copy(state = TabState.ACTIVE)
                 }
             } else if (indexToClose < _activeTabIndex.value) {
-                // if closing a tab before the active one, shift index down
                 _activeTabIndex.value -= 1
             }
 
+            geckoManager.activeTabId = activeTab?.id
             syncActiveTabLoadingState()
             saveTabs()
         }
     }
+
     val closeInspectedTab = { onExitApp: () -> Unit ->
         val tabToClose = currentInspectingTab
         if (tabToClose != null) {
@@ -1886,92 +1962,82 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
             if (indexToClose != -1) {
                 if (tabs.size > 1) {
-                    // 1. Handle Recently Closed History
-                    recentlyClosedTabs.add(tabToClose)
-                    val limit = _browserSettings.value.closedTabHistorySize.toInt()
-                    while (recentlyClosedTabs.size > limit) {
-                        recentlyClosedTabs.removeAt(0)
-                    }
-
+                    tabStateSaveJobs.remove(tabToClose.id)?.cancel()
                     loadingTabIds.remove(tabToClose.id)
+                    snapshotStateBeforeClose(tabToClose)
                     geckoManager.closeSession(tabToClose)
 
-                    // 3. Remove from list
+                    recentlyClosedTabs.add(tabToClose)
+                    trimRecentlyClosedHistory()
+
                     tabs.removeAt(indexToClose)
 
-                    // 4. Determine next active tab and update Index/UIState
                     val wasActive = (indexToClose == _activeTabIndex.value)
 
                     if (wasActive) {
-//                        val nextTabIndex =
-//                            if (indexToClose >= tabs.size) tabs.lastIndex else indexToClose
-
                         val nextTabIndex = (indexToClose - 1).coerceAtLeast(0)
-
                         _activeTabIndex.value = nextTabIndex
                         tabs[nextTabIndex] = tabs[nextTabIndex].copy(state = TabState.ACTIVE)
-
-                        // Update what we are currently inspecting to match the new active tab
                         updateUI { it.copy(inspectingTabId = tabs[nextTabIndex].id) }
                     } else {
                         if (indexToClose < _activeTabIndex.value) {
                             _activeTabIndex.value -= 1
                         }
-                        // If we closed a background tab, update inspection ID to the current active tab
                         updateUI { it.copy(inspectingTabId = activeTab?.id) }
                     }
 
+                    geckoManager.activeTabId = activeTab?.id
                     syncActiveTabLoadingState()
                     saveTabs()
                 } else {
+                    tabStateSaveJobs.values.forEach { it.cancel() }
+                    tabStateSaveJobs.clear()
                     loadingTabIds.clear()
+                    geckoManager.clearSavedState(tabToClose.id)
+                    geckoManager.closeSession(tabToClose)
                     tabs.clear()
                     tabManager.clearAllTabs(activeProfileId.value)
-
-                    // We trigger the UI callback to finish the Activity
                     onExitApp()
                 }
             }
         }
     }
+
     val closeActiveTab = { onExitApp: () -> Unit ->
         val indexToRemove = _activeTabIndex.value
 
         if (tabs.size > 1 && indexToRemove in tabs.indices) {
             val tabToRemove = tabs[indexToRemove]
 
-            // 2. Handle Recently Closed History
-            recentlyClosedTabs.add(tabToRemove)
-            val limit = _browserSettings.value.closedTabHistorySize.toInt()
-            while (recentlyClosedTabs.size > limit) {
-                recentlyClosedTabs.removeAt(0)
-            }
-
+            tabStateSaveJobs.remove(tabToRemove.id)?.cancel()
             loadingTabIds.remove(tabToRemove.id)
+            snapshotStateBeforeClose(tabToRemove)
             geckoManager.closeSession(tabToRemove)
 
-            // 4. Remove from the list
+            recentlyClosedTabs.add(tabToRemove)
+            trimRecentlyClosedHistory()
+
             tabs.removeAt(indexToRemove)
 
-            // 5. Determine the next active tab index
-//            val nextTabIndex = if (indexToRemove >= tabs.size) tabs.lastIndex else indexToRemove
             val nextTabIndex = (indexToRemove - 1).coerceAtLeast(0)
-
-            // 6. Update state: Set new index and make that tab ACTIVE
             _activeTabIndex.value = nextTabIndex
             tabs[nextTabIndex] = tabs[nextTabIndex].copy(state = TabState.ACTIVE)
 
-            // sync the inspection id to the new active tab
+            geckoManager.activeTabId = tabs[nextTabIndex].id
             updateUI { it.copy(inspectingTabId = tabs[nextTabIndex].id) }
 
             syncActiveTabLoadingState()
             saveTabs()
         } else {
+            tabStateSaveJobs.values.forEach { it.cancel() }
+            tabStateSaveJobs.clear()
             loadingTabIds.clear()
+            tabs.toList().forEach {
+                geckoManager.clearSavedState(it.id)
+                geckoManager.closeSession(it)
+            }
             tabs.clear()
             tabManager.clearAllTabs(activeProfileId.value)
-
-            // Trigger UI callback to finish activity
             onExitApp()
         }
     }
@@ -1979,55 +2045,46 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     val optimizeMemory = {
         val currentActiveTab = activeTab
         if (currentActiveTab != null) {
-            // 1. Identify tabs in the CURRENT profile to be closed
             val tabsToClose = tabs.filter { it.id != currentActiveTab.id }
 
-            // 2. Add them to recently closed history
             tabsToClose.forEach { tab ->
+                tabStateSaveJobs.remove(tab.id)?.cancel()
+                snapshotStateBeforeClose(tab)
                 recentlyClosedTabs.add(tab)
             }
+            trimRecentlyClosedHistory()
 
-            val limit = _browserSettings.value.closedTabHistorySize.toInt()
-            while (recentlyClosedTabs.size > limit) {
-                recentlyClosedTabs.removeAt(0)
-            }
-
-            // 3. Clear the UI list and only keep the active tab
             tabs.clear()
             tabs.add(currentActiveTab)
             _activeTabIndex.value = 0
 
-            // clear loading states for all closed sessions
             loadingTabIds.keys.toList().forEach { id ->
                 if (id != currentActiveTab.id) loadingTabIds.remove(id)
             }
 
-            // aggressively clear the gecko engine ram
+            geckoManager.activeTabId = currentActiveTab.id
             geckoManager.optimizeMemoryExcept(currentActiveTab.id)
 
             syncActiveTabLoadingState()
             saveTabs()
 
-            // Force a UI refresh
             sessionRefreshTrigger.intValue++
         }
     }
 
     fun createNewTab(insertAtIndex: Int, url: String) {
-        // 2. Create the new Tab object
         val initialUrl = url.ifBlank { _browserSettings.value.defaultUrl }
 
         val newTab = Tab(
+            id = nextUniqueTabId(),
             profileId = currentProfileId,
             currentURL = initialUrl.ifBlank { "about:blank" },
             state = TabState.ACTIVE,
         )
 
-        // 3. Insert into the list at the desired index
         val targetIndex = insertAtIndex.coerceIn(0, tabs.size)
         tabs.add(targetIndex, newTab)
 
-        // 4. Ensure Gecko creates a session for this new tab
         geckoManager.getSession(newTab)
 
         val currentIndex = _activeTabIndex.value

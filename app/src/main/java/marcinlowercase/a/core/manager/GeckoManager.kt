@@ -6,6 +6,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
+import android.content.ComponentCallbacks2
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -191,16 +192,153 @@ class GeckoManager(private val context: Context) {
             .build()
         GeckoRuntime.create(context, settings)
     }
+    private val tabManager = TabManager(context)
     private val stateCache = mutableMapOf<Long, GeckoSession.SessionState>()
 
     private val engineManagedSessionIds = mutableSetOf<Long>()
-
+    private val restoredSessionIds = mutableSetOf<Long>()
+    private val liveSessionStack = mutableListOf<Long>()
+    var activeTabId: Long? = null
+    private var lastGeneratedTabId = 0L
 
     private val sessionPool = mutableStateMapOf<Long, GeckoSession>()
     private val sessionProfileMap = mutableMapOf<GeckoSession, String>()
     val sessionPoolSize: Int
         get() = sessionPool.size
     private val killedSessionIds = mutableSetOf<Long>()
+
+    private fun nextUniqueTabId(): Long {
+        val now = System.currentTimeMillis()
+        lastGeneratedTabId = maxOf(now, lastGeneratedTabId + 1)
+        return lastGeneratedTabId
+    }
+
+    private fun touchLiveSession(tabId: Long) {
+        liveSessionStack.remove(tabId)
+        liveSessionStack.add(tabId)
+    }
+
+    fun maxSessionsFor(memoryUsage: Int, hasMediaTab: Boolean): Int {
+        return when (memoryUsage) {
+            0 -> if (hasMediaTab) 3 else 2
+            1 -> 4
+            else -> 6
+        }
+    }
+
+    fun consumeRestoredStateFlag(tabId: Long): Boolean {
+        return restoredSessionIds.remove(tabId)
+    }
+
+    fun clearSavedState(tabId: Long) {
+        stateCache.remove(tabId)
+        restoredSessionIds.remove(tabId)
+        tabManager.deleteTabState(tabId)
+    }
+
+    fun clearStateCacheEntry(tabId: Long) {
+        stateCache.remove(tabId)
+        restoredSessionIds.remove(tabId)
+    }
+
+    fun flushStateCacheToDisk() {
+        val snapshot = stateCache.entries.toList()
+        snapshot.forEach { (tabId, state) ->
+            tabManager.saveTabStateAsync(tabId, state.toString())
+        }
+    }
+
+    fun touchAndTrimSessions(activeId: Long, memoryUsage: Int) {
+        activeTabId = activeId
+        if (sessionPool.containsKey(activeId)) {
+            touchLiveSession(activeId)
+        }
+        trimToLimit(memoryUsage, activeId)
+    }
+
+    fun trimToLimit(memoryUsage: Int, currentActiveId: Long? = activeTabId) {
+        val protectedMediaTabId = getActiveMediaTabId()
+        val hasMediaTab = protectedMediaTabId != null && sessionPool.containsKey(protectedMediaTabId)
+        val maxSessions = maxSessionsFor(memoryUsage, hasMediaTab)
+        val excess = sessionPool.size - maxSessions
+        if (excess > 0) {
+            evictOldestInactiveSessions(excess, currentActiveId, protectedMediaTabId)
+        }
+    }
+
+    fun onTrimMemory(level: Int) {
+        val protectedMediaTabId = getActiveMediaTabId()
+        when {
+            level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL ||
+                level >= ComponentCallbacks2.TRIM_MEMORY_MODERATE -> {
+                evictOldestInactiveSessions(liveSessionStack.size, activeTabId, protectedMediaTabId)
+            }
+
+            level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW ||
+                level == ComponentCallbacks2.TRIM_MEMORY_BACKGROUND -> {
+                val inactiveCount = liveSessionStack.count { it != activeTabId && it != protectedMediaTabId }
+                if (inactiveCount > 0) {
+                    val toEvict = ((inactiveCount + 1) / 2).coerceAtLeast(1)
+                    evictOldestInactiveSessions(toEvict, activeTabId, protectedMediaTabId)
+                }
+            }
+
+            level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE -> {
+                evictOldestInactiveSessions(1, activeTabId, protectedMediaTabId)
+            }
+        }
+    }
+
+    private fun evictOldestInactiveSessions(
+        countToEvict: Int,
+        currentActiveId: Long?,
+        protectedMediaTabId: Long?
+    ) {
+        if (countToEvict <= 0) return
+        var evicted = 0
+        val candidates = liveSessionStack.toList()
+        for (candidateId in candidates) {
+            if (evicted >= countToEvict) break
+            if (candidateId == currentActiveId || candidateId == protectedMediaTabId) continue
+            if (evictSession(candidateId)) {
+                evicted++
+            }
+        }
+    }
+
+    private fun evictSession(tabId: Long): Boolean {
+        liveSessionStack.remove(tabId)
+        restoredSessionIds.remove(tabId)
+        val cachedState = stateCache.remove(tabId)
+        if (cachedState != null) {
+            tabManager.saveTabStateAsync(tabId, cachedState.toString())
+        }
+
+        val sessionToClose = sessionPool.remove(tabId) ?: return false
+        sessionToClose.apply {
+            sessionProfileMap.remove(this)
+            sessionPageTitleMap.remove(this)
+            sessionUrlMap.remove(this)
+            if (this == activeMediaGeckoSession || this == activeSilentVideoSession || this == currentFullscreenSession) {
+                context.stopService(Intent(context, MediaPlaybackService::class.java))
+                if (this == activeMediaGeckoSession) {
+                    activeGeckoMediaSession = null
+                    activeMediaGeckoSession = null
+                }
+                if (this == activeSilentVideoSession) activeSilentVideoSession = null
+                if (this == currentFullscreenSession) currentFullscreenSession = null
+                if (activeMediaGeckoSession == null && activeSilentVideoSession == null && currentFullscreenSession == null) {
+                    activeMediaProfileId = null
+                }
+            }
+            if (isOpen) {
+                setActive(false)
+                close()
+            }
+        }
+        engineManagedSessionIds.remove(tabId)
+        return true
+    }
 
     private var coreExtensionFuture: GeckoResult<WebExtension>? = null
 
@@ -882,10 +1020,15 @@ class GeckoManager(private val context: Context) {
     }
 
     fun optimizeMemoryExcept(activeTabId: Long) {
-        // Find all sessions currently eating RAM except the active one
         val idsToClose = sessionPool.keys.filter { it != activeTabId }
 
         for (id in idsToClose) {
+            liveSessionStack.remove(id)
+            restoredSessionIds.remove(id)
+            val cachedState = stateCache.remove(id)
+            if (cachedState != null) {
+                tabManager.saveTabStateAsync(id, cachedState.toString())
+            }
             val sessionToClose = sessionPool.remove(id)
             sessionToClose?.apply {
                 sessionProfileMap.remove(this)
@@ -913,23 +1056,19 @@ class GeckoManager(private val context: Context) {
         val session = sessionPool.getOrPut(tab.id) {
             createAndConfigureSession(tab, isDesktopMode, isEnabledBackgroundPlayback)
         }
+        touchLiveSession(tab.id)
 
         if (!session.isOpen) {
             val isManagedByEngine = isEngineManaged(tab.id)
 
-            if (isManagedByEngine) {
-                //Log.d("GeckoManager", "Skipping manual open for engine-managed session: ${tab.id}")
-
-            } else {
+            if (!isManagedByEngine) {
                 try {
                     session.open(runtime)
                 } catch (_: IllegalStateException) {
-                    //Log.d("NewTabFlow", "Session already opening or attached: ${e.message}")
                 }
             }
         }
 
-        // If the session was requested, it is actively alive. Remove from killed list.
         killedSessionIds.remove(tab.id)
 
         return session
@@ -962,6 +1101,8 @@ class GeckoManager(private val context: Context) {
             }
         }
         sessionPool.clear()
+        liveSessionStack.clear()
+        restoredSessionIds.clear()
         sessionProfileMap.clear()
         sessionPageTitleMap.clear()
         sessionUrlMap.clear()
@@ -980,6 +1121,8 @@ class GeckoManager(private val context: Context) {
     }
 
     fun closeSession(tab: Tab) {
+        liveSessionStack.remove(tab.id)
+        restoredSessionIds.remove(tab.id)
         val sessionToClose = sessionPool.remove(tab.id)
         sessionToClose?.apply {
             sessionProfileMap.remove(this)
@@ -1004,7 +1147,7 @@ class GeckoManager(private val context: Context) {
 
     private fun getSessionSettings(tab: Tab, isDesktopMode: Boolean, isEnabledBackgroundPlayback: Boolean): GeckoSessionSettings {
         return GeckoSessionSettings.Builder()
-            .usePrivateMode(false) // Set based on your Incognito logic
+            .usePrivateMode(false)
             .userAgentMode(if (isDesktopMode) GeckoSessionSettings.USER_AGENT_MODE_DESKTOP else GeckoSessionSettings.USER_AGENT_MODE_MOBILE)
             .viewportMode(if (isDesktopMode) GeckoSessionSettings.VIEWPORT_MODE_DESKTOP else GeckoSessionSettings.VIEWPORT_MODE_MOBILE)
             .suspendMediaWhenInactive(!isEnabledBackgroundPlayback)
@@ -1013,22 +1156,22 @@ class GeckoManager(private val context: Context) {
             .build()
     }
 
-    private fun createAndConfigureSession(tab: Tab, isDesktopMode: Boolean,isEnabledBackgroundPlayback: Boolean): GeckoSession {
-
+    private fun createAndConfigureSession(tab: Tab, isDesktopMode: Boolean, isEnabledBackgroundPlayback: Boolean): GeckoSession {
         val session = GeckoSession(getSessionSettings(tab, isDesktopMode, isEnabledBackgroundPlayback))
         sessionProfileMap[session] = tab.profileId
 
-
-        // RESTORE STATE - Only do this ONCE upon session creation
+        // restore state once upon session creation from memory cache, inline state, or per-tab file
         val cachedState = stateCache[tab.id]
         if (cachedState != null) {
-            Log.d("marcRestore", "restore state from cache in createAndConfigureSession")
             session.restoreState(cachedState)
-        } else if (tab.savedState != null) {
-            val stateToRestore = restoreStateFromString(tab.savedState ?: "")
+            restoredSessionIds.add(tab.id)
+        } else {
+            val rawState = tab.savedState ?: tabManager.loadTabState(tab.id)
+            val stateToRestore = rawState?.let { restoreStateFromString(it) }
             if (stateToRestore != null) {
-                Log.d("marcRestore", "restore state from string in createAndConfigureSession")
+                stateCache[tab.id] = stateToRestore
                 session.restoreState(stateToRestore)
+                restoredSessionIds.add(tab.id)
             }
         }
 
@@ -1040,7 +1183,6 @@ class GeckoManager(private val context: Context) {
         return state.toString()
     }
 
-    // 4. HELPER TO RESTORE FROM DISK
     fun restoreStateFromString(stateString: String): GeckoSession.SessionState? {
         return try {
             GeckoSession.SessionState.fromString(stateString)
@@ -1050,6 +1192,8 @@ class GeckoManager(private val context: Context) {
     }
 
     private fun handleSessionDeath(session: GeckoSession, tabId: Long) {
+        liveSessionStack.remove(tabId)
+        restoredSessionIds.remove(tabId)
         if (session == activeMediaGeckoSession || session == activeSilentVideoSession || session == currentFullscreenSession) {
             context.stopService(Intent(context, MediaPlaybackService::class.java))
             if (session == activeMediaGeckoSession) {
@@ -1062,18 +1206,17 @@ class GeckoManager(private val context: Context) {
                 activeMediaProfileId = null
             }
         }
-        // if the active session is killed, reload immediately.
         sessionPool.remove(tabId)
         sessionProfileMap.remove(session)
         sessionPageTitleMap.remove(session)
         sessionUrlMap.remove(session)
         session.close()
-        // But for background tabs:
         killedSessionIds.add(tabId)
     }
 
-
     fun forceKillSession(tabId: Long) {
+        liveSessionStack.remove(tabId)
+        restoredSessionIds.remove(tabId)
         val session = sessionPool.remove(tabId)
         if (session != null) {
             sessionProfileMap.remove(session)
@@ -2247,25 +2390,21 @@ class GeckoManager(private val context: Context) {
 
 
                 //Log.d("NewTabFlow", "onNewSession")
-                val newTabId = System.currentTimeMillis()
+                val newTabId = nextUniqueTabId()
 
                 val newSession =
-                    GeckoSession(getSessionSettings(tab.value, browserSettings.value.isDesktopMode,  browserSettings.value.isEnabledBackgroundPlayback))
+                    GeckoSession(getSessionSettings(tab.value, browserSettings.value.isDesktopMode, browserSettings.value.isEnabledBackgroundPlayback))
                 sessionProfileMap[newSession] = tab.value.profileId
 
-                // This ensures that even if the UI is slow to load the new tab,
-                // the session can still close itself.
                 newSession.contentDelegate = object : GeckoSession.ContentDelegate {
                     override fun onCloseRequest(s: GeckoSession) {
-                        //Log.d("NewTabFlow", "onCloseRequest")
-
                         onCloseTabFun(newTabId)
                     }
                 }
                 engineManagedSessionIds.add(newTabId)
 
-                // Register the session in the pool before telling the UI
                 sessionPool[newTabId] = newSession
+                touchLiveSession(newTabId)
 
                 MainScope().launch {
                     // Pass the ID to the UI so it doesn't generate a random one

@@ -37,6 +37,20 @@ class CustomApplication : Application() {
         Coil.setImageLoader(imageLoader)
     }
 
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (isMainProcess()) {
+            geckoManager.onTrimMemory(level)
+        }
+    }
+
+    override fun onLowMemory() {
+        super.onLowMemory()
+        if (isMainProcess()) {
+            geckoManager.onTrimMemory(android.content.ComponentCallbacks2.TRIM_MEMORY_COMPLETE)
+        }
+    }
+
     private fun isMainProcess(): Boolean {
         return getProcessName() == packageName
     }
