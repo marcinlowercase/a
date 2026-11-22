@@ -242,9 +242,11 @@ fun BottomPanel(
             coroutineScope.launch {
                 delay(500.milliseconds)
                 isPickingImage.value = false
-                delay(50.milliseconds) // Tiny layout buffer
-                urlBarFocusRequester.requestFocus()
-                keyboardController?.show()
+                if (!viewModel.uiState.value.isLandscape || viewModel.uiState.value.isOnFullscreenVideo) {
+                    delay(50.milliseconds)
+                    urlBarFocusRequester.requestFocus()
+                    keyboardController?.show()
+                }
             }
         }
 
@@ -526,11 +528,22 @@ fun BottomPanel(
         val dismissUrlBar: () -> Unit = {
             viewModel.keyboardShortcutManager.clearPendingNewTab()
             viewModel.keyboardShortcutManager.clearPendingUrlFocusAction()
+            val wasSpecialMode = viewModel.uiState.value.isPinningApp ||
+                viewModel.uiState.value.isCreatingProfile ||
+                viewModel.uiState.value.isRenamingProfile ||
+                viewModel.uiState.value.isFindInPageVisible
             viewModel.updateUI {
                 it.copy(
                     isFocusOnUrlTextField = false,
-                    isFindInPageVisible = false
+                    isFindInPageVisible = false,
+                    isPinningApp = false,
+                    isCreatingProfile = false,
+                    isRenamingProfile = false
                 )
+            }
+            if (wasSpecialMode) {
+                val liveUrl = viewModel.activeTab?.currentURL ?: ""
+                textFieldState.setTextAndPlaceCursorAtEnd(liveUrl.toDomain())
             }
             focusManager.clearFocus()
             keyboardController?.hide()
@@ -538,7 +551,8 @@ fun BottomPanel(
 
         val submitUrlBar: (Boolean) -> Unit = { forceNewTab ->
             hasLandscapeUrlDraft = false
-            if (uiState.value.isFindInPageVisible && !forceNewTab) {
+            val currentSubmitUi = viewModel.uiState.value
+            if (currentSubmitUi.isFindInPageVisible && !forceNewTab) {
                 val query = textFieldState.text.toString()
                 if (query.isNotEmpty()) {
                     activeSession.finder.find(query, GeckoSession.FINDER_FIND_FORWARD)
@@ -559,14 +573,14 @@ fun BottomPanel(
                 val resetUrl = viewModel.activeTab!!.currentURL
 
                 if (input.isEmpty()) {
-                    if (openInNewTab && !uiState.value.isCreatingProfile && !uiState.value.isPinningApp && !uiState.value.isRenamingProfile) {
+                    if (openInNewTab && !currentSubmitUi.isCreatingProfile && !currentSubmitUi.isPinningApp && !currentSubmitUi.isRenamingProfile) {
                         viewModel.createNewTab(viewModel.activeTabIndex.value + 1, "")
                         focusManager.clearFocus()
                         keyboardController?.hide()
                         viewModel.updateUI { it.copy(isFocusOnUrlTextField = false) }
                     } else {
                         when {
-                            uiState.value.isCreatingProfile -> {
+                            currentSubmitUi.isCreatingProfile -> {
                                 viewModel.createNewProfile()
                                 viewModel.updateUI {
                                     it.copy(
@@ -576,16 +590,19 @@ fun BottomPanel(
                                 }
                             }
 
-                            uiState.value.isPinningApp -> {
+                            currentSubmitUi.isPinningApp -> {
+                                val customIconInput = (customIconUrlState.text).toString().trim()
+                                val finalIconUrl =
+                                    customIconInput.ifEmpty { viewModel.activeTab!!.currentFaviconUrl }
                                 viewModel.pinApp(
                                     title = viewModel.activeTab!!.currentTitle,
                                     url = resetUrl,
-                                    iconUrl = viewModel.activeTab!!.currentFaviconUrl,
+                                    iconUrl = finalIconUrl,
                                 )
                                 viewModel.updateUI { it.copy(isPinningApp = false) }
                             }
 
-                            uiState.value.isRenamingProfile -> {
+                            currentSubmitUi.isRenamingProfile -> {
                                 viewModel.updateUI {
                                     it.copy(
                                         isRenamingProfile = false,
@@ -605,7 +622,7 @@ fun BottomPanel(
                     }
                 } else {
                     when {
-                        uiState.value.isRenamingProfile -> {
+                        currentSubmitUi.isRenamingProfile -> {
                             viewModel.renameProfile(input)
                             val liveUrl = viewModel.activeTab?.currentURL ?: ""
                             textFieldState.setTextAndPlaceCursorAtEnd(liveUrl.toDomain())
@@ -617,7 +634,7 @@ fun BottomPanel(
                             }
                         }
 
-                        uiState.value.isCreatingProfile -> {
+                        currentSubmitUi.isCreatingProfile -> {
                             viewModel.createNewProfile(input)
                             val liveUrl = viewModel.activeTab?.currentURL ?: ""
                             textFieldState.setTextAndPlaceCursorAtEnd(liveUrl.toDomain())
@@ -629,7 +646,7 @@ fun BottomPanel(
                             }
                         }
 
-                        uiState.value.isPinningApp -> {
+                        currentSubmitUi.isPinningApp -> {
                             val customIconInput =
                                 (customIconUrlState.text).toString().trim()
                             val finalIconUrl =
@@ -640,10 +657,10 @@ fun BottomPanel(
                                 url = resetUrl,
                                 iconUrl = finalIconUrl,
                                 onPinned = { finalUrl ->
-                                    onNewUrl(finalUrl)
-                                    textFieldState.setTextAndPlaceCursorAtEnd(
-                                        LocalAppServer.formatForDisplay(finalUrl)
-                                    )
+                                    if (finalUrl != LocalAppServer.toVirtualUrl(resetUrl)) {
+                                        onNewUrl(finalUrl)
+                                    }
+                                    textFieldState.setTextAndPlaceCursorAtEnd(finalUrl.toDomain())
                                 }
                             )
                             viewModel.updateUI { it.copy(isPinningApp = false) }
@@ -744,6 +761,11 @@ fun BottomPanel(
             }
         }
 
+        val currentIsLandscapeLayout by rememberUpdatedState(isLandscapeLayout)
+        val currentDismissUrlBar by rememberUpdatedState(dismissUrlBar)
+        val currentEditCurrentUrl by rememberUpdatedState(editCurrentUrl)
+        val currentSubmitUrlBar by rememberUpdatedState(submitUrlBar)
+
         val placeholderUrlText = stringResource(R.string.placeholder_url)
         val placeholderPinText = stringResource(R.string.placeholder_pin_label)
         val placeholderProfileText = stringResource(R.string.placeholder_profile_label)
@@ -764,7 +786,11 @@ fun BottomPanel(
                 currentUi.isFindInPageVisible -> viewModel.findInPageTextFieldState.text.toString()
                 currentUi.isCreatingProfile -> ""
                 currentUi.isRenamingProfile -> viewModel.profiles.find { it.id == viewModel.activeProfileId.value }?.name ?: ""
-                currentUi.isPinningApp -> if (focusAction == KeyboardShortcutManager.UrlFocusAction.SELECT_ALL) viewModel.activeTab?.currentTitle ?: "" else ""
+                currentUi.isPinningApp -> when (focusAction) {
+                    KeyboardShortcutManager.UrlFocusAction.SELECT_ALL -> viewModel.activeTab?.currentTitle ?: ""
+                    KeyboardShortcutManager.UrlFocusAction.EMPTY -> ""
+                    null -> textFieldState.text.toString()
+                }
                 focusAction == KeyboardShortcutManager.UrlFocusAction.SELECT_ALL -> fullUrl
                 focusAction == KeyboardShortcutManager.UrlFocusAction.EMPTY -> ""
                 hasLandscapeUrlDraft -> textFieldState.text.toString()
@@ -803,16 +829,19 @@ fun BottomPanel(
                     textFieldState.setTextAndPlaceCursorAtEnd(typedText)
                     if (submitAction) {
                         hasLandscapeUrlDraft = false
-                        submitUrlBar(false)
+                        currentSubmitUrlBar(false)
                     } else {
                         if (currentUi.isFindInPageVisible) {
                             viewModel.findInPageTextFieldState.setTextAndPlaceCursorAtEnd(typedText)
-                        } else if (currentUi.isPinningApp || currentUi.isCreatingProfile || currentUi.isRenamingProfile) {
+                        } else if (currentUi.isPinningApp) {
+                            // keep pinning mode active when keyboard hides so user can tap icon link or pick image
+                            hasLandscapeUrlDraft = false
+                            viewModel.keyboardShortcutManager.clearPendingNewTab()
+                        } else if (currentUi.isCreatingProfile || currentUi.isRenamingProfile) {
                             hasLandscapeUrlDraft = false
                             viewModel.keyboardShortcutManager.clearPendingNewTab()
                             viewModel.updateUI {
                                 it.copy(
-                                    isPinningApp = false,
                                     isCreatingProfile = false,
                                     isRenamingProfile = false
                                 )
@@ -863,19 +892,21 @@ fun BottomPanel(
             )
         }
 
+        val currentOpenLandscapeUrlInput by rememberUpdatedState(openLandscapeUrlInput)
+
         LaunchedEffect(Unit) {
             viewModel.keyboardShortcutManager.shortcutEvents.collect { shortcut ->
-                if (isLandscapeLayout) {
+                if (currentIsLandscapeLayout) {
                     when (shortcut) {
-                        BrowserShortcut.FOCUS_OR_EDIT_URL -> openLandscapeUrlInput(KeyboardShortcutManager.UrlFocusAction.SELECT_ALL)
-                        BrowserShortcut.NEW_TAB -> openLandscapeUrlInput(KeyboardShortcutManager.UrlFocusAction.EMPTY)
-                        BrowserShortcut.OPEN_FIND_IN_PAGE -> openLandscapeUrlInput(null)
+                        BrowserShortcut.FOCUS_OR_EDIT_URL -> currentOpenLandscapeUrlInput(KeyboardShortcutManager.UrlFocusAction.SELECT_ALL)
+                        BrowserShortcut.NEW_TAB -> currentOpenLandscapeUrlInput(KeyboardShortcutManager.UrlFocusAction.EMPTY)
+                        BrowserShortcut.OPEN_FIND_IN_PAGE -> currentOpenLandscapeUrlInput(null)
                         else -> {}
                     }
                 } else {
                     when (shortcut) {
-                        BrowserShortcut.DISMISS_URL_BAR -> dismissUrlBar()
-                        BrowserShortcut.FOCUS_OR_EDIT_URL -> editCurrentUrl()
+                        BrowserShortcut.DISMISS_URL_BAR -> currentDismissUrlBar()
+                        BrowserShortcut.FOCUS_OR_EDIT_URL -> currentEditCurrentUrl()
                         BrowserShortcut.NEW_TAB -> {
                             textFieldState.setTextAndPlaceCursorAtEnd("")
                             urlBarFocusRequester.requestFocus()
@@ -885,7 +916,7 @@ fun BottomPanel(
                             urlBarFocusRequester.requestFocus()
                             keyboardController?.show()
                         }
-                        BrowserShortcut.OPEN_URL_IN_NEW_TAB -> submitUrlBar(true)
+                        BrowserShortcut.OPEN_URL_IN_NEW_TAB -> currentSubmitUrlBar(true)
                         else -> {}
                     }
                 }
@@ -997,42 +1028,45 @@ fun BottomPanel(
                     }
                 }
 
-                Box(modifier = Modifier) {
-                    Column(
-                        modifier = Modifier.onSizeChanged { size ->
-                            setTextFieldHeightPx(size.height)
-                        }
+                Column(
+                    modifier = Modifier.onSizeChanged { size ->
+                        setTextFieldHeightPx(size.height)
+                    }
+                ) {
+                    AnimatedVisibility(
+                        visible = uiState.value.isPinningApp,
+                        enter = expandVertically(tween(settings.value.animationSpeedForLayer(1))) +
+                            fadeIn(tween(settings.value.animationSpeedForLayer(1))),
+                        exit = shrinkVertically(tween(settings.value.animationSpeedForLayer(1))) +
+                            fadeOut(tween(settings.value.animationSpeedForLayer(1)))
                     ) {
-                        AnimatedVisibility(
-                            visible = uiState.value.isPinningApp,
-                            enter = expandVertically(tween(settings.value.animationSpeedForLayer(1))) +
-                                fadeIn(tween(settings.value.animationSpeedForLayer(1))),
-                            exit = shrinkVertically(tween(settings.value.animationSpeedForLayer(1))) +
-                                fadeOut(tween(settings.value.animationSpeedForLayer(1)))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(
+                                    start = settings.value.padding.dp,
+                                    end = settings.value.padding.dp,
+                                    top = settings.value.padding.dp,
+                                    bottom = 0.dp
+                                ),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
                         ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(
-                                        start = settings.value.padding.dp,
-                                        end = settings.value.padding.dp,
-                                        top = settings.value.padding.dp,
-                                        bottom = 0.dp
-                                    ),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
-                            ) {
-                                Box(modifier = Modifier.weight(1f)) {
+                            var wasIconFieldFocused by remember { mutableStateOf(false) }
+                            Box(modifier = Modifier.weight(1f)) {
                                 TextField(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .focusProperties { canFocus = !isLandscapeLayout }
                                         .heightIn(min = settings.value.heightForLayer(2).dp)
                                         .onFocusChanged { focusState ->
+                                            val wasFocused = wasIconFieldFocused
+                                            wasIconFieldFocused = focusState.isFocused
                                             viewModel.updateUI {
                                                 it.copy(isFocusOnIconUrlTextField = focusState.isFocused)
                                             }
-                                            if (!focusState.isFocused) {
+                                            // only run blur cleanup when focus was actually held and lost in portrait
+                                            if (wasFocused && !focusState.isFocused && !isLandscapeLayout) {
                                                 val input = (customIconUrlState.text).toString().trim()
                                                 if (input.isNotEmpty()) {
                                                     val isValid =
@@ -1118,32 +1152,34 @@ fun BottomPanel(
                                             }
                                     )
                                 }
-                                }
-
-                                CustomIconButton(
-                                    isLandscape = true,
-                                    layer = 2,
-                                    modifier = Modifier,
-                                    onTap = {
-                                        isPickingImage.value = true
-                                        imagePickerLauncher.launch("image/*")
-                                    },
-                                    buttonDescription = "pick local image",
-                                    painterId = R.drawable.ic_image,
-                                    isWhite = true
-                                )
                             }
+
+                            CustomIconButton(
+                                isSquare = true,
+                                layer = 2,
+                                modifier = Modifier,
+                                onTap = {
+                                    isPickingImage.value = true
+                                    imagePickerLauncher.launch("image/*")
+                                },
+                                buttonDescription = "pick local image",
+                                painterId = R.drawable.ic_image,
+                                isWhite = true
+                            )
                         }
+                    }
+
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        var wasUrlFieldFocused by remember { mutableStateOf(false) }
                         TextField(
                             modifier = Modifier
                                 .heightIn(min = settings.value.heightForLayer(1).dp)
-                                .onSizeChanged { size ->
-                                    setTextFieldHeightPx(size.height)
-                                }
                                 .fillMaxWidth()
                                 .focusProperties { canFocus = !isLandscapeLayout }
                                 .focusRequester(urlBarFocusRequester)
                                 .onFocusChanged { focusState ->
+                                    val wasFocused = wasUrlFieldFocused
+                                    wasUrlFieldFocused = focusState.isFocused
                                     viewModel.updateUI { it.copy(isFocusOnUrlTextField = focusState.isFocused) }
 
                                     if (focusState.isFocused) {
@@ -1211,7 +1247,7 @@ fun BottomPanel(
                                                 }
                                             }
                                         }
-                                    } else {
+                                    } else if (wasFocused && !isLandscapeLayout) {
                                         coroutineScope.launch {
                                             delay(150.milliseconds)
                                             val currentState = viewModel.uiState.value
@@ -1325,133 +1361,139 @@ fun BottomPanel(
                                 ),
                             ),
                         )
-                    }
 
-                    val currentNavigateWebView by rememberUpdatedState(navigateWebView)
-                    val currentCanGoBack by rememberUpdatedState(viewModel.activeTab!!.canGoBack)
-                    val currentCanGoForward by rememberUpdatedState(viewModel.activeTab!!.canGoForward)
+                        val currentNavigateWebView by rememberUpdatedState(navigateWebView)
+                        val currentCanGoBack by rememberUpdatedState(viewModel.activeTab!!.canGoBack)
+                        val currentCanGoForward by rememberUpdatedState(viewModel.activeTab!!.canGoForward)
 
-                    if (uiState.value.isUrlOverlayBoxVisible && !uiState.value.isFocusOnUrlTextField && !uiState.value.isFindInPageVisible) Box(
-                        modifier = Modifier
-                            .background(
-                                Color.Transparent,
-                                shape = RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp)
-                            )
-                            .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
-                            .matchParentSize()
-                            .pointerInput(Unit) {
-                                val gestureScope = CoroutineScope(currentCoroutineContext())
-                                awaitEachGesture {
-                                    val down = awaitFirstDown(requireUnconsumed = false)
+                        val isInlineSpecialInput =
+                            uiState.value.isFindInPageVisible ||
+                                uiState.value.isPinningApp ||
+                                uiState.value.isCreatingProfile ||
+                                uiState.value.isRenamingProfile
 
-                                    var isLongPressActive = false
-                                    val longPressJob = gestureScope.launch {
-                                        delay(viewConfiguration.longPressTimeoutMillis.milliseconds)
-                                        isLongPressActive = true
-                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        focusManager.clearFocus(true)
-                                        viewModel.updateUI {
-                                            it.copy(isNavPanelVisible = true)
+                        if (uiState.value.isUrlOverlayBoxVisible && !uiState.value.isFocusOnUrlTextField && !isInlineSpecialInput) Box(
+                            modifier = Modifier
+                                .background(
+                                    Color.Transparent,
+                                    shape = RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp)
+                                )
+                                .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
+                                .matchParentSize()
+                                .pointerInput(Unit) {
+                                    val gestureScope = CoroutineScope(currentCoroutineContext())
+                                    awaitEachGesture {
+                                        val down = awaitFirstDown(requireUnconsumed = false)
+
+                                        var isLongPressActive = false
+                                        val longPressJob = gestureScope.launch {
+                                            delay(viewConfiguration.longPressTimeoutMillis.milliseconds)
+                                            isLongPressActive = true
+                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            focusManager.clearFocus(true)
+                                            viewModel.updateUI {
+                                                it.copy(isNavPanelVisible = true)
+                                            }
+                                            setActiveNavAction(GestureNavAction.NONE)
                                         }
-                                        setActiveNavAction(GestureNavAction.NONE)
-                                    }
 
-                                    var horizontalDragAccumulator = 0f
-                                    var verticalDragAccumulator = 0f
-                                    var previousAction = GestureNavAction.NONE
-                                    val horizontalDragThreshold = 40.dp.toPx()
-                                    val verticalCancelThreshold = -28.dp.toPx()
-                                    var movedBeforeLongPress = false
+                                        var horizontalDragAccumulator = 0f
+                                        var verticalDragAccumulator = 0f
+                                        var previousAction = GestureNavAction.NONE
+                                        val horizontalDragThreshold = 40.dp.toPx()
+                                        val verticalCancelThreshold = -28.dp.toPx()
+                                        var movedBeforeLongPress = false
 
-                                    while (true) {
-                                        val pass = if (isLongPressActive) PointerEventPass.Initial else PointerEventPass.Main
-                                        val event = awaitPointerEvent(pass)
-                                        val change = event.changes.firstOrNull { it.id == down.id }
-                                            ?: event.changes.firstOrNull()
-                                        if (change == null || !change.pressed) {
-                                            break
+                                        while (true) {
+                                            val pass = if (isLongPressActive) PointerEventPass.Initial else PointerEventPass.Main
+                                            val event = awaitPointerEvent(pass)
+                                            val change = event.changes.firstOrNull { it.id == down.id }
+                                                ?: event.changes.firstOrNull()
+                                            if (change == null || !change.pressed) {
+                                                break
+                                            }
+
+                                            if (isLongPressActive) {
+                                                change.consume()
+                                                horizontalDragAccumulator += change.position.x - change.previousPosition.x
+                                                verticalDragAccumulator += change.position.y - change.previousPosition.y
+
+                                                val newAction = when {
+                                                    verticalDragAccumulator < verticalCancelThreshold -> {
+                                                        when {
+                                                            horizontalDragAccumulator < -horizontalDragThreshold -> GestureNavAction.CLOSE_TAB
+                                                            horizontalDragAccumulator > horizontalDragThreshold -> GestureNavAction.NEW_TAB
+                                                            else -> GestureNavAction.REFRESH
+                                                        }
+                                                    }
+
+                                                    horizontalDragAccumulator < -horizontalDragThreshold ->
+                                                        if (currentCanGoBack) GestureNavAction.BACK else GestureNavAction.NONE
+
+                                                    horizontalDragAccumulator > horizontalDragThreshold ->
+                                                        if (currentCanGoForward) GestureNavAction.FORWARD else GestureNavAction.NONE
+
+                                                    else -> GestureNavAction.NONE
+                                                }
+
+                                                if (newAction != previousAction) {
+                                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                    previousAction = newAction
+                                                }
+                                                setActiveNavAction(newAction)
+                                            } else {
+                                                val totalDist = kotlin.math.hypot(
+                                                    (change.position.x - down.position.x).toDouble(),
+                                                    (change.position.y - down.position.y).toDouble()
+                                                )
+                                                if (totalDist > viewConfiguration.touchSlop) {
+                                                    movedBeforeLongPress = true
+                                                    longPressJob.cancel()
+                                                    break
+                                                }
+                                            }
                                         }
 
                                         if (isLongPressActive) {
-                                            change.consume()
-                                            horizontalDragAccumulator += change.position.x - change.previousPosition.x
-                                            verticalDragAccumulator += change.position.y - change.previousPosition.y
-
-                                            val newAction = when {
-                                                verticalDragAccumulator < verticalCancelThreshold -> {
-                                                    when {
-                                                        horizontalDragAccumulator < -horizontalDragThreshold -> GestureNavAction.CLOSE_TAB
-                                                        horizontalDragAccumulator > horizontalDragThreshold -> GestureNavAction.NEW_TAB
-                                                        else -> GestureNavAction.REFRESH
+                                            currentNavigateWebView()
+                                        } else {
+                                            if (longPressJob.isActive) {
+                                                longPressJob.cancel()
+                                            }
+                                            if (!movedBeforeLongPress) {
+                                                if (currentIsLandscapeLayout) {
+                                                    currentOpenLandscapeUrlInput(null)
+                                                } else {
+                                                    if (urlBarFocusRequester.requestFocus()) {
+                                                        keyboardController?.show()
+                                                    } else {
+                                                        urlBarFocusRequester.requestFocus()
+                                                    }
+                                                    viewModel.updateUI {
+                                                        it.copy(isUrlOverlayBoxVisible = false)
                                                     }
                                                 }
-
-                                                horizontalDragAccumulator < -horizontalDragThreshold ->
-                                                    if (currentCanGoBack) GestureNavAction.BACK else GestureNavAction.NONE
-
-                                                horizontalDragAccumulator > horizontalDragThreshold ->
-                                                    if (currentCanGoForward) GestureNavAction.FORWARD else GestureNavAction.NONE
-
-                                                else -> GestureNavAction.NONE
-                                            }
-
-                                            if (newAction != previousAction) {
-                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                previousAction = newAction
-                                            }
-                                            setActiveNavAction(newAction)
-                                        } else {
-                                            val totalDist = kotlin.math.hypot(
-                                                (change.position.x - down.position.x).toDouble(),
-                                                (change.position.y - down.position.y).toDouble()
-                                            )
-                                            if (totalDist > viewConfiguration.touchSlop) {
-                                                movedBeforeLongPress = true
-                                                longPressJob.cancel()
-                                                break
                                             }
                                         }
+
+                                        viewModel.updateUI { it.copy(isNavPanelVisible = false) }
+                                        setActiveNavAction(GestureNavAction.NONE)
                                     }
+                                }
+                        ) {}
 
-                                    if (isLongPressActive) {
-                                        currentNavigateWebView()
-                                    } else {
-                                        if (longPressJob.isActive) {
-                                            longPressJob.cancel()
-                                        }
-                                        if (!movedBeforeLongPress) {
-                                            if (isLandscapeLayout) {
-                                                openLandscapeUrlInput(null)
-                                            } else {
-                                                if (urlBarFocusRequester.requestFocus()) {
-                                                    keyboardController?.show()
-                                                } else {
-                                                    urlBarFocusRequester.requestFocus()
-                                                }
-                                                viewModel.updateUI {
-                                                    it.copy(isUrlOverlayBoxVisible = false)
-                                                }
-                                            }
-                                        }
+                        if (isLandscapeLayout && isInlineSpecialInput) {
+                            Box(
+                                modifier = Modifier
+                                    .matchParentSize()
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null
+                                    ) {
+                                        openLandscapeUrlInput(null)
                                     }
-
-                                    viewModel.updateUI { it.copy(isNavPanelVisible = false) }
-                                    setActiveNavAction(GestureNavAction.NONE)
-                                }
-                            }
-                    ) {}
-
-                    if (isLandscapeLayout && (uiState.value.isFindInPageVisible || uiState.value.isPinningApp || uiState.value.isCreatingProfile || uiState.value.isRenamingProfile)) {
-                        Box(
-                            modifier = Modifier
-                                .matchParentSize()
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null
-                                ) {
-                                    openLandscapeUrlInput(null)
-                                }
-                        )
+                            )
+                        }
                     }
                 }
             }
@@ -1716,7 +1758,13 @@ fun BottomPanel(
                                             viewModel.updateUI { it.copy(isUrlBarVisible = false) }
                                         },
                                         addAppToPin = {
-                                            viewModel.updateUI { it.copy(isPinningApp = true) }
+                                            textFieldState.setTextAndPlaceCursorAtEnd("")
+                                            viewModel.updateUI {
+                                                it.copy(
+                                                    isPinningApp = true,
+                                                    isAppsPanelVisible = false
+                                                )
+                                            }
                                             openLandscapeUrlInput(KeyboardShortcutManager.UrlFocusAction.EMPTY)
                                         },
                                         createNewProfile = {

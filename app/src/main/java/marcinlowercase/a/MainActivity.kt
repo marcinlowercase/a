@@ -3280,6 +3280,9 @@ fun BrowserScreen(
 //                setIsOptionsPanelVisible(false)
                 viewModel.updateUI {
                     it.copy(
+                        isPinningApp = false,
+                        isCreatingProfile = false,
+                        isRenamingProfile = false,
                         isTabDataPanelVisible = false,
                         isTabsPanelVisible = false,
                         isDownloadPanelVisible = false,

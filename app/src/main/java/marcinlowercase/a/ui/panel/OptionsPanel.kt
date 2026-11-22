@@ -674,13 +674,15 @@ fun OptionsPanel(
                 modifier = Modifier
                     .width(settings.value.heightForLayer(2).dp + settings.value.padding.dp * 2)
                     .height(leftStemHeight)
-                    .padding(settings.value.padding.dp)
+
             ) {
                 VerticalPager(
                     state = pagerState,
                     modifier = Modifier
                         .fillMaxSize()
-                        .mouseVerticalPagerScroll(pagerState, enabled = realPageCount > 1),
+                        .mouseVerticalPagerScroll(pagerState, enabled = realPageCount > 1)
+
+                    ,
                     userScrollEnabled = realPageCount > 1
                 ) { pageIndex ->
                     val actualPageIndex = if (realPageCount > 0) pageIndex % realPageCount else 0
@@ -692,7 +694,9 @@ fun OptionsPanel(
                             .background(
                                 MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.3f),
                                 shape = RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp)
-                            ),
+                            )
+                            .padding(settings.value.padding.dp)
+                        ,
                         verticalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
                     ) {
                         pageOptions.forEach { option ->

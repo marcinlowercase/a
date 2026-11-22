@@ -40,6 +40,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -600,6 +601,7 @@ fun PlaceholderIcon(
     val viewModel = LocalBrowserViewModel.current
     val settings = viewModel.browserSettings.collectAsState()
     val hapticFeedback = LocalHapticFeedback.current
+    val currentOnClick by rememberUpdatedState(onClick)
 
     Box(
         modifier = modifier
@@ -642,11 +644,11 @@ fun PlaceholderIcon(
                                     }
                                 }
 
-                                // If the user didn't hold it long enough, it's a click
+                                // if the user didn't hold it long enough, it's a click
                                 if (longPressJob.isActive) {
                                     longPressJob.cancel()
                                     if (isTap) {
-                                        onClick()
+                                        currentOnClick?.invoke()
                                     }
                                 }
 
