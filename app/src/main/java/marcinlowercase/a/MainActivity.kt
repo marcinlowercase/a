@@ -3130,11 +3130,11 @@ fun BrowserScreen(
             )
 
             val currentActiveTab = viewModel.activeTab!!
-            val wasStateRestored = viewModel.geckoManager.consumeRestoredStateFlag(currentActiveTab.id)
+            val shouldLoadInitial = viewModel.geckoManager.shouldLoadInitialUrl(currentActiveTab.id)
             if (!uiState.value.initialLoadDone && initialIntentUrl != null && currentActiveTab.currentURL == initialIntentUrl) {
                 webViewLoad(activeSession, initialIntentUrl, context)
                 viewModel.updateUI { it.copy(initialLoadDone = true) }
-            } else if (!wasStateRestored && !viewModel.geckoManager.isEngineManaged(currentActiveTab.id)) {
+            } else if (shouldLoadInitial) {
                 val baseLoad = currentActiveTab.currentURL.ifBlank { settings.defaultUrl }
 
                 val urlToLoad = baseLoad.ifBlank { "about:blank" }

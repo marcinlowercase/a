@@ -196,7 +196,7 @@ class GeckoManager(private val context: Context) {
     private val stateCache = mutableMapOf<Long, GeckoSession.SessionState>()
 
     private val engineManagedSessionIds = mutableSetOf<Long>()
-    private val restoredSessionIds = mutableSetOf<Long>()
+    private val loadedOrRestoredSessionIds = mutableSetOf<Long>()
     private val liveSessionStack = mutableListOf<Long>()
     var activeTabId: Long? = null
     private var lastGeneratedTabId = 0L
@@ -226,19 +226,20 @@ class GeckoManager(private val context: Context) {
         }
     }
 
-    fun consumeRestoredStateFlag(tabId: Long): Boolean {
-        return restoredSessionIds.remove(tabId)
+    fun shouldLoadInitialUrl(tabId: Long): Boolean {
+        if (isEngineManaged(tabId)) return false
+        return loadedOrRestoredSessionIds.add(tabId)
     }
 
     fun clearSavedState(tabId: Long) {
         stateCache.remove(tabId)
-        restoredSessionIds.remove(tabId)
+        loadedOrRestoredSessionIds.remove(tabId)
         tabManager.deleteTabState(tabId)
     }
 
     fun clearStateCacheEntry(tabId: Long) {
         stateCache.remove(tabId)
-        restoredSessionIds.remove(tabId)
+        loadedOrRestoredSessionIds.remove(tabId)
     }
 
     fun flushStateCacheToDisk() {
@@ -308,7 +309,7 @@ class GeckoManager(private val context: Context) {
 
     private fun evictSession(tabId: Long): Boolean {
         liveSessionStack.remove(tabId)
-        restoredSessionIds.remove(tabId)
+        loadedOrRestoredSessionIds.remove(tabId)
         val cachedState = stateCache.remove(tabId)
         if (cachedState != null) {
             tabManager.saveTabStateAsync(tabId, cachedState.toString())
@@ -1024,7 +1025,7 @@ class GeckoManager(private val context: Context) {
 
         for (id in idsToClose) {
             liveSessionStack.remove(id)
-            restoredSessionIds.remove(id)
+            loadedOrRestoredSessionIds.remove(id)
             val cachedState = stateCache.remove(id)
             if (cachedState != null) {
                 tabManager.saveTabStateAsync(id, cachedState.toString())
@@ -1102,7 +1103,7 @@ class GeckoManager(private val context: Context) {
         }
         sessionPool.clear()
         liveSessionStack.clear()
-        restoredSessionIds.clear()
+        loadedOrRestoredSessionIds.clear()
         sessionProfileMap.clear()
         sessionPageTitleMap.clear()
         sessionUrlMap.clear()
@@ -1122,7 +1123,7 @@ class GeckoManager(private val context: Context) {
 
     fun closeSession(tab: Tab) {
         liveSessionStack.remove(tab.id)
-        restoredSessionIds.remove(tab.id)
+        loadedOrRestoredSessionIds.remove(tab.id)
         val sessionToClose = sessionPool.remove(tab.id)
         sessionToClose?.apply {
             sessionProfileMap.remove(this)
@@ -1164,14 +1165,14 @@ class GeckoManager(private val context: Context) {
         val cachedState = stateCache[tab.id]
         if (cachedState != null) {
             session.restoreState(cachedState)
-            restoredSessionIds.add(tab.id)
+            loadedOrRestoredSessionIds.add(tab.id)
         } else {
             val rawState = tab.savedState ?: tabManager.loadTabState(tab.id)
             val stateToRestore = rawState?.let { restoreStateFromString(it) }
             if (stateToRestore != null) {
                 stateCache[tab.id] = stateToRestore
                 session.restoreState(stateToRestore)
-                restoredSessionIds.add(tab.id)
+                loadedOrRestoredSessionIds.add(tab.id)
             }
         }
 
@@ -1193,7 +1194,7 @@ class GeckoManager(private val context: Context) {
 
     private fun handleSessionDeath(session: GeckoSession, tabId: Long) {
         liveSessionStack.remove(tabId)
-        restoredSessionIds.remove(tabId)
+        loadedOrRestoredSessionIds.remove(tabId)
         if (session == activeMediaGeckoSession || session == activeSilentVideoSession || session == currentFullscreenSession) {
             context.stopService(Intent(context, MediaPlaybackService::class.java))
             if (session == activeMediaGeckoSession) {
@@ -1216,7 +1217,7 @@ class GeckoManager(private val context: Context) {
 
     fun forceKillSession(tabId: Long) {
         liveSessionStack.remove(tabId)
-        restoredSessionIds.remove(tabId)
+        loadedOrRestoredSessionIds.remove(tabId)
         val session = sessionPool.remove(tabId)
         if (session != null) {
             sessionProfileMap.remove(session)
