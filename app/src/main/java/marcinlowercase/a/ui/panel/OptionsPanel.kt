@@ -998,13 +998,10 @@ fun SettingsPanel(
                     .padding(end = settings.value.padding.dp)
                     .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
                     .background(MaterialTheme.colorScheme.surfaceContainer)
-                    .padding(settings.value.padding.dp)
-                    .width(settings.value.heightForLayer(2).dp)
-                    .height((leftStemHeight - settings.value.padding.dp * 2).coerceAtLeast(80.dp))
+                    .width(settings.value.heightForLayer(1).dp)
+                    .height((leftStemHeight).coerceAtLeast(80.dp))
             } else {
                 Modifier
-                    .padding(horizontal = settings.value.padding.dp)
-                    .padding(top = settings.value.padding.dp)
                     .fillMaxWidth()
                     .animateContentSize(tween(settings.value.animationSpeedForLayer(1)))
             }
@@ -1054,7 +1051,9 @@ fun SettingsPanel(
                                                 shape = RoundedCornerShape(
                                                     settings.value.cornerRadiusForLayer(2).dp
                                                 )
-                                            ),
+                                            )
+                                            .padding(settings.value.padding.dp)
+                                        ,
                                         verticalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
                                     ) {
                                         pageOptions.forEach { option ->
@@ -1127,6 +1126,8 @@ fun SettingsPanel(
                                     columns = GridCells.Fixed(4),
                                     modifier = Modifier
                                         .fillMaxWidth()
+                                        .padding(horizontal = settings.value.padding.dp)
+                                        .padding(top = settings.value.padding.dp)
                                         .height(settings.value.heightForLayer(2).dp)
                                         .background(
                                             MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.3f),
