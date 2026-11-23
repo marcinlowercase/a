@@ -1527,7 +1527,7 @@ fun BottomPanel(
                 Layout(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(settings.value.padding.dp)
+                        .padding(vertical = settings.value.padding.dp)
                         .windowInsetsPadding(WindowInsets.ime)
                         .padding(bottom = floatingPanelBottomPadding),
                     content = {
@@ -1548,7 +1548,7 @@ fun BottomPanel(
                                 verticalAlignment = Alignment.Bottom
                             ) {
                                 if (uiState.value.isOptionsPanelVisible || (!isLandscapeCol2Open && !snappedForCol2Only && landscapeOptionsDraggableState.offset > 0f)) {
-                                    Box(modifier = Modifier.padding(end = settings.value.padding.dp)) {
+                                    Box(modifier = Modifier.padding(start = settings.value.padding.dp)) {
                                         Box(
                                             modifier = Modifier
                                                 .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
@@ -1628,12 +1628,12 @@ fun BottomPanel(
                         // bottom horizontal bar keeps exact full width and translates right when pushed
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp),
                             verticalAlignment = Alignment.Bottom
                         ) {
                         // bottom-left half: sub-panels above url bar, url bar, and apps panel below url bar
                         Column(
                             modifier = Modifier
+                                .padding(horizontal = settings.value.padding.dp)
                                 .weight(1f)
                                 .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
                                 .background(MaterialTheme.colorScheme.surfaceContainer)

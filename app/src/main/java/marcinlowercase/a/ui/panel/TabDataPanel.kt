@@ -112,7 +112,7 @@ fun TabDataPanel(
         if (isLandscapeLayout) {
             Row(
                 modifier = Modifier
-                    .padding(end = browserSettings.value.padding.dp)
+                    .padding(start = browserSettings.value.padding.dp)
                     .height(leftStemHeight)
                     .clip(RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(1).dp))
                     .background(MaterialTheme.colorScheme.surfaceContainer)

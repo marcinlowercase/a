@@ -65,7 +65,7 @@ fun FindInPagePanel(
         if (isLandscapeLayout) {
             Column(
                 modifier = Modifier
-                    .padding(end = settings.value.padding.dp)
+                    .padding(start = settings.value.padding.dp)
                     .height(leftStemHeight)
                     .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
                     .background(MaterialTheme.colorScheme.surfaceContainer)
