@@ -1,6 +1,7 @@
 package marcinlowercase.a.ui.panel
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.expandVertically
@@ -23,6 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,6 +47,11 @@ fun FindInPagePanel(
     val viewModel = LocalBrowserViewModel.current
     val uiState = viewModel.uiState.collectAsState()
     val settings = viewModel.browserSettings.collectAsState()
+    val landscapeStartPadding by animateDpAsState(
+        targetValue = if (uiState.value.isOptionsPanelVisible) 0.dp else settings.value.padding.dp,
+        animationSpec = tween(settings.value.animationSpeedForLayer(1)),
+        label = "FindInPageLandscapeStartPadding"
+    )
 
     AnimatedVisibility(
         visible = isVisible,
@@ -71,7 +78,7 @@ fun FindInPagePanel(
                     .background(MaterialTheme.colorScheme.surfaceContainer)
                     .padding( vertical = settings.value.padding.dp)
                     .padding( end = settings.value.padding.dp)
-                    .padding(start = if (uiState.value.isOptionsPanelVisible) 0.dp else settings.value.padding.dp)
+                    .padding(start = landscapeStartPadding)
                     .width(settings.value.heightForLayer(2).dp),
                 verticalArrangement = Arrangement.spacedBy(settings.value.padding.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
