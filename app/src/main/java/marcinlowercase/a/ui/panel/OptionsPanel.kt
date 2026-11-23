@@ -6,6 +6,7 @@ import android.os.Build
 import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
@@ -946,6 +947,11 @@ fun SettingsPanel(
     }
 
     val isLandscapeLeftColumn = isLandscapeLayout && renderMainOnly
+    val landscapeStartPadding by animateDpAsState(
+        targetValue = if (uiState.value.isOptionsPanelVisible) 0.dp else settings.value.padding.dp,
+        animationSpec = tween(settings.value.animationSpeedForLayer(1)),
+        label = "SettingsLandscapeStartPadding"
+    )
 
     AnimatedVisibility(
         visible = shouldShowPanel,
@@ -972,7 +978,7 @@ fun SettingsPanel(
                 Modifier
                     .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
                     .background(MaterialTheme.colorScheme.surfaceContainer)
-                    .width(settings.value.heightForLayer(1).dp)
+                    .width(settings.value.heightForLayer(2).dp + settings.value.padding.dp + landscapeStartPadding)
                     .height((leftStemHeight).coerceAtLeast(80.dp))
             } else {
                 Modifier
@@ -1028,6 +1034,7 @@ fun SettingsPanel(
                                             )
                                             .padding( vertical = settings.value.padding.dp)
                                             .padding( end = settings.value.padding.dp)
+                                            .padding( start = landscapeStartPadding)
                                         ,
                                         verticalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
                                     ) {
