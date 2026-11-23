@@ -147,13 +147,10 @@ fun SliderSetting(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(
-                MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.3f),
-                shape = RoundedCornerShape(
-                    settings.value.cornerRadiusForLayer(2).dp
-                )
-            )
-            .padding(settings.value.padding.dp),
+            .clip(RoundedCornerShape(
+                settings.value.cornerRadiusForLayer(2).dp
+            ))
+            .padding(settings.value.padding.dp * 2),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
 
@@ -405,7 +402,7 @@ fun TextSetting(
                     settings.value.cornerRadiusForLayer(2).dp
                 )
             )
-            .padding(settings.value.padding.dp),
+            .padding(settings.value.padding.dp * 2),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // --- TOP ROW ---
@@ -575,7 +572,7 @@ fun MultipleOptionSetting(
                     settings.value.cornerRadiusForLayer(2).dp
                 )
             )
-            .padding(settings.value.padding.dp),
+            .padding(settings.value.padding.dp*2),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // top row with back button and setting icon

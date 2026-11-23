@@ -437,12 +437,7 @@ fun rememberBrowserOptionsRegistry(
                 contentDescription = R.string.desc_reopen_tab,
                 enabled = viewModel.recentlyClosedTabs.isNotEmpty()
             ) {
-                viewModel.reopenClosedTab(); viewModel.updateUI {
-                it.copy(
-                    isOptionsPanelVisible = false,
-                    isAppsPanelVisible = false
-                )
-            }
+                viewModel.reopenClosedTab();
             },
             BrowserOption.FULLSCREEN to OptionItem(
                 id = BrowserOption.FULLSCREEN,
@@ -460,12 +455,7 @@ fun rememberBrowserOptionsRegistry(
                 viewModel.toggleDesktopModeForCurrentTab()
 
 
-                viewModel.updateUI {
-                it.copy(
-                    isOptionsPanelVisible = false,
-                    isAppsPanelVisible = false
-                )
-            }
+
             },
            BrowserOption.ROTATE to OptionItem(
                 id = BrowserOption.ROTATE,
@@ -507,12 +497,7 @@ fun rememberBrowserOptionsRegistry(
                 viewModel.updateField(
                     BrowserSettingField.AD_BLOCK_ENABLED,
                     !settings.value.isAdBlockEnabled
-                ); viewModel.updateUI {
-                it.copy(
-                    isOptionsPanelVisible = false,
-                    isAppsPanelVisible = false
-                )
-            }
+                );
             },
             BrowserOption.SUGGESTIONS to OptionItem(
                 id = BrowserOption.SUGGESTIONS,
@@ -520,12 +505,7 @@ fun rememberBrowserOptionsRegistry(
                 contentDescription = R.string.desc_suggestions,
                 enabled = settings.value.showSuggestions
             ) {
-                viewModel.updateSettings { it.copy(showSuggestions = !it.showSuggestions) }; viewModel.updateUI {
-                it.copy(
-                    isOptionsPanelVisible = false,
-                    isAppsPanelVisible = false
-                )
-            }
+                viewModel.updateSettings { it.copy(showSuggestions = !it.showSuggestions) };
             },
 
             BrowserOption.OUT_SYNC to OptionItem(
@@ -534,12 +514,7 @@ fun rememberBrowserOptionsRegistry(
                 contentDescription = R.string.desc_out_sync,
                 enabled = settings.value.isEnabledOutSync
             ) {
-                viewModel.updateSettings { it.copy(isEnabledOutSync = !it.isEnabledOutSync) }; viewModel.updateUI {
-                it.copy(
-                    isOptionsPanelVisible = false,
-                    isAppsPanelVisible = false
-                )
-            }
+                viewModel.updateSettings { it.copy(isEnabledOutSync = !it.isEnabledOutSync) };
             },
             BrowserOption.IMMERSIVE_WEBVIEW to OptionItem(
                 id = BrowserOption.IMMERSIVE_WEBVIEW,
@@ -1417,7 +1392,7 @@ fun SettingsPanel(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(settings.value.padding.dp),
+                                .padding(settings.value.padding.dp * 2),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Row(
