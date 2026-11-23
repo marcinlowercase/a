@@ -5,6 +5,8 @@ import android.content.pm.ActivityInfo
 import android.os.Build
 import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
@@ -819,6 +821,8 @@ fun SettingsPanel(
     renderMainOnly: Boolean = false,
     renderSubViewsOnly: Boolean = false,
     isMirrored: Boolean = false,
+    isVisibleOverride: Boolean? = null,
+    useSlideFromEdgeInLandscape: Boolean = false,
 ) {
     val viewModel = LocalBrowserViewModel.current
     val uiState = viewModel.uiState.collectAsState()
@@ -942,11 +946,11 @@ fun SettingsPanel(
             }
         }
     }
-    val shouldShowPanel = (uiState.value.isSettingsPanelVisible || isFirstModeLoad) && when {
+    val shouldShowPanel = isVisibleOverride ?: ((uiState.value.isSettingsPanelVisible || isFirstModeLoad) && when {
         renderMainOnly -> currentView == SettingPanelView.MAIN && !isFirstModeLoad
         renderSubViewsOnly -> currentView != SettingPanelView.MAIN || isFirstModeLoad
         else -> true
-    }
+    })
 
     val isLandscapeLeftColumn = isLandscapeLayout && renderMainOnly
     val landscapeStartPadding by animateDpAsState(
@@ -957,17 +961,17 @@ fun SettingsPanel(
 
     AnimatedVisibility(
         visible = shouldShowPanel,
-        enter = if (isLandscapeLeftColumn) {
-            expandHorizontally(tween(settings.value.animationSpeedForLayer(1))) +
+        enter = when {
+            isLandscapeLeftColumn && useSlideFromEdgeInLandscape -> EnterTransition.None
+            isLandscapeLeftColumn -> expandHorizontally(tween(settings.value.animationSpeedForLayer(1))) +
                 fadeIn(tween(settings.value.animationSpeedForLayer(1)))
-        } else {
-            expandVertically(tween(settings.value.animationSpeedForLayer(1)))
+            else -> expandVertically(tween(settings.value.animationSpeedForLayer(1)))
         },
-        exit = if (isLandscapeLeftColumn) {
-            shrinkHorizontally(tween(settings.value.animationSpeedForLayer(1))) +
+        exit = when {
+            isLandscapeLeftColumn && useSlideFromEdgeInLandscape -> ExitTransition.None
+            isLandscapeLeftColumn -> shrinkHorizontally(tween(settings.value.animationSpeedForLayer(1))) +
                 fadeOut(tween(settings.value.animationSpeedForLayer(1)))
-        } else {
-            shrinkVertically(
+            else -> shrinkVertically(
                 tween(
                     if (isFirstModeLoad) settings.value.animationSpeedForLayer(0) * 6
                     else settings.value.animationSpeedForLayer(1)

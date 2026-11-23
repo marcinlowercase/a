@@ -1,6 +1,8 @@
 package marcinlowercase.a.ui.panel
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
@@ -44,6 +46,7 @@ fun FindInPagePanel(
     isLandscapeLayout: Boolean = false,
     leftStemHeight: Dp = 305.dp,
     isMirrored: Boolean = false,
+    useSlideFromEdgeInLandscape: Boolean = false,
 ) {
     val viewModel = LocalBrowserViewModel.current
     val uiState = viewModel.uiState.collectAsState()
@@ -56,19 +59,19 @@ fun FindInPagePanel(
 
     AnimatedVisibility(
         visible = isVisible,
-        enter = if (isLandscapeLayout) {
-            expandHorizontally(tween(settings.value.animationSpeedForLayer(1))) +
-                    fadeIn(tween(settings.value.animationSpeedForLayer(1)))
-        } else {
-            expandVertically(tween(settings.value.animationSpeedForLayer(1))) +
-                    fadeIn(tween(settings.value.animationSpeedForLayer(1)))
+        enter = when {
+            isLandscapeLayout && useSlideFromEdgeInLandscape -> EnterTransition.None
+            isLandscapeLayout -> expandHorizontally(tween(settings.value.animationSpeedForLayer(1))) +
+                fadeIn(tween(settings.value.animationSpeedForLayer(1)))
+            else -> expandVertically(tween(settings.value.animationSpeedForLayer(1))) +
+                fadeIn(tween(settings.value.animationSpeedForLayer(1)))
         },
-        exit = if (isLandscapeLayout) {
-            shrinkHorizontally(tween(settings.value.animationSpeedForLayer(1))) +
-                    fadeOut(tween(settings.value.animationSpeedForLayer(1)))
-        } else {
-            shrinkVertically(tween(settings.value.animationSpeedForLayer(1))) +
-                    fadeOut(tween(settings.value.animationSpeedForLayer(1)))
+        exit = when {
+            isLandscapeLayout && useSlideFromEdgeInLandscape -> ExitTransition.None
+            isLandscapeLayout -> shrinkHorizontally(tween(settings.value.animationSpeedForLayer(1))) +
+                fadeOut(tween(settings.value.animationSpeedForLayer(1)))
+            else -> shrinkVertically(tween(settings.value.animationSpeedForLayer(1))) +
+                fadeOut(tween(settings.value.animationSpeedForLayer(1)))
         }
     ) {
         if (isLandscapeLayout) {

@@ -2,6 +2,8 @@ package marcinlowercase.a.ui.panel
 
 import android.Manifest
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
@@ -81,6 +83,7 @@ fun TabDataPanel(
     isLandscapeLayout: Boolean = false,
     leftStemHeight: Dp = 305.dp,
     isMirrored: Boolean = false,
+    useSlideFromEdgeInLandscape: Boolean = false,
 ) {
     val viewModel = LocalBrowserViewModel.current
     val settings = viewModel.browserSettings.collectAsState()
@@ -99,19 +102,19 @@ fun TabDataPanel(
 
     AnimatedVisibility(
         visible = isTabDataPanelVisible,
-        enter = if (isLandscapeLayout) {
-            expandHorizontally(tween(settings.value.animationSpeedForLayer(1))) +
+        enter = when {
+            isLandscapeLayout && useSlideFromEdgeInLandscape -> EnterTransition.None
+            isLandscapeLayout -> expandHorizontally(tween(settings.value.animationSpeedForLayer(1))) +
                 fadeIn(tween(settings.value.animationSpeedForLayer(1)))
-        } else {
-            fadeIn(tween(settings.value.animationSpeed.roundToInt())) + expandVertically(
+            else -> fadeIn(tween(settings.value.animationSpeed.roundToInt())) + expandVertically(
                 expandFrom = Alignment.Bottom
             )
         },
-        exit = if (isLandscapeLayout) {
-            shrinkHorizontally(tween(settings.value.animationSpeedForLayer(1))) +
+        exit = when {
+            isLandscapeLayout && useSlideFromEdgeInLandscape -> ExitTransition.None
+            isLandscapeLayout -> shrinkHorizontally(tween(settings.value.animationSpeedForLayer(1))) +
                 fadeOut(tween(settings.value.animationSpeedForLayer(1)))
-        } else {
-            shrinkVertically(tween(settings.value.animationSpeedForLayer(1))) + fadeOut(
+            else -> shrinkVertically(tween(settings.value.animationSpeedForLayer(1))) + fadeOut(
                 tween(settings.value.animationSpeedForLayer(1))
             )
         }

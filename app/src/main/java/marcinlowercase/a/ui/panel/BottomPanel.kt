@@ -415,7 +415,166 @@ fun BottomPanel(
         var isCommitSettling by remember { mutableStateOf(false) }
         var activeFlingTarget by remember { mutableStateOf<LandscapeLeftPanelState?>(null) }
 
+        val isBottomBarShowing =
+            uiState.value.isBottomPanelVisible && uiState.value.appState == AppState.REGULAR
+        val activeCol2Kind = when {
+            uiState.value.isFindInPageVisible -> LandscapeCol2Kind.FIND_IN_PAGE
+            isLandscapeSettingsMainOpen -> LandscapeCol2Kind.SETTINGS
+            isTabDataPanelVisible -> LandscapeCol2Kind.TAB_DATA
+            else -> LandscapeCol2Kind.NONE
+        }
+        var prevCol2Kind by remember { mutableStateOf(activeCol2Kind) }
+        var heldCol2KindForSlide by remember { mutableStateOf(activeCol2Kind) }
+        var isCol2OpeningEdgeSlide by remember { mutableStateOf(false) }
+        var isCol2ClosingEdgeSlide by remember { mutableStateOf(false) }
+
+        val col2JustOpenedFromHidden = isLandscapeLayout &&
+            activeCol2Kind != LandscapeCol2Kind.NONE &&
+            prevCol2Kind == LandscapeCol2Kind.NONE &&
+            (landscapeOptionsDraggableState.settledValue == LandscapeLeftPanelState.Hidden || isCol2ClosingEdgeSlide) &&
+            !uiState.value.isOptionsPanelVisible &&
+            !isClosingDrawerShiftActive
+        val col2JustClosedToHidden = isLandscapeLayout &&
+            activeCol2Kind == LandscapeCol2Kind.NONE &&
+            prevCol2Kind != LandscapeCol2Kind.NONE &&
+            (landscapeOptionsDraggableState.settledValue == LandscapeLeftPanelState.Col2Only || isCol2OpeningEdgeSlide) &&
+            !uiState.value.isOptionsPanelVisible &&
+            !isDraggingLandscapeOptions &&
+            activeFlingTarget == null &&
+            !isClosingDrawerShiftActive &&
+            isBottomBarShowing
+
+        val effectiveFindInPageVisible =
+            uiState.value.isFindInPageVisible || heldCol2KindForSlide == LandscapeCol2Kind.FIND_IN_PAGE
+        val effectiveSettingsMainVisible =
+            isLandscapeSettingsMainOpen || heldCol2KindForSlide == LandscapeCol2Kind.SETTINGS
+        val effectiveTabDataVisible =
+            isTabDataPanelVisible || heldCol2KindForSlide == LandscapeCol2Kind.TAB_DATA
+        val useSlideFromEdgeForCol2 =
+            col2JustOpenedFromHidden || isCol2OpeningEdgeSlide || col2JustClosedToHidden || isCol2ClosingEdgeSlide
+
         val hasCol2Anchor = col2MeasuredWidthPx > 0.5f
+
+        SideEffect {
+            if (activeCol2Kind != LandscapeCol2Kind.NONE) {
+                heldCol2KindForSlide = activeCol2Kind
+            } else if (!col2JustClosedToHidden && !isCol2ClosingEdgeSlide) {
+                heldCol2KindForSlide = LandscapeCol2Kind.NONE
+            }
+            if (col2JustOpenedFromHidden) {
+                isCol2ClosingEdgeSlide = false
+                isCol2OpeningEdgeSlide = true
+            }
+            if (col2JustClosedToHidden) {
+                isCol2OpeningEdgeSlide = false
+                isCol2ClosingEdgeSlide = true
+            }
+            prevCol2Kind = activeCol2Kind
+        }
+
+        LaunchedEffect(isCol2OpeningEdgeSlide, hasCol2Anchor, col2MeasuredWidthPx, isLandscapeLayout) {
+            if (!isLandscapeLayout) {
+                isCol2OpeningEdgeSlide = false
+                return@LaunchedEffect
+            }
+            if (isCol2OpeningEdgeSlide && hasCol2Anchor) {
+                val settledCol2W = outerStartPaddingPx + col2MeasuredWidthPx
+                val fullCol2W = settledCol2W + nearEdgePadPx
+                val startDrawerW = if (isCommitFittingDrawer) fitDrawerWidthAnim.value else 0f
+                val startBottomW = if (isCommitFittingDrawer) fitBottomOffsetAnim.value else 0f
+
+                isCommitFittingDrawer = true
+                wasOpeningWithNearPad = false
+                fitDrawerWidthAnim.snapTo(startDrawerW)
+                fitBottomOffsetAnim.snapTo(startBottomW)
+
+                val nextAnchors = buildLandscapeOptionsAnchors(
+                    drawerSign = drawerSign,
+                    col1InnerWidthPx = col1InnerWidthPx,
+                    col2MeasuredWidthPx = col2MeasuredWidthPx,
+                    outerStartPaddingPx = outerStartPaddingPx,
+                    includeCol2OnlyAnchor = true,
+                    includeSwappedAnchor = false,
+                    swapDistancePx = swapDistancePx,
+                    openingExtraPadPx = 0f
+                )
+                prevLandscapeOptionsSettled = LandscapeLeftPanelState.Col2Only
+                landscapeOptionsDraggableState.updateAnchors(nextAnchors, LandscapeLeftPanelState.Col2Only)
+                landscapeOptionsDraggableState.snapTo(LandscapeLeftPanelState.Col2Only)
+
+                val animDuration = settings.value.animationSpeedForLayer(1)
+                coroutineScope {
+                    launch {
+                        fitDrawerWidthAnim.animateTo(
+                            targetValue = fullCol2W,
+                            animationSpec = tween(animDuration)
+                        )
+                    }
+                    launch {
+                        fitBottomOffsetAnim.animateTo(
+                            targetValue = settledCol2W,
+                            animationSpec = tween(animDuration)
+                        )
+                    }
+                }
+                isCommitFittingDrawer = false
+                isCol2OpeningEdgeSlide = false
+            }
+        }
+
+        LaunchedEffect(isCol2ClosingEdgeSlide, isLandscapeLayout) {
+            if (!isLandscapeLayout) {
+                isCol2ClosingEdgeSlide = false
+                heldCol2KindForSlide = LandscapeCol2Kind.NONE
+                return@LaunchedEffect
+            }
+            if (isCol2ClosingEdgeSlide) {
+                val settledCol2W = outerStartPaddingPx + col2MeasuredWidthPx
+                val fullCol2W = settledCol2W + nearEdgePadPx
+                val startDrawerW = if (isCommitFittingDrawer) fitDrawerWidthAnim.value else fullCol2W
+                val startBottomW = if (isCommitFittingDrawer) fitBottomOffsetAnim.value else settledCol2W
+
+                isCommitFittingDrawer = true
+                fitDrawerWidthAnim.snapTo(startDrawerW)
+                fitBottomOffsetAnim.snapTo(startBottomW)
+
+                val animDuration = settings.value.animationSpeedForLayer(1)
+                coroutineScope {
+                    launch {
+                        fitDrawerWidthAnim.animateTo(
+                            targetValue = 0f,
+                            animationSpec = tween(animDuration)
+                        )
+                    }
+                    launch {
+                        fitBottomOffsetAnim.animateTo(
+                            targetValue = 0f,
+                            animationSpec = tween(animDuration)
+                        )
+                    }
+                }
+
+                // unmount vertical panel behind zero width before resetting anchors to hidden
+                heldCol2KindForSlide = LandscapeCol2Kind.NONE
+                withFrameNanos {}
+                val nextAnchors = buildLandscapeOptionsAnchors(
+                    drawerSign = drawerSign,
+                    col1InnerWidthPx = col1InnerWidthPx,
+                    col2MeasuredWidthPx = 0f,
+                    outerStartPaddingPx = outerStartPaddingPx,
+                    includeCol2OnlyAnchor = false,
+                    includeSwappedAnchor = swapDistancePx > 1f,
+                    swapDistancePx = swapDistancePx,
+                    openingExtraPadPx = nearEdgePadPx
+                )
+                prevLandscapeOptionsSettled = LandscapeLeftPanelState.Hidden
+                col2MeasuredWidthPx = 0f
+                landscapeOptionsDraggableState.updateAnchors(nextAnchors, LandscapeLeftPanelState.Hidden)
+                landscapeOptionsDraggableState.snapTo(LandscapeLeftPanelState.Hidden)
+                isCommitFittingDrawer = false
+                isCol2ClosingEdgeSlide = false
+            }
+        }
         // omit intermediate col2 anchor once both panels are shown so swiping past half closes all panels
         val includeCol2OnlyAnchor = hasCol2Anchor && (
             !uiState.value.isOptionsPanelVisible ||
@@ -485,6 +644,11 @@ fun BottomPanel(
             }
             if (isDraggingLandscapeOptions) {
                 isCommitFittingDrawer = false
+                isCol2OpeningEdgeSlide = false
+                if (isCol2ClosingEdgeSlide) {
+                    isCol2ClosingEdgeSlide = false
+                    heldCol2KindForSlide = LandscapeCol2Kind.NONE
+                }
                 val curSettled = landscapeOptionsDraggableState.settledValue
                 val isOpenDrawer = curSettled == LandscapeLeftPanelState.OptionsOnly ||
                     curSettled == LandscapeLeftPanelState.Col2Only ||
@@ -673,7 +837,7 @@ fun BottomPanel(
                 LandscapeLeftPanelState.Hidden
             }
             LandscapeLeftPanelState.Hidden ->
-                if (hasCol2Anchor && !isDraggingLandscapeOptions && activeFlingTarget == null && !landscapeOptionsDraggableState.isAnimationRunning && isLandscapeCol2Open) {
+                if (hasCol2Anchor && !col2JustOpenedFromHidden && !isCol2OpeningEdgeSlide && !isDraggingLandscapeOptions && activeFlingTarget == null && !landscapeOptionsDraggableState.isAnimationRunning && isLandscapeCol2Open) {
                     if (uiState.value.isOptionsPanelVisible && col1InnerWidthPx > 0f) LandscapeLeftPanelState.Both
                     else if (includeCol2OnlyAnchor) LandscapeLeftPanelState.Col2Only
                     else LandscapeLeftPanelState.Hidden
@@ -852,6 +1016,10 @@ fun BottomPanel(
                 if (isDraggingLandscapeOptions ||
                     activeFlingTarget != null ||
                     isCommitFittingDrawer ||
+                    col2JustOpenedFromHidden ||
+                    isCol2OpeningEdgeSlide ||
+                    col2JustClosedToHidden ||
+                    isCol2ClosingEdgeSlide ||
                     isClosingDrawerShiftActive ||
                     isSwappingNow ||
                     prevLandscapeOptionsSettled != landscapeOptionsDraggableState.settledValue
@@ -2073,6 +2241,10 @@ fun BottomPanel(
                         val useLiveLayout = !isDraggingLandscapeOptions &&
                             activeFlingTarget == null &&
                             !isCommitFittingDrawer &&
+                            !col2JustOpenedFromHidden &&
+                            !isCol2OpeningEdgeSlide &&
+                            !col2JustClosedToHidden &&
+                            !isCol2ClosingEdgeSlide &&
                             !isClosingDrawerShiftActive &&
                             !landscapeOptionsDraggableState.isAnimationRunning &&
                             isAtSettledAnchor &&
@@ -2144,7 +2316,7 @@ fun BottomPanel(
                                 verticalAlignment = Alignment.Bottom
                             ) {
                                 FindInPagePanel(
-                                    isVisible = uiState.value.isFindInPageVisible,
+                                    isVisible = effectiveFindInPageVisible,
                                     onFindNext = {
                                         activeSession.finder.find(
                                             viewModel.findInPageTextFieldState.text.toString(),
@@ -2178,7 +2350,8 @@ fun BottomPanel(
                                     },
                                     isLandscapeLayout = true,
                                     leftStemHeight = leftStemHeight,
-                                    isMirrored = isUrlBarOnRight
+                                    isMirrored = isUrlBarOnRight,
+                                    useSlideFromEdgeInLandscape = useSlideFromEdgeForCol2
                                 )
 
                                 SettingsPanel(
@@ -2187,25 +2360,33 @@ fun BottomPanel(
                                     onLoginClick = onSyncSignInClick,
                                     isLandscapeLayout = true,
                                     leftStemHeight = leftStemHeight,
-                                    currentViewOverride = currentSettingView,
+                                    currentViewOverride =
+                                        if (heldCol2KindForSlide == LandscapeCol2Kind.SETTINGS && !isLandscapeSettingsMainOpen) {
+                                            SettingPanelView.MAIN
+                                        } else {
+                                            currentSettingView
+                                        },
                                     onCurrentViewChange = {
                                         currentSettingView = it
                                         viewModel.isLandscapeSettingsSubView.value =
                                             it != SettingPanelView.MAIN || isFirstModeLoad
                                     },
                                     renderMainOnly = true,
-                                    isMirrored = isUrlBarOnRight
+                                    isMirrored = isUrlBarOnRight,
+                                    isVisibleOverride = effectiveSettingsMainVisible,
+                                    useSlideFromEdgeInLandscape = useSlideFromEdgeForCol2
                                 )
 
                                 TabDataPanel(
-                                    isTabDataPanelVisible = isTabDataPanelVisible,
+                                    isTabDataPanelVisible = effectiveTabDataVisible,
                                     onDismiss = { viewModel.updateUI { it.copy(isTabDataPanelVisible = false) } },
                                     onPermissionToggle = handlePermissionToggle,
                                     onClearSiteData = handleClearInspectedTabData,
                                     onCloseTab = handleCloseInspectedTab,
                                     isLandscapeLayout = true,
                                     leftStemHeight = leftStemHeight,
-                                    isMirrored = isUrlBarOnRight
+                                    isMirrored = isUrlBarOnRight,
+                                    useSlideFromEdgeInLandscape = useSlideFromEdgeForCol2
                                 )
                             }
                         }
@@ -2265,8 +2446,6 @@ fun BottomPanel(
                             isTabsRightVisible ||
                             isTextEditRightVisible
 
-                        val isBottomBarShowing =
-                            uiState.value.isBottomPanelVisible && uiState.value.appState == AppState.REGULAR
                         var heldConfirmRight by remember { mutableStateOf(isConfirmRightVisible) }
                         var heldContextRight by remember { mutableStateOf(isContextRightVisible) }
                         var heldPermissionRight by remember { mutableStateOf(isPermissionRightVisible) }
@@ -2866,6 +3045,13 @@ fun BottomPanel(
             }
         }
     }
+}
+
+private enum class LandscapeCol2Kind {
+    NONE,
+    FIND_IN_PAGE,
+    SETTINGS,
+    TAB_DATA,
 }
 
 private enum class LandscapeLeftPanelState {

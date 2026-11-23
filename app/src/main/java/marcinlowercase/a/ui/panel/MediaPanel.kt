@@ -68,7 +68,7 @@ fun MediaPanel(
         Row(
             modifier = Modifier
                 .padding(horizontal = settings.value.padding.dp)
-                .padding(top = settings.value.padding.dp)
+                .padding(vertical = settings.value.padding.dp)
                 .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp))
                 .fillMaxWidth()
                 .heightIn(min = settings.value.heightForLayer(2).dp)
