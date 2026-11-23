@@ -9,6 +9,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
@@ -24,6 +25,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.AnchoredDraggableState
 import androidx.compose.foundation.gestures.FlingBehavior
 import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.ScrollScope
 import androidx.compose.foundation.gestures.anchoredDraggable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -411,6 +413,7 @@ fun BottomPanel(
         var prevObservedOptionsVisible by remember { mutableStateOf(uiState.value.isOptionsPanelVisible) }
         val urlSettleOffsetAnim = remember { Animatable(0f) }
         var isCommitSettling by remember { mutableStateOf(false) }
+        var activeFlingTarget by remember { mutableStateOf<LandscapeLeftPanelState?>(null) }
 
         val hasCol2Anchor = col2MeasuredWidthPx > 0.5f
         // omit intermediate col2 anchor once both panels are shown so swiping past half closes all panels
@@ -455,9 +458,10 @@ fun BottomPanel(
             uiState.value.isOptionsPanelVisible,
             isLandscapeCol2Open,
             isCommitFittingDrawer,
-            isDraggingLandscapeOptions
+            isDraggingLandscapeOptions,
+            activeFlingTarget
         ) {
-            if (!isDraggingLandscapeOptions && !isCommitFittingDrawer) {
+            if (!isDraggingLandscapeOptions && activeFlingTarget == null && !isCommitFittingDrawer) {
                 if (landscapeOptionsDraggableState.settledValue == LandscapeLeftPanelState.Hidden &&
                     !uiState.value.isOptionsPanelVisible &&
                     !isLandscapeCol2Open
@@ -496,45 +500,54 @@ fun BottomPanel(
                 }
             } else if (isClosingDrawerShiftActive) {
                 val outcome = snapshotFlow {
+                    val flingTarget = activeFlingTarget
                     val offset = landscapeOptionsDraggableState.offset
-                    val signed = if (offset.isNaN()) 0f else offset * drawerSign
-                    val target = landscapeOptionsDraggableState.targetValue
                     val settled = landscapeOptionsDraggableState.settledValue
+                    val settledPos = landscapeOptionsDraggableState.anchors.positionOf(settled)
+                    val atSettled = !offset.isNaN() && !settledPos.isNaN() &&
+                        kotlin.math.abs(offset - settledPos) < 0.5f
                     when {
-                        target == LandscapeLeftPanelState.Hidden ||
-                        settled == LandscapeLeftPanelState.Hidden -> 1
-                        !landscapeOptionsDraggableState.isAnimationRunning && signed > 0.5f -> 2
+                        flingTarget == LandscapeLeftPanelState.Hidden ||
+                        (flingTarget == null && settled == LandscapeLeftPanelState.Hidden && atSettled) -> 1
+                        flingTarget == LandscapeLeftPanelState.OptionsOnly ||
+                        flingTarget == LandscapeLeftPanelState.Col2Only ||
+                        flingTarget == LandscapeLeftPanelState.Both -> 2
+                        flingTarget == null && !landscapeOptionsDraggableState.isAnimationRunning && atSettled -> 2
                         else -> 0
                     }
                 }.first { it != 0 }
 
                 if (outcome == 1) {
-                    // slide remaining drawer past physical cutout edge before hiding
+                    // slide remaining drawer past physical cutout edge alongside panel fling
                     closingExtraClipAnim.animateTo(
                         targetValue = 0f,
                         animationSpec = tween(settings.value.animationSpeedForLayer(1))
                     )
-                    snapshotFlow { !landscapeOptionsDraggableState.isAnimationRunning }.first { it }
+                    snapshotFlow {
+                        activeFlingTarget == null && !landscapeOptionsDraggableState.isAnimationRunning
+                    }.first { it }
                 } else {
-                    snapshotFlow { !landscapeOptionsDraggableState.isAnimationRunning }.first { it }
+                    snapshotFlow {
+                        activeFlingTarget == null && !landscapeOptionsDraggableState.isAnimationRunning
+                    }.first { it }
                     closingExtraClipAnim.snapTo(0f)
                 }
                 isClosingDrawerShiftActive = false
                 heldClosingOptions = false
             } else if (wasOpeningWithNearPad && nearEdgePadPx > 0.5f) {
                 val outcome = snapshotFlow {
+                    val flingTarget = activeFlingTarget
                     val offset = landscapeOptionsDraggableState.offset
-                    val signed = if (offset.isNaN()) 0f else offset * drawerSign
-                    val isDoneReturning =
-                        signed <= 0.5f && !landscapeOptionsDraggableState.isAnimationRunning
-                    val target = landscapeOptionsDraggableState.targetValue
                     val settled = landscapeOptionsDraggableState.settledValue
+                    val atZero = !offset.isNaN() && kotlin.math.abs(offset) <= 0.5f
                     when {
-                        target == LandscapeLeftPanelState.OptionsOnly ||
-                        target == LandscapeLeftPanelState.Both ||
+                        flingTarget == LandscapeLeftPanelState.OptionsOnly ||
+                        flingTarget == LandscapeLeftPanelState.Both ||
                         settled == LandscapeLeftPanelState.OptionsOnly ||
                         settled == LandscapeLeftPanelState.Both -> 1
-                        isDoneReturning -> 2
+                        flingTarget == LandscapeLeftPanelState.Hidden ||
+                        flingTarget == LandscapeLeftPanelState.Swapped -> 2
+                        flingTarget == null && !landscapeOptionsDraggableState.isAnimationRunning && atZero -> 2
                         else -> 0
                     }
                 }.first { it != 0 }
@@ -612,14 +625,15 @@ fun BottomPanel(
                 }
             } else if (urlSettleOffsetAnim.value != 0f) {
                 val outcome = snapshotFlow {
+                    val flingTarget = activeFlingTarget
                     val offset = landscapeOptionsDraggableState.offset
-                    val signed = if (offset.isNaN()) 0f else offset * drawerSign
-                    val isDoneReturning =
-                        signed >= -0.5f && !landscapeOptionsDraggableState.isAnimationRunning
+                    val settled = landscapeOptionsDraggableState.settledValue
+                    val atZero = !offset.isNaN() && kotlin.math.abs(offset) <= 0.5f
                     when {
-                        landscapeOptionsDraggableState.targetValue == LandscapeLeftPanelState.Swapped ||
-                        landscapeOptionsDraggableState.settledValue == LandscapeLeftPanelState.Swapped -> 1
-                        isDoneReturning -> 2
+                        flingTarget == LandscapeLeftPanelState.Swapped ||
+                        settled == LandscapeLeftPanelState.Swapped -> 1
+                        flingTarget == LandscapeLeftPanelState.Hidden -> 2
+                        flingTarget == null && !landscapeOptionsDraggableState.isAnimationRunning && atZero -> 2
                         else -> 0
                     }
                 }.first { it != 0 }
@@ -632,6 +646,9 @@ fun BottomPanel(
                     )
                 } else {
                     // keep locked spacing while returning on cancel and snap after exiting screen edge
+                    snapshotFlow {
+                        activeFlingTarget == null && !landscapeOptionsDraggableState.isAnimationRunning
+                    }.first { it }
                     isCommitSettling = false
                     urlSettleOffsetAnim.snapTo(0f)
                 }
@@ -656,7 +673,7 @@ fun BottomPanel(
                 LandscapeLeftPanelState.Hidden
             }
             LandscapeLeftPanelState.Hidden ->
-                if (hasCol2Anchor && !isDraggingLandscapeOptions && !landscapeOptionsDraggableState.isAnimationRunning && isLandscapeCol2Open) {
+                if (hasCol2Anchor && !isDraggingLandscapeOptions && activeFlingTarget == null && !landscapeOptionsDraggableState.isAnimationRunning && isLandscapeCol2Open) {
                     if (uiState.value.isOptionsPanelVisible && col1InnerWidthPx > 0f) LandscapeLeftPanelState.Both
                     else if (includeCol2OnlyAnchor) LandscapeLeftPanelState.Col2Only
                     else LandscapeLeftPanelState.Hidden
@@ -666,16 +683,56 @@ fun BottomPanel(
         }
         SideEffect {
             if (landscapeOptionsDraggableState.anchors != landscapeOptionsAnchors &&
-                !isDraggingLandscapeOptions
+                !isDraggingLandscapeOptions &&
+                activeFlingTarget == null
             ) {
                 landscapeOptionsDraggableState.updateAnchors(landscapeOptionsAnchors, anchorUpdateTarget)
             }
         }
 
-        val landscapeOptionsFling = AnchoredDraggableDefaults.flingBehavior(
-            state = landscapeOptionsDraggableState,
-            positionalThreshold = { distance -> distance * 0.5f },
-        )
+        val flingVelocityThresholdPx = with(density) { 400.dp.toPx() }
+        val flingAnimDurationMs = settings.value.animationSpeedForLayer(1)
+        val landscapeOptionsFling = remember(
+            landscapeOptionsDraggableState,
+            flingVelocityThresholdPx,
+            flingAnimDurationMs
+        ) {
+            object : FlingBehavior {
+                override suspend fun ScrollScope.performFling(initialVelocity: Float): Float {
+                    val currentOffset = landscapeOptionsDraggableState.offset
+                    if (currentOffset.isNaN()) return 0f
+                    val targetState = resolveLandscapeFlingTarget(
+                        anchors = landscapeOptionsDraggableState.anchors,
+                        offset = currentOffset,
+                        velocity = initialVelocity,
+                        velocityThresholdPx = flingVelocityThresholdPx
+                    ) ?: return 0f
+                    val targetOffset = landscapeOptionsDraggableState.anchors.positionOf(targetState)
+                    if (targetOffset.isNaN()) return 0f
+
+                    activeFlingTarget = targetState
+                    try {
+                        if (kotlin.math.abs(targetOffset - currentOffset) < 0.5f) {
+                            scrollBy(targetOffset - currentOffset)
+                        } else {
+                            var lastValue = currentOffset
+                            animate(
+                                initialValue = currentOffset,
+                                targetValue = targetOffset,
+                                animationSpec = tween(flingAnimDurationMs)
+                            ) { value, _ ->
+                                val delta = value - lastValue
+                                val consumed = scrollBy(delta)
+                                lastValue += consumed
+                            }
+                        }
+                    } finally {
+                        activeFlingTarget = null
+                    }
+                    return 0f
+                }
+            }
+        }
 
         val initialAppsState = if (uiState.value.isAppsPanelVisible) RevealState.Visible else RevealState.Hidden
         var landscapeAppsSettled by remember { mutableStateOf(initialAppsState) }
@@ -708,7 +765,12 @@ fun BottomPanel(
         }
 
         if (isLandscapeLayout) {
-            LaunchedEffect(landscapeOptionsDraggableState.settledValue) {
+            LaunchedEffect(
+                landscapeOptionsDraggableState.settledValue,
+                activeFlingTarget,
+                isDraggingLandscapeOptions
+            ) {
+                if (isDraggingLandscapeOptions || activeFlingTarget != null) return@LaunchedEffect
                 val newSettled = landscapeOptionsDraggableState.settledValue
                 if (newSettled == LandscapeLeftPanelState.Swapped) {
                     // finish post-release edge fit animation before resetting anchors to new side
@@ -788,7 +850,9 @@ fun BottomPanel(
                 val isSwappingNow = landscapeOptionsDraggableState.targetValue == LandscapeLeftPanelState.Swapped ||
                     (!curOffset.isNaN() && (-curOffset * drawerSign) > 0.5f)
                 if (isDraggingLandscapeOptions ||
+                    activeFlingTarget != null ||
                     isCommitFittingDrawer ||
+                    isClosingDrawerShiftActive ||
                     isSwappingNow ||
                     prevLandscapeOptionsSettled != landscapeOptionsDraggableState.settledValue
                 ) {
@@ -2007,6 +2071,7 @@ fun BottomPanel(
                             !settledAnchorPos.isNaN() &&
                             kotlin.math.abs(dragOffset - settledAnchorPos) < 1.5f
                         val useLiveLayout = !isDraggingLandscapeOptions &&
+                            activeFlingTarget == null &&
                             !isCommitFittingDrawer &&
                             !isClosingDrawerShiftActive &&
                             !landscapeOptionsDraggableState.isAnimationRunning &&
@@ -2023,6 +2088,7 @@ fun BottomPanel(
                             )
                         val hideExitingCol2AfterDrag = !isLandscapeCol2Open &&
                             settledLeftState == LandscapeLeftPanelState.Hidden &&
+                            activeFlingTarget == null &&
                             !landscapeOptionsDraggableState.isAnimationRunning &&
                             !isClosingDrawerShiftActive
                         val currentOptionsThreshold = if (hasCol2Anchor) {
@@ -2031,6 +2097,7 @@ fun BottomPanel(
                             0f
                         }
                         val isUserMovingOptions = isDraggingLandscapeOptions ||
+                            activeFlingTarget != null ||
                             landscapeOptionsDraggableState.isAnimationRunning ||
                             landscapeOptionsDraggableState.targetValue == LandscapeLeftPanelState.Both ||
                             landscapeOptionsDraggableState.targetValue == LandscapeLeftPanelState.OptionsOnly
@@ -2807,6 +2874,35 @@ private enum class LandscapeLeftPanelState {
     Col2Only,
     Both,
     Swapped,
+}
+
+private fun resolveLandscapeFlingTarget(
+    anchors: DraggableAnchors<LandscapeLeftPanelState>,
+    offset: Float,
+    velocity: Float,
+    velocityThresholdPx: Float,
+): LandscapeLeftPanelState? {
+    val sorted = LandscapeLeftPanelState.entries.mapNotNull { state ->
+        val pos = anchors.positionOf(state)
+        if (pos.isNaN()) null else state to pos
+    }.sortedBy { it.second }
+    if (sorted.isEmpty()) return null
+    if (offset <= sorted.first().second) return sorted.first().first
+    if (offset >= sorted.last().second) return sorted.last().first
+
+    for (i in 0 until sorted.lastIndex) {
+        val (lowerState, lowerPos) = sorted[i]
+        val (upperState, upperPos) = sorted[i + 1]
+        if (offset in lowerPos..upperPos) {
+            return when {
+                velocity >= velocityThresholdPx -> upperState
+                velocity <= -velocityThresholdPx -> lowerState
+                offset >= (lowerPos + upperPos) * 0.5f -> upperState
+                else -> lowerState
+            }
+        }
+    }
+    return sorted.minByOrNull { kotlin.math.abs(it.second - offset) }?.first
 }
 
 private fun buildLandscapeOptionsAnchors(
