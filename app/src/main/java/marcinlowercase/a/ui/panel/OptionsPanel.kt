@@ -197,7 +197,7 @@ fun rememberBrowserOptionsRegistry(
                     it.copy(
                         isFindInPageVisible = !it.isFindInPageVisible,
                         isOptionsPanelVisible = if (keepOptionsInLandscape) it.isOptionsPanelVisible else false,
-                        isAppsPanelVisible = false
+                        isAppsPanelVisible = if (keepOptionsInLandscape) it.isAppsPanelVisible else false
                     )
                 }
             },
@@ -207,10 +207,11 @@ fun rememberBrowserOptionsRegistry(
                 contentDescription = R.string.desc_download_panel,
                 enabled = uiState.value.isDownloadPanelVisible
             ) {
+                val keepOptionsInLandscape = uiState.value.isLandscape && !uiState.value.isOnFullscreenVideo
                 viewModel.updateUI {
                     it.copy(
                         isDownloadPanelVisible = !it.isDownloadPanelVisible,
-                        isOptionsPanelVisible = false,
+                        isOptionsPanelVisible = if (keepOptionsInLandscape) it.isOptionsPanelVisible else false,
                         isAppsPanelVisible = false
                     )
                 }
@@ -226,7 +227,7 @@ fun rememberBrowserOptionsRegistry(
                     it.copy(
                         isSettingsPanelVisible = !it.isSettingsPanelVisible,
                         isOptionsPanelVisible = if (keepOptionsInLandscape) it.isOptionsPanelVisible else false,
-                        isAppsPanelVisible = false
+                        isAppsPanelVisible = if (keepOptionsInLandscape) it.isAppsPanelVisible else false
                     )
                 }
             },
@@ -371,14 +372,14 @@ fun rememberBrowserOptionsRegistry(
                 enabled = uiState.value.isSyncPanelVisible// Disable click if not logged in
             ) {
                 if (viewModel.isLoggedIn()) {
+                    val keepVerticalPanelsInLandscape = uiState.value.isLandscape && !uiState.value.isOnFullscreenVideo
                     viewModel.updateUI {
                         it.copy(
                             isSyncPanelVisible = !it.isSyncPanelVisible,
-                            isOptionsPanelVisible = false,
-                            isSettingsPanelVisible = false
+                            isOptionsPanelVisible = if (keepVerticalPanelsInLandscape) it.isOptionsPanelVisible else false,
+                            isSettingsPanelVisible = if (keepVerticalPanelsInLandscape) it.isSettingsPanelVisible else false
                         )
                     }
-//                    viewModel.updateSettings { it.copy(isSync = !it.isSync) }
                 } else {
                     onLoginClick()
                 }
@@ -976,8 +977,6 @@ fun SettingsPanel(
         Box(
             modifier = if (isLandscapeLeftColumn) {
                 Modifier
-                    .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
-                    .background(MaterialTheme.colorScheme.surfaceContainer)
                     .width(settings.value.heightForLayer(2).dp + settings.value.padding.dp + landscapeStartPadding)
                     .height((leftStemHeight).coerceAtLeast(80.dp))
             } else {

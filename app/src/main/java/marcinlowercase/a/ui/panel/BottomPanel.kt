@@ -307,8 +307,18 @@ fun BottomPanel(
         val landscapeAppsHeightPx = with(density) { landscapeAppsHeightDp.toPx() }
 
         val isFirstModeLoad = settings.value.isFirstLoadForMode(uiState.value.windowMode)
+        val isLandscapeSettingsSubView = currentSettingView != SettingPanelView.MAIN || isFirstModeLoad
+        SideEffect {
+            viewModel.isLandscapeSettingsSubView.value = isLandscapeSettingsSubView
+        }
+        LaunchedEffect(viewModel.resetSettingsToMainTrigger.intValue) {
+            if (viewModel.resetSettingsToMainTrigger.intValue > 0 && !isFirstModeLoad) {
+                currentSettingView = SettingPanelView.MAIN
+                viewModel.isLandscapeSettingsSubView.value = false
+            }
+        }
         val isLandscapeSettingsMainOpen =
-            uiState.value.isSettingsPanelVisible && currentSettingView == SettingPanelView.MAIN && !isFirstModeLoad
+            uiState.value.isSettingsPanelVisible && !isLandscapeSettingsSubView
         val isLandscapeCol2Open =
             isLandscapeSettingsMainOpen || uiState.value.isFindInPageVisible || isTabDataPanelVisible
 
@@ -1810,7 +1820,11 @@ fun BottomPanel(
                                         isLandscapeLayout = true,
                                         leftStemHeight = leftStemHeight,
                                         currentViewOverride = currentSettingView,
-                                        onCurrentViewChange = { currentSettingView = it },
+                                        onCurrentViewChange = {
+                                            currentSettingView = it
+                                            viewModel.isLandscapeSettingsSubView.value =
+                                                it != SettingPanelView.MAIN || isFirstModeLoad
+                                        },
                                         renderMainOnly = true
                                     )
 
@@ -1915,7 +1929,11 @@ fun BottomPanel(
                                 onLoginClick = onSyncSignInClick,
                                 isLandscapeLayout = true,
                                 currentViewOverride = currentSettingView,
-                                onCurrentViewChange = { currentSettingView = it },
+                                onCurrentViewChange = {
+                                    currentSettingView = it
+                                    viewModel.isLandscapeSettingsSubView.value =
+                                        it != SettingPanelView.MAIN || isFirstModeLoad
+                                },
                                 renderSubViewsOnly = true
                             )
                             SyncPanel(

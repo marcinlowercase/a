@@ -1988,64 +1988,121 @@ fun BrowserScreen(
     //region Single Panel
 
 
-    // 1. State to track the single "main" active panel
+    val isLandscapeLayout = uiState.value.isLandscape && !uiState.value.isOnFullscreenVideo
     var activeMainPanel by remember { mutableStateOf<ActivePanel?>(null) }
+    var activeBottomLeftPanel by remember { mutableStateOf<ActivePanel?>(null) }
+    var activeOtherLandscapePanel by remember { mutableStateOf<ActivePanel?>(null) }
 
-
-    LaunchedEffect(viewModel.suggestions) {
-        if (viewModel.suggestions.isNotEmpty()) activeMainPanel = ActivePanel.SUGGESTIONS
+    LaunchedEffect(viewModel.suggestions.size, isLandscapeLayout) {
+        if (viewModel.suggestions.isNotEmpty()) {
+            if (isLandscapeLayout) activeBottomLeftPanel = ActivePanel.SUGGESTIONS
+            else activeMainPanel = ActivePanel.SUGGESTIONS
+        } else if (isLandscapeLayout && activeBottomLeftPanel == ActivePanel.SUGGESTIONS) {
+            activeBottomLeftPanel = null
+        }
     }
-    LaunchedEffect(uiState.value.isSyncPanelVisible) {
-        if (uiState.value.isSyncPanelVisible) activeMainPanel = ActivePanel.SYNC
+    LaunchedEffect(uiState.value.isSyncPanelVisible, isLandscapeLayout) {
+        if (uiState.value.isSyncPanelVisible) {
+            if (isLandscapeLayout) activeBottomLeftPanel = ActivePanel.SYNC
+            else activeMainPanel = ActivePanel.SYNC
+        } else if (isLandscapeLayout && activeBottomLeftPanel == ActivePanel.SYNC) {
+            activeBottomLeftPanel = null
+        }
     }
-
-    LaunchedEffect(uiState.value.isDownloadPanelVisible) {
-        if (uiState.value.isDownloadPanelVisible) activeMainPanel = ActivePanel.DOWNLOADS
+    LaunchedEffect(uiState.value.isDownloadPanelVisible, isLandscapeLayout) {
+        if (uiState.value.isDownloadPanelVisible) {
+            if (isLandscapeLayout) activeBottomLeftPanel = ActivePanel.DOWNLOADS
+            else activeMainPanel = ActivePanel.DOWNLOADS
+        } else if (isLandscapeLayout && activeBottomLeftPanel == ActivePanel.DOWNLOADS) {
+            activeBottomLeftPanel = null
+        }
     }
-    LaunchedEffect(uiState.value.isAppsPanelVisible) {
-        if (uiState.value.isAppsPanelVisible) activeMainPanel = ActivePanel.APPS
+    LaunchedEffect(uiState.value.isAppsPanelVisible, isLandscapeLayout) {
+        if (uiState.value.isAppsPanelVisible) {
+            if (isLandscapeLayout) activeBottomLeftPanel = ActivePanel.APPS
+            else activeMainPanel = ActivePanel.APPS
+        } else if (isLandscapeLayout && activeBottomLeftPanel == ActivePanel.APPS) {
+            activeBottomLeftPanel = null
+        }
     }
-    LaunchedEffect(viewModel.contextMenuData.value) {
-        if (viewModel.contextMenuData.value != null) activeMainPanel = ActivePanel.CONTEXT_MENU
+    LaunchedEffect(viewModel.contextMenuData.value, isLandscapeLayout) {
+        if (viewModel.contextMenuData.value != null) {
+            if (isLandscapeLayout) activeOtherLandscapePanel = ActivePanel.CONTEXT_MENU
+            else activeMainPanel = ActivePanel.CONTEXT_MENU
+        } else if (isLandscapeLayout && activeOtherLandscapePanel == ActivePanel.CONTEXT_MENU) {
+            activeOtherLandscapePanel = null
+        }
     }
-    LaunchedEffect(uiState.value.isFindInPageVisible) {
-        if (uiState.value.isFindInPageVisible) activeMainPanel = ActivePanel.FIND_IN_PAGE
+    LaunchedEffect(uiState.value.isFindInPageVisible, isLandscapeLayout) {
+        if (uiState.value.isFindInPageVisible) {
+            if (isLandscapeLayout) activeOtherLandscapePanel = ActivePanel.FIND_IN_PAGE
+            else activeMainPanel = ActivePanel.FIND_IN_PAGE
+        } else if (isLandscapeLayout && activeOtherLandscapePanel == ActivePanel.FIND_IN_PAGE) {
+            activeOtherLandscapePanel = null
+        }
     }
-    LaunchedEffect(viewModel.jsDialogState.value) {
-        if (viewModel.jsDialogState.value != null) activeMainPanel = ActivePanel.PROMPT
+    LaunchedEffect(viewModel.jsDialogState.value, isLandscapeLayout) {
+        if (viewModel.jsDialogState.value != null) {
+            if (isLandscapeLayout) activeOtherLandscapePanel = ActivePanel.PROMPT
+            else activeMainPanel = ActivePanel.PROMPT
+        } else if (isLandscapeLayout && activeOtherLandscapePanel == ActivePanel.PROMPT) {
+            activeOtherLandscapePanel = null
+        }
     }
-    LaunchedEffect(uiState.value.isSettingsPanelVisible) {
-        if (uiState.value.isSettingsPanelVisible) activeMainPanel = ActivePanel.SETTINGS
+    LaunchedEffect(
+        uiState.value.isSettingsPanelVisible,
+        viewModel.isLandscapeSettingsSubView.value,
+        isLandscapeLayout
+    ) {
+        if (isLandscapeLayout) {
+            if (uiState.value.isSettingsPanelVisible) {
+                if (viewModel.isLandscapeSettingsSubView.value) {
+                    activeBottomLeftPanel = ActivePanel.SETTINGS
+                    if (activeOtherLandscapePanel == ActivePanel.SETTINGS) {
+                        activeOtherLandscapePanel = null
+                    }
+                } else {
+                    activeOtherLandscapePanel = ActivePanel.SETTINGS
+                    if (activeBottomLeftPanel == ActivePanel.SETTINGS) {
+                        activeBottomLeftPanel = null
+                    }
+                }
+            } else {
+                if (activeBottomLeftPanel == ActivePanel.SETTINGS) activeBottomLeftPanel = null
+                if (activeOtherLandscapePanel == ActivePanel.SETTINGS) activeOtherLandscapePanel = null
+            }
+        } else if (uiState.value.isSettingsPanelVisible) {
+            activeMainPanel = ActivePanel.SETTINGS
+        }
     }
-    LaunchedEffect(viewModel.pendingPermissionRequest.value) {
-        if (viewModel.pendingPermissionRequest.value != null) activeMainPanel =
-            ActivePanel.PERMISSION
+    LaunchedEffect(viewModel.pendingPermissionRequest.value, isLandscapeLayout) {
+        if (viewModel.pendingPermissionRequest.value != null) {
+            if (isLandscapeLayout) activeOtherLandscapePanel = ActivePanel.PERMISSION
+            else activeMainPanel = ActivePanel.PERMISSION
+        } else if (isLandscapeLayout && activeOtherLandscapePanel == ActivePanel.PERMISSION) {
+            activeOtherLandscapePanel = null
+        }
     }
-//    LaunchedEffect(uiState.value.isTabsPanelVisible) {
-//        // When TabsPanel opens, it becomes the main panel.
-//        if (uiState.value.isTabsPanelVisible) activeMainPanel = ActivePanel.TABS
-//    }
-    LaunchedEffect(uiState.value.isTabDataPanelVisible) {
-        // When TabDataPanel opens, it ensures Tabs is the main panel and forces it open.
+    LaunchedEffect(uiState.value.isTabDataPanelVisible, isLandscapeLayout) {
         if (uiState.value.isTabDataPanelVisible) {
-            activeMainPanel = ActivePanel.TAB_DATA
+            if (isLandscapeLayout) activeOtherLandscapePanel = ActivePanel.TAB_DATA
+            else activeMainPanel = ActivePanel.TAB_DATA
+        } else if (isLandscapeLayout && activeOtherLandscapePanel == ActivePanel.TAB_DATA) {
+            activeOtherLandscapePanel = null
         }
     }
 
-    // 3. Enforcer for MAIN panels: When focus changes, close all other main panels.
-    LaunchedEffect(activeMainPanel) {
-        val current = activeMainPanel // Capture the current state
+    // portrait single-panel enforcer
+    LaunchedEffect(activeMainPanel, isLandscapeLayout) {
+        if (isLandscapeLayout) return@LaunchedEffect
+        val current = activeMainPanel
 
-        if (
-//            current != ActivePanel.TABS &&
-            current != ActivePanel.APPS && uiState.value.isAppsPanelVisible) viewModel.updateUI {
+        if (current != ActivePanel.APPS && uiState.value.isAppsPanelVisible) viewModel.updateUI {
             it.copy(
                 isAppsPanelVisible = false
             )
         }
-        if (
-//            current != ActivePanel.TABS &&
-            current != ActivePanel.TAB_DATA && uiState.value.isTabDataPanelVisible) viewModel.updateUI {
+        if (current != ActivePanel.TAB_DATA && uiState.value.isTabDataPanelVisible) viewModel.updateUI {
             it.copy(
                 isTabDataPanelVisible = false
             )
@@ -2078,6 +2135,60 @@ fun BrowserScreen(
             null
 
         if (current != ActivePanel.SUGGESTIONS && viewModel.suggestions.isNotEmpty()) viewModel.suggestions.clear()
+    }
+
+    // keep only one panel active in landscape bottom-left column without closing outside panels
+    LaunchedEffect(activeBottomLeftPanel, isLandscapeLayout) {
+        if (!isLandscapeLayout) return@LaunchedEffect
+        val current = activeBottomLeftPanel ?: return@LaunchedEffect
+
+        if (current != ActivePanel.APPS && uiState.value.isAppsPanelVisible) {
+            viewModel.updateUI { it.copy(isAppsPanelVisible = false) }
+        }
+        if (current != ActivePanel.DOWNLOADS && uiState.value.isDownloadPanelVisible) {
+            viewModel.updateUI { it.copy(isDownloadPanelVisible = false) }
+        }
+        if (current != ActivePanel.SYNC && uiState.value.isSyncPanelVisible) {
+            viewModel.updateUI { it.copy(isSyncPanelVisible = false) }
+        }
+        if (current != ActivePanel.SETTINGS &&
+            uiState.value.isSettingsPanelVisible &&
+            viewModel.isLandscapeSettingsSubView.value &&
+            !(current == ActivePanel.APPS && viewModel.isSortingButtons.value)
+        ) {
+            viewModel.resetSettingsToMainTrigger.intValue++
+        }
+        if (current != ActivePanel.SUGGESTIONS && viewModel.suggestions.isNotEmpty()) {
+            viewModel.suggestions.clear()
+        }
+    }
+
+    // enforce mutual exclusion for landscape panels outside bottom-left column
+    LaunchedEffect(activeOtherLandscapePanel, isLandscapeLayout) {
+        if (!isLandscapeLayout) return@LaunchedEffect
+        val current = activeOtherLandscapePanel ?: return@LaunchedEffect
+
+        if (current != ActivePanel.TAB_DATA && uiState.value.isTabDataPanelVisible) {
+            viewModel.updateUI { it.copy(isTabDataPanelVisible = false) }
+        }
+        if (current != ActivePanel.CONTEXT_MENU && viewModel.contextMenuData.value != null) {
+            viewModel.contextMenuData.value = null
+        }
+        if (current != ActivePanel.FIND_IN_PAGE && uiState.value.isFindInPageVisible) {
+            viewModel.updateUI { it.copy(isFindInPageVisible = false) }
+        }
+        if (current != ActivePanel.PROMPT && viewModel.jsDialogState.value != null) {
+            viewModel.jsDialogState.value = null
+        }
+        if (current != ActivePanel.SETTINGS &&
+            uiState.value.isSettingsPanelVisible &&
+            !viewModel.isLandscapeSettingsSubView.value
+        ) {
+            viewModel.updateUI { it.copy(isSettingsPanelVisible = false) }
+        }
+        if (current != ActivePanel.PERMISSION && viewModel.pendingPermissionRequest.value != null) {
+            viewModel.pendingPermissionRequest.value = null
+        }
 
 //        // If the active panel is NOT TABS, close both TABS and TAB_DATA.
 //        if (current != ActivePanel.APPS && current != ActivePanel.TABS) {

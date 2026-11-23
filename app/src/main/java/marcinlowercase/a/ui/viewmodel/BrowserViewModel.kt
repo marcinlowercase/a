@@ -2879,6 +2879,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     val landscapeInputSession = mutableStateOf<LandscapeInputSession?>(null)
     val requestedManualOrientation = mutableStateOf<Int?>(null)
+    val isLandscapeSettingsSubView = mutableStateOf(false)
+    val resetSettingsToMainTrigger = mutableIntStateOf(0)
     val backgroundColor = mutableStateOf(Color.Black)
     val sampledTopBarColor = mutableStateOf(Color.Black)
     val sampledBottomBarColor = mutableStateOf(Color.Black)
