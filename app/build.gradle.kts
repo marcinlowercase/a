@@ -104,6 +104,13 @@ android {
     }
 }
 
+androidComponents {
+    onVariants(selector().withBuildType("debug")) { variant ->
+        variant.packaging.jniLibs.useLegacyPackaging.set(true)
+        variant.packaging.dex.useLegacyPackaging.set(true)
+    }
+}
+
 dependencies {
     implementation(libs.barcode.scanning)
     implementation(libs.androidx.camera.core)
