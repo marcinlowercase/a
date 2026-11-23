@@ -10,6 +10,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
@@ -45,6 +46,7 @@ import kotlin.time.Duration.Companion.milliseconds
 fun CursorPointer(
     isCursorPadVisible: Boolean,
     position: Offset,
+    isMouseDown: Boolean = false,
 ) {
     val viewModel = LocalBrowserViewModel.current
     val settings = viewModel.browserSettings.collectAsState()
@@ -58,9 +60,13 @@ fun CursorPointer(
     var rippleAlpha by remember { mutableFloatStateOf(0f) }
     var clickOffset by remember { mutableStateOf(Offset.Zero) }
 
-    // Squeeze scale for the pointer (shrinks when clicking, pops up when appearing)
+    // squeeze scale when appearing or holding mouse down
     val pointerScale by animateFloatAsState(
-        targetValue = if (isCursorPadVisible) 1f else 0.4f,
+        targetValue = when {
+            !isCursorPadVisible -> 0.4f
+            isMouseDown -> 0.75f
+            else -> 1f
+        },
         animationSpec = if (isCursorPadVisible) {
             spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow)
         } else {
@@ -167,8 +173,15 @@ fun CursorPointer(
                         )
                     }
                     .size(cursorContainerSize)
-                    .scale(pointerScale) // <--- APPLIES SQUEEZE/POP ANIMATION
+                    .scale(pointerScale)
                     .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.5f), CircleShape)
+                    .then(
+                        if (isMouseDown) {
+                            Modifier.border(2.dp, Color(settings.value.highlightColor), CircleShape)
+                        } else {
+                            Modifier
+                        }
+                    )
             ) {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_dot),

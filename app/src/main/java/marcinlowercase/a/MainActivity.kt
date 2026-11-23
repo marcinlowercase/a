@@ -170,7 +170,6 @@ import marcinlowercase.a.core.manager.DriveSyncManager
 import marcinlowercase.a.core.manager.MediaGestureManager
 import marcinlowercase.a.core.service.ShakeDetector
 import marcinlowercase.a.ui.component.BackSquare
-import marcinlowercase.a.ui.component.CursorPad
 import marcinlowercase.a.ui.component.CursorPointer
 import marcinlowercase.a.ui.panel.BottomPanel
 import marcinlowercase.a.ui.panel.BuildPanel
@@ -1223,6 +1222,51 @@ fun BrowserScreen(
         animationSpec = paddingAnimationSpec,
         label = "Floating Panel End Padding Animation"
     )
+
+    val backSquareTopPadding by animateDpAsState(
+        targetValue = when {
+            uiState.value.isSettingCornerRadius || isPipMode -> 0.dp
+            settings.isEnabledImmersiveWebview ->
+                if (isEffectivelyFullscreen) 0.dp else innerPadding.calculateTopPadding()
+            else -> targetWebViewTopPadding
+        },
+        animationSpec = paddingAnimationSpec,
+        label = "BackSquare Top Padding Animation"
+    )
+    val backSquareBottomPadding by animateDpAsState(
+        targetValue = when {
+            uiState.value.isSettingCornerRadius || isPipMode -> 0.dp
+            settings.isEnabledImmersiveWebview ->
+                if (isEffectivelyFullscreen) 0.dp else innerPadding.calculateBottomPadding()
+            else -> targetWebViewBottomPadding
+        },
+        animationSpec = paddingAnimationSpec,
+        label = "BackSquare Bottom Padding Animation"
+    )
+    val backSquareStartPadding by animateDpAsState(
+        targetValue = when {
+            uiState.value.isSettingCornerRadius || isPipMode -> 0.dp
+            settings.isEnabledImmersiveWebview -> 0.dp
+            else -> targetWebViewStartPadding
+        },
+        animationSpec = paddingAnimationSpec,
+        label = "BackSquare Start Padding Animation"
+    )
+    val backSquareEndPadding by animateDpAsState(
+        targetValue = when {
+            uiState.value.isSettingCornerRadius || isPipMode -> 0.dp
+            settings.isEnabledImmersiveWebview -> 0.dp
+            else -> targetWebViewEndPadding
+        },
+        animationSpec = paddingAnimationSpec,
+        label = "BackSquare End Padding Animation"
+    )
+    val backSquarePaddingValue = PaddingValues(
+        start = backSquareStartPadding,
+        top = backSquareTopPadding,
+        end = backSquareEndPadding,
+        bottom = backSquareBottomPadding
+    )
     //endregion
 
 
@@ -1330,11 +1374,6 @@ fun BrowserScreen(
                 Toast.makeText(context, "Notification permission denied", Toast.LENGTH_SHORT).show()
             }
         }
-    )
-    val cursorPadHeight by animateDpAsState(
-        targetValue = if (isKeyboardVisible) ((viewModel.screenSizeDp.value.height.dp - webViewTopPadding) / 8
-                ) else (viewModel.screenSizeDp.value.height.dp - webViewTopPadding) / 2,
-        label = "Cursor Pad Height Animation"
     )
     val urlBarFocusRequester = remember { FocusRequester() }
 
@@ -4199,6 +4238,7 @@ fun BrowserScreen(
                         CursorPointer(
                             isCursorPadVisible = uiState.value.isCursorPadVisible,
                             position = viewModel.cursorPointerPosition.value,
+                            isMouseDown = uiState.value.isLongPressDrag,
                         )
 
 
@@ -4337,14 +4377,7 @@ fun BrowserScreen(
                             floatingPanelBottomPadding = floatingPanelBottomPadding,
                             confirmationPopup = ::confirmationPopup
                         )
-                        CursorPad(
-                            urlBarFocusRequester = urlBarFocusRequester,
-                            coroutineScope = coroutineScope,
-                            activeSession = activeSession,
-                            webViewPaddingValue = webViewPaddingValue,
-                            cursorPadHeight = cursorPadHeight,
-                            geckoViewRef = geckoViewRef
-                        )
+
                               AnimatedVisibility(
                             visible = isShakeHighlightActive &&
                                     !uiState.value.isBottomPanelVisible &&
@@ -4369,6 +4402,7 @@ fun BrowserScreen(
                             squareAlpha = squareAlpha,
                             cutoutTop = cutoutTop,
                             webViewPaddingValue = webViewPaddingValue,
+                            backSquarePaddingValue = backSquarePaddingValue,
                             hideBackSquare = ::hideBackSquare
                         )
 

@@ -28,6 +28,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,7 +37,9 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -56,6 +60,9 @@ fun CursorPad(
     coroutineScope: CoroutineScope,
     activeSession: GeckoSession,
     webViewPaddingValue: PaddingValues,
+    floatingPanelStartPadding: Dp,
+    floatingPanelEndPadding: Dp,
+    floatingPanelBottomPadding: Dp,
     cursorPadHeight: Dp,
     geckoViewRef: MutableState<GeckoView?>,
 
@@ -76,12 +83,25 @@ fun CursorPad(
     ) {
 
         val hapticFeedback = LocalHapticFeedback.current
+        val density = LocalDensity.current
+        val layoutDirection = LocalLayoutDirection.current
+        val currentWebViewStartPadPx by rememberUpdatedState(
+            with(density) { webViewPaddingValue.calculateLeftPadding(layoutDirection).toPx() }
+        )
+        val currentWebViewTopPadPx by rememberUpdatedState(
+            with(density) { webViewPaddingValue.calculateTopPadding().toPx() }
+        )
 
         Box(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .padding(webViewPaddingValue)
+                    .padding(
+                        start = floatingPanelStartPadding,
+                        top = webViewPaddingValue.calculateTopPadding(),
+                        end = floatingPanelEndPadding,
+                        bottom = floatingPanelBottomPadding
+                    )
                     .windowInsetsPadding(WindowInsets.ime)
 
 
@@ -128,14 +148,16 @@ fun CursorPad(
 
 
                                 activeSession.let { _ ->
-//                                    longPressDownTime = System.currentTimeMillis()
+                                    val touchX = (viewModel.cursorPointerPosition.value.x - currentWebViewStartPadPx)
+                                        .coerceIn(0f, (viewModel.screenSize.value.width.toFloat() - 1f).coerceAtLeast(0f))
+                                    val touchY = (viewModel.cursorPointerPosition.value.y - currentWebViewTopPadPx)
+                                        .coerceIn(0f, (viewModel.screenSize.value.height.toFloat() - 1f).coerceAtLeast(0f))
                                     val longPressDownEvent = MotionEvent.obtain(
                                         longPressDownTime,
                                         longPressDownTime,
                                         MotionEvent.ACTION_DOWN,
-                                        viewModel.cursorPointerPosition.value.x,
-                                        viewModel.cursorPointerPosition.value.y - webViewPaddingValue.calculateTopPadding()
-                                            .toPx(),
+                                        touchX,
+                                        touchY,
                                         0
                                     )
                                     activeSession.panZoomController.onTouchEvent(longPressDownEvent)
@@ -163,28 +185,29 @@ fun CursorPad(
                                                     changeDelta.y * settings.value.cursorTrackingSpeed
 
 
-                                                var newX =
-                                                    viewModel.cursorPointerPosition.value.x + changeSpaceX
-                                                var newY =
-                                                    viewModel.cursorPointerPosition.value.y + changeSpaceY
-                                                if (newX < 0) newX = 0f
-                                                if (newX > viewModel.screenSize.value.width) newX =
-                                                    viewModel.screenSize.value.width.toFloat()
-                                                if (newY < 0) newY = 0f
-                                                if (newY > viewModel.screenSize.value.height) newY =
-                                                    viewModel.screenSize.value.height.toFloat()
+                                                val minCursorX = currentWebViewStartPadPx
+                                                val maxCursorX = currentWebViewStartPadPx + viewModel.screenSize.value.width.toFloat()
+                                                val minCursorY = currentWebViewTopPadPx
+                                                val maxCursorY = currentWebViewTopPadPx + viewModel.screenSize.value.height.toFloat()
+                                                val newX = (viewModel.cursorPointerPosition.value.x + changeSpaceX)
+                                                    .coerceIn(minCursorX, maxCursorX)
+                                                val newY = (viewModel.cursorPointerPosition.value.y + changeSpaceY)
+                                                    .coerceIn(minCursorY, maxCursorY)
                                                 viewModel.cursorPointerPosition.value = Offset(newX, newY)
 
 
 
                                                 activeSession.let { _ ->
+                                                    val touchX = (viewModel.cursorPointerPosition.value.x - currentWebViewStartPadPx)
+                                                        .coerceIn(0f, (viewModel.screenSize.value.width.toFloat() - 1f).coerceAtLeast(0f))
+                                                    val touchY = (viewModel.cursorPointerPosition.value.y - currentWebViewTopPadPx)
+                                                        .coerceIn(0f, (viewModel.screenSize.value.height.toFloat() - 1f).coerceAtLeast(0f))
                                                     val moveEvent = MotionEvent.obtain(
                                                         longPressDownTime, // this the value to define when we triggered the move
                                                         SystemClock.uptimeMillis(),
                                                         MotionEvent.ACTION_MOVE,
-                                                        viewModel.cursorPointerPosition.value.x,
-                                                        viewModel.cursorPointerPosition.value.y - webViewPaddingValue.calculateTopPadding()
-                                                            .toPx(),
+                                                        touchX,
+                                                        touchY,
                                                         0
                                                     )
 
@@ -240,13 +263,16 @@ fun CursorPad(
 
 
                                 activeSession.let { _ ->
+                                    val touchX = (viewModel.cursorPointerPosition.value.x - currentWebViewStartPadPx)
+                                        .coerceIn(0f, (viewModel.screenSize.value.width.toFloat() - 1f).coerceAtLeast(0f))
+                                    val touchY = (viewModel.cursorPointerPosition.value.y - currentWebViewTopPadPx)
+                                        .coerceIn(0f, (viewModel.screenSize.value.height.toFloat() - 1f).coerceAtLeast(0f))
                                     val upEvent = MotionEvent.obtain(
                                         longPressDownTime,
                                         SystemClock.uptimeMillis(),
                                         MotionEvent.ACTION_UP,
-                                        viewModel.cursorPointerPosition.value.x,
-                                        viewModel.cursorPointerPosition.value.y - webViewPaddingValue.calculateTopPadding()
-                                            .toPx(),
+                                        touchX,
+                                        touchY,
                                         0
                                     )
                                     activeSession.panZoomController.onTouchEvent(upEvent)
@@ -280,16 +306,14 @@ fun CursorPad(
                                                     changeDelta.y * settings.value.cursorTrackingSpeed
 
 
-                                                var newX =
-                                                    viewModel.cursorPointerPosition.value.x + changeSpaceX
-                                                var newY =
-                                                    viewModel.cursorPointerPosition.value.y + changeSpaceY
-                                                if (newX < 0) newX = 0f
-                                                if (newX > viewModel.screenSize.value.width) newX =
-                                                    viewModel.screenSize.value.width.toFloat()
-                                                if (newY < 0) newY = 0f
-                                                if (newY > viewModel.screenSize.value.height) newY =
-                                                    viewModel.screenSize.value.height.toFloat()
+                                                val minCursorX = currentWebViewStartPadPx
+                                                val maxCursorX = currentWebViewStartPadPx + viewModel.screenSize.value.width.toFloat()
+                                                val minCursorY = currentWebViewTopPadPx
+                                                val maxCursorY = currentWebViewTopPadPx + viewModel.screenSize.value.height.toFloat()
+                                                val newX = (viewModel.cursorPointerPosition.value.x + changeSpaceX)
+                                                    .coerceIn(minCursorX, maxCursorX)
+                                                val newY = (viewModel.cursorPointerPosition.value.y + changeSpaceY)
+                                                    .coerceIn(minCursorY, maxCursorY)
 
                                                 viewModel.cursorPointerPosition.value = Offset(newX, newY)
                                             }
@@ -382,23 +406,25 @@ fun CursorPad(
                                     Log.e("marcCursor", "long press canceled")
 
                                     activeSession.let { _ ->
-                                        val downTime =  SystemClock.uptimeMillis()
+                                        val downTime = SystemClock.uptimeMillis()
+                                        val touchX = (viewModel.cursorPointerPosition.value.x - currentWebViewStartPadPx)
+                                            .coerceIn(0f, (viewModel.screenSize.value.width.toFloat() - 1f).coerceAtLeast(0f))
+                                        val touchY = (viewModel.cursorPointerPosition.value.y - currentWebViewTopPadPx)
+                                            .coerceIn(0f, (viewModel.screenSize.value.height.toFloat() - 1f).coerceAtLeast(0f))
                                         val downEvent = MotionEvent.obtain(
                                             downTime,
                                             downTime,
                                             MotionEvent.ACTION_DOWN,
-                                            viewModel.cursorPointerPosition.value.x,
-                                            viewModel.cursorPointerPosition.value.y - webViewPaddingValue.calculateTopPadding()
-                                                .toPx(),
+                                            touchX,
+                                            touchY,
                                             0
                                         )
                                         val upEvent = MotionEvent.obtain(
                                             downTime,
                                             SystemClock.uptimeMillis(),
                                             MotionEvent.ACTION_UP,
-                                            viewModel.cursorPointerPosition.value.x,
-                                            viewModel.cursorPointerPosition.value.y - webViewPaddingValue.calculateTopPadding()
-                                                .toPx(),
+                                            touchX,
+                                            touchY,
                                             0
                                         )
                                         activeSession.panZoomController.onTouchEvent(downEvent)
