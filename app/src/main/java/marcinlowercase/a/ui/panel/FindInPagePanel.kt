@@ -43,6 +43,7 @@ fun FindInPagePanel(
     leftStemHeight: Dp = 305.dp,
 ) {
     val viewModel = LocalBrowserViewModel.current
+    val uiState = viewModel.uiState.collectAsState()
     val settings = viewModel.browserSettings.collectAsState()
 
     AnimatedVisibility(
@@ -65,11 +66,12 @@ fun FindInPagePanel(
         if (isLandscapeLayout) {
             Column(
                 modifier = Modifier
-                    .padding(start = settings.value.padding.dp)
                     .height(leftStemHeight)
                     .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
                     .background(MaterialTheme.colorScheme.surfaceContainer)
-                    .padding(settings.value.padding.dp)
+                    .padding( vertical = settings.value.padding.dp)
+                    .padding( end = settings.value.padding.dp)
+                    .padding(start = if (uiState.value.isOptionsPanelVisible) 0.dp else settings.value.padding.dp)
                     .width(settings.value.heightForLayer(2).dp),
                 verticalArrangement = Arrangement.spacedBy(settings.value.padding.dp),
                 horizontalAlignment = Alignment.CenterHorizontally

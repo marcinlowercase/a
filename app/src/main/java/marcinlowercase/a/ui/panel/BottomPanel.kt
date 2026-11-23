@@ -1544,11 +1544,15 @@ fun BottomPanel(
                                         orientation = Orientation.Horizontal,
                                         flingBehavior = landscapeOptionsFling,
                                         enabled = isDragEnabled
-                                    ),
+                                    )
+                                    .padding(start = settings.value.padding.dp)
+                                    .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
+                                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                                ,
                                 verticalAlignment = Alignment.Bottom
                             ) {
                                 if (uiState.value.isOptionsPanelVisible || (!isLandscapeCol2Open && !snappedForCol2Only && landscapeOptionsDraggableState.offset > 0f)) {
-                                    Box(modifier = Modifier.padding(start = settings.value.padding.dp)) {
+                                    Box(modifier = Modifier) {
                                         Box(
                                             modifier = Modifier
                                                 .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))

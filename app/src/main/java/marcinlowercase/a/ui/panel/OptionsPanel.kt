@@ -970,7 +970,6 @@ fun SettingsPanel(
         Box(
             modifier = if (isLandscapeLeftColumn) {
                 Modifier
-                    .padding(start = settings.value.padding.dp)
                     .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
                     .background(MaterialTheme.colorScheme.surfaceContainer)
                     .width(settings.value.heightForLayer(1).dp)
@@ -1027,7 +1026,8 @@ fun SettingsPanel(
                                                     settings.value.cornerRadiusForLayer(2).dp
                                                 )
                                             )
-                                            .padding(settings.value.padding.dp)
+                                            .padding( vertical = settings.value.padding.dp)
+                                            .padding( end = settings.value.padding.dp)
                                         ,
                                         verticalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
                                     ) {

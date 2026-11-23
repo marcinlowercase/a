@@ -81,50 +81,50 @@ fun TabDataPanel(
     leftStemHeight: Dp = 305.dp,
 ) {
     val viewModel = LocalBrowserViewModel.current
-    val browserSettings = viewModel.browserSettings.collectAsState()
+    val settings = viewModel.browserSettings.collectAsState()
 
     val uiState by viewModel.uiState.collectAsState()
 
     var currentView by remember { mutableStateOf(TabDataPanelView.PERMISSIONS) }
     val currentTab = viewModel.tabs.find { it.id == uiState.inspectingTabId }
     val domain = currentTab?.currentURL?.toDomain()
-    val settings = viewModel.siteSettings[domain]
+    val siteSettings = viewModel.siteSettings[domain]
 
     AnimatedVisibility(
         visible = isTabDataPanelVisible,
         enter = if (isLandscapeLayout) {
-            expandHorizontally(tween(browserSettings.value.animationSpeedForLayer(1))) +
-                fadeIn(tween(browserSettings.value.animationSpeedForLayer(1)))
+            expandHorizontally(tween(settings.value.animationSpeedForLayer(1))) +
+                fadeIn(tween(settings.value.animationSpeedForLayer(1)))
         } else {
-            fadeIn(tween(browserSettings.value.animationSpeed.roundToInt())) + expandVertically(
+            fadeIn(tween(settings.value.animationSpeed.roundToInt())) + expandVertically(
                 expandFrom = Alignment.Bottom
             )
         },
         exit = if (isLandscapeLayout) {
-            shrinkHorizontally(tween(browserSettings.value.animationSpeedForLayer(1))) +
-                fadeOut(tween(browserSettings.value.animationSpeedForLayer(1)))
+            shrinkHorizontally(tween(settings.value.animationSpeedForLayer(1))) +
+                fadeOut(tween(settings.value.animationSpeedForLayer(1)))
         } else {
-            shrinkVertically(tween(browserSettings.value.animationSpeedForLayer(1))) + fadeOut(
-                tween(browserSettings.value.animationSpeedForLayer(1))
+            shrinkVertically(tween(settings.value.animationSpeedForLayer(1))) + fadeOut(
+                tween(settings.value.animationSpeedForLayer(1))
             )
         }
     ) {
         if (isLandscapeLayout) {
             Row(
                 modifier = Modifier
-                    .padding(start = browserSettings.value.padding.dp)
                     .height(leftStemHeight)
-                    .clip(RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(1).dp))
+                    .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
                     .background(MaterialTheme.colorScheme.surfaceContainer)
-                    .padding(browserSettings.value.padding.dp),
-                horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp),
+                    .padding( vertical = settings.value.padding.dp)
+                    .padding( end = settings.value.padding.dp),
+                horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp),
                 verticalAlignment = Alignment.Bottom
             ) {
                 Column(
                     modifier = Modifier
-                        .width(browserSettings.value.heightForLayer(2).dp)
+                        .width(settings.value.heightForLayer(2).dp)
                         .fillMaxHeight(),
-                    verticalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
+                    verticalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
                 ) {
                     CustomIconButton(
                         isLandscape = true,
@@ -163,25 +163,25 @@ fun TabDataPanel(
                     )
                 }
 
-                if (settings != null && settings.permissionDecisions.isNotEmpty()) {
+                if (siteSettings != null && siteSettings.permissionDecisions.isNotEmpty()) {
                     Row(
                         modifier = Modifier
                             .fillMaxHeight()
-                            .clip(RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(2).dp))
+                            .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp))
                             .border(
-                                browserSettings.value.padding.dp / 2,
+                                settings.value.padding.dp / 2,
                                 MaterialTheme.colorScheme.onSurface,
-                                RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(2).dp)
+                                RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp)
                             )
-                            .padding(browserSettings.value.padding.dp),
-                        horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
+                            .padding(settings.value.padding.dp),
+                        horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
                     ) {
-                        settings.permissionDecisions.entries.toList().chunked(4).forEach { colPermissions ->
+                        siteSettings.permissionDecisions.entries.toList().chunked(4).forEach { colPermissions ->
                             Column(
                                 modifier = Modifier
-                                    .width(browserSettings.value.heightForLayer(3).dp)
+                                    .width(settings.value.heightForLayer(3).dp)
                                     .fillMaxHeight(),
-                                verticalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
+                                verticalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
                             ) {
                                 colPermissions.forEach { (permission, isGranted) ->
                                     val (allowIcon, denyIcon, nameResId) = resolvePermissionVisual(permission)
@@ -211,33 +211,33 @@ fun TabDataPanel(
             Column(
                 modifier = Modifier
                     .clickable(enabled = false, onClick = {})
-                    .padding(top = browserSettings.value.padding.dp)
-                    .padding(horizontal = browserSettings.value.padding.dp)
+                    .padding(top = settings.value.padding.dp)
+                    .padding(horizontal = settings.value.padding.dp)
                     .fillMaxWidth()
                     .heightIn(max = 450.dp)
-                    .clip(RoundedCornerShape(browserSettings.value.cornerRadiusForLayer(2).dp))
+                    .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(2).dp))
                     .background(MaterialTheme.colorScheme.surfaceContainer)
             ) {
 
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .animateContentSize(tween(browserSettings.value.animationSpeedForLayer(1)))
+                        .animateContentSize(tween(settings.value.animationSpeedForLayer(1)))
                 ) {
 
 
-                    val isStillHaveOptions = (settings != null && settings.permissionDecisions.isNotEmpty())
+                    val isStillHaveOptions = (siteSettings != null && siteSettings.permissionDecisions.isNotEmpty())
 
                     when (currentView) {
                         TabDataPanelView.MAIN -> {
                             Column(
                                 modifier = Modifier
-                                    .padding(horizontal = browserSettings.value.padding.dp)
-                                    .padding(top = if (isStillHaveOptions) browserSettings.value.padding.dp else 0.dp),
-                                verticalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp),
+                                    .padding(horizontal = settings.value.padding.dp)
+                                    .padding(top = if (isStillHaveOptions) settings.value.padding.dp else 0.dp),
+                                verticalArrangement = Arrangement.spacedBy(settings.value.padding.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                if (settings != null && settings.permissionDecisions.isNotEmpty()) {
+                                if (siteSettings != null && siteSettings.permissionDecisions.isNotEmpty()) {
                                     CustomIconButton(
                                         layer = 3,
                                         modifier = Modifier.fillMaxWidth(),
@@ -251,26 +251,26 @@ fun TabDataPanel(
                         }
 
                         TabDataPanelView.PERMISSIONS -> {
-                            if (settings != null && settings.permissionDecisions.isNotEmpty()) {
+                            if (siteSettings != null && siteSettings.permissionDecisions.isNotEmpty()) {
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(
-                                            browserSettings.value.cornerRadiusForLayer(2).dp
+                                            settings.value.cornerRadiusForLayer(2).dp
                                         ))
-                                        .border(browserSettings.value.padding.dp / 2, MaterialTheme.colorScheme.onSurface,RoundedCornerShape(
-                                            browserSettings.value.cornerRadiusForLayer(2).dp
+                                        .border(settings.value.padding.dp / 2, MaterialTheme.colorScheme.onSurface,RoundedCornerShape(
+                                            settings.value.cornerRadiusForLayer(2).dp
                                         ))
-//                                        .padding(horizontal = browserSettings.value.padding.dp)
-//                                        .padding(top = browserSettings.value.padding.dp)
-                                        .padding(browserSettings.value.padding.dp)
+//                                        .padding(horizontal = settings.value.padding.dp)
+//                                        .padding(top = settings.value.padding.dp)
+                                        .padding(settings.value.padding.dp)
                                     ,
-                                    verticalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
+                                    verticalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
                                 ) {
-                                    settings.permissionDecisions.entries.toList().chunked(4).reversed().forEach { rowPermissions ->
+                                    siteSettings.permissionDecisions.entries.toList().chunked(4).reversed().forEach { rowPermissions ->
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
+                                            horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
                                         ) {
                                             rowPermissions.forEach { (permission, isGranted) ->
                                                 val (allowIcon, denyIcon, nameResId) = when (permission) {
@@ -312,8 +312,8 @@ fun TabDataPanel(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(browserSettings.value.padding.dp),
-                    horizontalArrangement = Arrangement.spacedBy(browserSettings.value.padding.dp)
+                        .padding(settings.value.padding.dp),
+                    horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
                 ) {
 
                     // 4. Update this to use `currentTab` instead of the non-observed getter
