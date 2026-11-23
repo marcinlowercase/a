@@ -461,20 +461,25 @@ fun BottomPanel(
             LaunchedEffect(landscapeOptionsDraggableState.settledValue) {
                 val newSettled = landscapeOptionsDraggableState.settledValue
                 if (newSettled != prevLandscapeOptionsSettled) {
+                    val curUi = viewModel.uiState.value
+                    val curCol2Open =
+                        (curUi.isSettingsPanelVisible && currentSettingView == SettingPanelView.MAIN && !isFirstModeLoad) ||
+                            curUi.isFindInPageVisible ||
+                            curUi.isTabDataPanelVisible
                     when (newSettled) {
                         LandscapeLeftPanelState.Both,
                         LandscapeLeftPanelState.OptionsOnly -> {
-                            if (!uiState.value.isOptionsPanelVisible) {
+                            if (!curUi.isOptionsPanelVisible) {
                                 viewModel.updateUI { it.copy(isOptionsPanelVisible = true) }
                             }
                         }
                         LandscapeLeftPanelState.Col2Only -> {
-                            if (uiState.value.isOptionsPanelVisible) {
+                            if (curUi.isOptionsPanelVisible) {
                                 viewModel.updateUI { it.copy(isOptionsPanelVisible = false) }
                             }
                         }
                         LandscapeLeftPanelState.Hidden -> {
-                            if (uiState.value.isOptionsPanelVisible || isLandscapeCol2Open) {
+                            if (curUi.isOptionsPanelVisible || curCol2Open) {
                                 viewModel.updateUI {
                                     it.copy(
                                         isOptionsPanelVisible = false,
@@ -493,9 +498,12 @@ fun BottomPanel(
                 uiState.value.isOptionsPanelVisible,
                 isLandscapeCol2Open,
                 hasCol2Anchor,
-                col1InnerWidthPx,
-                landscapeOptionsDraggableState.settledValue
+                col1InnerWidthPx
             ) {
+                if (isDraggingLandscapeOptions || prevLandscapeOptionsSettled != landscapeOptionsDraggableState.settledValue) {
+                    prevObservedOptionsVisible = uiState.value.isOptionsPanelVisible
+                    return@LaunchedEffect
+                }
                 val optionsChanged = prevObservedOptionsVisible != uiState.value.isOptionsPanelVisible
                 prevObservedOptionsVisible = uiState.value.isOptionsPanelVisible
 
@@ -1667,21 +1675,28 @@ fun BottomPanel(
                         .windowInsetsPadding(WindowInsets.ime)
                         .padding(bottom = floatingPanelBottomPadding),
                     content = {
+                        val dragOffset = landscapeOptionsDraggableState.offset
                         val settledLeftState = landscapeOptionsDraggableState.settledValue
+                        val settledAnchorPos = landscapeOptionsDraggableState.anchors.positionOf(settledLeftState)
+                        val isAtSettledAnchor = !dragOffset.isNaN() &&
+                            !settledAnchorPos.isNaN() &&
+                            kotlin.math.abs(dragOffset - settledAnchorPos) < 1.5f
                         val useLiveLayout = !isDraggingLandscapeOptions &&
                             !landscapeOptionsDraggableState.isAnimationRunning &&
+                            isAtSettledAnchor &&
                             (
                                 (uiState.value.isOptionsPanelVisible &&
                                     (settledLeftState == LandscapeLeftPanelState.OptionsOnly ||
                                         settledLeftState == LandscapeLeftPanelState.Both)) ||
                                 (!uiState.value.isOptionsPanelVisible &&
                                     (settledLeftState == LandscapeLeftPanelState.Col2Only ||
-                                        (settledLeftState == LandscapeLeftPanelState.Hidden && isLandscapeCol2Open)))
+                                        (settledLeftState == LandscapeLeftPanelState.Hidden &&
+                                            prevLandscapeOptionsSettled == LandscapeLeftPanelState.Hidden &&
+                                            isLandscapeCol2Open)))
                             )
                         val hideExitingCol2AfterDrag = !isLandscapeCol2Open &&
                             settledLeftState == LandscapeLeftPanelState.Hidden &&
                             !landscapeOptionsDraggableState.isAnimationRunning
-                        val dragOffset = landscapeOptionsDraggableState.offset
                         val currentOptionsThreshold = if (hasCol2Anchor) {
                             outerStartPaddingPx + col2MeasuredWidthPx
                         } else {
