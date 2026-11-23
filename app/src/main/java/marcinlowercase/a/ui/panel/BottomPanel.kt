@@ -328,7 +328,7 @@ fun BottomPanel(
             col2MeasuredWidthPx > 0.5f -> LandscapeLeftPanelState.Col2Only
             else -> LandscapeLeftPanelState.Hidden
         }
-        val landscapeOptionsAnchors = remember(
+        val initialLandscapeOptionsAnchors = remember(
             col1InnerWidthPx,
             col2MeasuredWidthPx,
             outerStartPaddingPx
@@ -337,7 +337,9 @@ fun BottomPanel(
                 LandscapeLeftPanelState.Hidden at 0f
                 if (col2MeasuredWidthPx > 0.5f) {
                     val col2Pos = outerStartPaddingPx + col2MeasuredWidthPx
-                    LandscapeLeftPanelState.Col2Only at col2Pos
+                    if (!uiState.value.isOptionsPanelVisible) {
+                        LandscapeLeftPanelState.Col2Only at col2Pos
+                    }
                     if (col1InnerWidthPx > 0f) {
                         LandscapeLeftPanelState.Both at col2Pos + col1InnerWidthPx
                     }
@@ -349,7 +351,7 @@ fun BottomPanel(
         val landscapeOptionsDraggableState = remember {
             AnchoredDraggableState(
                 initialValue = initialLeftStemState,
-                anchors = landscapeOptionsAnchors
+                anchors = initialLandscapeOptionsAnchors
             )
         }
         val landscapeOptionsInteractionSource = remember { MutableInteractionSource() }
@@ -358,16 +360,49 @@ fun BottomPanel(
         var prevObservedOptionsVisible by remember { mutableStateOf(uiState.value.isOptionsPanelVisible) }
 
         val hasCol2Anchor = col2MeasuredWidthPx > 0.5f
+        // omit intermediate col2 anchor once both panels are shown so swiping left past half closes all panels
+        val includeCol2OnlyAnchor = hasCol2Anchor && (
+            !uiState.value.isOptionsPanelVisible ||
+            landscapeOptionsDraggableState.currentValue == LandscapeLeftPanelState.Col2Only ||
+            landscapeOptionsDraggableState.settledValue == LandscapeLeftPanelState.Col2Only
+        )
+        val landscapeOptionsAnchors = remember(
+            col1InnerWidthPx,
+            col2MeasuredWidthPx,
+            outerStartPaddingPx,
+            includeCol2OnlyAnchor
+        ) {
+            DraggableAnchors {
+                LandscapeLeftPanelState.Hidden at 0f
+                if (col2MeasuredWidthPx > 0.5f) {
+                    val col2Pos = outerStartPaddingPx + col2MeasuredWidthPx
+                    if (includeCol2OnlyAnchor) {
+                        LandscapeLeftPanelState.Col2Only at col2Pos
+                    }
+                    if (col1InnerWidthPx > 0f) {
+                        LandscapeLeftPanelState.Both at col2Pos + col1InnerWidthPx
+                    }
+                } else if (col1InnerWidthPx > 0f) {
+                    LandscapeLeftPanelState.OptionsOnly at outerStartPaddingPx + col1InnerWidthPx
+                }
+            }
+        }
         val anchorUpdateTarget = if (hasCol2Anchor) {
             when (landscapeOptionsDraggableState.targetValue) {
                 LandscapeLeftPanelState.Both,
                 LandscapeLeftPanelState.OptionsOnly ->
-                    if (col1InnerWidthPx > 0f) LandscapeLeftPanelState.Both else LandscapeLeftPanelState.Col2Only
-                LandscapeLeftPanelState.Col2Only -> LandscapeLeftPanelState.Col2Only
+                    if (col1InnerWidthPx > 0f) LandscapeLeftPanelState.Both
+                    else if (includeCol2OnlyAnchor) LandscapeLeftPanelState.Col2Only
+                    else LandscapeLeftPanelState.Hidden
+                LandscapeLeftPanelState.Col2Only ->
+                    if (includeCol2OnlyAnchor) LandscapeLeftPanelState.Col2Only
+                    else if (uiState.value.isOptionsPanelVisible && col1InnerWidthPx > 0f) LandscapeLeftPanelState.Both
+                    else LandscapeLeftPanelState.Hidden
                 LandscapeLeftPanelState.Hidden ->
-                    if (isLandscapeCol2Open) {
+                    if (!isDraggingLandscapeOptions && !landscapeOptionsDraggableState.isAnimationRunning && isLandscapeCol2Open) {
                         if (uiState.value.isOptionsPanelVisible && col1InnerWidthPx > 0f) LandscapeLeftPanelState.Both
-                        else LandscapeLeftPanelState.Col2Only
+                        else if (includeCol2OnlyAnchor) LandscapeLeftPanelState.Col2Only
+                        else LandscapeLeftPanelState.Hidden
                     } else {
                         LandscapeLeftPanelState.Hidden
                     }
@@ -1831,14 +1866,8 @@ fun BottomPanel(
                                                     viewModel.lastMouseWheelScrollMs = now
                                                     viewModel.lastMouseWheelDirection = dir
                                                     if (isNewRoll) {
-                                                        val current = viewModel.uiState.value
-                                                        val isCol2OpenNow = (current.isSettingsPanelVisible && currentSettingView == SettingPanelView.MAIN && !isFirstModeLoad) ||
-                                                            current.isFindInPageVisible ||
-                                                            current.isTabDataPanelVisible
                                                         if (dx > 0f) {
                                                             viewModel.updateUI { it.copy(isOptionsPanelVisible = true) }
-                                                        } else if (current.isOptionsPanelVisible && isCol2OpenNow) {
-                                                            viewModel.updateUI { it.copy(isOptionsPanelVisible = false) }
                                                         } else {
                                                             viewModel.updateUI {
                                                                 it.copy(
