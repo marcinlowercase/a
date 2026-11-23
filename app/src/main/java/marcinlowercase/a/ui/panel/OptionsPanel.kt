@@ -818,6 +818,7 @@ fun SettingsPanel(
     onCurrentViewChange: ((SettingPanelView) -> Unit)? = null,
     renderMainOnly: Boolean = false,
     renderSubViewsOnly: Boolean = false,
+    isMirrored: Boolean = false,
 ) {
     val viewModel = LocalBrowserViewModel.current
     val uiState = viewModel.uiState.collectAsState()
@@ -1032,8 +1033,8 @@ fun SettingsPanel(
                                                 )
                                             )
                                             .padding( vertical = settings.value.padding.dp)
-                                            .padding( end = settings.value.padding.dp)
-                                            .padding( start = landscapeStartPadding)
+                                            .padding( end = if (isMirrored) landscapeStartPadding else settings.value.padding.dp)
+                                            .padding( start = if (isMirrored) settings.value.padding.dp else landscapeStartPadding)
                                         ,
                                         verticalArrangement = Arrangement.spacedBy(settings.value.padding.dp)
                                     ) {

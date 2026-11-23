@@ -43,6 +43,7 @@ fun FindInPagePanel(
     onClose: () -> Unit,
     isLandscapeLayout: Boolean = false,
     leftStemHeight: Dp = 305.dp,
+    isMirrored: Boolean = false,
 ) {
     val viewModel = LocalBrowserViewModel.current
     val uiState = viewModel.uiState.collectAsState()
@@ -77,8 +78,8 @@ fun FindInPagePanel(
                     .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
                     .background(MaterialTheme.colorScheme.surfaceContainer)
                     .padding( vertical = settings.value.padding.dp)
-                    .padding( end = settings.value.padding.dp)
-                    .padding(start = landscapeStartPadding)
+                    .padding( end = if (isMirrored) landscapeStartPadding else settings.value.padding.dp)
+                    .padding(start = if (isMirrored) settings.value.padding.dp else landscapeStartPadding)
                     .width(settings.value.heightForLayer(2).dp),
                 verticalArrangement = Arrangement.spacedBy(settings.value.padding.dp),
                 horizontalAlignment = Alignment.CenterHorizontally

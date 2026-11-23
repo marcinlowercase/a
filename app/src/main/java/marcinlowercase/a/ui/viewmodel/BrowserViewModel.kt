@@ -633,6 +633,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             backSquareX = globalPrefs.getFloat("back_square_x", 1f),
 
             isTabsPanelLock = globalPrefs.getBoolean("is_tabs_panel_lock", true),
+            isLandscapeUrlBarOnRight = globalPrefs.getBoolean("is_landscape_url_bar_on_right", false),
 
 
 
@@ -845,6 +846,7 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
             putFloat("back_square_x", settings.backSquareX)
             putFloat("back_square_y", settings.backSquareY)
             putBoolean("is_tabs_panel_lock", settings.isTabsPanelLock)
+            putBoolean("is_landscape_url_bar_on_right", settings.isLandscapeUrlBarOnRight)
             apply()
         }
 
@@ -1485,7 +1487,8 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                     maxListHeight = localSettings.maxListHeight,
                     memoryUsage = localSettings.memoryUsage,
                     backSquareX = localSettings.backSquareX,
-                    backSquareY = localSettings.backSquareY
+                    backSquareY = localSettings.backSquareY,
+                    isLandscapeUrlBarOnRight = localSettings.isLandscapeUrlBarOnRight
                 )
 
                 // Save to disk

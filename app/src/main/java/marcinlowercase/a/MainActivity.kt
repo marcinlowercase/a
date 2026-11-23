@@ -4227,6 +4227,8 @@ fun BrowserScreen(
 
                             geckoViewRef = geckoViewRef,
                             floatingPanelBottomPadding = floatingPanelBottomPadding,
+                            floatingPanelStartPadding = floatingPanelStartPadding,
+                            floatingPanelEndPadding = floatingPanelEndPadding,
                             draggableState = draggableState,
                             flingBehavior = flingBehavior,
 

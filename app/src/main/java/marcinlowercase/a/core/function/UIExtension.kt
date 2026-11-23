@@ -6,7 +6,6 @@ import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.widthIn
@@ -44,6 +43,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.composed
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -98,57 +98,60 @@ fun Modifier.buttonPointerInput(
     descriptionContent: MutableState<String>,
     buttonDescription: String,
     useLongPress: Boolean = true,
-    ): Modifier = this.then(
-    Modifier
-        .pointerInput(buttonDescription) {
-            // 1. CAPTURE the CoroutineScope provided by pointerInput
-            val coroutineScope = CoroutineScope(
-                currentCoroutineContext()
-            )
-            awaitEachGesture {
-                val down = awaitFirstDown(requireUnconsumed = false)
+): Modifier = composed {
+    val currentOnTap by rememberUpdatedState(onTap)
+    val currentOnLongPress by rememberUpdatedState(onLongPress)
 
-                // 2. USE the captured scope to launch the long press job
-                val longPressJob = coroutineScope.launch {
-                    delay(viewConfiguration.longPressTimeoutMillis.milliseconds)
+    this.pointerInput(buttonDescription) {
+        val coroutineScope = CoroutineScope(
+            currentCoroutineContext()
+        )
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false)
 
-                    // LONG PRESS CONFIRMED
-                    if (useLongPress) {
-                        hapticFeedback.performHapticFeedback(
-                            HapticFeedbackType.LongPress
-                        )
-                        if (!onLongPress()) descriptionContent.value = buttonDescription
+            val longPressJob = coroutineScope.launch {
+                delay(viewConfiguration.longPressTimeoutMillis.milliseconds)
 
-                    }
-
-
+                if (useLongPress) {
+                    hapticFeedback.performHapticFeedback(
+                        HapticFeedbackType.LongPress
+                    )
+                    if (!currentOnLongPress()) descriptionContent.value = buttonDescription
                 }
-                val drag =
-                    awaitTouchSlopOrCancellation(down.id) { change, _ ->
-                        if (longPressJob.isActive) {
-                            longPressJob.cancel()
-                        }
-                        change.consume()
-                    }
-
-
-
-                if (!(longPressJob.isCompleted && !longPressJob.isCancelled)) {
-                    if (drag == null) {
-                        if (longPressJob.isActive) {
-                            longPressJob.cancel()
-                            // This was a tap
-                            onTap()
-
-                        }
-                    }
-                }
-
-
-                if (descriptionContent.value == buttonDescription) descriptionContent.value = ""
             }
+
+            var isTap = true
+            val touchSlop = viewConfiguration.touchSlop
+
+            // wait without consuming pointer events so parent pagers and draggables can scroll
+            while (true) {
+                val event = awaitPointerEvent(PointerEventPass.Main)
+                if (event.changes.any { it.isConsumed }) {
+                    isTap = false
+                    break
+                }
+                val change = event.changes.firstOrNull { it.id == down.id }
+                    ?: event.changes.firstOrNull()
+                if (change == null || !change.pressed) {
+                    break
+                }
+                if ((change.position - down.position).getDistance() > touchSlop) {
+                    isTap = false
+                    break
+                }
+            }
+
+            if (longPressJob.isActive) {
+                longPressJob.cancel()
+                if (isTap) {
+                    currentOnTap()
+                }
+            }
+
+            if (descriptionContent.value == buttonDescription) descriptionContent.value = ""
         }
-)
+    }
+}
 
 fun formatTimeRemaining(millis: Long): String {
     if (millis <= 0) return ""

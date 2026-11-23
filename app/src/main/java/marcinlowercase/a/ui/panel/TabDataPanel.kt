@@ -80,6 +80,7 @@ fun TabDataPanel(
     onCloseTab: () -> Unit,
     isLandscapeLayout: Boolean = false,
     leftStemHeight: Dp = 305.dp,
+    isMirrored: Boolean = false,
 ) {
     val viewModel = LocalBrowserViewModel.current
     val settings = viewModel.browserSettings.collectAsState()
@@ -116,17 +117,7 @@ fun TabDataPanel(
         }
     ) {
         if (isLandscapeLayout) {
-            Row(
-                modifier = Modifier
-                    .height(leftStemHeight)
-                    .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
-                    .background(MaterialTheme.colorScheme.surfaceContainer)
-                    .padding( vertical = settings.value.padding.dp)
-                    .padding( end = settings.value.padding.dp)
-                    .padding( start = landscapeStartPadding),
-                horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp),
-                verticalAlignment = Alignment.Bottom
-            ) {
+            val actionsColumn: @Composable () -> Unit = {
                 Column(
                     modifier = Modifier
                         .width(settings.value.heightForLayer(2).dp)
@@ -169,7 +160,8 @@ fun TabDataPanel(
                         painterId = R.drawable.ic_tab_move
                     )
                 }
-
+            }
+            val permissionsRow: @Composable () -> Unit = {
                 if (siteSettings != null && siteSettings.permissionDecisions.isNotEmpty()) {
                     Row(
                         modifier = Modifier
@@ -208,6 +200,26 @@ fun TabDataPanel(
                             }
                         }
                     }
+                }
+            }
+
+            Row(
+                modifier = Modifier
+                    .height(leftStemHeight)
+                    .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                    .padding( vertical = settings.value.padding.dp)
+                    .padding( end = if (isMirrored) landscapeStartPadding else settings.value.padding.dp)
+                    .padding( start = if (isMirrored) settings.value.padding.dp else landscapeStartPadding),
+                horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp),
+                verticalAlignment = Alignment.Bottom
+            ) {
+                if (isMirrored) {
+                    permissionsRow()
+                    actionsColumn()
+                } else {
+                    actionsColumn()
+                    permissionsRow()
                 }
             }
         } else {

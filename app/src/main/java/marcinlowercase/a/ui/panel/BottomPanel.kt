@@ -8,6 +8,8 @@ import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -29,11 +31,17 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.foundation.gestures.AnchoredDraggableDefaults
 import androidx.compose.foundation.gestures.DraggableAnchors
 import androidx.compose.foundation.gestures.animateTo
+import androidx.compose.foundation.gestures.snapTo
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.layout.Layout
@@ -81,6 +89,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -109,8 +118,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import marcinlowercase.a.R
 import marcinlowercase.a.core.data_class.DownloadItem
@@ -148,6 +159,8 @@ import marcinlowercase.a.core.manager.KeyboardShortcutManager
 fun BottomPanel(
     geckoViewRef: MutableState<GeckoView?>,
     floatingPanelBottomPadding: Dp,
+    floatingPanelStartPadding: Dp = 0.dp,
+    floatingPanelEndPadding: Dp = 0.dp,
     draggableState: AnchoredDraggableState<RevealState>,
     flingBehavior: FlingBehavior,
     onDownload: (String) -> Unit,
@@ -272,6 +285,8 @@ fun BottomPanel(
 
         val density = LocalDensity.current
         val outerStartPaddingPx = with(density) { settings.value.padding.dp.toPx() }
+        val floatingStartPadPx = with(density) { floatingPanelStartPadding.toPx() }
+        val floatingEndPadPx = with(density) { floatingPanelEndPadding.toPx() }
         val hasLandscapeOptions = remember(
             settings.value.optionsOrder,
             settings.value.hiddenOptions,
@@ -322,6 +337,19 @@ fun BottomPanel(
         val isLandscapeCol2Open =
             isLandscapeSettingsMainOpen || uiState.value.isFindInPageVisible || isTabDataPanelVisible
 
+        var isUrlBarOnRight by remember { mutableStateOf(settings.value.isLandscapeUrlBarOnRight) }
+        LaunchedEffect(settings.value.isLandscapeUrlBarOnRight) {
+            if (isUrlBarOnRight != settings.value.isLandscapeUrlBarOnRight) {
+                isUrlBarOnRight = settings.value.isLandscapeUrlBarOnRight
+            }
+        }
+        val drawerSign = if (isUrlBarOnRight) -1f else 1f
+        val nearEdgePadPx = if (isUrlBarOnRight) floatingEndPadPx else floatingStartPadPx
+        var bottomBarWidthPx by remember {
+            mutableFloatStateOf(with(density) { viewModel.screenSizeDp.value.width.dp.toPx() })
+        }
+        val swapDistancePx = (bottomBarWidthPx.toInt() / 2).toFloat().coerceAtLeast(1f)
+
         var col2MeasuredWidthPx by remember {
             mutableFloatStateOf(
                 if (isLandscapeLayout && isLandscapeCol2Open) {
@@ -338,25 +366,38 @@ fun BottomPanel(
             col2MeasuredWidthPx > 0.5f -> LandscapeLeftPanelState.Col2Only
             else -> LandscapeLeftPanelState.Hidden
         }
+        var wasOpeningWithNearPad by remember {
+            mutableStateOf(!uiState.value.isOptionsPanelVisible && !isLandscapeCol2Open)
+        }
+        var isCommitFittingDrawer by remember { mutableStateOf(false) }
+        val fitDrawerWidthAnim = remember { Animatable(0f) }
+        val fitBottomOffsetAnim = remember { Animatable(0f) }
+
+        var isClosingDrawerShiftActive by remember { mutableStateOf(false) }
+        var heldClosingOptions by remember { mutableStateOf(false) }
+        val closingExtraClipAnim = remember { Animatable(0f) }
+
+        val openingExtraPadPx =
+            if (wasOpeningWithNearPad && !isCommitFittingDrawer) nearEdgePadPx else 0f
+
         val initialLandscapeOptionsAnchors = remember(
+            drawerSign,
             col1InnerWidthPx,
             col2MeasuredWidthPx,
-            outerStartPaddingPx
+            outerStartPaddingPx,
+            swapDistancePx,
+            openingExtraPadPx
         ) {
-            DraggableAnchors {
-                LandscapeLeftPanelState.Hidden at 0f
-                if (col2MeasuredWidthPx > 0.5f) {
-                    val col2Pos = outerStartPaddingPx + col2MeasuredWidthPx
-                    if (!uiState.value.isOptionsPanelVisible) {
-                        LandscapeLeftPanelState.Col2Only at col2Pos
-                    }
-                    if (col1InnerWidthPx > 0f) {
-                        LandscapeLeftPanelState.Both at col2Pos + col1InnerWidthPx
-                    }
-                } else if (col1InnerWidthPx > 0f) {
-                    LandscapeLeftPanelState.OptionsOnly at outerStartPaddingPx + col1InnerWidthPx
-                }
-            }
+            buildLandscapeOptionsAnchors(
+                drawerSign = drawerSign,
+                col1InnerWidthPx = col1InnerWidthPx,
+                col2MeasuredWidthPx = col2MeasuredWidthPx,
+                outerStartPaddingPx = outerStartPaddingPx,
+                includeCol2OnlyAnchor = col2MeasuredWidthPx > 0.5f && !uiState.value.isOptionsPanelVisible,
+                includeSwappedAnchor = !uiState.value.isOptionsPanelVisible && !isLandscapeCol2Open && col2MeasuredWidthPx <= 0.5f,
+                swapDistancePx = swapDistancePx,
+                openingExtraPadPx = openingExtraPadPx
+            )
         }
         val landscapeOptionsDraggableState = remember {
             AnchoredDraggableState(
@@ -368,66 +409,265 @@ fun BottomPanel(
         val isDraggingLandscapeOptions by landscapeOptionsInteractionSource.collectIsDraggedAsState()
         var prevLandscapeOptionsSettled by remember { mutableStateOf(initialLeftStemState) }
         var prevObservedOptionsVisible by remember { mutableStateOf(uiState.value.isOptionsPanelVisible) }
+        val urlSettleOffsetAnim = remember { Animatable(0f) }
+        var isCommitSettling by remember { mutableStateOf(false) }
 
         val hasCol2Anchor = col2MeasuredWidthPx > 0.5f
-        // omit intermediate col2 anchor once both panels are shown so swiping left past half closes all panels
+        // omit intermediate col2 anchor once both panels are shown so swiping past half closes all panels
         val includeCol2OnlyAnchor = hasCol2Anchor && (
             !uiState.value.isOptionsPanelVisible ||
             landscapeOptionsDraggableState.currentValue == LandscapeLeftPanelState.Col2Only ||
             landscapeOptionsDraggableState.settledValue == LandscapeLeftPanelState.Col2Only
         )
+        val includeSwappedAnchor = swapDistancePx > 1f && (
+            landscapeOptionsDraggableState.settledValue == LandscapeLeftPanelState.Swapped ||
+            landscapeOptionsDraggableState.currentValue == LandscapeLeftPanelState.Swapped ||
+            landscapeOptionsDraggableState.targetValue == LandscapeLeftPanelState.Swapped ||
+            (landscapeOptionsDraggableState.settledValue == LandscapeLeftPanelState.Hidden &&
+                !uiState.value.isOptionsPanelVisible &&
+                !isLandscapeCol2Open &&
+                !hasCol2Anchor)
+        )
         val landscapeOptionsAnchors = remember(
+            drawerSign,
             col1InnerWidthPx,
             col2MeasuredWidthPx,
             outerStartPaddingPx,
-            includeCol2OnlyAnchor
+            includeCol2OnlyAnchor,
+            includeSwappedAnchor,
+            swapDistancePx,
+            openingExtraPadPx
         ) {
-            DraggableAnchors {
-                LandscapeLeftPanelState.Hidden at 0f
-                if (col2MeasuredWidthPx > 0.5f) {
-                    val col2Pos = outerStartPaddingPx + col2MeasuredWidthPx
-                    if (includeCol2OnlyAnchor) {
-                        LandscapeLeftPanelState.Col2Only at col2Pos
-                    }
-                    if (col1InnerWidthPx > 0f) {
-                        LandscapeLeftPanelState.Both at col2Pos + col1InnerWidthPx
-                    }
-                } else if (col1InnerWidthPx > 0f) {
-                    LandscapeLeftPanelState.OptionsOnly at outerStartPaddingPx + col1InnerWidthPx
+            buildLandscapeOptionsAnchors(
+                drawerSign = drawerSign,
+                col1InnerWidthPx = col1InnerWidthPx,
+                col2MeasuredWidthPx = col2MeasuredWidthPx,
+                outerStartPaddingPx = outerStartPaddingPx,
+                includeCol2OnlyAnchor = includeCol2OnlyAnchor,
+                includeSwappedAnchor = includeSwappedAnchor,
+                swapDistancePx = swapDistancePx,
+                openingExtraPadPx = openingExtraPadPx
+            )
+        }
+
+        LaunchedEffect(
+            landscapeOptionsDraggableState.settledValue,
+            uiState.value.isOptionsPanelVisible,
+            isLandscapeCol2Open,
+            isCommitFittingDrawer,
+            isDraggingLandscapeOptions
+        ) {
+            if (!isDraggingLandscapeOptions && !isCommitFittingDrawer) {
+                if (landscapeOptionsDraggableState.settledValue == LandscapeLeftPanelState.Hidden &&
+                    !uiState.value.isOptionsPanelVisible &&
+                    !isLandscapeCol2Open
+                ) {
+                    wasOpeningWithNearPad = true
+                } else if (isLandscapeCol2Open &&
+                    landscapeOptionsDraggableState.settledValue == LandscapeLeftPanelState.Col2Only
+                ) {
+                    wasOpeningWithNearPad = false
                 }
             }
         }
-        val anchorUpdateTarget = if (hasCol2Anchor) {
-            when (landscapeOptionsDraggableState.targetValue) {
-                LandscapeLeftPanelState.Both,
-                LandscapeLeftPanelState.OptionsOnly ->
-                    if (col1InnerWidthPx > 0f) LandscapeLeftPanelState.Both
-                    else if (includeCol2OnlyAnchor) LandscapeLeftPanelState.Col2Only
-                    else LandscapeLeftPanelState.Hidden
-                LandscapeLeftPanelState.Col2Only ->
-                    if (includeCol2OnlyAnchor) LandscapeLeftPanelState.Col2Only
-                    else if (uiState.value.isOptionsPanelVisible && col1InnerWidthPx > 0f) LandscapeLeftPanelState.Both
-                    else LandscapeLeftPanelState.Hidden
-                LandscapeLeftPanelState.Hidden ->
-                    if (!isDraggingLandscapeOptions && !landscapeOptionsDraggableState.isAnimationRunning && isLandscapeCol2Open) {
-                        if (uiState.value.isOptionsPanelVisible && col1InnerWidthPx > 0f) LandscapeLeftPanelState.Both
-                        else if (includeCol2OnlyAnchor) LandscapeLeftPanelState.Col2Only
-                        else LandscapeLeftPanelState.Hidden
-                    } else {
-                        LandscapeLeftPanelState.Hidden
-                    }
+
+        LaunchedEffect(isDraggingLandscapeOptions, isLandscapeLayout) {
+            if (!isLandscapeLayout) {
+                isCommitFittingDrawer = false
+                isClosingDrawerShiftActive = false
+                heldClosingOptions = false
+                closingExtraClipAnim.snapTo(0f)
+                return@LaunchedEffect
             }
-        } else {
-            when (landscapeOptionsDraggableState.targetValue) {
-                LandscapeLeftPanelState.Both,
-                LandscapeLeftPanelState.OptionsOnly ->
-                    if (col1InnerWidthPx > 0f) LandscapeLeftPanelState.OptionsOnly else LandscapeLeftPanelState.Hidden
-                LandscapeLeftPanelState.Col2Only,
-                LandscapeLeftPanelState.Hidden -> LandscapeLeftPanelState.Hidden
+            if (isDraggingLandscapeOptions) {
+                isCommitFittingDrawer = false
+                val curSettled = landscapeOptionsDraggableState.settledValue
+                val isOpenDrawer = curSettled == LandscapeLeftPanelState.OptionsOnly ||
+                    curSettled == LandscapeLeftPanelState.Col2Only ||
+                    curSettled == LandscapeLeftPanelState.Both
+                if (isOpenDrawer && nearEdgePadPx > 0.5f) {
+                    isClosingDrawerShiftActive = true
+                    heldClosingOptions = viewModel.uiState.value.isOptionsPanelVisible
+                    closingExtraClipAnim.snapTo(nearEdgePadPx)
+                } else {
+                    isClosingDrawerShiftActive = false
+                    heldClosingOptions = false
+                    closingExtraClipAnim.snapTo(0f)
+                }
+            } else if (isClosingDrawerShiftActive) {
+                val outcome = snapshotFlow {
+                    val offset = landscapeOptionsDraggableState.offset
+                    val signed = if (offset.isNaN()) 0f else offset * drawerSign
+                    val target = landscapeOptionsDraggableState.targetValue
+                    val settled = landscapeOptionsDraggableState.settledValue
+                    when {
+                        target == LandscapeLeftPanelState.Hidden ||
+                        settled == LandscapeLeftPanelState.Hidden -> 1
+                        !landscapeOptionsDraggableState.isAnimationRunning && signed > 0.5f -> 2
+                        else -> 0
+                    }
+                }.first { it != 0 }
+
+                if (outcome == 1) {
+                    // slide remaining drawer past physical cutout edge before hiding
+                    closingExtraClipAnim.animateTo(
+                        targetValue = 0f,
+                        animationSpec = tween(settings.value.animationSpeedForLayer(1))
+                    )
+                    snapshotFlow { !landscapeOptionsDraggableState.isAnimationRunning }.first { it }
+                } else {
+                    snapshotFlow { !landscapeOptionsDraggableState.isAnimationRunning }.first { it }
+                    closingExtraClipAnim.snapTo(0f)
+                }
+                isClosingDrawerShiftActive = false
+                heldClosingOptions = false
+            } else if (wasOpeningWithNearPad && nearEdgePadPx > 0.5f) {
+                val outcome = snapshotFlow {
+                    val offset = landscapeOptionsDraggableState.offset
+                    val signed = if (offset.isNaN()) 0f else offset * drawerSign
+                    val isDoneReturning =
+                        signed <= 0.5f && !landscapeOptionsDraggableState.isAnimationRunning
+                    val target = landscapeOptionsDraggableState.targetValue
+                    val settled = landscapeOptionsDraggableState.settledValue
+                    when {
+                        target == LandscapeLeftPanelState.OptionsOnly ||
+                        target == LandscapeLeftPanelState.Both ||
+                        settled == LandscapeLeftPanelState.OptionsOnly ||
+                        settled == LandscapeLeftPanelState.Both -> 1
+                        isDoneReturning -> 2
+                        else -> 0
+                    }
+                }.first { it != 0 }
+
+                if (outcome == 1) {
+                    val curSigned =
+                        (landscapeOptionsDraggableState.offset.takeIf { !it.isNaN() } ?: 0f) * drawerSign
+                    val settledDrawerW = outerStartPaddingPx + col1InnerWidthPx
+                    val fullDrawerW = settledDrawerW + nearEdgePadPx
+                    val startDrawerW = curSigned.coerceIn(0f, fullDrawerW)
+
+                    isCommitFittingDrawer = true
+                    wasOpeningWithNearPad = false
+                    fitDrawerWidthAnim.snapTo(startDrawerW)
+                    fitBottomOffsetAnim.snapTo(startDrawerW)
+
+                    if (!viewModel.uiState.value.isOptionsPanelVisible) {
+                        viewModel.updateUI { it.copy(isOptionsPanelVisible = true) }
+                    }
+                    val targetAnchor =
+                        if (hasCol2Anchor) LandscapeLeftPanelState.Both else LandscapeLeftPanelState.OptionsOnly
+                    val nextAnchors = buildLandscapeOptionsAnchors(
+                        drawerSign = drawerSign,
+                        col1InnerWidthPx = col1InnerWidthPx,
+                        col2MeasuredWidthPx = col2MeasuredWidthPx,
+                        outerStartPaddingPx = outerStartPaddingPx,
+                        includeCol2OnlyAnchor = false,
+                        includeSwappedAnchor = false,
+                        swapDistancePx = swapDistancePx,
+                        openingExtraPadPx = 0f
+                    )
+                    prevLandscapeOptionsSettled = targetAnchor
+                    landscapeOptionsDraggableState.updateAnchors(nextAnchors, targetAnchor)
+                    landscapeOptionsDraggableState.snapTo(targetAnchor)
+
+                    coroutineScope {
+                        launch {
+                            fitDrawerWidthAnim.animateTo(
+                                targetValue = fullDrawerW,
+                                animationSpec = tween(settings.value.animationSpeedForLayer(1))
+                            )
+                        }
+                        launch {
+                            fitBottomOffsetAnim.animateTo(
+                                targetValue = settledDrawerW,
+                                animationSpec = tween(settings.value.animationSpeedForLayer(1))
+                            )
+                        }
+                    }
+                    isCommitFittingDrawer = false
+                }
             }
         }
+
+        LaunchedEffect(isDraggingLandscapeOptions, isLandscapeLayout) {
+            if (!isLandscapeLayout) {
+                isCommitSettling = false
+                urlSettleOffsetAnim.snapTo(0f)
+                return@LaunchedEffect
+            }
+            if (isDraggingLandscapeOptions) {
+                isCommitSettling = false
+                snapshotFlow {
+                    val offset = landscapeOptionsDraggableState.offset
+                    val signed = if (offset.isNaN()) 0f else offset * drawerSign
+                    signed < -0.5f
+                }.collect { isSwappingDrag ->
+                    val target = if (isSwappingDrag) {
+                        val totalEdgePads = floatingStartPadPx + floatingEndPadPx
+                        if (isUrlBarOnRight) -totalEdgePads else totalEdgePads
+                    } else {
+                        0f
+                    }
+                    urlSettleOffsetAnim.snapTo(target)
+                }
+            } else if (urlSettleOffsetAnim.value != 0f) {
+                val outcome = snapshotFlow {
+                    val offset = landscapeOptionsDraggableState.offset
+                    val signed = if (offset.isNaN()) 0f else offset * drawerSign
+                    val isDoneReturning =
+                        signed >= -0.5f && !landscapeOptionsDraggableState.isAnimationRunning
+                    when {
+                        landscapeOptionsDraggableState.targetValue == LandscapeLeftPanelState.Swapped ||
+                        landscapeOptionsDraggableState.settledValue == LandscapeLeftPanelState.Swapped -> 1
+                        isDoneReturning -> 2
+                        else -> 0
+                    }
+                }.first { it != 0 }
+
+                if (outcome == 1) {
+                    isCommitSettling = true
+                    urlSettleOffsetAnim.animateTo(
+                        targetValue = 0f,
+                        animationSpec = tween(settings.value.animationSpeedForLayer(1))
+                    )
+                } else {
+                    // keep locked spacing while returning on cancel and snap after exiting screen edge
+                    isCommitSettling = false
+                    urlSettleOffsetAnim.snapTo(0f)
+                }
+            }
+        }
+        val anchorUpdateTarget = when (landscapeOptionsDraggableState.targetValue) {
+            LandscapeLeftPanelState.Swapped ->
+                if (includeSwappedAnchor) LandscapeLeftPanelState.Swapped else LandscapeLeftPanelState.Hidden
+            LandscapeLeftPanelState.Both,
+            LandscapeLeftPanelState.OptionsOnly -> if (hasCol2Anchor) {
+                if (col1InnerWidthPx > 0f) LandscapeLeftPanelState.Both
+                else if (includeCol2OnlyAnchor) LandscapeLeftPanelState.Col2Only
+                else LandscapeLeftPanelState.Hidden
+            } else {
+                if (col1InnerWidthPx > 0f) LandscapeLeftPanelState.OptionsOnly else LandscapeLeftPanelState.Hidden
+            }
+            LandscapeLeftPanelState.Col2Only -> if (hasCol2Anchor) {
+                if (includeCol2OnlyAnchor) LandscapeLeftPanelState.Col2Only
+                else if (uiState.value.isOptionsPanelVisible && col1InnerWidthPx > 0f) LandscapeLeftPanelState.Both
+                else LandscapeLeftPanelState.Hidden
+            } else {
+                LandscapeLeftPanelState.Hidden
+            }
+            LandscapeLeftPanelState.Hidden ->
+                if (hasCol2Anchor && !isDraggingLandscapeOptions && !landscapeOptionsDraggableState.isAnimationRunning && isLandscapeCol2Open) {
+                    if (uiState.value.isOptionsPanelVisible && col1InnerWidthPx > 0f) LandscapeLeftPanelState.Both
+                    else if (includeCol2OnlyAnchor) LandscapeLeftPanelState.Col2Only
+                    else LandscapeLeftPanelState.Hidden
+                } else {
+                    LandscapeLeftPanelState.Hidden
+                }
+        }
         SideEffect {
-            if (landscapeOptionsDraggableState.anchors != landscapeOptionsAnchors) {
+            if (landscapeOptionsDraggableState.anchors != landscapeOptionsAnchors &&
+                !isDraggingLandscapeOptions
+            ) {
                 landscapeOptionsDraggableState.updateAnchors(landscapeOptionsAnchors, anchorUpdateTarget)
             }
         }
@@ -470,6 +710,39 @@ fun BottomPanel(
         if (isLandscapeLayout) {
             LaunchedEffect(landscapeOptionsDraggableState.settledValue) {
                 val newSettled = landscapeOptionsDraggableState.settledValue
+                if (newSettled == LandscapeLeftPanelState.Swapped) {
+                    // finish post-release edge fit animation before resetting anchors to new side
+                    if (urlSettleOffsetAnim.isRunning) {
+                        snapshotFlow { !urlSettleOffsetAnim.isRunning || isDraggingLandscapeOptions }.first { it }
+                    }
+                    if (!isDraggingLandscapeOptions && urlSettleOffsetAnim.value != 0f) {
+                        isCommitSettling = true
+                        urlSettleOffsetAnim.animateTo(
+                            targetValue = 0f,
+                            animationSpec = tween(settings.value.animationSpeedForLayer(1))
+                        )
+                    }
+                    isCommitSettling = false
+                    val nextRight = !isUrlBarOnRight
+                    val nextDrawerSign = if (nextRight) -1f else 1f
+                    isUrlBarOnRight = nextRight
+                    viewModel.updateSettings { it.copy(isLandscapeUrlBarOnRight = nextRight) }
+                    val nextNearPadPx = if (nextRight) floatingEndPadPx else floatingStartPadPx
+                    val nextAnchors = buildLandscapeOptionsAnchors(
+                        drawerSign = nextDrawerSign,
+                        col1InnerWidthPx = col1InnerWidthPx,
+                        col2MeasuredWidthPx = col2MeasuredWidthPx,
+                        outerStartPaddingPx = outerStartPaddingPx,
+                        includeCol2OnlyAnchor = false,
+                        includeSwappedAnchor = swapDistancePx > 1f,
+                        swapDistancePx = swapDistancePx,
+                        openingExtraPadPx = if (wasOpeningWithNearPad) nextNearPadPx else 0f
+                    )
+                    prevLandscapeOptionsSettled = LandscapeLeftPanelState.Hidden
+                    landscapeOptionsDraggableState.updateAnchors(nextAnchors, LandscapeLeftPanelState.Hidden)
+                    landscapeOptionsDraggableState.snapTo(LandscapeLeftPanelState.Hidden)
+                    return@LaunchedEffect
+                }
                 if (newSettled != prevLandscapeOptionsSettled) {
                     val curUi = viewModel.uiState.value
                     val curCol2Open =
@@ -500,6 +773,7 @@ fun BottomPanel(
                                 }
                             }
                         }
+                        LandscapeLeftPanelState.Swapped -> {}
                     }
                     prevLandscapeOptionsSettled = newSettled
                 }
@@ -510,9 +784,19 @@ fun BottomPanel(
                 hasCol2Anchor,
                 col1InnerWidthPx
             ) {
-                if (isDraggingLandscapeOptions || prevLandscapeOptionsSettled != landscapeOptionsDraggableState.settledValue) {
+                val curOffset = landscapeOptionsDraggableState.offset
+                val isSwappingNow = landscapeOptionsDraggableState.targetValue == LandscapeLeftPanelState.Swapped ||
+                    (!curOffset.isNaN() && (-curOffset * drawerSign) > 0.5f)
+                if (isDraggingLandscapeOptions ||
+                    isCommitFittingDrawer ||
+                    isSwappingNow ||
+                    prevLandscapeOptionsSettled != landscapeOptionsDraggableState.settledValue
+                ) {
                     prevObservedOptionsVisible = uiState.value.isOptionsPanelVisible
                     return@LaunchedEffect
+                }
+                if (uiState.value.isOptionsPanelVisible && wasOpeningWithNearPad) {
+                    wasOpeningWithNearPad = false
                 }
                 val optionsChanged = prevObservedOptionsVisible != uiState.value.isOptionsPanelVisible
                 prevObservedOptionsVisible = uiState.value.isOptionsPanelVisible
@@ -1152,7 +1436,7 @@ fun BottomPanel(
             }
         }
 
-        val urlBarSection: @Composable () -> Unit = {
+        val urlBarSection: @Composable (Modifier) -> Unit = { urlBarModifier ->
             AnimatedVisibility(
                 modifier = Modifier,
                 visible = uiState.value.isUrlBarVisible && !viewModel.isStandaloneMode.value,
@@ -1323,7 +1607,7 @@ fun BottomPanel(
                         }
                     }
 
-                    Box(modifier = Modifier.fillMaxWidth()) {
+                    Box(modifier = Modifier.fillMaxWidth().then(urlBarModifier)) {
                         var wasUrlFieldFocused by remember { mutableStateOf(false) }
                         TextField(
                             modifier = Modifier
@@ -1677,21 +1961,54 @@ fun BottomPanel(
                 val imeBottomDp = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
                 val leftStemHeight = (viewModel.screenSizeDp.value.height.dp - imeBottomDp - (settings.value.padding * 2).dp)
                     .coerceAtLeast(120.dp)
+                val dragOffset = landscapeOptionsDraggableState.offset
+                val signedDrawerOffset = if (dragOffset.isNaN()) 0f else dragOffset * drawerSign
+                val swapRevealPx = (-signedDrawerOffset).coerceIn(0f, swapDistancePx)
+                val swapProgress = (swapRevealPx / swapDistancePx).coerceIn(0f, 1f)
+                val settledLeftState = landscapeOptionsDraggableState.settledValue
+                val isSettledDrawerOpen =
+                    settledLeftState == LandscapeLeftPanelState.OptionsOnly ||
+                    settledLeftState == LandscapeLeftPanelState.Col2Only ||
+                    settledLeftState == LandscapeLeftPanelState.Both
+                val isClosingDragLive =
+                    nearEdgePadPx > 0.5f && isDraggingLandscapeOptions && isSettledDrawerOpen
+                val useOpeningDrawerShift =
+                    (wasOpeningWithNearPad && signedDrawerOffset > 0.5f) || isCommitFittingDrawer
+                val useClosingDrawerShift =
+                    !useOpeningDrawerShift && (isClosingDragLive || isClosingDrawerShiftActive)
+                val drawerShiftInt = if (useOpeningDrawerShift || useClosingDrawerShift) {
+                    (if (isUrlBarOnRight) nearEdgePadPx else -nearEdgePadPx).roundToInt()
+                } else {
+                    0
+                }
+                val extraMaxWidthInt =
+                    if (useOpeningDrawerShift || useClosingDrawerShift) nearEdgePadPx.roundToInt() else 0
+                val closingExtraWidthPx = when {
+                    isClosingDragLive -> nearEdgePadPx
+                    isClosingDrawerShiftActive -> closingExtraClipAnim.value
+                    else -> 0f
+                }
 
                 Layout(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .onSizeChanged { size ->
+                            if (size.width > 0) {
+                                bottomBarWidthPx = size.width.toFloat()
+                            }
+                        }
                         .padding(vertical = settings.value.padding.dp)
                         .windowInsetsPadding(WindowInsets.ime)
                         .padding(bottom = floatingPanelBottomPadding),
                     content = {
-                        val dragOffset = landscapeOptionsDraggableState.offset
-                        val settledLeftState = landscapeOptionsDraggableState.settledValue
+
                         val settledAnchorPos = landscapeOptionsDraggableState.anchors.positionOf(settledLeftState)
                         val isAtSettledAnchor = !dragOffset.isNaN() &&
                             !settledAnchorPos.isNaN() &&
                             kotlin.math.abs(dragOffset - settledAnchorPos) < 1.5f
                         val useLiveLayout = !isDraggingLandscapeOptions &&
+                            !isCommitFittingDrawer &&
+                            !isClosingDrawerShiftActive &&
                             !landscapeOptionsDraggableState.isAnimationRunning &&
                             isAtSettledAnchor &&
                             (
@@ -1706,7 +2023,8 @@ fun BottomPanel(
                             )
                         val hideExitingCol2AfterDrag = !isLandscapeCol2Open &&
                             settledLeftState == LandscapeLeftPanelState.Hidden &&
-                            !landscapeOptionsDraggableState.isAnimationRunning
+                            !landscapeOptionsDraggableState.isAnimationRunning &&
+                            !isClosingDrawerShiftActive
                         val currentOptionsThreshold = if (hasCol2Anchor) {
                             outerStartPaddingPx + col2MeasuredWidthPx
                         } else {
@@ -1716,302 +2034,146 @@ fun BottomPanel(
                             landscapeOptionsDraggableState.isAnimationRunning ||
                             landscapeOptionsDraggableState.targetValue == LandscapeLeftPanelState.Both ||
                             landscapeOptionsDraggableState.targetValue == LandscapeLeftPanelState.OptionsOnly
-                        val showOptionsInRow = uiState.value.isOptionsPanelVisible || (
+                        val showOptionsInRow = uiState.value.isOptionsPanelVisible || heldClosingOptions || (
                             col1InnerWidthPx > 0f &&
                             !dragOffset.isNaN() &&
-                            dragOffset > currentOptionsThreshold + 0.5f &&
+                            signedDrawerOffset > currentOptionsThreshold + 0.5f &&
                             isUserMovingOptions
                         )
 
-                        // full-height left vertical stem pushed together toward the left screen edge
-                        LandscapeOptionsWrapper(
-                            dragOffset = dragOffset,
-                            outerStartPaddingPx = outerStartPaddingPx,
-                            useLiveLayout = useLiveLayout
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .wrapContentSize()
-                                    .anchoredDraggable(
-                                        state = landscapeOptionsDraggableState,
-                                        orientation = Orientation.Horizontal,
-                                        flingBehavior = landscapeOptionsFling,
-                                        enabled = isDragEnabled,
-                                        interactionSource = landscapeOptionsInteractionSource
-                                    )
-                                    .padding(start = settings.value.padding.dp)
-                                    .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
-                                    .background(MaterialTheme.colorScheme.surfaceContainer),
-                                verticalAlignment = Alignment.Bottom
-                            ) {
-                                if (showOptionsInRow) {
-                                    Box(modifier = Modifier) {
-                                        Box{
-                                            OptionsPanel(
-                                                onCloseAllTabs = onCloseAllTabs,
-                                                confirmationPopup = confirmationPopup,
-                                                onLoginClick = onSyncSignInClick,
-                                                isLandscapeLayout = true,
-                                                leftStemHeight = leftStemHeight
-                                            )
-                                        }
+                        val optionsColumn: @Composable () -> Unit = {
+                            if (showOptionsInRow) {
+                                Box(modifier = Modifier) {
+                                    Box {
+                                        OptionsPanel(
+                                            onCloseAllTabs = onCloseAllTabs,
+                                            confirmationPopup = confirmationPopup,
+                                            onLoginClick = onSyncSignInClick,
+                                            isLandscapeLayout = true,
+                                            leftStemHeight = leftStemHeight
+                                        )
                                     }
-                                }
-
-                                Row(
-                                    modifier = Modifier
-                                        .wrapContentSize()
-                                        .onSizeChanged { size ->
-                                            col2MeasuredWidthPx = size.width.toFloat()
-                                        }
-                                        .layout { measurable, constraints ->
-                                            val placeable = measurable.measure(constraints)
-                                            if (hideExitingCol2AfterDrag) {
-                                                layout(0, 0) {}
-                                            } else {
-                                                layout(placeable.width, placeable.height) {
-                                                    placeable.place(0, 0)
-                                                }
-                                            }
-                                        },
-                                    verticalAlignment = Alignment.Bottom
-                                ) {
-                                    FindInPagePanel(
-                                        isVisible = uiState.value.isFindInPageVisible,
-                                        onFindNext = {
-                                            activeSession.finder.find(
-                                                viewModel.findInPageTextFieldState.text.toString(),
-                                                GeckoSession.FINDER_FIND_FORWARD
-                                            ).then { result ->
-                                                if (result != null) {
-                                                    val currentMatch = if (result.total > 0) result.current else 0
-                                                    viewModel.findInPageResult.value = currentMatch to result.total
-                                                }
-                                                GeckoResult.fromValue(result)
-                                            }
-                                        },
-                                        onFindPrevious = {
-                                            activeSession.finder.find(
-                                                viewModel.findInPageTextFieldState.text.toString(),
-                                                GeckoSession.FINDER_FIND_BACKWARDS
-                                            ).then { result ->
-                                                if (result != null) {
-                                                    val currentMatch = if (result.total > 0) result.current else 0
-                                                    viewModel.findInPageResult.value = currentMatch to result.total
-                                                }
-                                                GeckoResult.fromValue(result)
-                                            }
-                                        },
-                                        onClose = {
-                                            viewModel.updateUI { it.copy(isFindInPageVisible = false) }
-                                            viewModel.findInPageTextFieldState.setTextAndPlaceCursorAtEnd("")
-                                            activeSession.finder.clear()
-                                            focusManager.clearFocus()
-                                            keyboardController?.hide()
-                                        },
-                                        isLandscapeLayout = true,
-                                        leftStemHeight = leftStemHeight
-                                    )
-
-                                    SettingsPanel(
-                                        onCloseAllTabs = onCloseAllTabs,
-                                        confirmationPopup = confirmationPopup,
-                                        onLoginClick = onSyncSignInClick,
-                                        isLandscapeLayout = true,
-                                        leftStemHeight = leftStemHeight,
-                                        currentViewOverride = currentSettingView,
-                                        onCurrentViewChange = {
-                                            currentSettingView = it
-                                            viewModel.isLandscapeSettingsSubView.value =
-                                                it != SettingPanelView.MAIN || isFirstModeLoad
-                                        },
-                                        renderMainOnly = true
-                                    )
-
-                                    TabDataPanel(
-                                        isTabDataPanelVisible = isTabDataPanelVisible,
-                                        onDismiss = { viewModel.updateUI { it.copy(isTabDataPanelVisible = false) } },
-                                        onPermissionToggle = handlePermissionToggle,
-                                        onClearSiteData = handleClearInspectedTabData,
-                                        onCloseTab = handleCloseInspectedTab,
-                                        isLandscapeLayout = true,
-                                        leftStemHeight = leftStemHeight
-                                    )
                                 }
                             }
                         }
 
-                        // bottom horizontal bar keeps exact full width and translates right when pushed
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.Bottom
-                        ) {
-                        // bottom-left half: sub-panels above url bar, url bar, and apps panel below url bar
-                        Column(
-                            modifier = Modifier
-                                .padding(horizontal = settings.value.padding.dp)
-                                .weight(1f)
-                                .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
-                                .background(MaterialTheme.colorScheme.surfaceContainer)
-                                .anchoredDraggable(
-                                    state = landscapeAppsDraggableState,
-                                    orientation = Orientation.Vertical,
-                                    flingBehavior = landscapeAppsFling,
-                                    enabled = isDragEnabled
-                                )
-                                .anchoredDraggable(
-                                    state = landscapeOptionsDraggableState,
-                                    orientation = Orientation.Horizontal,
-                                    flingBehavior = landscapeOptionsFling,
-                                    enabled = isDragEnabled,
-                                    interactionSource = landscapeOptionsInteractionSource
-                                )
-                                .pointerInput(isDragEnabled) {
-                                    if (!isDragEnabled) return@pointerInput
-                                    awaitPointerEventScope {
-                                        while (true) {
-                                            val event = awaitPointerEvent(PointerEventPass.Final)
-                                            if (event.type == PointerEventType.Scroll) {
-                                                val change = event.changes.firstOrNull() ?: continue
-                                                if (change.isConsumed) continue
-                                                val dx = change.scrollDelta.x
-                                                val dy = change.scrollDelta.y
-                                                val now = System.currentTimeMillis()
-                                                if (kotlin.math.abs(dy) >= kotlin.math.abs(dx) && dy != 0f) {
-                                                    val dir = if (dy > 0f) 1 else -1
-                                                    val isNewRoll = (dir != viewModel.lastMouseWheelDirection) ||
-                                                        (now - viewModel.lastMouseWheelScrollMs >= 150L)
-                                                    viewModel.lastMouseWheelScrollMs = now
-                                                    viewModel.lastMouseWheelDirection = dir
-                                                    if (isNewRoll) {
-                                                        viewModel.updateUI {
-                                                            it.copy(isAppsPanelVisible = dy > 0f)
-                                                        }
-                                                    }
-                                                } else if (dx != 0f) {
-                                                    val dir = if (dx > 0f) 1 else -1
-                                                    val isNewRoll = (dir != viewModel.lastMouseWheelDirection) ||
-                                                        (now - viewModel.lastMouseWheelScrollMs >= 150L)
-                                                    viewModel.lastMouseWheelScrollMs = now
-                                                    viewModel.lastMouseWheelDirection = dir
-                                                    if (isNewRoll) {
-                                                        if (dx > 0f) {
-                                                            viewModel.updateUI { it.copy(isOptionsPanelVisible = true) }
-                                                        } else {
-                                                            viewModel.updateUI {
-                                                                it.copy(
-                                                                    isOptionsPanelVisible = false,
-                                                                    isSettingsPanelVisible = if (currentSettingView == SettingPanelView.MAIN) false else it.isSettingsPanelVisible,
-                                                                    isFindInPageVisible = false,
-                                                                    isTabDataPanelVisible = false
-                                                                )
-                                                            }
-                                                        }
-                                                    }
-                                                }
+                        val col2Row: @Composable () -> Unit = {
+                            Row(
+                                modifier = Modifier
+                                    .wrapContentSize()
+                                    .onSizeChanged { size ->
+                                        col2MeasuredWidthPx = size.width.toFloat()
+                                    }
+                                    .layout { measurable, constraints ->
+                                        val placeable = measurable.measure(constraints)
+                                        if (hideExitingCol2AfterDrag) {
+                                            layout(0, 0) {}
+                                        } else {
+                                            layout(placeable.width, placeable.height) {
+                                                placeable.place(0, 0)
                                             }
                                         }
-                                    }
-                                }
-                        ) {
-                            LoadingIndicator()
-                            DescriptionPanel()
-                            NavigationPanel(activeSession = activeSession)
-                            DownloadPanel(
-                                confirmationPopup = confirmationPopup,
-                                isDownloadPanelVisible = uiState.value.isDownloadPanelVisible,
-                                onDownloadRowClicked = onDownloadRowClicked,
-                                onOpenFolderClicked = onOpenFolderClicked,
-                            )
-                            SettingsPanel(
-                                onCloseAllTabs = onCloseAllTabs,
-                                confirmationPopup = confirmationPopup,
-                                onLoginClick = onSyncSignInClick,
-                                isLandscapeLayout = true,
-                                currentViewOverride = currentSettingView,
-                                onCurrentViewChange = {
-                                    currentSettingView = it
-                                    viewModel.isLandscapeSettingsSubView.value =
-                                        it != SettingPanelView.MAIN || isFirstModeLoad
-                                },
-                                renderSubViewsOnly = true
-                            )
-                            SyncPanel(
-                                isVisible = uiState.value.isSyncPanelVisible,
-                                onDismiss = { viewModel.updateUI { it.copy(isSyncPanelVisible = false) } },
-                                onPush = {
-                                    confirmationPopup(R.string.confirm_push, "", { viewModel.triggerManualPush() }, {})
-                                },
-                                onPull = {
-                                    confirmationPopup(R.string.confirm_pull, "", { viewModel.triggerManualPull() }, {})
-                                },
-                                onMerge = {
-                                    confirmationPopup(R.string.confirm_merge, "", { viewModel.triggerSmartMerge() }, {})
-                                },
-                                onLogout = {
-                                    confirmationPopup(R.string.confirm_logout, viewModel.getLoggedInEmail(), { viewModel.logout() }, {})
-                                },
-                                onDeleteAccount = {
-                                    confirmationPopup(R.string.confirm_wipe_cloud_data, viewModel.getLoggedInEmail(), {
-                                        viewModel.triggerDeleteAccount()
-                                        viewModel.logout()
-                                    }, {})
-                                }
-                            )
-                            suggestionsSection()
-                            urlBarSection()
-
-                            LandscapeAppsWrapper(
-                                dragOffset = landscapeAppsDraggableState.offset,
-                                maxHeightPx = landscapeAppsHeightPx
+                                    },
+                                verticalAlignment = Alignment.Bottom
                             ) {
-                                Box(modifier = Modifier.padding(bottom = settings.value.padding.dp)) {
-                                    AppsPanel(
-                                        onAppClick = { app ->
-                                            viewModel.activeTab?.let { tab ->
-                                                viewModel.updateTabById(tab.id) {
-                                                    it.copy(currentURL = app.url)
-                                                }
+                                FindInPagePanel(
+                                    isVisible = uiState.value.isFindInPageVisible,
+                                    onFindNext = {
+                                        activeSession.finder.find(
+                                            viewModel.findInPageTextFieldState.text.toString(),
+                                            GeckoSession.FINDER_FIND_FORWARD
+                                        ).then { result ->
+                                            if (result != null) {
+                                                val currentMatch = if (result.total > 0) result.current else 0
+                                                viewModel.findInPageResult.value = currentMatch to result.total
                                             }
-                                            textFieldState.setTextAndPlaceCursorAtEnd(app.url.toDomain())
-                                            webViewLoad(activeSession, app.url, context)
-                                            viewModel.updateUI { it.copy(isSettingsPanelVisible = false) }
-                                            viewModel.updateUI { it.copy(isUrlBarVisible = false) }
-                                        },
-                                        addAppToPin = {
-                                            textFieldState.setTextAndPlaceCursorAtEnd("")
-                                            viewModel.updateUI {
-                                                it.copy(
-                                                    isPinningApp = true,
-                                                    isAppsPanelVisible = false
-                                                )
+                                            GeckoResult.fromValue(result)
+                                        }
+                                    },
+                                    onFindPrevious = {
+                                        activeSession.finder.find(
+                                            viewModel.findInPageTextFieldState.text.toString(),
+                                            GeckoSession.FINDER_FIND_BACKWARDS
+                                        ).then { result ->
+                                            if (result != null) {
+                                                val currentMatch = if (result.total > 0) result.current else 0
+                                                viewModel.findInPageResult.value = currentMatch to result.total
                                             }
-                                            openLandscapeUrlInput(KeyboardShortcutManager.UrlFocusAction.EMPTY)
-                                        },
-                                        createNewProfile = {
-                                            viewModel.updateUI { it.copy(isCreatingProfile = true) }
-                                            openLandscapeUrlInput(KeyboardShortcutManager.UrlFocusAction.EMPTY)
-                                        },
-                                        renameProfile = {
-                                            viewModel.updateUI { it.copy(isRenamingProfile = true) }
-                                            openLandscapeUrlInput(KeyboardShortcutManager.UrlFocusAction.EMPTY)
-                                        },
-                                        deleteProfile = {
-                                            viewModel.updateUI {
-                                                it.copy(
-                                                    isOptionsPanelVisible = false,
-                                                    isAppsPanelVisible = false
-                                                )
-                                            }
-                                            confirmationPopup(
-                                                R.string.confirm_delete_profile,
-                                                "",
-                                                { viewModel.deleteProfile() },
-                                                {}
-                                            )
-                                        },
-                                        draggableState = landscapeAppsDraggableState
+                                            GeckoResult.fromValue(result)
+                                        }
+                                    },
+                                    onClose = {
+                                        viewModel.updateUI { it.copy(isFindInPageVisible = false) }
+                                        viewModel.findInPageTextFieldState.setTextAndPlaceCursorAtEnd("")
+                                        activeSession.finder.clear()
+                                        focusManager.clearFocus()
+                                        keyboardController?.hide()
+                                    },
+                                    isLandscapeLayout = true,
+                                    leftStemHeight = leftStemHeight,
+                                    isMirrored = isUrlBarOnRight
+                                )
+
+                                SettingsPanel(
+                                    onCloseAllTabs = onCloseAllTabs,
+                                    confirmationPopup = confirmationPopup,
+                                    onLoginClick = onSyncSignInClick,
+                                    isLandscapeLayout = true,
+                                    leftStemHeight = leftStemHeight,
+                                    currentViewOverride = currentSettingView,
+                                    onCurrentViewChange = {
+                                        currentSettingView = it
+                                        viewModel.isLandscapeSettingsSubView.value =
+                                            it != SettingPanelView.MAIN || isFirstModeLoad
+                                    },
+                                    renderMainOnly = true,
+                                    isMirrored = isUrlBarOnRight
+                                )
+
+                                TabDataPanel(
+                                    isTabDataPanelVisible = isTabDataPanelVisible,
+                                    onDismiss = { viewModel.updateUI { it.copy(isTabDataPanelVisible = false) } },
+                                    onPermissionToggle = handlePermissionToggle,
+                                    onClearSiteData = handleClearInspectedTabData,
+                                    onCloseTab = handleCloseInspectedTab,
+                                    isLandscapeLayout = true,
+                                    leftStemHeight = leftStemHeight,
+                                    isMirrored = isUrlBarOnRight
+                                )
+                            }
+                        }
+
+                        val drawerTargetWidthPx = when {
+                            isCommitFittingDrawer -> fitDrawerWidthAnim.value
+                            useClosingDrawerShift -> signedDrawerOffset.coerceAtLeast(0f) + closingExtraWidthPx
+                            else -> signedDrawerOffset
+                        }
+
+                        // full-height vertical drawer pushed toward the active screen edge
+                        LandscapeOptionsWrapper(
+                            targetWidthPx = drawerTargetWidthPx,
+                            outerStartPaddingPx = outerStartPaddingPx,
+                            extraMaxWidthInt = extraMaxWidthInt,
+                            useLiveLayout = useLiveLayout,
+                            isRightEdge = isUrlBarOnRight
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .wrapContentSize()
+                                    .padding(
+                                        start = if (isUrlBarOnRight) 0.dp else settings.value.padding.dp,
+                                        end = if (isUrlBarOnRight) settings.value.padding.dp else 0.dp
                                     )
+                                    .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
+                                    .background(MaterialTheme.colorScheme.surfaceContainer),
+                                verticalAlignment = Alignment.Bottom
+                            ) {
+                                if (isUrlBarOnRight) {
+                                    col2Row()
+                                    optionsColumn()
+                                } else {
+                                    optionsColumn()
+                                    col2Row()
                                 }
                             }
                         }
@@ -2062,90 +2224,318 @@ fun BottomPanel(
                         val bottomTravelPx = with(density) {
                             (settings.value.padding.dp + floatingPanelBottomPadding).roundToPx()
                         }
+                        val isSwappingToCommit = !isDraggingLandscapeOptions &&
+                            landscapeOptionsDraggableState.targetValue == LandscapeLeftPanelState.Swapped
+                        val targetTabsOnLeft =
+                            if (isSwappingToCommit) !isUrlBarOnRight else isUrlBarOnRight
+                        val tabsStartPadding by animateDpAsState(
+                            targetValue = if (targetTabsOnLeft) settings.value.padding.dp else 0.dp,
+                            animationSpec = tween(settings.value.animationSpeedForLayer(1)),
+                            label = "LandscapeTabsStartPadding"
+                        )
+                        val tabsEndPadding by animateDpAsState(
+                            targetValue = if (targetTabsOnLeft) 0.dp else settings.value.padding.dp,
+                            animationSpec = tween(settings.value.animationSpeedForLayer(1)),
+                            label = "LandscapeTabsEndPadding"
+                        )
 
-                        // bottom-right half: tabs, media, permission, context menu, confirmation, text edit
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(end = settings.value.padding.dp)
-                        ) {
-                            androidx.compose.animation.AnimatedVisibility(
-                                visible = effectiveAnyRightPanelVisible,
-                                enter = slideInVertically(
-                                    animationSpec = tween(settings.value.animationSpeedForLayer(1))
-                                ) { it + bottomTravelPx },
-                                exit = slideOutVertically(
-                                    animationSpec = tween(settings.value.animationSpeedForLayer(1))
-                                ) { it + bottomTravelPx }
-                            ) {
+                        val totalEdgePads = floatingStartPadPx + floatingEndPadPx
+                        val urlCommitFitFraction = if (isCommitSettling && totalEdgePads > 0.5f) {
+                            (1f - kotlin.math.abs(urlSettleOffsetAnim.value) / totalEdgePads).coerceIn(0f, 1f)
+                        } else if (isCommitSettling) {
+                            1f
+                        } else {
+                            0f
+                        }
+
+                        // bottom horizontal bar with cyclic wrap-around swap between left and right halves
+                        LandscapeCyclicBottomBar(
+                            modifier = Modifier.fillMaxWidth(),
+                            isUrlBarOnRight = isUrlBarOnRight,
+                            swapProgress = swapProgress,
+                            startPadPx = floatingStartPadPx,
+                            endPadPx = floatingEndPadPx,
+                            innerPadPx = outerStartPaddingPx,
+                            urlExtraShiftPx = urlSettleOffsetAnim.value,
+                            urlStationaryShiftPx = if (isCommitSettling) urlSettleOffsetAnim.value else 0f,
+                            urlCommitFitFraction = urlCommitFitFraction,
+                            urlHalfContent = {
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
+                                        .padding(horizontal = settings.value.padding.dp)
                                         .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
                                         .background(MaterialTheme.colorScheme.surfaceContainer)
-                                ) {
-                                    ConfirmationPanel(isVisibleOverride = heldConfirmRight)
-                                    ContextMenuPanel(
-                                        onDownload = onDownload,
-                                        isVisibleOverride = heldContextRight
-                                    )
-                                    PermissionPanel(
-                                        isUrlBarVisible = uiState.value.isUrlBarVisible,
-                                        hasContentBelow = heldTabsRight || heldTextEditRight,
-                                        isVisibleOverride = heldPermissionRight,
-                                        onAllow = {
-                                            viewModel.pendingPermissionRequest.value?.let { request ->
-                                                if (!request.isSystemRequest) {
-                                                    val grantedMap = request.permissionsToRequest.associateWith { true }
-                                                    if (request.isPersistent) {
-                                                        val domain = request.origin.toDomain()
-                                                        viewModel.savePermissionDecision(domain, grantedMap)
+                                        .anchoredDraggable(
+                                            state = landscapeAppsDraggableState,
+                                            orientation = Orientation.Vertical,
+                                            flingBehavior = landscapeAppsFling,
+                                            enabled = isDragEnabled
+                                        )
+                                        .pointerInput(isDragEnabled, drawerSign) {
+                                            if (!isDragEnabled) return@pointerInput
+                                            awaitPointerEventScope {
+                                                while (true) {
+                                                    val event = awaitPointerEvent(PointerEventPass.Final)
+                                                    if (event.type == PointerEventType.Scroll) {
+                                                        val change = event.changes.firstOrNull() ?: continue
+                                                        if (change.isConsumed) continue
+                                                        val dx = change.scrollDelta.x
+                                                        val dy = change.scrollDelta.y
+                                                        val now = System.currentTimeMillis()
+                                                        if (kotlin.math.abs(dy) >= kotlin.math.abs(dx) && dy != 0f) {
+                                                            val dir = if (dy > 0f) 1 else -1
+                                                            val isNewRoll = (dir != viewModel.lastMouseWheelDirection) ||
+                                                                (now - viewModel.lastMouseWheelScrollMs >= 150L)
+                                                            viewModel.lastMouseWheelScrollMs = now
+                                                            viewModel.lastMouseWheelDirection = dir
+                                                            if (isNewRoll) {
+                                                                viewModel.updateUI {
+                                                                    it.copy(isAppsPanelVisible = dy > 0f)
+                                                                }
+                                                            }
+                                                        } else if (dx != 0f) {
+                                                            val dir = if (dx > 0f) 1 else -1
+                                                            val isNewRoll = (dir != viewModel.lastMouseWheelDirection) ||
+                                                                (now - viewModel.lastMouseWheelScrollMs >= 150L)
+                                                            viewModel.lastMouseWheelScrollMs = now
+                                                            viewModel.lastMouseWheelDirection = dir
+                                                            if (isNewRoll) {
+                                                                if (dx * drawerSign > 0f) {
+                                                                    viewModel.updateUI { it.copy(isOptionsPanelVisible = true) }
+                                                                } else {
+                                                                    viewModel.updateUI {
+                                                                        it.copy(
+                                                                            isOptionsPanelVisible = false,
+                                                                            isSettingsPanelVisible = if (currentSettingView == SettingPanelView.MAIN) false else it.isSettingsPanelVisible,
+                                                                            isFindInPageVisible = false,
+                                                                            isTabDataPanelVisible = false
+                                                                        )
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
                                                     }
-                                                    request.onResult(grantedMap, viewModel.pendingPermissionRequest)
-                                                    viewModel.pendingPermissionRequest.value = null
-                                                } else if (request.permissionsToRequest.contains(Manifest.permission.CAMERA) ||
-                                                    request.permissionsToRequest.contains(Manifest.permission.RECORD_AUDIO)
-                                                ) {
-                                                    viewModel.allowMediaPermissionRequest(request.permissionsToRequest.associateWith { true })
-                                                } else {
-                                                    permissionLauncher.launch(request.permissionsToRequest.toTypedArray())
                                                 }
                                             }
-                                        },
+                                        }
+                                ) {
+                                    LoadingIndicator()
+                                    DescriptionPanel()
+                                    NavigationPanel(activeSession = activeSession)
+                                    DownloadPanel(
+                                        confirmationPopup = confirmationPopup,
+                                        isDownloadPanelVisible = uiState.value.isDownloadPanelVisible,
+                                        onDownloadRowClicked = onDownloadRowClicked,
+                                        onOpenFolderClicked = onOpenFolderClicked,
                                     )
-                                    MediaPanel(isVisibleOverride = heldMediaRight)
-                                    TabsPanel(
-                                        updateInspectingTab = updateInspectingTab,
+                                    SettingsPanel(
+                                        onCloseAllTabs = onCloseAllTabs,
+                                        confirmationPopup = confirmationPopup,
+                                        onLoginClick = onSyncSignInClick,
                                         isLandscapeLayout = true,
-                                        hasContentBelow = heldTextEditRight,
-                                        isVisibleOverride = heldTabsRight,
+                                        currentViewOverride = currentSettingView,
+                                        onCurrentViewChange = {
+                                            currentSettingView = it
+                                            viewModel.isLandscapeSettingsSubView.value =
+                                                it != SettingPanelView.MAIN || isFirstModeLoad
+                                        },
+                                        renderSubViewsOnly = true
                                     )
-                                    TextEditPanel(
-                                        isVisible = heldTextEditRight,
-                                        onCopyClick = copyCurrentUrl,
-                                        onEditClick = editCurrentUrl,
-                                        onDismiss = dismissUrlBar,
-                                        onAddToHomeScreen = {},
-                                        activeWebViewTitle = viewModel.activeTab!!.currentTitle,
-                                        isLandscapeLayout = true
+                                    SyncPanel(
+                                        isVisible = uiState.value.isSyncPanelVisible,
+                                        onDismiss = { viewModel.updateUI { it.copy(isSyncPanelVisible = false) } },
+                                        onPush = {
+                                            confirmationPopup(R.string.confirm_push, "", { viewModel.triggerManualPush() }, {})
+                                        },
+                                        onPull = {
+                                            confirmationPopup(R.string.confirm_pull, "", { viewModel.triggerManualPull() }, {})
+                                        },
+                                        onMerge = {
+                                            confirmationPopup(R.string.confirm_merge, "", { viewModel.triggerSmartMerge() }, {})
+                                        },
+                                        onLogout = {
+                                            confirmationPopup(R.string.confirm_logout, viewModel.getLoggedInEmail(), { viewModel.logout() }, {})
+                                        },
+                                        onDeleteAccount = {
+                                            confirmationPopup(R.string.confirm_wipe_cloud_data, viewModel.getLoggedInEmail(), {
+                                                viewModel.triggerDeleteAccount()
+                                                viewModel.logout()
+                                            }, {})
+                                        }
                                     )
+                                    suggestionsSection()
+                                    urlBarSection(
+                                        Modifier.anchoredDraggable(
+                                            state = landscapeOptionsDraggableState,
+                                            orientation = Orientation.Horizontal,
+                                            flingBehavior = landscapeOptionsFling,
+                                            enabled = isDragEnabled,
+                                            interactionSource = landscapeOptionsInteractionSource
+                                        )
+                                    )
+
+                                    LandscapeAppsWrapper(
+                                        dragOffset = landscapeAppsDraggableState.offset,
+                                        maxHeightPx = landscapeAppsHeightPx
+                                    ) {
+                                        Box(modifier = Modifier.padding(bottom = settings.value.padding.dp)) {
+                                            AppsPanel(
+                                                onAppClick = { app ->
+                                                    viewModel.activeTab?.let { tab ->
+                                                        viewModel.updateTabById(tab.id) {
+                                                            it.copy(currentURL = app.url)
+                                                        }
+                                                    }
+                                                    textFieldState.setTextAndPlaceCursorAtEnd(app.url.toDomain())
+                                                    webViewLoad(activeSession, app.url, context)
+                                                    viewModel.updateUI { it.copy(isSettingsPanelVisible = false) }
+                                                    viewModel.updateUI { it.copy(isUrlBarVisible = false) }
+                                                },
+                                                addAppToPin = {
+                                                    textFieldState.setTextAndPlaceCursorAtEnd("")
+                                                    viewModel.updateUI {
+                                                        it.copy(
+                                                            isPinningApp = true,
+                                                            isAppsPanelVisible = false
+                                                        )
+                                                    }
+                                                    openLandscapeUrlInput(KeyboardShortcutManager.UrlFocusAction.EMPTY)
+                                                },
+                                                createNewProfile = {
+                                                    viewModel.updateUI { it.copy(isCreatingProfile = true) }
+                                                    openLandscapeUrlInput(KeyboardShortcutManager.UrlFocusAction.EMPTY)
+                                                },
+                                                renameProfile = {
+                                                    viewModel.updateUI { it.copy(isRenamingProfile = true) }
+                                                    openLandscapeUrlInput(KeyboardShortcutManager.UrlFocusAction.EMPTY)
+                                                },
+                                                deleteProfile = {
+                                                    viewModel.updateUI {
+                                                        it.copy(
+                                                            isOptionsPanelVisible = false,
+                                                            isAppsPanelVisible = false
+                                                        )
+                                                    }
+                                                    confirmationPopup(
+                                                        R.string.confirm_delete_profile,
+                                                        "",
+                                                        { viewModel.deleteProfile() },
+                                                        {}
+                                                    )
+                                                },
+                                                draggableState = landscapeAppsDraggableState
+                                            )
+                                        }
+                                    }
+                                }
+                            },
+                            tabsHalfContent = {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(start = tabsStartPadding, end = tabsEndPadding)
+                                ) {
+                                    androidx.compose.animation.AnimatedVisibility(
+                                        visible = effectiveAnyRightPanelVisible,
+                                        enter = slideInVertically(
+                                            animationSpec = tween(settings.value.animationSpeedForLayer(1))
+                                        ) { it + bottomTravelPx },
+                                        exit = slideOutVertically(
+                                            animationSpec = tween(settings.value.animationSpeedForLayer(1))
+                                        ) { it + bottomTravelPx }
+                                    ) {
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
+                                                .background(MaterialTheme.colorScheme.surfaceContainer)
+                                        ) {
+                                            ConfirmationPanel(isVisibleOverride = heldConfirmRight)
+                                            ContextMenuPanel(
+                                                onDownload = onDownload,
+                                                isVisibleOverride = heldContextRight
+                                            )
+                                            PermissionPanel(
+                                                isUrlBarVisible = uiState.value.isUrlBarVisible,
+                                                hasContentBelow = heldTabsRight || heldTextEditRight,
+                                                isVisibleOverride = heldPermissionRight,
+                                                onAllow = {
+                                                    viewModel.pendingPermissionRequest.value?.let { request ->
+                                                        if (!request.isSystemRequest) {
+                                                            val grantedMap = request.permissionsToRequest.associateWith { true }
+                                                            if (request.isPersistent) {
+                                                                val domain = request.origin.toDomain()
+                                                                viewModel.savePermissionDecision(domain, grantedMap)
+                                                            }
+                                                            request.onResult(grantedMap, viewModel.pendingPermissionRequest)
+                                                            viewModel.pendingPermissionRequest.value = null
+                                                        } else if (request.permissionsToRequest.contains(Manifest.permission.CAMERA) ||
+                                                            request.permissionsToRequest.contains(Manifest.permission.RECORD_AUDIO)
+                                                        ) {
+                                                            viewModel.allowMediaPermissionRequest(request.permissionsToRequest.associateWith { true })
+                                                        } else {
+                                                            permissionLauncher.launch(request.permissionsToRequest.toTypedArray())
+                                                        }
+                                                    }
+                                                },
+                                            )
+                                            MediaPanel(isVisibleOverride = heldMediaRight)
+                                            TabsPanel(
+                                                updateInspectingTab = updateInspectingTab,
+                                                isLandscapeLayout = true,
+                                                hasContentBelow = heldTextEditRight,
+                                                isVisibleOverride = heldTabsRight,
+                                            )
+                                            TextEditPanel(
+                                                isVisible = heldTextEditRight,
+                                                onCopyClick = copyCurrentUrl,
+                                                onEditClick = editCurrentUrl,
+                                                onDismiss = dismissUrlBar,
+                                                onAddToHomeScreen = {},
+                                                activeWebViewTitle = viewModel.activeTab!!.currentTitle,
+                                                isLandscapeLayout = true
+                                            )
+                                        }
+                                    }
                                 }
                             }
-                        }
-                    }
+                        )
                     }
                 ) { measurables, constraints ->
-                    val leftPlaceable = measurables[0].measure(
+                    val drawerPlaceable = measurables[0].measure(
                         constraints.copy(minWidth = 0)
                     )
-                    // keep bottom horizontal bar fixed at full container width while sliding right
+                    // keep bottom horizontal bar fixed at full container width while pushed aside
                     val bottomPlaceable = measurables[1].measure(
                         constraints.copy(minWidth = constraints.maxWidth, maxWidth = constraints.maxWidth)
                     )
-                    val layoutHeight = maxOf(leftPlaceable.height, bottomPlaceable.height)
+                    val layoutHeight = maxOf(drawerPlaceable.height, bottomPlaceable.height)
+                    val bottomShiftInt = when {
+                        isCommitFittingDrawer -> fitBottomOffsetAnim.value.roundToInt()
+                        useClosingDrawerShift -> signedDrawerOffset.roundToInt().coerceAtLeast(0)
+                        else -> drawerPlaceable.width
+                    }
                     layout(constraints.maxWidth, layoutHeight) {
-                        leftPlaceable.placeRelative(0, layoutHeight - leftPlaceable.height)
-                        bottomPlaceable.placeRelative(leftPlaceable.width, layoutHeight - bottomPlaceable.height)
+                        if (isUrlBarOnRight) {
+                            drawerPlaceable.placeRelative(
+                                constraints.maxWidth - drawerPlaceable.width + drawerShiftInt,
+                                layoutHeight - drawerPlaceable.height
+                            )
+                            bottomPlaceable.placeRelative(
+                                -bottomShiftInt,
+                                layoutHeight - bottomPlaceable.height
+                            )
+                        } else {
+                            drawerPlaceable.placeRelative(
+                                drawerShiftInt,
+                                layoutHeight - drawerPlaceable.height
+                            )
+                            bottomPlaceable.placeRelative(
+                                bottomShiftInt,
+                                layoutHeight - bottomPlaceable.height
+                            )
+                        }
                     }
                 }
             } else {
@@ -2341,7 +2731,7 @@ fun BottomPanel(
 
                     suggestionsSection()
                     ConfirmationPanel()
-                    urlBarSection()
+                    urlBarSection(Modifier)
 
                     // setting options
                     OptionsPanelWrapper(
@@ -2416,17 +2806,147 @@ private enum class LandscapeLeftPanelState {
     OptionsOnly,
     Col2Only,
     Both,
+    Swapped,
+}
+
+private fun buildLandscapeOptionsAnchors(
+    drawerSign: Float,
+    col1InnerWidthPx: Float,
+    col2MeasuredWidthPx: Float,
+    outerStartPaddingPx: Float,
+    includeCol2OnlyAnchor: Boolean,
+    includeSwappedAnchor: Boolean,
+    swapDistancePx: Float,
+    openingExtraPadPx: Float = 0f,
+): DraggableAnchors<LandscapeLeftPanelState> = DraggableAnchors {
+    LandscapeLeftPanelState.Hidden at 0f
+    if (includeSwappedAnchor && swapDistancePx > 1f) {
+        LandscapeLeftPanelState.Swapped at (-drawerSign * swapDistancePx)
+    }
+    if (col2MeasuredWidthPx > 0.5f) {
+        val col2Pos = drawerSign * (outerStartPaddingPx + col2MeasuredWidthPx)
+        if (includeCol2OnlyAnchor) {
+            LandscapeLeftPanelState.Col2Only at col2Pos
+        }
+        if (col1InnerWidthPx > 0f) {
+            LandscapeLeftPanelState.Both at (col2Pos + drawerSign * col1InnerWidthPx)
+        }
+    } else if (col1InnerWidthPx > 0f) {
+        LandscapeLeftPanelState.OptionsOnly at
+            (drawerSign * (outerStartPaddingPx + col1InnerWidthPx + openingExtraPadPx))
+    }
+}
+
+@Composable
+private fun LandscapeCyclicBottomBar(
+    modifier: Modifier = Modifier,
+    isUrlBarOnRight: Boolean,
+    swapProgress: Float,
+    startPadPx: Float,
+    endPadPx: Float,
+    innerPadPx: Float,
+    urlExtraShiftPx: Float,
+    urlStationaryShiftPx: Float,
+    urlCommitFitFraction: Float,
+    urlHalfContent: @Composable () -> Unit,
+    tabsHalfContent: @Composable () -> Unit,
+) {
+    val urlGraphicsLayer = rememberGraphicsLayer()
+    val isSwapping = swapProgress > 0.001f
+
+    Layout(
+        modifier = modifier.drawWithContent {
+            if (isSwapping) {
+                clipRect(
+                    left = -startPadPx,
+                    top = -10000f,
+                    right = size.width + endPadPx,
+                    bottom = size.height + 10000f
+                ) {
+                    this@drawWithContent.drawContent()
+                    val halfW = (size.width.toInt() / 2).toFloat()
+                    val shiftPx = swapProgress * halfW
+                    val primaryExtraExit = if (isUrlBarOnRight) {
+                        (endPadPx - innerPadPx).coerceAtLeast(0f) * urlCommitFitFraction
+                    } else {
+                        (startPadPx - innerPadPx).coerceAtLeast(0f) * urlCommitFitFraction
+                    }
+                    // keep primary, tabs, and wrapped url bar moving one-to-one with finger and fit edges after release
+                    val urlPrimaryX = if (isUrlBarOnRight) {
+                        (size.width - halfW) + shiftPx + primaryExtraExit
+                    } else {
+                        -shiftPx - primaryExtraExit
+                    }
+                    val urlWrappedX = if (isUrlBarOnRight) {
+                        (-halfW + shiftPx) + urlExtraShiftPx
+                    } else {
+                        (size.width - shiftPx) + urlExtraShiftPx
+                    }
+                    val urlTopY = size.height - urlGraphicsLayer.size.height.toFloat()
+                    translate(left = urlPrimaryX, top = urlTopY) {
+                        drawLayer(urlGraphicsLayer)
+                    }
+                    translate(left = urlWrappedX, top = urlTopY) {
+                        drawLayer(urlGraphicsLayer)
+                    }
+                }
+            } else {
+                drawContent()
+            }
+        },
+        content = {
+            Box(
+                modifier = Modifier.drawWithContent {
+                    if (isSwapping) {
+                        urlGraphicsLayer.record {
+                            this@drawWithContent.drawContent()
+                        }
+                    } else {
+                        drawContent()
+                    }
+                }
+            ) {
+                urlHalfContent()
+            }
+            Box {
+                tabsHalfContent()
+            }
+        }
+    ) { measurables, constraints ->
+        val totalW = constraints.maxWidth
+        val halfW = totalW / 2
+        val otherHalfW = totalW - halfW
+        val urlPlaceable = measurables[0].measure(
+            constraints.copy(minWidth = halfW, maxWidth = halfW, minHeight = 0)
+        )
+        val tabsPlaceable = measurables[1].measure(
+            constraints.copy(minWidth = otherHalfW, maxWidth = otherHalfW, minHeight = 0)
+        )
+        val layoutHeight = maxOf(urlPlaceable.height, tabsPlaceable.height)
+        val shiftPx = (swapProgress * halfW).roundToInt()
+
+        val urlExtraInt = if (isSwapping) 0 else urlStationaryShiftPx.roundToInt()
+        val urlStationaryX = (if (isUrlBarOnRight) totalW - halfW else 0) + urlExtraInt
+        val tabsX = if (isUrlBarOnRight) shiftPx else halfW - shiftPx
+
+        layout(totalW, layoutHeight) {
+            urlPlaceable.place(urlStationaryX, layoutHeight - urlPlaceable.height)
+            tabsPlaceable.place(tabsX, layoutHeight - tabsPlaceable.height)
+        }
+    }
 }
 
 @Composable
 private fun LandscapeOptionsWrapper(
-    dragOffset: Float,
+    targetWidthPx: Float,
     outerStartPaddingPx: Float,
+    extraMaxWidthInt: Int,
     useLiveLayout: Boolean,
+    isRightEdge: Boolean,
     content: @Composable () -> Unit
 ) {
-    val safeOffset = if (dragOffset.isNaN()) 0f else dragOffset
-    val targetTotalWidth = safeOffset.roundToInt().coerceAtLeast(0)
+    val safeWidth = if (targetWidthPx.isNaN()) 0f else targetWidthPx
+    val targetTotalWidth = safeWidth.roundToInt().coerceAtLeast(0)
 
     Layout(
         content = content,
@@ -2438,18 +2958,18 @@ private fun LandscapeOptionsWrapper(
                 maxWidth = androidx.compose.ui.unit.Constraints.Infinity
             )
         )
-        // match current measured width during column two expand/shrink to avoid shifting options panel left
+        // match current measured width during column two expand/shrink to avoid shifting options panel
         val currentWidth = if (useLiveLayout) {
             if (placeable.width <= outerStartPaddingPx.roundToInt()) 0 else placeable.width
         } else {
-            targetTotalWidth.coerceIn(0, placeable.width)
+            targetTotalWidth.coerceIn(0, placeable.width + extraMaxWidthInt)
         }
 
         if (currentWidth == 0) {
             layout(0, 0) {}
         } else {
             layout(currentWidth, placeable.height) {
-                placeable.place(currentWidth - placeable.width, 0)
+                placeable.place(if (isRightEdge) 0 else currentWidth - placeable.width, 0)
             }
         }
     }

@@ -56,6 +56,7 @@ data class BrowserSettings(
     val isEnabledBackgroundPlayback: Boolean,
     val isEnabledMaterialYou: Boolean,
     val isTabsPanelLock: Boolean = true,
+    val isLandscapeUrlBarOnRight: Boolean = false,
 
     val isEnabledMediaControl: Boolean,
     val mediaControlMode: Int = DefaultSettingValues.MEDIA_CONTROL_MODE,
