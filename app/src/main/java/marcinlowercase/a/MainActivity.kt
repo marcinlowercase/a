@@ -1384,6 +1384,7 @@ fun BrowserScreen(
     val targetTopBarColor = when {
         viewModel.landscapeInputSession.value != null -> MaterialTheme.colorScheme.surfaceContainer
         uiState.value.isSettingCornerRadius -> viewModel.backgroundColor.value
+        isKeyboardVisible && uiState.value.isLandscape && !uiState.value.isOnFullscreenVideo -> MaterialTheme.colorScheme.surfaceContainer
         !settings.isEnabledImmersiveWebview -> Color.Black
         uiState.value.isOnFullscreenVideo -> Color.Black
         uiState.value.appState == AppState.BUILD && !uiState.value.isBuildPreview -> Color.Black
@@ -1395,6 +1396,7 @@ fun BrowserScreen(
     val targetBottomBarColor = when {
         viewModel.landscapeInputSession.value != null -> MaterialTheme.colorScheme.surfaceContainer
         uiState.value.isSettingCornerRadius -> viewModel.backgroundColor.value
+        isKeyboardVisible && uiState.value.isLandscape && !uiState.value.isOnFullscreenVideo -> MaterialTheme.colorScheme.surfaceContainer
         !settings.isEnabledImmersiveWebview -> Color.Black
         uiState.value.isOnFullscreenVideo -> Color.Black
         uiState.value.appState == AppState.BUILD && !uiState.value.isBuildPreview -> Color.Black
