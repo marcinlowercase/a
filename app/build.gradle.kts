@@ -31,14 +31,7 @@ android {
 
 
         buildConfigField("String", "GEMINI_API_KEY", "\"$geminiApiKey\"")
-        ndk {
-            debugSymbolLevel = "FULL"
-        }
         packaging {
-            jniLibs {
-                keepDebugSymbols.add("**/lib*.so")
-            }
-
             resources {
                 excludes += "META-INF/DEPENDENCIES"
                 excludes += "META-INF/LICENSE"
