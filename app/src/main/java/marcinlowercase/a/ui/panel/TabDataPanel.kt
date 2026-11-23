@@ -3,6 +3,7 @@ package marcinlowercase.a.ui.panel
 import android.Manifest
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.expandVertically
@@ -84,6 +85,11 @@ fun TabDataPanel(
     val settings = viewModel.browserSettings.collectAsState()
 
     val uiState by viewModel.uiState.collectAsState()
+    val landscapeStartPadding by animateDpAsState(
+        targetValue = if (uiState.isOptionsPanelVisible) 0.dp else settings.value.padding.dp,
+        animationSpec = tween(settings.value.animationSpeedForLayer(1)),
+        label = "TabDataLandscapeStartPadding"
+    )
 
     var currentView by remember { mutableStateOf(TabDataPanelView.PERMISSIONS) }
     val currentTab = viewModel.tabs.find { it.id == uiState.inspectingTabId }
@@ -116,7 +122,8 @@ fun TabDataPanel(
                     .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
                     .background(MaterialTheme.colorScheme.surfaceContainer)
                     .padding( vertical = settings.value.padding.dp)
-                    .padding( end = settings.value.padding.dp),
+                    .padding( end = settings.value.padding.dp)
+                    .padding( start = landscapeStartPadding),
                 horizontalArrangement = Arrangement.spacedBy(settings.value.padding.dp),
                 verticalAlignment = Alignment.Bottom
             ) {
