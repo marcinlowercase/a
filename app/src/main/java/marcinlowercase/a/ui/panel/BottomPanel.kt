@@ -2003,7 +2003,7 @@ fun BottomPanel(
 
                         // bottom-right half: tabs, media, permission, context menu, confirmation, text edit
                         Box(modifier = Modifier.weight(1f)) {
-                            AnimatedVisibility(
+                            androidx.compose.animation.AnimatedVisibility(
                                 visible = effectiveAnyRightPanelVisible,
                                 enter = slideInVertically(
                                     animationSpec = tween(settings.value.animationSpeedForLayer(1))
