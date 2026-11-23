@@ -411,7 +411,7 @@ fun BottomPanel(
         val isDraggingLandscapeOptions by landscapeOptionsInteractionSource.collectIsDraggedAsState()
         var prevLandscapeOptionsSettled by remember { mutableStateOf(initialLeftStemState) }
         var prevObservedOptionsVisible by remember { mutableStateOf(uiState.value.isOptionsPanelVisible) }
-        val urlSettleOffsetAnim = remember { Animatable(0f) }
+        val urlCommitEdgeFractionAnim = remember { Animatable(1f) }
         var isCommitSettling by remember { mutableStateOf(false) }
         var activeFlingTarget by remember { mutableStateOf<LandscapeLeftPanelState?>(null) }
 
@@ -769,25 +769,20 @@ fun BottomPanel(
         LaunchedEffect(isDraggingLandscapeOptions, isLandscapeLayout) {
             if (!isLandscapeLayout) {
                 isCommitSettling = false
-                urlSettleOffsetAnim.snapTo(0f)
+                urlCommitEdgeFractionAnim.snapTo(1f)
                 return@LaunchedEffect
             }
             if (isDraggingLandscapeOptions) {
                 isCommitSettling = false
-                snapshotFlow {
-                    val offset = landscapeOptionsDraggableState.offset
-                    val signed = if (offset.isNaN()) 0f else offset * drawerSign
-                    signed < -0.5f
-                }.collect { isSwappingDrag ->
-                    val target = if (isSwappingDrag) {
-                        val totalEdgePads = floatingStartPadPx + floatingEndPadPx
-                        if (isUrlBarOnRight) -totalEdgePads else totalEdgePads
-                    } else {
-                        0f
-                    }
-                    urlSettleOffsetAnim.snapTo(target)
-                }
-            } else if (urlSettleOffsetAnim.value != 0f) {
+                urlCommitEdgeFractionAnim.snapTo(1f)
+            } else if ((floatingStartPadPx + floatingEndPadPx) > 0.5f) {
+                val offsetNow = landscapeOptionsDraggableState.offset
+                val signedNow = if (offsetNow.isNaN()) 0f else offsetNow * drawerSign
+                val isSwappingNow = signedNow < -0.5f ||
+                    activeFlingTarget == LandscapeLeftPanelState.Swapped ||
+                    landscapeOptionsDraggableState.settledValue == LandscapeLeftPanelState.Swapped
+                if (!isSwappingNow) return@LaunchedEffect
+
                 val outcome = snapshotFlow {
                     val flingTarget = activeFlingTarget
                     val offset = landscapeOptionsDraggableState.offset
@@ -804,17 +799,16 @@ fun BottomPanel(
 
                 if (outcome == 1) {
                     isCommitSettling = true
-                    urlSettleOffsetAnim.animateTo(
+                    urlCommitEdgeFractionAnim.animateTo(
                         targetValue = 0f,
                         animationSpec = tween(settings.value.animationSpeedForLayer(1))
                     )
                 } else {
-                    // keep locked spacing while returning on cancel and snap after exiting screen edge
                     snapshotFlow {
                         activeFlingTarget == null && !landscapeOptionsDraggableState.isAnimationRunning
                     }.first { it }
                     isCommitSettling = false
-                    urlSettleOffsetAnim.snapTo(0f)
+                    urlCommitEdgeFractionAnim.snapTo(1f)
                 }
             }
         }
@@ -938,17 +932,19 @@ fun BottomPanel(
                 val newSettled = landscapeOptionsDraggableState.settledValue
                 if (newSettled == LandscapeLeftPanelState.Swapped) {
                     // finish post-release edge fit animation before resetting anchors to new side
-                    if (urlSettleOffsetAnim.isRunning) {
-                        snapshotFlow { !urlSettleOffsetAnim.isRunning || isDraggingLandscapeOptions }.first { it }
+                    if (urlCommitEdgeFractionAnim.isRunning) {
+                        snapshotFlow { !urlCommitEdgeFractionAnim.isRunning || isDraggingLandscapeOptions }.first { it }
                     }
-                    if (!isDraggingLandscapeOptions && urlSettleOffsetAnim.value != 0f) {
+                    val totalEdgePads = floatingStartPadPx + floatingEndPadPx
+                    if (!isDraggingLandscapeOptions && totalEdgePads > 0.5f && urlCommitEdgeFractionAnim.value > 0f) {
                         isCommitSettling = true
-                        urlSettleOffsetAnim.animateTo(
+                        urlCommitEdgeFractionAnim.animateTo(
                             targetValue = 0f,
                             animationSpec = tween(settings.value.animationSpeedForLayer(1))
                         )
                     }
                     isCommitSettling = false
+                    urlCommitEdgeFractionAnim.snapTo(1f)
                     val nextRight = !isUrlBarOnRight
                     val nextDrawerSign = if (nextRight) -1f else 1f
                     isUrlBarOnRight = nextRight
@@ -2486,10 +2482,15 @@ fun BottomPanel(
                         )
 
                         val totalEdgePads = floatingStartPadPx + floatingEndPadPx
-                        val urlCommitFitFraction = if (isCommitSettling && totalEdgePads > 0.5f) {
-                            (1f - kotlin.math.abs(urlSettleOffsetAnim.value) / totalEdgePads).coerceIn(0f, 1f)
-                        } else if (isCommitSettling) {
-                            1f
+                        val lockedSwapEdgeShiftPx =
+                            if (isUrlBarOnRight) -totalEdgePads else totalEdgePads
+                        val urlExtraShiftPx = if (isCommitSettling) {
+                            lockedSwapEdgeShiftPx * urlCommitEdgeFractionAnim.value
+                        } else {
+                            lockedSwapEdgeShiftPx
+                        }
+                        val urlCommitFitFraction = if (isCommitSettling) {
+                            (1f - urlCommitEdgeFractionAnim.value).coerceIn(0f, 1f)
                         } else {
                             0f
                         }
@@ -2502,8 +2503,8 @@ fun BottomPanel(
                             startPadPx = floatingStartPadPx,
                             endPadPx = floatingEndPadPx,
                             innerPadPx = outerStartPaddingPx,
-                            urlExtraShiftPx = urlSettleOffsetAnim.value,
-                            urlStationaryShiftPx = if (isCommitSettling) urlSettleOffsetAnim.value else 0f,
+                            urlExtraShiftPx = urlExtraShiftPx,
+                            urlStationaryShiftPx = if (isCommitSettling) urlExtraShiftPx else 0f,
                             urlCommitFitFraction = urlCommitFitFraction,
                             urlHalfContent = {
                                 Column(
