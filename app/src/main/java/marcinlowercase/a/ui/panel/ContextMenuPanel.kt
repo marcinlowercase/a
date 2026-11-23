@@ -62,6 +62,7 @@ import kotlin.time.Duration.Companion.milliseconds
 @Composable
 fun ContextMenuPanel(
     onDownload: (String) -> Unit,
+    isVisibleOverride: Boolean? = null,
 ) {
     val viewModel = LocalBrowserViewModel.current
     val settings = viewModel.browserSettings.collectAsState()
@@ -71,7 +72,7 @@ fun ContextMenuPanel(
 
 
     AnimatedVisibility(
-        visible = viewModel.contextMenuData.value != null,
+        visible = isVisibleOverride ?: (viewModel.contextMenuData.value != null),
         enter = expandVertically(tween(settings.value.animationSpeed.roundToInt())) + fadeIn(),
         exit = shrinkVertically(tween(settings.value.animationSpeed.roundToInt())) + fadeOut()
     ) {

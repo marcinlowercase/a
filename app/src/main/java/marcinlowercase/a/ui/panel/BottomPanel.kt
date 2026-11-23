@@ -1954,53 +1954,117 @@ fun BottomPanel(
                             }
                         }
 
+                        val isConfirmRightVisible = viewModel.confirmationState.value != null
+                        val isContextRightVisible = viewModel.contextMenuData.value != null
+                        val isPermissionRightVisible = uiState.value.isPermissionPanelVisible
+                        val isMediaRightVisible = uiState.value.isUrlBarVisible &&
+                            !uiState.value.isFocusOnTextField &&
+                            !uiState.value.isFindInPageVisible &&
+                            (viewModel.geckoManager.activeGeckoMediaSession != null ||
+                                viewModel.geckoManager.activeSilentVideoSession != null ||
+                                viewModel.geckoManager.currentFullscreenSession != null)
+                        val isTabsRightVisible = viewModel.tabs.isNotEmpty() &&
+                            uiState.value.isTabsPanelVisible &&
+                            !uiState.value.isFindInPageVisible
+                        val isTextEditRightVisible = isTextEditVisible
+                        val anyRightPanelVisible = isConfirmRightVisible ||
+                            isContextRightVisible ||
+                            isPermissionRightVisible ||
+                            isMediaRightVisible ||
+                            isTabsRightVisible ||
+                            isTextEditRightVisible
+
+                        val isBottomBarShowing =
+                            uiState.value.isBottomPanelVisible && uiState.value.appState == AppState.REGULAR
+                        var heldConfirmRight by remember { mutableStateOf(isConfirmRightVisible) }
+                        var heldContextRight by remember { mutableStateOf(isContextRightVisible) }
+                        var heldPermissionRight by remember { mutableStateOf(isPermissionRightVisible) }
+                        var heldMediaRight by remember { mutableStateOf(isMediaRightVisible) }
+                        var heldTabsRight by remember { mutableStateOf(isTabsRightVisible) }
+                        var heldTextEditRight by remember { mutableStateOf(isTextEditRightVisible) }
+                        var effectiveAnyRightPanelVisible by remember { mutableStateOf(anyRightPanelVisible) }
+
+                        // preserve last visible panel while sliding out to bottom and avoid double slide on full bar exit
+                        if (isBottomBarShowing) {
+                            effectiveAnyRightPanelVisible = anyRightPanelVisible
+                            if (anyRightPanelVisible) {
+                                heldConfirmRight = isConfirmRightVisible
+                                heldContextRight = isContextRightVisible
+                                heldPermissionRight = isPermissionRightVisible
+                                heldMediaRight = isMediaRightVisible
+                                heldTabsRight = isTabsRightVisible
+                                heldTextEditRight = isTextEditRightVisible
+                            }
+                        }
+
+                        val bottomTravelPx = with(density) {
+                            (settings.value.padding.dp + floatingPanelBottomPadding).roundToPx()
+                        }
+
                         // bottom-right half: tabs, media, permission, context menu, confirmation, text edit
-                        Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
-                                .background(MaterialTheme.colorScheme.surfaceContainer)
-                        ) {
-                            ConfirmationPanel()
-                            ContextMenuPanel(onDownload = onDownload)
-                            PermissionPanel(
-                                isUrlBarVisible = uiState.value.isUrlBarVisible,
-                                hasContentBelow = (uiState.value.isTabsPanelVisible && !uiState.value.isFindInPageVisible) || isTextEditVisible,
-                                onAllow = {
-                                    viewModel.pendingPermissionRequest.value?.let { request ->
-                                        if (!request.isSystemRequest) {
-                                            val grantedMap = request.permissionsToRequest.associateWith { true }
-                                            if (request.isPersistent) {
-                                                val domain = request.origin.toDomain()
-                                                viewModel.savePermissionDecision(domain, grantedMap)
+                        Box(modifier = Modifier.weight(1f)) {
+                            AnimatedVisibility(
+                                visible = effectiveAnyRightPanelVisible,
+                                enter = slideInVertically(
+                                    animationSpec = tween(settings.value.animationSpeedForLayer(1))
+                                ) { it + bottomTravelPx },
+                                exit = slideOutVertically(
+                                    animationSpec = tween(settings.value.animationSpeedForLayer(1))
+                                ) { it + bottomTravelPx }
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
+                                        .background(MaterialTheme.colorScheme.surfaceContainer)
+                                ) {
+                                    ConfirmationPanel(isVisibleOverride = heldConfirmRight)
+                                    ContextMenuPanel(
+                                        onDownload = onDownload,
+                                        isVisibleOverride = heldContextRight
+                                    )
+                                    PermissionPanel(
+                                        isUrlBarVisible = uiState.value.isUrlBarVisible,
+                                        hasContentBelow = heldTabsRight || heldTextEditRight,
+                                        isVisibleOverride = heldPermissionRight,
+                                        onAllow = {
+                                            viewModel.pendingPermissionRequest.value?.let { request ->
+                                                if (!request.isSystemRequest) {
+                                                    val grantedMap = request.permissionsToRequest.associateWith { true }
+                                                    if (request.isPersistent) {
+                                                        val domain = request.origin.toDomain()
+                                                        viewModel.savePermissionDecision(domain, grantedMap)
+                                                    }
+                                                    request.onResult(grantedMap, viewModel.pendingPermissionRequest)
+                                                    viewModel.pendingPermissionRequest.value = null
+                                                } else if (request.permissionsToRequest.contains(Manifest.permission.CAMERA) ||
+                                                    request.permissionsToRequest.contains(Manifest.permission.RECORD_AUDIO)
+                                                ) {
+                                                    viewModel.allowMediaPermissionRequest(request.permissionsToRequest.associateWith { true })
+                                                } else {
+                                                    permissionLauncher.launch(request.permissionsToRequest.toTypedArray())
+                                                }
                                             }
-                                            request.onResult(grantedMap, viewModel.pendingPermissionRequest)
-                                            viewModel.pendingPermissionRequest.value = null
-                                        } else if (request.permissionsToRequest.contains(Manifest.permission.CAMERA) ||
-                                            request.permissionsToRequest.contains(Manifest.permission.RECORD_AUDIO)
-                                        ) {
-                                            viewModel.allowMediaPermissionRequest(request.permissionsToRequest.associateWith { true })
-                                        } else {
-                                            permissionLauncher.launch(request.permissionsToRequest.toTypedArray())
-                                        }
-                                    }
-                                },
-                            )
-                            MediaPanel()
-                            TabsPanel(
-                                updateInspectingTab = updateInspectingTab,
-                                isLandscapeLayout = true,
-                                hasContentBelow = isTextEditVisible,
-                            )
-                            TextEditPanel(
-                                isVisible = isTextEditVisible,
-                                onCopyClick = copyCurrentUrl,
-                                onEditClick = editCurrentUrl,
-                                onDismiss = dismissUrlBar,
-                                onAddToHomeScreen = {},
-                                activeWebViewTitle = viewModel.activeTab!!.currentTitle,
-                                isLandscapeLayout = true
-                            )
+                                        },
+                                    )
+                                    MediaPanel(isVisibleOverride = heldMediaRight)
+                                    TabsPanel(
+                                        updateInspectingTab = updateInspectingTab,
+                                        isLandscapeLayout = true,
+                                        hasContentBelow = heldTextEditRight,
+                                        isVisibleOverride = heldTabsRight,
+                                    )
+                                    TextEditPanel(
+                                        isVisible = heldTextEditRight,
+                                        onCopyClick = copyCurrentUrl,
+                                        onEditClick = editCurrentUrl,
+                                        onDismiss = dismissUrlBar,
+                                        onAddToHomeScreen = {},
+                                        activeWebViewTitle = viewModel.activeTab!!.currentTitle,
+                                        isLandscapeLayout = true
+                                    )
+                                }
+                            }
                         }
                     }
                     }

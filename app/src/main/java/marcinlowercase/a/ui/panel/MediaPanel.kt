@@ -38,7 +38,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
 
 @Composable
-fun MediaPanel() {
+fun MediaPanel(
+    isVisibleOverride: Boolean? = null,
+) {
     val viewModel = LocalBrowserViewModel.current
     val uiState = viewModel.uiState.collectAsState()
     val settings = viewModel.browserSettings.collectAsState()
@@ -57,7 +59,7 @@ fun MediaPanel() {
             hasActiveVideo
 
     AnimatedVisibility(
-        visible = isVisible,
+        visible = isVisibleOverride ?: isVisible,
         enter = expandVertically(tween(settings.value.animationSpeedForLayer(1))) +
                 fadeIn(tween(settings.value.animationSpeedForLayer(1))),
         exit = shrinkVertically(tween(settings.value.animationSpeedForLayer(1))) +

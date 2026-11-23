@@ -219,6 +219,7 @@ fun TabsPanel(
     updateInspectingTab: (Tab) -> Unit,
     isLandscapeLayout: Boolean = false,
     hasContentBelow: Boolean = false,
+    isVisibleOverride: Boolean? = null,
 ) {
     val viewModel = LocalBrowserViewModel.current
     val uiState = viewModel.uiState.collectAsState()
@@ -247,7 +248,7 @@ fun TabsPanel(
     }
 
     AnimatedVisibility(
-        visible = uiState.value.isTabsPanelVisible && !uiState.value.isFindInPageVisible,
+        visible = isVisibleOverride ?: (uiState.value.isTabsPanelVisible && !uiState.value.isFindInPageVisible),
         enter = expandVertically(tween(settings.value.animationSpeedForLayer(1))) + fadeIn(tween(settings.value.animationSpeedForLayer(1))),
         exit = shrinkVertically(tween(settings.value.animationSpeedForLayer(1))) + fadeOut(tween(settings.value.animationSpeedForLayer(1)))
     ) {

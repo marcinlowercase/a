@@ -34,12 +34,14 @@ import marcinlowercase.a.ui.component.CustomIconButton
 import marcinlowercase.a.ui.viewmodel.LocalBrowserViewModel
 
 @Composable
-fun ConfirmationPanel() {
+fun ConfirmationPanel(
+    isVisibleOverride: Boolean? = null,
+) {
     val viewModel = LocalBrowserViewModel.current
     val uiState = viewModel.uiState.collectAsState()
     val settings = viewModel.browserSettings.collectAsState()
     AnimatedVisibility(
-        visible = viewModel.confirmationState.value != null,
+        visible = isVisibleOverride ?: (viewModel.confirmationState.value != null),
         enter = expandVertically(tween(settings.value.animationSpeedForLayer(1))),
         exit = shrinkVertically(tween(settings.value.animationSpeedForLayer(1))) +
                 fadeOut(tween(settings.value.animationSpeedForLayer(1)))

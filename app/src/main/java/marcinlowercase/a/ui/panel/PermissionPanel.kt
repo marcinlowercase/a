@@ -36,6 +36,7 @@ fun PermissionPanel(
     isUrlBarVisible: Boolean,
     onAllow: () -> Unit,
     hasContentBelow: Boolean = isUrlBarVisible,
+    isVisibleOverride: Boolean? = null,
 ) {
     val viewModel = LocalBrowserViewModel.current
     val uiState = viewModel.uiState.collectAsState()
@@ -51,7 +52,7 @@ fun PermissionPanel(
     }
 
     AnimatedVisibility(
-        visible = uiState.value.isPermissionPanelVisible,
+        visible = isVisibleOverride ?: uiState.value.isPermissionPanelVisible,
         enter = expandVertically(animationSpec = tween(settings.value.animationSpeed.roundToInt())) + fadeIn(
             tween(settings.value.animationSpeed.roundToInt())
         ),
