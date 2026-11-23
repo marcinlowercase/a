@@ -1632,8 +1632,19 @@ fun BottomPanel(
                         .windowInsetsPadding(WindowInsets.ime)
                         .padding(bottom = floatingPanelBottomPadding),
                     content = {
+                        val settledLeftState = landscapeOptionsDraggableState.settledValue
+                        val useLiveLayout = !isDraggingLandscapeOptions &&
+                            !landscapeOptionsDraggableState.isAnimationRunning &&
+                            (
+                                (uiState.value.isOptionsPanelVisible &&
+                                    (settledLeftState == LandscapeLeftPanelState.OptionsOnly ||
+                                        settledLeftState == LandscapeLeftPanelState.Both)) ||
+                                (!uiState.value.isOptionsPanelVisible &&
+                                    (settledLeftState == LandscapeLeftPanelState.Col2Only ||
+                                        (settledLeftState == LandscapeLeftPanelState.Hidden && isLandscapeCol2Open)))
+                            )
                         val hideExitingCol2AfterDrag = !isLandscapeCol2Open &&
-                            landscapeOptionsDraggableState.settledValue == LandscapeLeftPanelState.Hidden &&
+                            settledLeftState == LandscapeLeftPanelState.Hidden &&
                             !landscapeOptionsDraggableState.isAnimationRunning
                         val dragOffset = landscapeOptionsDraggableState.offset
                         val currentOptionsThreshold = if (hasCol2Anchor) {
@@ -1655,7 +1666,8 @@ fun BottomPanel(
                         // full-height left vertical stem pushed together toward the left screen edge
                         LandscapeOptionsWrapper(
                             dragOffset = dragOffset,
-                            outerStartPaddingPx = outerStartPaddingPx
+                            outerStartPaddingPx = outerStartPaddingPx,
+                            useLiveLayout = useLiveLayout
                         ) {
                             Row(
                                 modifier = Modifier
@@ -1667,6 +1679,7 @@ fun BottomPanel(
                                         enabled = isDragEnabled,
                                         interactionSource = landscapeOptionsInteractionSource
                                     )
+                                    .padding(start = settings.value.padding.dp)
                                     .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
                                     .background(MaterialTheme.colorScheme.surfaceContainer),
                                 verticalAlignment = Alignment.Bottom
@@ -2279,48 +2292,34 @@ private enum class LandscapeLeftPanelState {
 private fun LandscapeOptionsWrapper(
     dragOffset: Float,
     outerStartPaddingPx: Float,
+    useLiveLayout: Boolean,
     content: @Composable () -> Unit
 ) {
     val safeOffset = if (dragOffset.isNaN()) 0f else dragOffset
     val targetTotalWidth = safeOffset.roundToInt().coerceAtLeast(0)
-    val marginPx = targetTotalWidth.coerceAtMost(outerStartPaddingPx.roundToInt())
-    val contentClipWidth = (targetTotalWidth - marginPx).coerceAtLeast(0)
 
     Layout(
-        content = {
-            Layout(
-                content = content,
-                modifier = Modifier.clipToBounds()
-            ) { innerMeasurables, innerConstraints ->
-                val placeable = innerMeasurables.first().measure(
-                    innerConstraints.copy(
-                        minWidth = 0,
-                        maxWidth = androidx.compose.ui.unit.Constraints.Infinity
-                    )
-                )
-                val clampedContentWidth = contentClipWidth.coerceAtMost(placeable.width)
-                layout(clampedContentWidth, placeable.height) {
-                    placeable.place(clampedContentWidth - placeable.width, 0)
-                }
-            }
-        }
+        content = content,
+        modifier = Modifier.clipToBounds()
     ) { measurables, constraints ->
-        val innerPlaceable = measurables.first().measure(
+        val placeable = measurables.first().measure(
             constraints.copy(
                 minWidth = 0,
                 maxWidth = androidx.compose.ui.unit.Constraints.Infinity
             )
         )
-        val totalWidth = if (innerPlaceable.width > 0 || targetTotalWidth > 0) {
-            marginPx + innerPlaceable.width
+        // match current measured width during column two expand/shrink to avoid shifting options panel left
+        val currentWidth = if (useLiveLayout) {
+            if (placeable.width <= outerStartPaddingPx.roundToInt()) 0 else placeable.width
         } else {
-            0
+            targetTotalWidth.coerceIn(0, placeable.width)
         }
-        if (totalWidth == 0) {
+
+        if (currentWidth == 0) {
             layout(0, 0) {}
         } else {
-            layout(totalWidth, innerPlaceable.height) {
-                innerPlaceable.place(marginPx, 0)
+            layout(currentWidth, placeable.height) {
+                placeable.place(currentWidth - placeable.width, 0)
             }
         }
     }
