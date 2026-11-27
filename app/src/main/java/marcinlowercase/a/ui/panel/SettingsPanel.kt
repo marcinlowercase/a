@@ -265,22 +265,60 @@ fun SliderSetting(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null
                             ) {
-                                val initialDisplay = textFieldValueFun(digits).trim().let {
-                                    if (!afterDecimal) it.trimStart('0').ifEmpty { "0" } else it
-                                }
+                                var overlayDigits = digits
+                                val startingDigits = digits
                                 viewModel.landscapeInputSession.value = LandscapeInputSession(
-                                    initialText = initialDisplay,
+                                    initialText = textFieldValueFun(digits),
                                     selectAllOnOpen = true,
-                                    keyboardType = if (afterDecimal) KeyboardType.Decimal else KeyboardType.Number,
+                                    keyboardType = KeyboardType.Number,
                                     imeAction = ImeAction.Done,
-                                    onCommit = { typedText, _ ->
-                                        val numericVal = typedText.trim().replace(',', '.').toFloatOrNull()
-                                        if (numericVal != null) {
-                                            val coerced = numericVal.coerceIn(valueRange)
-                                            val scaled = (coerced * if (afterDecimal) 100f else 1f).roundToInt()
-                                            digits = scaled.toString().padStart(digitCount, '0').takeLast(digitCount)
-                                            commitTextFieldValue()
+                                    onFormatText = { oldStr, newStr ->
+                                        val oldDigitsOnly = oldStr.filter { it.isDigit() }
+                                        val newDigitsOnly = newStr.filter { it.isDigit() }
+
+                                        when {
+                                            newStr.isEmpty() -> {
+                                                overlayDigits = "0".repeat(digitCount)
+                                            }
+                                            oldStr.length > 1 && newStr.length == 1 -> {
+                                                if (newDigitsOnly.length == 1) {
+                                                    overlayDigits = newDigitsOnly.padStart(digitCount, '0')
+                                                }
+                                            }
+                                            newDigitsOnly.length == oldDigitsOnly.length + 1 -> {
+                                                var diffIdx = 0
+                                                while (diffIdx < oldStr.length && diffIdx < newStr.length && oldStr[diffIdx] == newStr[diffIdx]) {
+                                                    diffIdx++
+                                                }
+                                                val addedChar = newStr.getOrNull(diffIdx)?.takeIf { it.isDigit() }
+                                                    ?: newDigitsOnly.last()
+                                                overlayDigits = (overlayDigits + addedChar).takeLast(digitCount)
+                                            }
+                                            newStr.length < oldStr.length -> {
+                                                val delCount = (oldDigitsOnly.length - newDigitsOnly.length).coerceAtLeast(1)
+                                                repeat(delCount) {
+                                                    overlayDigits = ("0$overlayDigits").take(digitCount)
+                                                }
+                                            }
+                                            newDigitsOnly != oldDigitsOnly && newDigitsOnly.isNotEmpty() -> {
+                                                overlayDigits = newDigitsOnly.takeLast(digitCount).padStart(digitCount, '0')
+                                            }
                                         }
+
+                                        digits = overlayDigits
+                                        val liveVal = storeValueFun(overlayDigits)
+                                        if (liveVal in valueRange) {
+                                            viewModel.updateField(field, liveVal)
+                                        }
+                                        textFieldValueFun(overlayDigits)
+                                    },
+                                    onCommit = { _, _ ->
+                                        digits = overlayDigits
+                                        commitTextFieldValue()
+                                    },
+                                    onCancel = {
+                                        digits = startingDigits
+                                        commitTextFieldValue()
                                     }
                                 )
                             }

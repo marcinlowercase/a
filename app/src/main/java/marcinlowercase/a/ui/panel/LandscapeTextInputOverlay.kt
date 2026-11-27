@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.InputTransformation
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.selection.TextSelectionColors
@@ -80,6 +81,19 @@ fun LandscapeTextInputOverlay(
                     TextRange(activeSession.initialText.length)
                 }
             )
+        }
+        val customInputTransformation = remember(activeSession.sessionId, activeSession.onFormatText) {
+            activeSession.onFormatText?.let { formatter ->
+                InputTransformation {
+                    val oldStr = originalText.toString()
+                    val newStr = asCharSequence().toString()
+                    val formatted = formatter(oldStr, newStr)
+                    if (formatted != newStr) {
+                        replace(0, length, formatted)
+                    }
+                    selection = TextRange(length)
+                }
+            }
         }
 
         var hasFinished by remember(activeSession.sessionId) { mutableStateOf(false) }
@@ -178,6 +192,7 @@ fun LandscapeTextInputOverlay(
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp)
                     .focusRequester(focusRequester),
+                inputTransformation = customInputTransformation,
                 lineLimits = TextFieldLineLimits.SingleLine,
                 textStyle = LocalTextStyle.current.copy(
                     color = MaterialTheme.colorScheme.onSurface,

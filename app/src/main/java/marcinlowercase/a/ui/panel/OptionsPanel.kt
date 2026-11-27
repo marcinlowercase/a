@@ -1517,6 +1517,23 @@ fun SettingsPanel(
                                                         selectAllOnOpen = true,
                                                         keyboardType = KeyboardType.Ascii,
                                                         imeAction = ImeAction.Done,
+                                                        onTextChanged = { typedText ->
+                                                            val rawHex = typedText.filter {
+                                                                it.isDigit() || it in 'a'..'f' || it in 'A'..'F'
+                                                            }
+                                                            if (rawHex.length == 6) {
+                                                                try {
+                                                                    val parsedColor = "#$rawHex".toColorInt()
+                                                                    val hsv = FloatArray(3)
+                                                                    AndroidColor.colorToHSV(parsedColor, hsv)
+                                                                    hue = hsv[0]
+                                                                    saturation = hsv[1]
+                                                                    value = hsv[2]
+                                                                    hexText = String.format("#%06X", 0xFFFFFF and parsedColor)
+                                                                } catch (_: Exception) {
+                                                                }
+                                                            }
+                                                        },
                                                         onCommit = { typedText, _ ->
                                                             val rawHex = typedText.filter {
                                                                 it.isDigit() || it in 'a'..'f' || it in 'A'..'F'

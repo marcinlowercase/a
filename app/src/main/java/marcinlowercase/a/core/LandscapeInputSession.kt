@@ -11,6 +11,7 @@ data class LandscapeInputSession(
     val keyboardType: KeyboardType = KeyboardType.Text,
     val imeAction: ImeAction = ImeAction.Done,
     val isUrlBar: Boolean = false,
+    val onFormatText: ((oldText: String, newText: String) -> String)? = null,
     val onTextChanged: ((String) -> Unit)? = null,
     val onCommit: (text: String, submitAction: Boolean) -> Unit,
     val onCancel: () -> Unit = {}
