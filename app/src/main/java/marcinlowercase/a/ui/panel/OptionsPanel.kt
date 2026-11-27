@@ -1445,37 +1445,7 @@ fun SettingsPanel(
                                                 ).dp
                                             )
                                         )
-                                        .background(Color(selectedColorInt))
-                                        .then(
-                                            if (isLandscapeTypingMode) {
-                                                Modifier.clickable(
-                                                    interactionSource = remember { MutableInteractionSource() },
-                                                    indication = null
-                                                ) {
-                                                    viewModel.landscapeInputSession.value = LandscapeInputSession(
-                                                        initialText = hexText,
-                                                        selectAllOnOpen = true,
-                                                        keyboardType = KeyboardType.Ascii,
-                                                        imeAction = ImeAction.Done,
-                                                        onCommit = { typedText, _ ->
-                                                            val filtered = typedText.filter {
-                                                                it.isDigit() || it in 'a'..'f' || it in 'A'..'F' || it == '#'
-                                                            }.take(7)
-                                                            try {
-                                                                val parsedColor = (if (filtered.startsWith("#")) filtered else "#$filtered").toColorInt()
-                                                                val hsv = FloatArray(3)
-                                                                AndroidColor.colorToHSV(parsedColor, hsv)
-                                                                hue = hsv[0]
-                                                                saturation = hsv[1]
-                                                                value = hsv[2]
-                                                                hexText = String.format("#%06X", 0xFFFFFF and parsedColor)
-                                                            } catch (_: Exception) {
-                                                            }
-                                                        }
-                                                    )
-                                                }
-                                            } else Modifier
-                                        ),
+                                        .background(Color(selectedColorInt)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     val textColor =
@@ -1483,6 +1453,8 @@ fun SettingsPanel(
                                     val keyboardController = LocalSoftwareKeyboardController.current
                                     val focusManager = LocalFocusManager.current
                                     BasicTextField(
+                                        enabled = !isLandscapeTypingMode,
+                                        readOnly = isLandscapeTypingMode,
                                         value = hexText,
                                         onValueChange = { newText ->
                                             val filtered =
@@ -1532,6 +1504,50 @@ fun SettingsPanel(
                                         }),
                                         singleLine = true
                                     )
+                                    if (isLandscapeTypingMode) {
+                                        Box(
+                                            modifier = Modifier
+                                                .matchParentSize()
+                                                .clickable(
+                                                    interactionSource = remember { MutableInteractionSource() },
+                                                    indication = null
+                                                ) {
+                                                    viewModel.landscapeInputSession.value = LandscapeInputSession(
+                                                        initialText = hexText,
+                                                        selectAllOnOpen = true,
+                                                        keyboardType = KeyboardType.Ascii,
+                                                        imeAction = ImeAction.Done,
+                                                        onCommit = { typedText, _ ->
+                                                            val rawHex = typedText.filter {
+                                                                it.isDigit() || it in 'a'..'f' || it in 'A'..'F'
+                                                            }
+                                                            val expandedHex = when {
+                                                                rawHex.length == 3 -> buildString {
+                                                                    rawHex.forEach { ch ->
+                                                                        append(ch)
+                                                                        append(ch)
+                                                                    }
+                                                                }
+                                                                rawHex.length >= 6 -> rawHex.take(6)
+                                                                else -> ""
+                                                            }
+                                                            if (expandedHex.length == 6) {
+                                                                try {
+                                                                    val parsedColor = "#$expandedHex".toColorInt()
+                                                                    val hsv = FloatArray(3)
+                                                                    AndroidColor.colorToHSV(parsedColor, hsv)
+                                                                    hue = hsv[0]
+                                                                    saturation = hsv[1]
+                                                                    value = hsv[2]
+                                                                    hexText = String.format("#%06X", 0xFFFFFF and parsedColor)
+                                                                } catch (_: Exception) {
+                                                                }
+                                                            }
+                                                        }
+                                                    )
+                                                }
+                                        )
+                                    }
                                 }
                                 IconButton(
                                     onClick = { },

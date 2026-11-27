@@ -192,34 +192,12 @@ fun SliderSetting(
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .fillMaxHeight()
-                    .then(
-                        if (isLandscapeLayout && textEnabled) {
-                            Modifier.clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null
-                            ) {
-                                viewModel.landscapeInputSession.value = LandscapeInputSession(
-                                    initialText = textFieldValueFun(digits).trim(),
-                                    selectAllOnOpen = true,
-                                    keyboardType = KeyboardType.Number,
-                                    imeAction = ImeAction.Done,
-                                    onCommit = { typedText, _ ->
-                                        val numericVal = typedText.trim().toFloatOrNull()
-                                        if (numericVal != null) {
-                                            val scaled = (numericVal * if (afterDecimal) 100f else 1f).roundToInt()
-                                            digits = scaled.toString().takeLast(digitCount).padStart(digitCount, '0')
-                                            commitTextFieldValue()
-                                        }
-                                    }
-                                )
-                            }
-                        } else Modifier
-                    ),
+                    .fillMaxHeight(),
                 contentAlignment = Alignment.Center
             ) {
                 BasicTextField(
-                    enabled = textEnabled,
+                    enabled = textEnabled && !isLandscapeLayout,
+                    readOnly = isLandscapeLayout,
                     value = textFieldValueFun(digits),
                     onValueChange = {},
                     modifier = Modifier
@@ -279,6 +257,35 @@ fun SliderSetting(
                     ),
                     singleLine = true
                 )
+                if (isLandscapeLayout && textEnabled) {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) {
+                                val initialDisplay = textFieldValueFun(digits).trim().let {
+                                    if (!afterDecimal) it.trimStart('0').ifEmpty { "0" } else it
+                                }
+                                viewModel.landscapeInputSession.value = LandscapeInputSession(
+                                    initialText = initialDisplay,
+                                    selectAllOnOpen = true,
+                                    keyboardType = if (afterDecimal) KeyboardType.Decimal else KeyboardType.Number,
+                                    imeAction = ImeAction.Done,
+                                    onCommit = { typedText, _ ->
+                                        val numericVal = typedText.trim().replace(',', '.').toFloatOrNull()
+                                        if (numericVal != null) {
+                                            val coerced = numericVal.coerceIn(valueRange)
+                                            val scaled = (coerced * if (afterDecimal) 100f else 1f).roundToInt()
+                                            digits = scaled.toString().padStart(digitCount, '0').takeLast(digitCount)
+                                            commitTextFieldValue()
+                                        }
+                                    }
+                                )
+                            }
+                    )
+                }
             }
             IconButton(
                 onClick = { },
