@@ -2194,16 +2194,29 @@ fun BottomPanel(
                 val swapRevealPx = (-signedDrawerOffset).coerceIn(0f, swapDistancePx)
                 val swapProgress = (swapRevealPx / swapDistancePx).coerceIn(0f, 1f)
                 val settledLeftState = landscapeOptionsDraggableState.settledValue
+                val col2OnlyEdgePos = outerStartPaddingPx + col2MeasuredWidthPx
+                val isOuterPillMode = hasCol2Anchor &&
+                    !isCol2OpeningEdgeSlide &&
+                    !isCol2ClosingEdgeSlide &&
+                    settledLeftState == LandscapeLeftPanelState.Col2Only &&
+                    (signedDrawerOffset > col2OnlyEdgePos + 0.5f || activeFlingTarget == LandscapeLeftPanelState.Both)
                 val isSettledDrawerOpen =
                     settledLeftState == LandscapeLeftPanelState.OptionsOnly ||
                     settledLeftState == LandscapeLeftPanelState.Col2Only ||
                     settledLeftState == LandscapeLeftPanelState.Both
                 val isClosingDragLive =
-                    nearEdgePadPx > 0.5f && isDraggingLandscapeOptions && isSettledDrawerOpen
+                    nearEdgePadPx > 0.5f && isDraggingLandscapeOptions && isSettledDrawerOpen && !isOuterPillMode
                 val useOpeningDrawerShift =
                     (wasOpeningWithNearPad && signedDrawerOffset > 0.5f) || isCommitFittingDrawer
                 val useClosingDrawerShift =
-                    !useOpeningDrawerShift && (isClosingDragLive || isClosingDrawerShiftActive)
+                    !useOpeningDrawerShift && !isOuterPillMode && (
+                        isClosingDragLive ||
+                        (isClosingDrawerShiftActive && (
+                            !hasCol2Anchor ||
+                            settledLeftState != LandscapeLeftPanelState.Col2Only ||
+                            signedDrawerOffset < col2OnlyEdgePos + 0.5f
+                        ))
+                    )
                 val drawerShiftInt = if (useOpeningDrawerShift || useClosingDrawerShift) {
                     (if (isUrlBarOnRight) nearEdgePadPx else -nearEdgePadPx).roundToInt()
                 } else {
@@ -2393,20 +2406,26 @@ fun BottomPanel(
                             else -> signedDrawerOffset
                         }
 
+                        val outerPillEdgePadInt =
+                            if (isOuterPillMode) outerStartPaddingPx.roundToInt() else 0
+
                         // full-height vertical drawer pushed toward the active screen edge
                         LandscapeOptionsWrapper(
                             targetWidthPx = drawerTargetWidthPx,
                             outerStartPaddingPx = outerStartPaddingPx,
                             extraMaxWidthInt = extraMaxWidthInt,
+                            outerPillEdgePadInt = outerPillEdgePadInt,
                             useLiveLayout = useLiveLayout,
-                            isRightEdge = isUrlBarOnRight
+                            isRightEdge = isUrlBarOnRight,
+                            cornerRadiusDp = settings.value.cornerRadiusForLayer(1).dp,
+                            pillBackgroundColor = MaterialTheme.colorScheme.surfaceContainer
                         ) {
                             Row(
                                 modifier = Modifier
                                     .wrapContentSize()
                                     .padding(
-                                        start = if (isUrlBarOnRight) 0.dp else settings.value.padding.dp,
-                                        end = if (isUrlBarOnRight) settings.value.padding.dp else 0.dp
+                                        start = if (isOuterPillMode || isUrlBarOnRight) 0.dp else settings.value.padding.dp,
+                                        end = if (isOuterPillMode || !isUrlBarOnRight) 0.dp else settings.value.padding.dp
                                     )
                                     .clip(RoundedCornerShape(settings.value.cornerRadiusForLayer(1).dp))
                                     .background(MaterialTheme.colorScheme.surfaceContainer),
@@ -3224,35 +3243,54 @@ private fun LandscapeOptionsWrapper(
     targetWidthPx: Float,
     outerStartPaddingPx: Float,
     extraMaxWidthInt: Int,
+    outerPillEdgePadInt: Int,
     useLiveLayout: Boolean,
     isRightEdge: Boolean,
+    cornerRadiusDp: Dp,
+    pillBackgroundColor: Color,
     content: @Composable () -> Unit
 ) {
     val safeWidth = if (targetWidthPx.isNaN()) 0f else targetWidthPx
     val targetTotalWidth = safeWidth.roundToInt().coerceAtLeast(0)
-
-    Layout(
-        content = content,
-        modifier = Modifier.clipToBounds()
-    ) { measurables, constraints ->
-        val placeable = measurables.first().measure(
-            constraints.copy(
-                minWidth = 0,
-                maxWidth = androidx.compose.ui.unit.Constraints.Infinity
+    val density = LocalDensity.current
+    val outerPillPadDp = with(density) { outerPillEdgePadInt.toDp() }
+    val outerPillModifier = if (outerPillEdgePadInt > 0) {
+        Modifier
+            .padding(
+                start = if (isRightEdge) 0.dp else outerPillPadDp,
+                end = if (isRightEdge) outerPillPadDp else 0.dp
             )
-        )
-        // match current measured width during column two expand/shrink to avoid shifting options panel
-        val currentWidth = if (useLiveLayout) {
-            if (placeable.width <= outerStartPaddingPx.roundToInt()) 0 else placeable.width
-        } else {
-            targetTotalWidth.coerceIn(0, placeable.width + extraMaxWidthInt)
-        }
+            .clip(RoundedCornerShape(cornerRadiusDp))
+            .background(pillBackgroundColor)
+    } else {
+        Modifier
+    }
 
-        if (currentWidth == 0) {
-            layout(0, 0) {}
-        } else {
-            layout(currentWidth, placeable.height) {
-                placeable.place(if (isRightEdge) 0 else currentWidth - placeable.width, 0)
+    Box(modifier = outerPillModifier) {
+        Layout(
+            content = content,
+            modifier = Modifier.clipToBounds()
+        ) { measurables, constraints ->
+            val placeable = measurables.first().measure(
+                constraints.copy(
+                    minWidth = 0,
+                    maxWidth = androidx.compose.ui.unit.Constraints.Infinity
+                )
+            )
+            // match current measured width during column two expand/shrink to avoid shifting options panel
+            val currentWidth = if (useLiveLayout) {
+                val minVisible = if (outerPillEdgePadInt > 0) 0 else outerStartPaddingPx.roundToInt()
+                if (placeable.width <= minVisible) 0 else placeable.width
+            } else {
+                (targetTotalWidth - outerPillEdgePadInt).coerceIn(0, placeable.width + extraMaxWidthInt)
+            }
+
+            if (currentWidth == 0) {
+                layout(0, 0) {}
+            } else {
+                layout(currentWidth, placeable.height) {
+                    placeable.place(if (isRightEdge) 0 else currentWidth - placeable.width, 0)
+                }
             }
         }
     }
